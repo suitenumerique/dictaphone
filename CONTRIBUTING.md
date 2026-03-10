@@ -2,7 +2,7 @@
 
 Thank you for taking the time to contribute! Please follow these guidelines to ensure a smooth and productive workflow. 🚀🚀🚀
 
-To get started with the project, please refer to the [README.md](https://github.com/suitenumerique/meet/blob/main/README.md) for detailed instructions.
+To get started with the project, please refer to the [README.md](https://github.com/suitenumerique/dictaphone/blob/main/README.md) for detailed instructions.
 
 Please also check out our [dev handbook](https://suitenumerique.gitbook.io/handbook) to learn our best practices.
 

@@ -1,0 +1,35 @@
+replicaCount: 1
+terminationGracePeriodSeconds: 18000
+
+image:
+  tag: v1.11.0
+
+egress:
+  log_level: debug
+  insecure: true
+  enable_chrome_sandbox: true
+  redis:
+    address: redis-master:6379
+    password: pass
+  s3:
+    access_key: dictaphone
+    secret: password
+    region: local
+    bucket: dictaphone-media-storage
+    endpoint: http://minio:9000
+    force_path_style: true
+
+loadBalancer:
+  type: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+
+nodeSelector: {}
+resources: {}

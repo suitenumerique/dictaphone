@@ -1,0 +1,198 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-10 16:25+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: core/admin.py:26
+msgid "Personal info"
+msgstr "Personal info"
+
+#: core/admin.py:39
+msgid "Permissions"
+msgstr "Permissions"
+
+#: core/admin.py:51
+msgid "Important dates"
+msgstr "Important dates"
+
+#: core/api/filters.py:25
+msgid "Creator is me"
+msgstr "Creator is me"
+
+#: core/api/serializers.py:156
+msgid "This file extension is not allowed."
+msgstr "This file extension is not allowed."
+
+#: core/api/serializers.py:173 core/api/viewsets.py:280
+msgid "You have reached the maximum number of files for this type."
+msgstr "You have reached the maximum number of files for this type."
+
+#: core/models.py:35
+msgid "id"
+msgstr "id"
+
+#: core/models.py:36
+msgid "primary key for the record as UUID"
+msgstr "primary key for the record as UUID"
+
+#: core/models.py:42
+msgid "created on"
+msgstr "created on"
+
+#: core/models.py:43
+msgid "date and time at which a record was created"
+msgstr "date and time at which a record was created"
+
+#: core/models.py:48
+msgid "updated on"
+msgstr "updated on"
+
+#: core/models.py:49
+msgid "date and time at which a record was last updated"
+msgstr "date and time at which a record was last updated"
+
+#: core/models.py:69
+msgid ""
+"Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
+"_ characters."
+msgstr ""
+"Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
+"_ characters."
+
+#: core/models.py:75
+msgid "sub"
+msgstr "sub"
+
+#: core/models.py:77
+msgid ""
+"Optional for pending users; required upon account activation. 255 characters "
+"or fewer. Letters, numbers, and @/./+/-/_ characters only."
+msgstr ""
+"Required. 255 characters or fewer. Letters, numbers, and @/./+/-/_ "
+"characters only."
+
+#: core/models.py:86
+msgid "identity email address"
+msgstr "identity email address"
+
+#: core/models.py:91
+msgid "admin email address"
+msgstr "admin email address"
+
+#: core/models.py:93
+msgid "full name"
+msgstr "full name"
+
+#: core/models.py:95
+msgid "short name"
+msgstr "short name"
+
+#: core/models.py:101
+msgid "language"
+msgstr "language"
+
+#: core/models.py:102
+msgid "The language in which the user wants to see the interface."
+msgstr "The language in which the user wants to see the interface."
+
+#: core/models.py:108
+msgid "The timezone in which the user wants to see times."
+msgstr "The timezone in which the user wants to see times."
+
+#: core/models.py:111
+msgid "device"
+msgstr "device"
+
+#: core/models.py:113
+msgid "Whether the user is a device or a real user."
+msgstr "Whether the user is a device or a real user."
+
+#: core/models.py:116
+msgid "staff status"
+msgstr "staff status"
+
+#: core/models.py:118
+msgid "Whether the user can log into this admin site."
+msgstr "Whether the user can log into this admin site."
+
+#: core/models.py:121
+msgid "active"
+msgstr "active"
+
+#: core/models.py:124
+msgid ""
+"Whether this user should be treated as active. Unselect this instead of "
+"deleting accounts."
+msgstr ""
+"Whether this user should be treated as active. Unselect this instead of "
+"deleting accounts."
+
+#: core/models.py:137
+msgid "user"
+msgstr "user"
+
+#: core/models.py:138
+msgid "users"
+msgstr "users"
+
+#: core/models.py:188
+#, fuzzy
+#| msgid "Recording"
+msgid "Pending"
+msgstr "Pending"
+
+#: core/models.py:196
+msgid "Ready"
+msgstr "Ready"
+
+#: core/models.py:202
+msgid "Audio recording"
+msgstr "Audio recording"
+
+#: core/models.py:214
+msgid "title"
+msgstr "title"
+
+#: core/models.py:238
+msgid "Malware detection info when the analysis status is unsafe."
+msgstr "Malware detection info when the analysis status is unsafe."
+
+#: core/models.py:243
+msgid "File"
+msgstr "File"
+
+#: core/models.py:244
+msgid "Files"
+msgstr "Files"
+
+#: core/models.py:348
+#, fuzzy
+#| msgid "This user is already in this recording."
+msgid "This file is already hard deleted."
+msgstr "This file is already hard deleted."
+
+#: core/models.py:358
+msgid "To hard delete a file, it must first be soft deleted."
+msgstr "To hard delete a file, it must first be soft deleted."
+
+#: dictaphone/settings.py:214
+msgid "English"
+msgstr "English"
+
+#: dictaphone/settings.py:215
+msgid "French"
+msgstr "French"
