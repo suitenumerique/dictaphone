@@ -1,0 +1,48 @@
+{
+  "extends": ["github>numerique-gouv/renovate-configuration"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies", "noChangeLog"],
+  "packageRules": [
+    {
+        "groupName": "js dependencies",
+        "matchManagers": ["npm"],
+        "schedule": ["on the first day of the month"],
+        "matchPackagePatterns": ["*"],
+        "minimumReleaseAge": "7 days",
+        "internalChecksFilter": "strict"
+      },
+      {
+        "groupName": "python dependencies",
+        "matchManagers": ["setup-cfg", "pep621"],
+        "schedule": ["on the first day of the month"],
+        "matchPackagePatterns": ["*"],
+        "minimumReleaseAge": "7 days"
+      },
+    {
+      "enabled": false,
+      "groupName": "ignored python dependencies",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["redis"]
+    },
+    {
+      "groupName": "allowed pylint versions",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["pylint"],
+      "allowedVersions": "<4.0.0"
+    },
+    {
+        "groupName": "allowed django versions",
+        "matchManagers": ["pep621"],
+        "matchPackageNames": ["django"],
+        "allowedVersions": "<6.0.0"
+    },
+    {
+      "enabled": false,
+      "groupName": "ignored js dependencies",
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "eslint", "react", "react-dom", "@types/react-dom", "@types/react", "react-i18next"
+      ]
+    }
+  ]
+}

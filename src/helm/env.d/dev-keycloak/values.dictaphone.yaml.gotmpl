@@ -1,0 +1,137 @@
+image:
+  repository: localhost:5001/dictaphone-backend
+  pullPolicy: Always
+  tag: "latest"
+
+backend:
+  replicas: 1
+  envVars:
+    DJANGO_CSRF_TRUSTED_ORIGINS: https://dictaphone.127.0.0.1.nip.io,http://dictaphone.127.0.0.1.nip.io
+    DJANGO_CONFIGURATION: Production
+    DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io
+    DJANGO_SECRET_KEY: {{ .Values.djangoSecretKey }}
+    DJANGO_SETTINGS_MODULE: dictaphone.settings
+    DJANGO_SILENCED_SYSTEM_CHECKS: security.W004, security.W008
+    DJANGO_SUPERUSER_PASSWORD: admin
+    DJANGO_EMAIL_HOST: "mailcatcher"
+    DJANGO_EMAIL_PORT: 1025
+    DJANGO_EMAIL_USE_SSL: False
+    DJANGO_EMAIL_BRAND_NAME: "La Suite Numérique"
+    DJANGO_EMAIL_SUPPORT_EMAIL: "test@yopmail.com"
+    DJANGO_EMAIL_LOGO_IMG: https://dictaphone.127.0.0.1.nip.io/assets/logo-suite-numerique.png
+    DJANGO_EMAIL_DOMAIN: dictaphone.127.0.0.1.nip.io
+    DJANGO_EMAIL_APP_BASE_URL: https://dictaphone.127.0.0.1.nip.io
+    OIDC_OP_JWKS_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/certs
+    OIDC_OP_AUTHORIZATION_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/auth
+    OIDC_OP_TOKEN_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/token
+    OIDC_OP_USER_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/userinfo
+    OIDC_OP_LOGOUT_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/logout
+    OIDC_RP_CLIENT_ID: dictaphone
+    OIDC_RP_CLIENT_SECRET: ThisIsAnExampleKeyForDevPurposeOnly
+    OIDC_RP_SIGN_ALGO: RS256
+    OIDC_RP_SCOPES: "openid email"
+    OIDC_REDIRECT_ALLOWED_HOSTS: https://dictaphone.127.0.0.1.nip.io
+    OIDC_AUTH_REQUEST_EXTRA_PARAMS: "{'acr_values': 'eidas1'}"
+    LOGIN_REDIRECT_URL: https://dictaphone.127.0.0.1.nip.io
+    LOGIN_REDIRECT_URL_FAILURE: https://dictaphone.127.0.0.1.nip.io
+    LOGOUT_REDIRECT_URL: https://dictaphone.127.0.0.1.nip.io
+    DB_HOST: postgres
+    DB_NAME: dictaphone
+    DB_USER: dinum
+    DB_PASSWORD: pass
+    DB_PORT: 5432
+    REDIS_URL: redis://default:pass@redis-master:6379/1
+    STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
+    FRONTEND_SUPPORT: "{'id': '58ea6697-8eba-4492-bc59-ad6562585041', 'help_article_transcript': 'https://lasuite.crisp.help/fr/article/visio-transcript-1sjq43x', 'help_article_recording': 'https://lasuite.crisp.help/fr/article/visio-enregistrement-wgc8o0', 'help_article_more_tools': 'https://lasuite.crisp.help/fr/article/visio-tools-bvxj23'}"
+    FRONTEND_FEEDBACK: "{'url': 'https://grist.numerique.gouv.fr/o/docs/cbMv4G7pLY3Z/USER-RESEARCH-or-LA-SUITE/f/26'}"
+    AWS_S3_ENDPOINT_URL: http://minio.dictaphone.svc.cluster.local:9000
+    AWS_S3_ACCESS_KEY_ID: dictaphone
+    AWS_S3_SECRET_ACCESS_KEY: password
+    AWS_STORAGE_BUCKET_NAME: dictaphone-media-storage
+    AWS_S3_REGION_NAME: local
+    AWS_S3_SIGNATURE_VERSION: s3v4
+    SSL_CERT_FILE: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
+    AWS_S3_DOMAIN_REPLACE: https://minio.127.0.0.1.nip.io
+    CELERY_ENABLED: True
+    CELERY_BROKER_URL: redis://default:pass@redis-master:6379/1
+
+  migrate:
+    command:
+      - "/bin/sh"
+      - "-c"
+      - |
+        python manage.py migrate --no-input
+    restartPolicy: Never
+
+  command:
+    - "gunicorn"
+    - "-c"
+    - "/usr/local/etc/gunicorn/dictaphone.py"
+    - "dictaphone.wsgi:application"
+    - "--reload"
+
+  createsuperuser:
+    command:
+      - "/bin/sh"
+      - "-c"
+      - |
+        python manage.py createsuperuser --email admin@example.com --password admin
+    restartPolicy: Never
+
+  # Extra volume mounts to manage our local custom CA and avoid to set ssl_verify: false
+  extraVolumeMounts:
+    - name: certs
+      mountPath: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
+      subPath: cacert.pem
+
+  # Extra volumes to manage our local custom CA and avoid to set ssl_verify: false
+  extraVolumes:
+    - name: certs
+      configMap:
+        name: certifi
+        items:
+        - key: cacert.pem
+          path: cacert.pem
+
+frontend:
+  envVars:
+    VITE_APP_TITLE: "LaSuite Dictaphone"
+    VITE_PORT: 8080
+    VITE_HOST: 0.0.0.0
+    VITE_API_BASE_URL: https://dictaphone.127.0.0.1.nip.io/
+
+  replicas: 1
+
+  image:
+    repository: localhost:5001/dictaphone-frontend-generic
+    pullPolicy: Always
+    tag: "latest"
+
+ingress:
+  enabled: true
+  host: dictaphone.127.0.0.1.nip.io
+
+ingressAdmin:
+  enabled: true
+  host: dictaphone.127.0.0.1.nip.io
+
+posthog:
+  ingress:
+    enabled: false
+  
+  ingressAssets:
+    enabled: false
+
+ingressMediaFiles:
+  enabled: true
+  host: dictaphone.127.0.0.1.nip.io
+
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: https://dictaphone.127.0.0.1.nip.io/api/v1.0/files/media-auth/
+    nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
+    nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
+    nginx.ingress.kubernetes.io/rewrite-target: /meet-media-storage/files/$1
+
+serviceMediaFiles:
+  host: minio.dictaphone.svc.cluster.local
+  port: 9000

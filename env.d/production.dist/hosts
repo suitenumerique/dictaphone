@@ -1,0 +1,5 @@
+DICTAPHONE_HOST=dictaphone.domain.tld
+KEYCLOAK_HOST=id.domain.tld
+BACKEND_INTERNAL_HOST=backend
+FRONTEND_INTERNAL_HOST=frontend
+REALM_NAME=dictaphone

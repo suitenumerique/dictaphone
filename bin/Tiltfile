@@ -1,0 +1,90 @@
+load('ext://uibutton', 'cmd_button', 'bool_input', 'location')
+load('ext://namespace', 'namespace_create', 'namespace_inject')
+namespace_create('dictaphone')
+
+DEV_ENV = os.getenv('DEV_ENV', 'dev')
+
+if DEV_ENV == 'dev-dinum':
+    update_settings(suppress_unused_image_warnings=["localhost:5001/dictaphone-frontend-generic:latest"])
+
+if DEV_ENV == 'dev-keycloak':
+    update_settings(suppress_unused_image_warnings=["localhost:5001/dictaphone-frontend-dinum:latest"])
+
+
+def clean_old_images(image_name):
+    local('docker images -q %s | tail -n +2 | xargs -r docker rmi' % image_name)
+
+docker_build(
+    'localhost:5001/dictaphone-backend:latest',
+    context='..',
+    dockerfile='../Dockerfile',
+    only=['./src/backend', './docker'],
+    target = 'backend-production',
+    live_update=[
+        sync('../src/backend', '/app'),
+        run(
+            'pip install -r /app/requirements.txt',
+            trigger=['./api/requirements.txt']
+        )
+    ]
+)
+clean_old_images('localhost:5001/dictaphone-backend')
+
+docker_build(
+    'localhost:5001/dictaphone-frontend-dinum:latest',
+    context='..',
+    dockerfile='../docker/dinum-frontend/Dockerfile',
+    only=['./src/frontend', './docker', './.dockerignore'],
+    target = 'frontend-production',
+    live_update=[
+        sync('../src/frontend', '/home/frontend'),
+    ]
+)
+clean_old_images('localhost:5001/dictaphone-frontend-dinum')
+
+docker_build(
+    'localhost:5001/dictaphone-frontend-generic:latest',
+    context='..',
+    dockerfile='../src/frontend/Dockerfile',
+    only=['./src/frontend', './docker', './.dockerignore'],
+    target = 'dictaphone-dev',
+    live_update=[
+        sync('../src/frontend', '/home/frontend'),
+    ]
+)
+clean_old_images('localhost:5001/dictaphone-frontend-generic')
+
+k8s_yaml(local('cd ../src/helm && helmfile -n dictaphone -e ${DEV_ENV:-dev} template .'))
+
+k8s_resource('minio-bucket', resource_deps=['minio'])
+k8s_resource('dictaphone-celery-backend', resource_deps=['redis'])
+k8s_resource('dictaphone-backend', resource_deps=['postgresql', 'minio', 'redis'])
+k8s_resource('dictaphone-backend-migrate', resource_deps=['dictaphone-backend'])
+k8s_resource('keycloak', resource_deps=['kc-postgresql'])
+k8s_resource('dictaphone-backend-createsuperuser', resource_deps=['dictaphone-backend-migrate'])
+
+migration = '''
+set -eu
+# get k8s pod name from tilt resource name
+POD_NAME="$(tilt get kubernetesdiscovery dictaphone-backend -ojsonpath='{.status.pods[0].name}')"
+kubectl -n dictaphone exec "$POD_NAME" -- python manage.py makemigrations
+'''
+cmd_button('Make migration',
+           argv=['sh', '-c', migration],
+           resource='dictaphone-backend',
+           icon_name='developer_board',
+           text='Run makemigration',
+)
+
+pod_migrate = '''
+set -eu
+# get k8s pod name from tilt resource name
+POD_NAME="$(tilt get kubernetesdiscovery dictaphone-backend -ojsonpath='{.status.pods[0].name}')"
+kubectl -n dictaphone exec "$POD_NAME" -- python manage.py migrate --no-input
+'''
+cmd_button('Migrate db',
+           argv=['sh', '-c', pod_migrate],
+           resource='dictaphone-backend',
+           icon_name='developer_board',
+           text='Run database migration',
+)

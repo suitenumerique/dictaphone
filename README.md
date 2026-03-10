@@ -29,7 +29,7 @@
 We <3 contributions of any kind, big and small:
 
 - Vote on features or get early access to beta functionality in our [roadmap](https://github.com/orgs/suitenumerique/projects/11/views/4)
-- Open a PR (see our instructions on [developing La Suite Meet locally](https://github.com/suitenumerique/dictaphone/blob/main/docs/developping_locally.md))
+- Open a PR (see our instructions on [developing La Suite Dictaphone locally](./docs/developping_locally.md))
 - Submit a [feature request](https://github.com/suitenumerique/dictaphone/issues/new?assignees=&labels=enhancement&template=Feature_request.md) or [bug report](https://github.com/suitenumerique/dictaphone/issues/new?assignees=&labels=bug&template=Bug_report.md)
 
 ## Philosophy

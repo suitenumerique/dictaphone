@@ -1,0 +1,21 @@
+{{- $envVars := include "dictaphone.common.env" (list . .Values.backend) -}}
+{{- $fullName := include "dictaphone.backend.fullname" . -}}
+{{- $component := "backend" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "dictaphone.common.labels" (list . $component) | nindent 4 }}
+  annotations:
+    {{- toYaml $.Values.backend.service.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.backend.service.type }}
+  ports:
+    - port: {{ .Values.backend.service.port }}
+      targetPort: {{ .Values.backend.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "dictaphone.common.selectorLabels" (list . $component) | nindent 4 }}
