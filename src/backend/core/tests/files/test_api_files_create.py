@@ -118,7 +118,7 @@ def test_api_files_create_file_authenticated_success():
 
     assert policy_parsed.scheme == "http"
     assert policy_parsed.netloc == "localhost:9000"
-    assert policy_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}/.ogg"
+    assert policy_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.ogg"
 
     query_params = parse_qs(policy_parsed.query)
 
