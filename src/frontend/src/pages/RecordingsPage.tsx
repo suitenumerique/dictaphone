@@ -1,18 +1,12 @@
-import { useTranslation } from 'react-i18next'
-import { authUrl, useUser } from '@/features/auth'
-import {
-  Hero,
-  MainLayout,
-  ProConnectButton,
-  Spinner,
-} from '@gouvfr-lasuite/ui-kit'
-import LogoApp from '@/layout/LogoApp'
-import { HeaderRight } from '@/layout/HeaderRight'
-import { useConfig } from '@/api/useConfig'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
-import { ListFilesParams, useListMyFiles } from '@/features/files/api/listFiles'
-import { useCreateFile } from '@/features/files/api/createFile'
 import { FileTrigger, Pressable } from 'react-aria-components'
+import { Button } from '@gouvfr-lasuite/cunningham-react'
+import {
+  ListFilesParams,
+  useListMyFiles,
+} from '@/features/files/api/listFiles.ts'
+import { useCreateFile } from '@/features/files/api/createFile.ts'
+import { useConfig } from '@/api/useConfig.ts'
+import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 
 const listFilesQueryParams: ListFilesParams = {
   filters: {
@@ -27,10 +21,7 @@ const listFilesQueryParams: ListFilesParams = {
   },
 }
 
-export const Home = () => {
-  const { t } = useTranslation('home')
-  const { isLoggedIn, isLoading } = useUser()
-
+export function RecordingsPage() {
   const { data: appConfig } = useConfig()
   const filesQ = useListMyFiles(listFilesQueryParams)
   const createFileMutation = useCreateFile()
@@ -44,45 +35,8 @@ export const Home = () => {
     })
   }
 
-  if (isLoading) return <Spinner />
-
-  if (!isLoggedIn) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        <Hero
-          banner="/assets/hero-beta.png"
-          title={t('title')}
-          subtitle={t('subtitle')}
-          logo={<LogoApp size={100} />}
-          mainButton={
-            appConfig?.use_proconnect_button ? (
-              <ProConnectButton
-                onClick={() => window.location.replace(authUrl())}
-              />
-            ) : (
-              <Button onClick={() => window.location.replace(authUrl())}>
-                {t('login')}
-              </Button>
-            )
-          }
-        />
-      </div>
-    )
-  }
-
   return (
-    <MainLayout
-      icon={<LogoApp />}
-      hideLeftPanelOnDesktop={true}
-      rightHeaderContent={<HeaderRight />}
-    >
+    <ConnectedLayout>
       <FileTrigger
         acceptedFileTypes={appConfig?.audio_recording?.allowed_mimetypes ?? []}
         onSelect={(e) => {
@@ -116,6 +70,6 @@ export const Home = () => {
           ))}
         </div>
       )}
-    </MainLayout>
+    </ConnectedLayout>
   )
 }

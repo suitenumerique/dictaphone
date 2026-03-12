@@ -1,8 +1,9 @@
-import { HomeRoute } from '@/features/home'
+import { HomePage } from '@/pages/HomePage.tsx'
 import { JSX } from 'react'
+import { RecordingsPage } from '@/pages/RecordingsPage.tsx'
 
 export const routes: Record<
-  'home',
+  'home' | 'recordings',
   {
     name: RouteName
     path: RegExp | string
@@ -14,7 +15,12 @@ export const routes: Record<
   home: {
     name: 'home',
     path: '/',
-    Component: HomeRoute,
+    Component: HomePage,
+  },
+  recordings: {
+    name: 'recordings',
+    path: '/recordings',
+    Component: RecordingsPage,
   },
 }
 

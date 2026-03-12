@@ -1,0 +1,12 @@
+.dictaphone__connected_layout_container {
+  background-color: var(--c--globals--colors--white-950);
+  min-height: 100%;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+
+  .dictaphone__connected_layout_content {
+    width: 100%;
+    max-width: 1200px;
+  }
+}

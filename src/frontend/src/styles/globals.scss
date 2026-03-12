@@ -5,6 +5,9 @@
 @use '@gouvfr-lasuite/cunningham-react/style';
 @use 'cunningham-tokens';
 
+@use './../layout/LogoApp';
+@use './../layout/ConnectedLayout';
+
 // Buggy otherwise for some reason
 .c__avatar__initials {
   width: 24px;
