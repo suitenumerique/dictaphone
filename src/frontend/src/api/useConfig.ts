@@ -13,6 +13,13 @@ export interface ApiConfig {
     url: string
   }
   use_proconnect_button?: boolean
+  audio_recording: {
+    upload_is_enabled: boolean
+    max_size: number
+    max_count_by_user: number
+    allowed_extensions: string[]
+    allowed_mimetypes: string[]
+  }
 }
 
 const fetchConfig = (): Promise<ApiConfig> => {

@@ -46,21 +46,6 @@ services:
       /usr/bin/mc mb dictaphone/dictaphone-media-storage && \
       exit 0;"
 
-  createwebhook:
-    image: minio/mc
-    depends_on:
-      minio:
-        condition: service_healthy
-        restart: true
-    entrypoint: >
-      sh -c "
-      /usr/bin/mc alias set dictaphone http://minio:9000 dictaphone password &&
-      /usr/bin/mc admin config set dictaphone notify_webhook:dictaphone-webhook endpoint='http://app-dev:8000/api/v1.0/recordings/storage-hook/' auth_token='Bearer password' &&
-      /usr/bin/mc admin service restart dictaphone --wait --json &&
-      sleep 15 &&
-      /usr/bin/mc event add dictaphone/dictaphone-media-storage arn:minio:sqs::dictaphone-webhook:webhook --event put &&
-      exit 0;"
-
   app-dev:
     build:
       context: .
@@ -86,7 +71,6 @@ services:
         - mailcatcher
         - redis
         - createbuckets
-        - createwebhook
     extra_hosts:
       - "127.0.0.1.nip.io:host-gateway"
     networks:

@@ -49,6 +49,7 @@ backend:
     AWS_S3_SECRET_ACCESS_KEY: password
     AWS_STORAGE_BUCKET_NAME: dictaphone-media-storage
     AWS_S3_REGION_NAME: local
+    MEDIA_BASE_URL: https://dictaphone.127.0.0.1.nip.io
     AWS_S3_SIGNATURE_VERSION: s3v4
     SSL_CERT_FILE: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
     AWS_S3_DOMAIN_REPLACE: https://minio.127.0.0.1.nip.io
@@ -130,7 +131,7 @@ ingressMediaFiles:
     nginx.ingress.kubernetes.io/auth-url: https://dictaphone.127.0.0.1.nip.io/api/v1.0/files/media-auth/
     nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
     nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
-    nginx.ingress.kubernetes.io/rewrite-target: /meet-media-storage/files/$1
+    nginx.ingress.kubernetes.io/rewrite-target: /dictaphone-media-storage/files/$1
 
 serviceMediaFiles:
   host: minio.dictaphone.svc.cluster.local

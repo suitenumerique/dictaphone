@@ -20,7 +20,7 @@ def test_detect_mimetype_from_content_png():
     """Test detect_mimetype detects PNG from content (magic bytes)."""
     # PNG magic bytes: \x89PNG\r\n\x1a\n
     png_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
-    mimetype = utils.detect_mimetype(png_content, filename="image.png")
+    mimetype = utils.detect_mimetype(png_content, filename="image.ogg")
     assert mimetype == "image/png"
 
 
@@ -28,7 +28,7 @@ def test_detect_mimetype_from_content_jpeg():
     """Test detect_mimetype detects JPEG from content (magic bytes)."""
     # JPEG magic bytes: \xff\xd8\xff
     jpeg_content = b"\xff\xd8\xff\xe0\x00\x10JFIF"
-    mimetype = utils.detect_mimetype(jpeg_content, filename="photo.jpg")
+    mimetype = utils.detect_mimetype(jpeg_content, filename="photo.mp4")
     assert mimetype == "image/jpeg"
 
 

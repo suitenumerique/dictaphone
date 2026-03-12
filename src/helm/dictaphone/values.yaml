@@ -211,22 +211,27 @@ backend:
   ## @param backend.probes.liveness.path [nullable] Configure path for backend HTTP liveness probe
   ## @param backend.probes.liveness.targetPort [nullable] Configure port for backend HTTP liveness probe
   ## @param backend.probes.liveness.initialDelaySeconds [nullable] Configure initial delay for backend liveness probe
-  ## @param backend.probes.liveness.initialDelaySeconds [nullable] Configure timeout for backend liveness probe
+  ## @param backend.probes.liveness.timeoutSeconds [nullable] Configure timeout for backend liveness probe
+  ## @param backend.probes.liveness.period [nullable] Configure period for backend liveness probe
   ## @param backend.probes.startup.path [nullable] Configure path for backend HTTP startup probe
   ## @param backend.probes.startup.targetPort [nullable] Configure port for backend HTTP startup probe
   ## @param backend.probes.startup.initialDelaySeconds [nullable] Configure initial delay for backend startup probe
-  ## @param backend.probes.startup.initialDelaySeconds [nullable] Configure timeout for backend startup probe
+  ## @param backend.probes.startup.timeoutSeconds [nullable] Configure timeout for backend startup probe
+  ## @param backend.probes.startup.period [nullable] Configure period for backend startup probe
   ## @param backend.probes.readiness.path [nullable] Configure path for backend HTTP readiness probe
   ## @param backend.probes.readiness.targetPort [nullable] Configure port for backend HTTP readiness probe
   ## @param backend.probes.readiness.initialDelaySeconds [nullable] Configure initial delay for backend readiness probe
-  ## @param backend.probes.readiness.initialDelaySeconds [nullable] Configure timeout for backend readiness probe
+  ## @param backend.probes.readiness.timeoutSeconds [nullable] Configure timeout for backend readiness probe
+  ## @param backend.probes.readiness.period [nullable] Configure period for backend readiness probe
   probes:
     liveness:
       path: /__heartbeat__
-      initialDelaySeconds: 30
+      initialDelaySeconds: 5
+      periodSeconds: 30
     readiness:
       path: /__lbheartbeat__
-      initialDelaySeconds: 30
+      initialDelaySeconds: 5
+      periodSeconds: 30
 
   ## @param backend.resources Resource requirements for the backend container
   resources: {}
@@ -271,7 +276,7 @@ celeryBackend:
     - "--pool=solo"
     - "--loglevel=info"
     - "-Q"
-    - "meet-backend"
+    - "dictaphone-backend"
 
   ## @param celeryBackend.args Override the celeryBackend container args
   args: []

@@ -319,5 +319,9 @@ build-k8s-cluster: ## build the kubernetes cluster using kind
 .PHONY: build-k8s-cluster
 
 start-tilt-keycloak: ## start the kubernetes cluster using kind, without Pro Connect for authentication, use keycloak
-	DEV_ENV=dev-keycloak tilt up -f ./bin/Tiltfile
-.PHONY: build-k8s-cluster
+	DEV_ENV=dev-keycloak tilt up --namespace=dictaphone -f ./bin/Tiltfile
+.PHONY: start-tilt-keycloak
+
+stop-tilt-keycloak: ## Stop the kubernetes cluster using kind, without Pro Connect for authentication, use keycloak
+	DEV_ENV=dev-keycloak tilt down --namespace=dictaphone -f ./bin/Tiltfile
+.PHONY: stop-tilt-keycloak
