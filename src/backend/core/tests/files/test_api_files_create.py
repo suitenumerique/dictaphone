@@ -47,7 +47,7 @@ def test_api_files_create_authenticated_success():
         "/api/v1.0/files/",
         {
             "title": "my file",
-            "filename": "my_file.png",
+            "filename": "my_file.ogg",
             "type": FileTypeChoices.AUDIO_RECORDING,
         },
         format="json",
@@ -98,7 +98,7 @@ def test_api_files_create_file_authenticated_success():
             {
                 "type": FileTypeChoices.AUDIO_RECORDING,
                 "title": "Eiffle tower",
-                "filename": "file.png",
+                "filename": "file.ogg",
             },
             format="json",
         )
@@ -106,7 +106,7 @@ def test_api_files_create_file_authenticated_success():
     file = File.objects.get()
     assert file.title == "Eiffle tower"
     assert file.type == FileTypeChoices.AUDIO_RECORDING
-    assert file.filename == "file.png"
+    assert file.filename == "file.ogg"
 
     response_data = response.json()
     assert response_data["creator"] is not None, response_data
@@ -118,7 +118,7 @@ def test_api_files_create_file_authenticated_success():
 
     assert policy_parsed.scheme == "http"
     assert policy_parsed.netloc == "localhost:9000"
-    assert policy_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}/.png"
+    assert policy_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}/.ogg"
 
     query_params = parse_qs(policy_parsed.query)
 
@@ -165,7 +165,7 @@ def test_api_files_create_file_authenticated_extension_case_insensitive():
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
-            "filename": "file.JPG",
+            "filename": "file.mp4",
         },
         format="json",
     )
@@ -260,7 +260,7 @@ def test_api_files_create_file_too_many(
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
-            "filename": "1.png",
+            "filename": "1.ogg",
         },
     )
 
@@ -270,7 +270,7 @@ def test_api_files_create_file_too_many(
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
-            "filename": "2.png",
+            "filename": "2.ogg",
         },
     )
 
@@ -295,7 +295,7 @@ def test_api_files_create_force_id_success():
             "id": str(forced_id),
             "title": "my item",
             "type": FileTypeChoices.AUDIO_RECORDING,
-            "filename": "my_file.png",
+            "filename": "my_file.ogg",
         },
         format="json",
     )
@@ -322,7 +322,7 @@ def test_api_files_create_force_id_existing():
             "id": str(file.id),
             "title": "my file",
             "type": FileTypeChoices.AUDIO_RECORDING,
-            "filename": "my_file.png",
+            "filename": "my_file.ogg",
         },
         format="json",
     )
@@ -349,7 +349,7 @@ def test_api_files_create_file_race_condition():
             {
                 "title": title,
                 "type": FileTypeChoices.AUDIO_RECORDING,
-                "filename": "my_file.png",
+                "filename": "my_file.ogg",
             },
             format="json",
         )

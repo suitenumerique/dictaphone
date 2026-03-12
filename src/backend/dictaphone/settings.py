@@ -185,10 +185,26 @@ class Base(Configuration):
     FILE_UPLOAD_RESTRICTIONS = values.DictValue(
         {
             "audio_recording": {
-                "max_size": 2 * MB,
+                "max_size": 100 * MB,
                 "max_count_by_user": 10,
-                "allowed_extensions": [".jpeg", ".jpg", ".png"],
-                "allowed_mimetypes": ["image/jpeg", "image/png"],
+                "allowed_extensions": [
+                    ".mp4",
+                    ".webm",
+                    ".ogg",
+                    ".ogv",
+                    ".opus",
+                    ".wav",
+                ],
+                "allowed_mimetypes": [
+                    "audio/webm",
+                    "audio/mp4",
+                    "audio/webm;codecs=opus",
+                    "audio/mp4",
+                    "audio/ogg",
+                    "audio/ogg;codecs=opus",
+                    "audio/wav",
+                    "audio/wave",
+                ],
             },
         },
         environ_name="FILE_UPLOAD_RESTRICTIONS",
@@ -398,7 +414,7 @@ class Base(Configuration):
     # synchronously
     CELERY_ENABLED = values.BooleanValue(False, environ_prefix=None)
     CELERY_TASK_ALWAYS_EAGER = values.BooleanValue(False, environ_prefix=None)
-    CELERY_TASK_DEFAULT_QUEUE = values.Value("meet-backend", environ_prefix=None)
+    CELERY_TASK_DEFAULT_QUEUE = values.Value("dictaphone-backend", environ_prefix=None)
     CELERY_BROKER_URL = values.Value("redis://redis:6379/0", environ_prefix=None)
     CELERY_BROKER_TRANSPORT_OPTIONS = values.DictValue({}, environ_prefix=None)
 
