@@ -2,7 +2,7 @@
   <a href="https://github.com/suitenumerique/dictaphone/stargazers/">
     <img src="https://img.shields.io/github/stars/suitenumerique/dictaphone" alt="">
   </a>
-  <a href='http://makeapullrequest.com'><img alt='PRs Welcome' src='https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=shields'/></a>
+  <!-- <a href='http://makeapullrequest.com'><img alt='PRs Welcome' src='https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=shields'/></a> -->
   <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/suitenumerique/dictaphone"/>
   <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/suitenumerique/dictaphone"/>
   <a href="https://github.com/suitenumerique/dictaphone/blob/main/LICENSE">
@@ -16,6 +16,9 @@
 
 ## Dictaphone
 
+This repo is a work in progress, come back in few weeks to check it
+
+<!-- 
 ### Features
 
 ## Table of Contents
@@ -57,6 +60,7 @@ To learn more, don't hesitate to [reach out](mailto:visio@numerique.gouv.fr).
 ## Credits
 
 We're also thankful to the teams behind [Django Rest Framework](https://www.django-rest-framework.org/), [Vite.js](https://vite.dev/), and [React Aria](https://github.com/adobe/react-spectrum) — Thanks for your amazing work!
+ -->
 
 ## License
 
