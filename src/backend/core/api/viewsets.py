@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from django.utils.translation import gettext_lazy as _
 
 from django_filters import rest_framework as django_filters
+from pydantic import ValidationError
 from rest_framework import (
     decorators,
     filters,
@@ -29,9 +30,11 @@ from rest_framework import (
 
 from core import models, utils
 from core.api.filters import ListFileFilter
-from core.tasks.file import process_file_deletion
+from core.tasks.file import call_transcribe_service, process_file_deletion
 
+from core.authentication.webhooks import AiWebhookAuthentication
 from . import permissions, serializers
+from core import webhook_models
 
 # pylint: disable=too-many-ancestors
 
@@ -387,6 +390,8 @@ class FileViewSet(
 
         serializer = self.get_serializer(file)
 
+        call_transcribe_service.delay(file.id)
+
         return drf_response.Response(serializer.data, status=drf_status.HTTP_200_OK)
 
     def _complete_file_deletion(self, file):
@@ -491,3 +496,30 @@ class FileViewSet(
         request = utils.generate_s3_authorization_headers(f"{url_params.get('key'):s}")
 
         return drf_response.Response("authorized", headers=request.headers, status=200)
+
+    @decorators.action(
+        detail=False,
+        methods=["post"],
+        url_path="ai-webhook",
+        authentication_classes=[AiWebhookAuthentication],
+        permission_classes=[permissions.TranscribeWebhookPermission],
+    )
+    def on_ai_event(self, request):
+        """Handle incoming hook events for recordings."""
+        logger.info("Received transcribe webhook event: %s", request.data)
+        try:
+            payload = webhook_models.webhook_payload_adapter.validate_python(request.data)
+        except ValidationError as exc:
+            logger.error("Invalid webhook payload: %s", exc)
+            raise drf_exceptions.ValidationError(detail=exc) from exc
+
+        if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):
+            print(payload.transcript)
+        elif isinstance(payload, webhook_models.SummarizeWebhookSuccessPayload):
+            print(payload.summary)
+        else:
+            raise NotImplementedError()
+
+        return drf_response.Response(
+            {"message": "Event processed."},
+        )
