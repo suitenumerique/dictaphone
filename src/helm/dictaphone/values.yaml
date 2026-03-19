@@ -273,7 +273,6 @@ celeryBackend:
     - "-A"
     - "dictaphone.celery_app"
     - "worker"
-    - "--pool=solo"
     - "--loglevel=info"
     - "-Q"
     - "dictaphone-backend"
