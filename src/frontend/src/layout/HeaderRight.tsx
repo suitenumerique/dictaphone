@@ -1,4 +1,4 @@
-import { LanguagePicker } from '@gouvfr-lasuite/ui-kit'
+import { LaGaufreV2, LanguagePicker } from '@gouvfr-lasuite/ui-kit'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth'
@@ -66,6 +66,11 @@ export const HeaderRight = () => {
       >
         {t('logout')}
       </Button>
+      <LaGaufreV2
+        apiUrl={'https://lasuite.numerique.gouv.fr/api/services'}
+        // The show more btn is buggy
+        showMoreLimit={9}
+      />
     </>
   )
 }
