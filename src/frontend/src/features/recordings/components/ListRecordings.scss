@@ -1,0 +1,52 @@
+.recordings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--c--globals--spacings--base);
+}
+
+.recordings-list__count {
+  font-size: 0.875rem;
+  color: var(--c--globals--colors--gray-600);
+}
+
+.recordings-list__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    text-align: left;
+    padding: var(--c--globals--spacings--xs) var(--c--globals--spacings--2xs);
+    border-bottom: 1px solid var(--c--globals--colors--gray-200);
+    vertical-align: middle;
+  }
+
+  th:last-child,
+  td:last-child {
+    width: 56px;
+    text-align: right;
+  }
+}
+
+.recordings-list__delete-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--c--globals--colors--error-550);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    background: var(--c--globals--colors--error-100);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

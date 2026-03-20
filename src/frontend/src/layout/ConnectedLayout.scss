@@ -1,9 +1,17 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+
 .dictaphone__connected_layout_container {
   background-color: var(--c--globals--colors--white-950);
   min-height: 100%;
   padding: 2rem;
   display: flex;
   justify-content: center;
+
+  @media (max-width: $tablet) {
+    padding: 0;
+  }
 
   .dictaphone__connected_layout_content {
     width: 100%;

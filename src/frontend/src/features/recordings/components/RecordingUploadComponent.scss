@@ -1,3 +1,12 @@
+@use 'sass:map';
+@use '../../../styles/cunningham-tokens-sass' as *;
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+
+.recording-upload-bnt-label {
+  @media (max-width: $tablet) {
+    display: none;
+  }
+}
 .recording-upload-modal {
   display: flex;
   flex-direction: column;

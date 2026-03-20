@@ -1,0 +1,45 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+
+.card {
+  border: 1px solid var(--c--globals--colors--gray-200);
+  border-radius: 8px;
+  background: var(--c--globals--colors--gray-000);
+
+  @media (max-width: $tablet) {
+    border-radius: 0;
+    border: none;
+  }
+}
+
+.card__header {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--c--globals--spacings--sm);
+  padding: 0 var(--c--globals--spacings--xl);
+}
+
+.card__title {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.card__action {
+  display: flex;
+  align-items: center;
+  gap: var(--c--globals--spacings--2xs);
+}
+
+.card__separator {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--c--globals--colors--gray-200);
+}
+
+.card__content {
+  padding: var(--c--globals--spacings--m);
+}

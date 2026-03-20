@@ -1,6 +1,19 @@
 {
   "errorFetching": "Error fetching recordings",
   "noRecordings": "You don't have any recordings yet.",
+  "list": {
+    "title": "All recordings",
+    "columns": {
+      "title": "Title",
+      "duration": "Duration",
+      "actions": "Actions"
+    },
+    "ariaLabelTable": "Recordings list",
+    "deleteAriaLabel": "Delete recording {{title}}",
+    "paginationAriaLabel": "Recordings pagination",
+    "paginationPreviousAriaLabel": "Go to previous page",
+    "paginationNextAriaLabel": "Go to next page"
+  },
   "player": {
     "player": "Audio player",
     "progressControl": "Audio progress control",

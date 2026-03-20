@@ -224,13 +224,13 @@ export default function RecordingUploadComponent() {
   return (
     <>
       <Button
-        aria-label={'Upload a recording file'}
+        aria-label={t('cta')}
         onClick={() => setIsModalOpen(true)}
         data-attr="input-file-select-audio-recording"
         icon={<span className="material-icons">upload</span>}
         variant="secondary"
       >
-        {t('cta')}
+        <span className="recording-upload-bnt-label">{t('cta')}</span>
       </Button>
 
       <Modal

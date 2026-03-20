@@ -1,6 +1,19 @@
 {
   "errorFetching": "Une erreur s'est produite lors de la récupération des enregistrements.",
   "noRecordings": "Vous n'avez pas encore d'enregistrements.",
+  "list": {
+    "title": "Tous les enregistrements",
+    "columns": {
+      "title": "Titre",
+      "duration": "Durée",
+      "actions": "Actions"
+    },
+    "ariaLabelTable": "Liste des enregistrements",
+    "deleteAriaLabel": "Supprimer l'enregistrement {{title}}",
+    "paginationAriaLabel": "Pagination des enregistrements",
+    "paginationPreviousAriaLabel": "Aller à la page précédente",
+    "paginationNextAriaLabel": "Aller à la page suivante"
+  },
   "player": {
     "player": "Lecteur",
     "progressControl": "Contrôle de progression audio",
