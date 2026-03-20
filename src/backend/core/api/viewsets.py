@@ -181,6 +181,7 @@ class FileViewSet(
     mixins.DestroyModelMixin,
     mixins.UpdateModelMixin,
     mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
     """
@@ -228,6 +229,7 @@ class FileViewSet(
     queryset = models.File.objects.filter(hard_deleted_at__isnull=True)
     default_serializer_class = serializers.FileSerializer
     serializer_classes = {
+        "retrieve": serializers.ListFileSerializer,
         "list": serializers.ListFileSerializer,
         "create": serializers.CreateFileSerializer,
     }
