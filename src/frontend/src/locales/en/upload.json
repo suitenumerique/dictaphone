@@ -1,0 +1,16 @@
+{
+  "cta": "Transfer recordings",
+  "title": "Transfer recordings",
+  "duration": "Duration: {{duration, formatDuration}}",
+  "maxDuration": "Max duration: {{maxDuration, formatDuration}}",
+  "maxFileSize": "Max file size: {{value}}",
+  "dragAndDropLabel": "Drag and drop audio files here, or click to select files.",
+  "removeFileTooltip": "Remove file from upload process",
+  "uploadFilesCta": "Upload files",
+  "errors": {
+    "unsupportedMimeType": "Unsupported file type: {{mimeType}}",
+    "tooLarge": "File size exceeds limit: {{value}}",
+    "tooLong": "Audio duration ({{duration, formatDuration}}) exceeds limit ({{maxDuration, formatDuration}}).",
+    "uploadFailed": "Upload failed"
+  }
+}

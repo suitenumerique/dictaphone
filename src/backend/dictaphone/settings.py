@@ -186,7 +186,7 @@ class Base(Configuration):
         {
             "audio_recording": {
                 "max_size": 100 * MB,
-                "max_count_by_user": 10,
+                "max_count_by_user": 100,
                 "allowed_extensions": [
                     ".mp4",
                     ".webm",
@@ -200,6 +200,7 @@ class Base(Configuration):
                     "audio/mp4",
                     "audio/webm;codecs=opus",
                     "audio/mp4",
+                    "application/ogg",
                     "audio/ogg",
                     "audio/ogg;codecs=opus",
                     "audio/wav",

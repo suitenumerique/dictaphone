@@ -1,0 +1,13 @@
+.dictaphone__progress__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c--globals--colors--gray-300);
+  overflow: hidden;
+}
+
+.dictaphone__progress__fill {
+  height: 100%;
+  background: var(--c--globals--colors--brand-600);
+  transition: width 0.2s ease;
+}

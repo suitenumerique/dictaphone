@@ -7,7 +7,9 @@
 @use './../layout/ConnectedLayout';
 @use './../layout/LeftPanel';
 @use './../layout/HeaderRight';
+@use './../components/ProgressBar';
 @use './../features/recordings/components/Player';
+@use './../features/recordings/components/RecordingUploadComponent';
 @use 'react-h5-audio-player/src/styles.scss';
 
 // Buggy otherwise for some reason

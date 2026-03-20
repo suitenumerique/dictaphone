@@ -14,12 +14,14 @@
     "check": "prettier --check ./src"
   },
   "dependencies": {
+    "@formatjs/intl-durationformat": "0.10.3",
     "@gouvfr-lasuite/cunningham-react": "4.2.0",
     "@gouvfr-lasuite/ui-kit": "0.19.10",
     "@react-aria/toast": "3.0.10",
     "@react-types/overlays": "3.9.3",
     "@tanstack/react-query": "5.90.21",
     "crisp-sdk-web": "1.0.27",
+    "date-fns": "4.1.0",
     "derive-valtio": "0.2.0",
     "hoofd": "1.7.3",
     "humanize-duration": "3.33.2",
@@ -31,8 +33,10 @@
     "react": "19.2.4",
     "react-aria-components": "1.14.0",
     "react-dom": "19.2.4",
+    "react-dropzone": "15.0.0",
     "react-h5-audio-player": "3.10.2",
     "react-i18next": "16.5.5",
+    "uuid": "13.0.0",
     "valtio": "2.3.0",
     "wouter": "3.9.0"
   },

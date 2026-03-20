@@ -1,0 +1,16 @@
+{
+  "cta": "Transférer des enregistrements",
+  "title": "Transfert de fichiers audio",
+  "duration": "Durée : {{duration, formatDuration}}",
+  "maxDuration": "Durée maximale : {{maxDuration, formatDuration}}",
+  "maxFileSize": "Taille maximale : {{value}}",
+  "dragAndDropLabel": "Déposez vos fichiers audio ici, ou cliquez pour sélectionner des fichiers.",
+  "removeFileTooltip": "Retirer le fichier",
+  "uploadFilesCta": "Transférer les fichiers",
+  "errors": {
+    "unsupportedMimeType": "Fichier non supporté : {{mimeType}}",
+    "tooLarge": "Taille maximale dépassée : {{value}}",
+    "tooLong": "La durée audio ({{duration, formatDuration}}) dépasse la limite ({{maxDuration, formatDuration}}).",
+    "uploadFailed": "Le transfert a échoué"
+  }
+}
