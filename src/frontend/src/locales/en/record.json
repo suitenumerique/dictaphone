@@ -1,0 +1,19 @@
+{
+  "title": "Record audio",
+  "startRecording": "Start recording",
+  "pauseRecording": "Pause",
+  "resumeRecording": "Resume",
+  "playRecordedAudio": "Play recorded audio",
+  "pauseRecordedAudio": "Pause recorded audio",
+  "stopRecording": "Stop",
+  "discardRecording": "Discard recording",
+  "uploadCta": "Upload",
+  "warnings": {
+    "stayOnPage": "You cannot quit or refresh this page while recording.",
+    "keepPhoneAwake": "If you are recording on a phone, keep the screen on to reduce recording interruptions."
+  },
+  "errors": {
+    "recordingFailed": "Recording failed. Check your microphone permissions and try again.",
+    "uploadFailed": "Upload failed"
+  }
+}

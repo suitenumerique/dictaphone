@@ -14,6 +14,7 @@ import { intervalToDuration } from 'date-fns'
 import { ProgressBar } from '@/components/ProgressBar.tsx'
 import { v4 as uuidV4 } from 'uuid'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
+import { formatFileSize } from '@/features/recordings/utils/formatFileSize.ts'
 
 // 3 hours
 const MAX_DURATION_SECONDS = 60 * 60 * 3
@@ -32,18 +33,6 @@ type SelectedFile = {
     }
   | { isValid: false; errors: string[] }
 )
-
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) {
-    return `${bytes} B`
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 export default function RecordingUploadComponent() {
   const { data: appConfig } = useConfig()

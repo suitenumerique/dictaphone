@@ -1,0 +1,113 @@
+.record-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .record-modal__warning {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--c--globals--colors--warning-300);
+    background: var(--c--globals--colors--warning-100);
+    color: var(--c--globals--colors--gray-900);
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .record-modal__visualizer {
+    width: 100%;
+  }
+
+  .voice-visualizer__canvas-container {
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .voice-visualizer__audio-info-container {
+    height: 30px;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .voice-visualizer__buttons-container {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-height: 64px;
+  }
+
+  .voice-visualizer__btn-left,
+  .voice-visualizer__btn-center {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+  .voice-visualizer__btn-container {
+    min-width: unset;
+  }
+  .voice-visualizer__btn-left .material-icons,
+  .voice-visualizer__btn-center .material-icons {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .voice-visualizer__btn--recording {
+    background-color: var(--c--globals--colors--red-500);
+    border-color: var(--c--globals--colors--red-500);
+    color: var(--c--globals--colors--white);
+  }
+
+  .voice-visualizer__btn--recording .material-icons {
+    color: var(--c--globals--colors--white);
+  }
+
+  .voice-visualizer__btn--idle {
+    background-color: transparent;
+    border-color: var(--c--globals--colors--gray-300);
+    color: var(--c--globals--colors--gray-700);
+  }
+
+  .voice-visualizer__btn--idle .material-icons {
+    color: currentcolor;
+  }
+
+  .voice-visualizer__btn-left:disabled,
+  .voice-visualizer__btn-center:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .voice-visualizer__visually-hidden {
+    display: none !important;
+  }
+
+  .record-modal__error {
+    color: var(--c--globals--colors--error-550);
+  }
+}
+
+@keyframes record-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
