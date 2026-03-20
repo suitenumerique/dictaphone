@@ -1,0 +1,19 @@
+{
+  "errorFetching": "Une erreur s'est produite lors de la récupération des enregistrements.",
+  "noRecordings": "Vous n'avez pas encore d'enregistrements.",
+  "player": {
+    "player": "Lecteur",
+    "progressControl": "Contrôle de progression audio",
+    "volumeControl": "Contrôle du volume",
+    "play": "Lecture",
+    "pause": "Pause",
+    "rewind": "Rembobiner",
+    "forward": "Avancer",
+    "previous": "Précédent",
+    "next": "Passer",
+    "loop": "Désactiver la lecture en boucle",
+    "loopOff": "Activer la lecture en boucle",
+    "volume": "Couper le son",
+    "volumeMute": "Activer le son"
+  }
+}

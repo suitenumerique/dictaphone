@@ -7,6 +7,8 @@ import {
 import { useCreateFile } from '@/features/files/api/createFile.ts'
 import { useConfig } from '@/api/useConfig.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
+import ListRecordings from '@/features/recordings/components/ListRecordings.tsx'
+import { Link } from 'wouter'
 
 const listFilesQueryParams: ListFilesParams = {
   filters: {
@@ -57,15 +59,17 @@ export function RecordingsPage() {
         </Pressable>
       </FileTrigger>
 
+      <ListRecordings queryData={filesQ} />
+
       {filesQ.isPending && <span>Loading...</span>}
       {filesQ.data && filesQ.data.count === 0 && <span>No files</span>}
       {filesQ.data && filesQ.data.results.length > 0 && (
         <div>
           {filesQ.data.results.map((file) => (
             <div key={file.id}>
-              <span>{file.title}</span>
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <audio controls src={file.url!} />
+              <Link to={`/recordings/${file.id}`}>
+                <span>{file.title}</span>
+              </Link>
             </div>
           ))}
         </div>

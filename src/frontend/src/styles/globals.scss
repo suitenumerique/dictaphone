@@ -1,12 +1,14 @@
 @use '@gouvfr-lasuite/ui-kit/sass/fonts';
-// Imports the file you just generated.
-//@use "@gouvfr-lasuite/cunningham-react/fonts";
 @use '@gouvfr-lasuite/cunningham-react/icons';
 @use '@gouvfr-lasuite/cunningham-react/style';
 @use 'cunningham-tokens';
 
 @use './../layout/LogoApp';
 @use './../layout/ConnectedLayout';
+@use './../layout/LeftPanel';
+@use './../layout/HeaderRight';
+@use './../features/recordings/components/Player';
+@use 'react-h5-audio-player/src/styles.scss';
 
 // Buggy otherwise for some reason
 .c__avatar__initials {

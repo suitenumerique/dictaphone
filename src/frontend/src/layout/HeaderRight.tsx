@@ -17,7 +17,7 @@ const LANGUAGES = [
 
 type TPossibleLanguages = (typeof LANGUAGES)[number]['value']
 
-const LanguagePickerSyncedBackend = () => {
+export const LanguagePickerSyncedBackend = () => {
   const { i18n } = useTranslation()
   const { user, updateUser } = useUser()
   const [selectedLanguage, setSelectedLanguage] = useState<TPossibleLanguages>(
@@ -57,15 +57,18 @@ export const HeaderRight = () => {
 
   return (
     <>
-      <LanguagePickerSyncedBackend />
-      <Button
-        size="small"
-        variant="tertiary"
-        onClick={() => logout()}
-        icon={<span className="material-icons">logout</span>}
-      >
-        {t('logout')}
-      </Button>
+      <div className="dictaphone__header-right-tools">
+        <LanguagePickerSyncedBackend />
+        <Button
+          size="small"
+          variant="tertiary"
+          onClick={() => logout()}
+          icon={<span className="material-icons">logout</span>}
+        >
+          {t('logout')}
+        </Button>
+      </div>
+
       <LaGaufreV2
         apiUrl={'https://lasuite.numerique.gouv.fr/api/services'}
         // The show more btn is buggy

@@ -61,6 +61,7 @@ export const useListMyFiles = (params: Parameters<typeof listMyFiles>[0]) => {
     queryKey: [keys.files, params],
     queryFn: () => listMyFiles(params),
     refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
     placeholderData: keepPreviousData,
     enabled: isLoggedIn,
   })

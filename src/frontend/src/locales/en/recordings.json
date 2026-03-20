@@ -1,0 +1,19 @@
+{
+  "errorFetching": "Error fetching recordings",
+  "noRecordings": "You don't have any recordings yet.",
+  "player": {
+    "player": "Audio player",
+    "progressControl": "Audio progress control",
+    "volumeControl": "Volume control",
+    "play": "Play",
+    "pause": "Pause",
+    "rewind": "Rewind",
+    "forward": "Forward",
+    "previous": "Previous",
+    "next": "Skip",
+    "loop": "Disable loop",
+    "loopOff": "Enable loop",
+    "volume": "Mute",
+    "volumeMute": "Unmute"
+  }
+}
