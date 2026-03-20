@@ -1,4 +1,9 @@
 {
   "home": "Accueil",
-  "logout": "Déconnexion"
+  "logout": "Déconnexion",
+  "recordCta": "Enregistrer",
+  "breadcrumbs": {
+    "myRecordings": "Mes enregistrements",
+    "trash": "Corbeille"
+  }
 }

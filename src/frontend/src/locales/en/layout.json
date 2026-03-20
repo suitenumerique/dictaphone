@@ -1,4 +1,9 @@
 {
   "home": "Home",
-  "logout": "Log out"
+  "logout": "Log out",
+  "recordCta": "Start recording",
+  "breadcrumbs": {
+    "myRecordings": "My recordings",
+    "trash": "Trash"
+  }
 }

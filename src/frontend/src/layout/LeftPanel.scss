@@ -16,6 +16,13 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     flex-shrink: 0;
   }
 
+  .dictaphone__left-panel-header-content {
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+
+    display: flex;
+    justify-content: space-between;
+  }
+
   .dictaphone__left-panel-footer {
     height: 3rem;
 
@@ -36,5 +43,41 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   .dictaphone__left-panel-content {
     flex: 1 1 auto;
     min-height: 0;
+    padding: 0.5rem 1rem;
+
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .c__breadcrumbs__button {
+      height: 40px;
+      padding: 8px;
+      background-color: transparent;
+      border: none;
+      color: var(--c--contextuals--content--semantic--neutral--secondary);
+      font-size: 16px;
+      border-radius: 4px;
+      font-weight: 400;
+      font-family: var(--c--globals--font--families--base);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+
+      &.active {
+        font-weight: 600;
+        color: var(--c--contextuals--content--semantic--neutral--primary);
+        background-color: var(
+          --c--contextuals--background--semantic--neutral--tertiary
+        );
+      }
+
+      &:hover {
+        background-color: var(
+          --c--contextuals--background--semantic--neutral--tertiary-hover
+        );
+      }
+    }
   }
 }

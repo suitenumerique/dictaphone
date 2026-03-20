@@ -3,6 +3,7 @@ import { useUser } from '@/features/auth'
 import { LanguagePickerSyncedBackend } from '@/layout/HeaderRight.tsx'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'wouter'
 
 export default function LeftPanel() {
   const { logout } = useUser()
@@ -10,8 +11,41 @@ export default function LeftPanel() {
 
   return (
     <nav className="dictaphone__left-panel">
-      <div className="dictaphone__left-panel-header">Top</div>
-      <div className="dictaphone__left-panel-content">Midel</div>
+      <div className="dictaphone__left-panel-header">
+        <div className="dictaphone__left-panel-header-content">
+          <Button
+            size={'medium'}
+            variant="primary"
+            icon={<span className="material-icons">mic</span>}
+          >
+            {t('recordCta')}
+          </Button>
+          <Button variant="tertiary">
+            <span className="material-icons">search</span>
+          </Button>
+        </div>
+        <HorizontalSeparator withPadding={false} />
+      </div>
+      <div className="dictaphone__left-panel-content">
+        <Link
+          to="/recordings"
+          className={(active) =>
+            active ? 'c__breadcrumbs__button active' : 'c__breadcrumbs__button'
+          }
+        >
+          <span className="material-icons">record_voice_over</span>
+          {t('breadcrumbs.myRecordings')}
+        </Link>
+        <Link
+          to="/trash"
+          className={(active) =>
+            active ? 'c__breadcrumbs__button active' : 'c__breadcrumbs__button'
+          }
+        >
+          <span className="material-icons">delete</span>
+          {t('breadcrumbs.trash')}
+        </Link>
+      </div>
       <div className="dictaphone__left-panel-footer">
         <HorizontalSeparator withPadding={false} />
         <div className="dictaphone__left-panel-footer-content">
