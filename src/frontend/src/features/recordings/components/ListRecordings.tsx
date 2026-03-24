@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { Spinner } from '@gouvfr-lasuite/ui-kit'
 import { Card } from '@/components/Card.tsx'
 import { Pagination } from '@/components/Pagination.tsx'
-import RecordingUploadComponent from '@/features/recordings/components/RecordingUploadComponent.tsx'
 import { useLocation } from 'wouter'
+import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
+import { Button } from '@gouvfr-lasuite/cunningham-react'
 
 const toMockDuration = ({ id, size }: { id: string; size: number }) => {
   const seed = [...id.replace(/-/g, '')].reduce((sum, value) => {
@@ -17,6 +18,23 @@ const toMockDuration = ({ id, size }: { id: string; size: number }) => {
   return `${minutes.toString().padStart(2, '0')}:${seconds
     .toString()
     .padStart(2, '0')}`
+}
+
+function HeaderAction() {
+  const { t } = useTranslation('upload')
+  return (
+    <>
+      <Button
+        aria-label={t('cta')}
+        onClick={() => document.getElementById('import-files')?.click()}
+        icon={<span className="material-icons">upload</span>}
+        variant="secondary"
+      >
+        <span className="recording-upload-bnt-label">{t('cta')}</span>
+      </Button>
+      <RecordComponent />
+    </>
+  )
 }
 
 export default function ListRecordings({
@@ -44,14 +62,14 @@ export default function ListRecordings({
 
   if (queryData.data?.count === 0) {
     return (
-      <Card title={t('list.title')}>
+      <Card title={t('list.title')} action={<HeaderAction />}>
         <div>{t('noRecordings')}</div>
       </Card>
     )
   }
 
   return (
-    <Card title={t('list.title')} action={<RecordingUploadComponent />}>
+    <Card title={t('list.title')} action={<HeaderAction />}>
       <div className="recordings-list">
         <table
           className="recordings-list__table"

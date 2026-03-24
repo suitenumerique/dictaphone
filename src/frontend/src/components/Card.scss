@@ -19,7 +19,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   align-items: center;
   justify-content: space-between;
   gap: var(--c--globals--spacings--sm);
-  padding: 0 var(--c--globals--spacings--xl);
+  padding: 0 var(--c--globals--spacings--md);
 }
 
 .card__title {
@@ -41,5 +41,5 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 }
 
 .card__content {
-  padding: var(--c--globals--spacings--m);
+  padding: var(--c--globals--spacings--md);
 }

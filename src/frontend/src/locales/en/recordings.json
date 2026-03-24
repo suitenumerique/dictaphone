@@ -2,7 +2,7 @@
   "errorFetching": "Error fetching recordings",
   "noRecordings": "You don't have any recordings yet.",
   "list": {
-    "title": "All recordings",
+    "title": "My recordings",
     "columns": {
       "title": "Title",
       "duration": "Duration",

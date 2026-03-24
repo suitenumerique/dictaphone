@@ -4,7 +4,6 @@ import { LanguagePickerSyncedBackend } from '@/layout/HeaderRight.tsx'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'wouter'
-import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 
 export default function LeftPanel() {
   const { logout } = useUser()
@@ -13,13 +12,10 @@ export default function LeftPanel() {
   return (
     <nav className="dictaphone__left-panel">
       <div className="dictaphone__left-panel-header">
-        <div className="dictaphone__left-panel-header-content">
-          <RecordComponent />
-          <Button variant="tertiary">
-            <span className="material-icons">search</span>
-          </Button>
-        </div>
-        <HorizontalSeparator withPadding={false} />
+        {/*<div className="dictaphone__left-panel-header-content">*/}
+
+        {/*</div>*/}
+        {/*<HorizontalSeparator withPadding={false} />*/}
       </div>
       <div className="dictaphone__left-panel-content">
         <Link

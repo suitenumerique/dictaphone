@@ -9,8 +9,21 @@
   "uploadFilesCta": "Transférer les fichiers",
   "errors": {
     "unsupportedMimeType": "Fichier non supporté : {{mimeType}}",
+    "unsupportedExtension": "Extension non supportée : {{extension}}",
     "tooLarge": "Taille maximale dépassée : {{value}}",
     "tooLong": "La durée audio ({{duration, formatDuration}}) dépasse la limite ({{maxDuration, formatDuration}}).",
     "uploadFailed": "Le transfert a échoué"
+  },
+  "uploader": {
+    "toast": "Déposez vos fichiers ici pour les transférer",
+    "steps": {
+      "preparing": "Préparation du transfert..."
+    },
+    "files": {
+      "description_one": "{{count}} fichier en cours de transfert",
+      "description_other": "{{count}} fichiers en cours de transfert",
+      "description_done_one": "{{count}} fichier transféré",
+      "description_done_other": "{{count}} fichiers transférés"
+    }
   }
 }

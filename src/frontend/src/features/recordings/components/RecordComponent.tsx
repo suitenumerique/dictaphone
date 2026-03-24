@@ -1,27 +1,28 @@
 import { ProgressBar } from '@/components/ProgressBar.tsx'
 import { useCreateFile } from '@/features/files/api/createFile.ts'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
-import { Button, Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react'
+import {
+  Button,
+  Modal,
+  ModalSize,
+  Tooltip,
+} from '@gouvfr-lasuite/cunningham-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVoiceVisualizer, VoiceVisualizer } from 'react-voice-visualizer'
 
-const getFileExtension = (mimeType: string) => {
-  switch (mimeType) {
-    case 'audio/mpeg':
-      return 'mp3'
-    case 'audio/mp4':
-      return 'm4a'
-    case 'audio/ogg':
-      return 'ogg'
-    case 'audio/wav':
-    case 'audio/wave':
-    case 'audio/x-wav':
-      return 'wav'
-    default:
-      return 'webm'
-  }
-}
+const extensionByMimeType = {
+  'audio/ogg;codecs=opus': 'ogg',
+  'audio/webm;codecs=opus': 'webm',
+  'audio/mp4': 'mp4',
+  'audio/webm': 'webm',
+} as const
+
+const preferredMimeType: keyof typeof extensionByMimeType =
+  (
+    Object.keys(extensionByMimeType) as (keyof typeof extensionByMimeType)[]
+  ).find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ||
+  ('audio/webm' as const)
 
 export default function RecordComponent() {
   const { t } = useTranslation(['layout', 'record', 'shared'])
@@ -34,6 +35,9 @@ export default function RecordComponent() {
 
   const recorderControls = useVoiceVisualizer({
     shouldHandleBeforeUnload: false,
+    mediaRecorderOptions: {
+      mimeType: preferredMimeType,
+    },
   })
 
   const {
@@ -55,6 +59,14 @@ export default function RecordComponent() {
     isPausedRecordedAudio,
   } = recorderControls
 
+  useEffect(() => {
+    if (isModalOpen) {
+      startRecording()
+    }
+    // Voice recorder not properly cached
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen])
+
   const isBusy =
     isRecordingInProgress ||
     isProcessingRecordedAudio ||
@@ -67,12 +79,11 @@ export default function RecordComponent() {
       return null
     }
 
-    const mimeType = recordedBlob.type || 'audio/webm'
-    const extension = getFileExtension(mimeType)
+    const extension = extensionByMimeType[preferredMimeType]
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
 
     return new File([recordedBlob], `recording-${timestamp}.${extension}`, {
-      type: mimeType,
+      type: preferredMimeType,
     })
   }, [recordedBlob])
 
@@ -155,14 +166,16 @@ export default function RecordComponent() {
 
   return (
     <>
-      <Button
-        size={'medium'}
-        variant="primary"
-        icon={<span className="material-icons">mic</span>}
-        onClick={() => setIsModalOpen(true)}
-      >
-        {t('layout:recordCta')}
-      </Button>
+      <Tooltip content={t('layout:recordCta')}>
+        <Button
+          size={'medium'}
+          variant="bordered"
+          icon={<span className="material-icons">mic</span>}
+          onClick={() => setIsModalOpen(true)}
+          aria-label={t('layout:recordCta')}
+          style={{ borderRadius: '100px' }}
+        />
+      </Tooltip>
 
       <Modal
         size={ModalSize.MEDIUM}
