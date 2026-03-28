@@ -2,14 +2,24 @@
 
 import logging
 from io import BytesIO
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 from django.core.files.storage import default_storage
+from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.test import APIClient
 
 from core import factories, models
-from core.models import FileTypeChoices, FileUploadStateChoices
+from core.models import (
+    AiFileJob,
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+    FileTypeChoices,
+    FileUploadStateChoices,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -57,7 +67,8 @@ def test_api_file_upload_ended_on_wrong_upload_state():
     }
 
 
-def test_api_file_upload_ended_success(settings):
+@patch("core.tasks.file.requests")
+def test_api_file_upload_ended_success(mock_requests, settings):
     """
     Users should be able to end an upload on files that are files and in the UPLOADING upload state.
     """
@@ -84,8 +95,13 @@ def test_api_file_upload_ended_success(settings):
         file.file_key,
         BytesIO(b"my prose"),
     )
+    assert not AiFileJob.objects.filter(
+        file=file, type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+    ).exists()
 
-    response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
+    now = timezone.now()
+    with freeze_time(now):
+        response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
 
     assert response.status_code == 200
 
@@ -95,6 +111,44 @@ def test_api_file_upload_ended_success(settings):
     assert file.size == 8
 
     assert response.json()["mimetype"] == "text/plain"
+
+    # Transcribe service call check
+    assert mock_requests.post.call_count == 1
+    args, kwargs = mock_requests.post.call_args
+    cloud_storage_url = kwargs["json"].pop("cloud_storage_url")
+    assert kwargs == {
+        "headers": {"Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}"},
+        "json": {
+            "language": "fr",
+            "user_sub": file.creator.sub,
+        },
+        "timeout": 10,
+    }
+
+    cloud_storage_parsed = urlparse(cloud_storage_url)
+
+    assert cloud_storage_parsed.scheme == "http"
+    assert cloud_storage_parsed.netloc == "minio:9000"
+    assert (
+        cloud_storage_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.txt"
+    )
+
+    query_params = parse_qs(cloud_storage_parsed.query)
+
+    assert query_params.pop("X-Amz-Algorithm") == ["AWS4-HMAC-SHA256"]
+    assert query_params.pop("X-Amz-Credential") == [
+        f"dictaphone/{now.strftime('%Y%m%d')}/us-east-1/s3/aws4_request"
+    ]
+    assert query_params.pop("X-Amz-Date") == [now.strftime("%Y%m%dT%H%M%SZ")]
+    assert query_params.pop("X-Amz-Expires") == ["86400"]
+    assert query_params.pop("X-Amz-SignedHeaders") == ["host"]
+    assert query_params.pop("X-Amz-Signature") is not None
+
+    assert len(query_params) == 0
+
+    assert AiFileJob.objects.filter(
+        file=file, type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+    ).exists()
 
 
 def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
@@ -136,7 +190,10 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
     assert not default_storage.exists(file.file_key)
 
 
-def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(settings):
+@patch("core.tasks.file.requests.post")
+def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
+    mock_post, settings
+):
     """
     Test that the API returns a 200 when the mimetype is not allowed but not checking the mimetype.
     """
@@ -163,6 +220,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(settin
     response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
 
     assert response.status_code == 200
+    assert mock_post.call_count == 1
 
     file.refresh_from_db()
     assert file.upload_state == FileUploadStateChoices.READY
@@ -172,7 +230,10 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(settin
     assert response.json()["mimetype"] == "text/plain"
 
 
-def test_api_upload_ended_mismatch_mimetype_with_object_storage(settings, caplog):
+@patch("core.tasks.file.requests.post")
+def test_api_upload_ended_mismatch_mimetype_with_object_storage(
+    mock_post, settings, caplog
+):
     """
     Object on storage should have the same mimetype than the one saved in the
     File object.
@@ -222,6 +283,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(settings, caplog
         " updating from text/html to application/pdf" in caplog.text
     )
     assert response.status_code == 200
+    assert mock_post.call_count == 1
 
     file.refresh_from_db()
 

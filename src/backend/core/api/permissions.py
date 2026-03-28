@@ -1,5 +1,7 @@
 """Permission handlers for the Dictaphone core app."""
 
+import logging
+
 from django.http import Http404
 
 from rest_framework import permissions
@@ -7,6 +9,8 @@ from rest_framework import permissions
 ACTION_FOR_METHOD_TO_PERMISSION = {
     "versions_detail": {"DELETE": "versions_destroy", "GET": "versions_retrieve"}
 }
+
+logger = logging.getLogger(__name__)
 
 
 class IsAuthenticated(permissions.BasePermission):
@@ -48,3 +52,15 @@ class FilePermission(IsAuthenticated):
             raise Http404
 
         return obj.get_abilities(request.user).get(view.action, False)
+
+
+class TranscribeWebhookPermission(permissions.BasePermission):
+    """
+    Permissions applying to the summary webhook endpoint.
+    """
+
+    def has_permission(self, request, view):
+        return request.method == "POST"
+
+    def has_object_permission(self, request, view, obj):
+        return False

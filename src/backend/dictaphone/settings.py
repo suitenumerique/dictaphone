@@ -212,6 +212,21 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
+    # External AI Config service
+    AI_SERVICE_URL = values.Value(
+        "http://meet-summary.meet.svc.cluster.local/api/v2/",
+        environ_name="AI_SERVICE_URL",
+        environ_prefix=None,
+    )
+    AI_SERVICE_API_KEY = values.Value(
+        "dictaphone_token",
+        environ_name="AI_SERVICE_API_KEY",
+        environ_prefix=None,
+    )
+    AI_WEBHOOK_API_KEY = values.Value(
+        "token_summary", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
+    )
+
     # Internationalization
     # https://docs.djangoproject.com/en/3.1/topics/i18n/
 

@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from django.utils.translation import gettext_lazy as _
 
 from django_filters import rest_framework as django_filters
+from pydantic import ValidationError
 from rest_framework import (
     decorators,
     filters,
@@ -27,10 +28,16 @@ from rest_framework import (
     status as drf_status,
 )
 
-from core import models, utils
+from core import models, utils, webhook_models
 from core.api.filters import ListFileFilter
-from core.tasks.file import process_file_deletion
+from core.authentication.webhooks import AiWebhookAuthentication
+from core.tasks.file import (
+    call_transcribe_service,
+    process_file_deletion,
+    store_transcript_and_call_summary,
+)
 
+from ..models import AiFileJob, AiJobStatusChoices
 from . import permissions, serializers
 
 # pylint: disable=too-many-ancestors
@@ -389,6 +396,8 @@ class FileViewSet(
 
         serializer = self.get_serializer(file)
 
+        call_transcribe_service.delay(file.id)
+
         return drf_response.Response(serializer.data, status=drf_status.HTTP_200_OK)
 
     def _complete_file_deletion(self, file):
@@ -493,3 +502,60 @@ class FileViewSet(
         request = utils.generate_s3_authorization_headers(f"{url_params.get('key'):s}")
 
         return drf_response.Response("authorized", headers=request.headers, status=200)
+
+    @decorators.action(
+        detail=False,
+        methods=["post"],
+        url_path="ai-webhook",
+        authentication_classes=[AiWebhookAuthentication],
+        permission_classes=[permissions.TranscribeWebhookPermission],
+    )
+    def on_ai_event(self, request):
+        """Handle incoming hook events for recordings."""
+        logger.debug("Received transcribe webhook event: %s", request.data)
+
+        try:
+            payload = webhook_models.webhook_payload_adapter.validate_python(
+                request.data
+            )
+        except ValidationError as exc:
+            logger.error("Invalid webhook payload: %s", exc)
+            raise drf_exceptions.ValidationError(detail=exc) from exc
+
+        ai_file_job = AiFileJob.objects.filter(remote_job_id=payload.job_id).first()
+        if not ai_file_job:
+            logger.warning("No AI file job found for job ID: %s", payload.job_id)
+            return drf_response.Response(
+                {"message": "No AI file job found for job ID, ignoring."},
+            )
+
+        if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):
+            store_transcript_and_call_summary.apply_async(
+                args=[payload.job_id, payload.transcription_data_url]
+            )
+        elif isinstance(payload, webhook_models.SummarizeWebhookSuccessPayload):
+            # We do it directly for this one
+            s3_client = default_storage.connection.meta.client
+            s3_client.put_object(
+                Bucket=default_storage.bucket_name,
+                Key=f"summaries/{ai_file_job.id!s}.json",
+                Body=payload.summary,
+                ContentType="application/json",
+            )
+            ai_file_job.status = AiJobStatusChoices.SUCCESS
+            ai_file_job.save()
+        elif isinstance(
+            payload,
+            (
+                webhook_models.SummarizeWebhookFailurePayload,
+                webhook_models.TranscribeWebhookFailurePayload,
+            ),
+        ):
+            ai_file_job.status = AiJobStatusChoices.FAILED
+            ai_file_job.save()
+        else:
+            raise NotImplementedError()
+
+        return drf_response.Response(
+            {"message": "Event processed."},
+        )

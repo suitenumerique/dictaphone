@@ -7,7 +7,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: 100m
 spec:
   rules:
-  - host: "minio.127.0.0.1.nip.io"
+  - host: "minio-dictaphone.127.0.0.1.nip.io"
     http:
       paths:
       - path: /
@@ -19,7 +19,7 @@ spec:
               number: 9000
   tls:
   - hosts:
-    - minio.127.0.0.1.nip.io
+    - minio-dictaphone.127.0.0.1.nip.io
     secretName: dictaphone-tls
 ---
 apiVersion: v1
