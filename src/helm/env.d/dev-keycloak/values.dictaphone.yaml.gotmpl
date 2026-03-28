@@ -8,7 +8,7 @@ backend:
   envVars:
     DJANGO_CSRF_TRUSTED_ORIGINS: https://dictaphone.127.0.0.1.nip.io,http://dictaphone.127.0.0.1.nip.io
     DJANGO_CONFIGURATION: Production
-    DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io
+    DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io,dictaphone-backend.dictaphone.svc.cluster.local
     DJANGO_SECRET_KEY: {{ .Values.djangoSecretKey }}
     DJANGO_SETTINGS_MODULE: dictaphone.settings
     DJANGO_SILENCED_SYSTEM_CHECKS: security.W004, security.W008
@@ -52,7 +52,7 @@ backend:
     MEDIA_BASE_URL: https://dictaphone.127.0.0.1.nip.io
     AWS_S3_SIGNATURE_VERSION: s3v4
     SSL_CERT_FILE: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
-    AWS_S3_DOMAIN_REPLACE: https://minio.127.0.0.1.nip.io
+    AWS_S3_DOMAIN_REPLACE: https://minio-dictaphone.127.0.0.1.nip.io
     CELERY_ENABLED: True
     CELERY_BROKER_URL: redis://default:pass@redis-master:6379/1
 

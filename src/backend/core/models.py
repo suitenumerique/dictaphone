@@ -363,3 +363,47 @@ class File(BaseModel):
 
         self.hard_deleted_at = timezone.now()
         self.save(update_fields=["hard_deleted_at"])
+
+
+class AiJobStatusChoices(models.TextChoices):
+    """Possible states of a file."""
+
+    PENDING = "pending", _("Pending")
+    SUCCESS = "success", _("Success")
+    FAILED = "failed", _("Failed")
+
+
+class AiJobTypeChoices(models.TextChoices):
+    """Possible types of Ai Jobs."""
+
+    TRANSCRIPT = "transcript", _("Transcript")
+    SUMMARIZE = "summary", _("Summary")
+
+
+class AiFileJob(BaseModel):
+    """
+    A job that is run to process an audio file.
+    """
+
+    remote_job_id = models.CharField(max_length=255, unique=True)
+    type = models.CharField(
+        max_length=25,
+        choices=AiJobTypeChoices.choices,
+    )
+    file = models.ForeignKey(File, on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=25,
+        choices=AiJobStatusChoices.choices,
+    )
+
+    class Meta:
+        db_table = "ai_job"
+        verbose_name = _("AiJob")
+        verbose_name_plural = _("AiJobs")
+        ordering = ("created_at",)
+        indexes = [
+            models.Index(fields=["file", "type", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
