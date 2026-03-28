@@ -67,3 +67,17 @@ class FileFactory(factory.django.DjangoModelFactory):
             self.save()
 
             default_storage.save(self.file_key, BytesIO(content))
+
+
+class AiFileJobFactory(factory.django.DjangoModelFactory):
+    """A factory to create AI file jobs for tests."""
+
+    class Meta:
+        model = models.AiFileJob
+
+    remote_job_id = factory.Sequence(lambda n: f"remote-job-{n}")
+    type = factory.fuzzy.FuzzyChoice([t[0] for t in models.AiJobTypeChoices.choices])
+    file = factory.SubFactory(FileFactory)
+    status = factory.fuzzy.FuzzyChoice(
+        [s[0] for s in models.AiJobStatusChoices.choices]
+    )
