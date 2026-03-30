@@ -42,6 +42,7 @@ ARG DICTAPHONE_STATIC_ROOT=/data/static
 
 RUN apk add \
   pango \
+  libmagic \
   rdfind
 
 WORKDIR /app
