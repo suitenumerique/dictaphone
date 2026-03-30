@@ -391,7 +391,7 @@ class AiFileJob(BaseModel):
         max_length=25,
         choices=AiJobTypeChoices.choices,
     )
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
+    file = models.ForeignKey(File, on_delete=models.CASCADE, related_name="ai_jobs")
     status = models.CharField(
         max_length=25,
         choices=AiJobStatusChoices.choices,
@@ -408,3 +408,12 @@ class AiFileJob(BaseModel):
 
     def __str__(self):
         return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
+
+    @property
+    def key(self):
+        """Return the S3 key for the AI job result file."""
+        if self.type == AiJobTypeChoices.TRANSCRIPT:
+            return f"transcripts/{self.id!s}.json"
+        if self.type == AiJobTypeChoices.SUMMARIZE:
+            return f"summaries/{self.id!s}.txt"
+        raise ValueError(f"Unknown job type: {self.type}")

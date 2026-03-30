@@ -102,7 +102,7 @@ def store_transcript_and_call_summary(remote_job_id, url):
     s3_client = default_storage.connection.meta.client
     s3_client.put_object(
         Bucket=default_storage.bucket_name,
-        Key=f"transcripts/{ai_transcript_job.id!s}.json",
+        Key=ai_transcript_job.key,
         Body=response.content,
         ContentType="application/json",
     )
@@ -155,7 +155,7 @@ def store_summary(remote_job_id, url):
     s3_client = default_storage.connection.meta.client
     s3_client.put_object(
         Bucket=default_storage.bucket_name,
-        Key=f"summaries/{ai_summary_job.id!s}.txt",
+        Key=ai_summary_job.key,
         Body=response.content,
         ContentType="text/plain",
     )

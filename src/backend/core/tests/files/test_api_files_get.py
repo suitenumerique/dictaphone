@@ -80,6 +80,7 @@ def test_api_files_get_format():
             "full_name": file_obj.creator.full_name,
             "short_name": file_obj.creator.short_name,
         },
+        "ai_jobs": [],
         "title": file_obj.title,
         "updated_at": file_obj.updated_at.isoformat().replace("+00:00", "Z"),
         "type": models.FileTypeChoices.AUDIO_RECORDING,

@@ -7,6 +7,8 @@ from urllib.parse import unquote, urlparse
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.db.models import Prefetch
+from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
 
 from django_filters import rest_framework as django_filters
@@ -38,7 +40,7 @@ from core.tasks.file import (
     store_transcript_and_call_summary,
 )
 
-from ..models import AiFileJob, AiJobStatusChoices
+from ..models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices
 from . import permissions, serializers
 
 # pylint: disable=too-many-ancestors
@@ -247,7 +249,14 @@ class FileViewSet(
     def get_queryset(self):
         """Get queryset that defaults to the the current request user."""
         user = self.request.user
-        queryset = super().get_queryset().select_related("creator")
+        queryset = (
+            super()
+            .get_queryset()
+            .select_related("creator")
+            .prefetch_related(
+                Prefetch("ai_jobs", queryset=AiFileJob.objects.order_by("-created_at"))
+            )
+        )
 
         if not user.is_authenticated:
             return queryset.none()
@@ -504,10 +513,77 @@ class FileViewSet(
 
         return drf_response.Response("authorized", headers=request.headers, status=200)
 
+
+class AiJobViewSet(
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """AI jobs API."""
+
+    permission_classes = [permissions.AiJobPermission]
+    queryset = AiFileJob.objects.select_related("file", "file__creator")
+    serializer_class = serializers.AiJobSerializer
+
+    def get_queryset(self):
+        """Restrict AI jobs to current user except webhook endpoint."""
+        queryset = super().get_queryset()
+
+        if self.action == "on_ai_event":
+            return queryset
+
+        user = self.request.user
+        if not user.is_authenticated:
+            return queryset.none()
+
+        return queryset.filter(
+            file__creator=user,
+            file__deleted_at__isnull=True,
+            file__hard_deleted_at__isnull=True,
+        )
+
+    def _proxy_ai_result(self, ai_job, expected_type, content_type):
+        """Proxy AI result file from storage."""
+        if ai_job.type != expected_type:
+            raise drf_exceptions.NotFound()
+
+        if ai_job.status != AiJobStatusChoices.SUCCESS:
+            raise drf_exceptions.ValidationError(
+                {"status": "AI job is not completed yet."},
+                code="ai_job_not_completed",
+            )
+
+        if not default_storage.exists(ai_job.key):
+            raise drf_exceptions.NotFound()
+
+        with default_storage.open(ai_job.key, "rb") as result_file:
+            content = result_file.read()
+
+        return HttpResponse(content=content, content_type=content_type, status=200)
+
+    @decorators.action(detail=True, methods=["get"], url_path="summary")
+    def summary(self, request, *args, **kwargs):
+        """Return AI summary result for a summary job."""
+        ai_job = self.get_object()
+        return self._proxy_ai_result(
+            ai_job=ai_job,
+            expected_type=AiJobTypeChoices.SUMMARIZE,
+            content_type="text/plain",
+        )
+
+    @decorators.action(detail=True, methods=["get"], url_path="transcript")
+    def transcript(self, request, *args, **kwargs):
+        """Return AI transcript result for a transcript job."""
+        ai_job = self.get_object()
+        return self._proxy_ai_result(
+            ai_job=ai_job,
+            expected_type=AiJobTypeChoices.TRANSCRIPT,
+            content_type="application/json",
+        )
+
     @decorators.action(
         detail=False,
         methods=["post"],
-        url_path="ai-webhook",
+        url_path="webhook",
         authentication_classes=[AiWebhookAuthentication],
         permission_classes=[permissions.TranscribeWebhookPermission],
     )

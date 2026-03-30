@@ -35,12 +35,22 @@ class UserLightSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "full_name", "short_name"]
 
 
+class AiJobSerializer(serializers.ModelSerializer):
+    """Serialize AI job model for the API."""
+
+    class Meta:
+        model = models.AiFileJob
+        fields = ["id", "type", "status", "created_at", "updated_at"]
+        read_only_fields = ["id", "type", "status", "created_at", "updated_at"]
+
+
 class ListFileSerializer(serializers.ModelSerializer):
     """Serialize File model for the API."""
 
     url = serializers.SerializerMethodField(read_only=True)
     creator = UserLightSerializer(read_only=True)
     abilities = serializers.SerializerMethodField(read_only=True)
+    ai_jobs = AiJobSerializer(many=True, read_only=True)
 
     class Meta:
         model = models.File
@@ -60,6 +70,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "size",
             "description",
             "url",
+            "ai_jobs",
             "abilities",
         ]
         read_only_fields = [
@@ -75,6 +86,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "mimetype",
             "size",
             "url",
+            "ai_jobs",
             "abilities",
         ]
 

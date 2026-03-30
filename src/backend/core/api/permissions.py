@@ -54,6 +54,24 @@ class FilePermission(IsAuthenticated):
         return obj.get_abilities(request.user).get(view.action, False)
 
 
+class AiJobPermission(IsAuthenticated):
+    """
+    Permissions applying to AI job endpoints.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        """
+        Return a 404 if AI job's file is deleted or user is not the creator.
+        """
+        if obj.file.deleted_at is not None or obj.file.hard_deleted_at is not None:
+            raise Http404
+
+        if obj.file.creator != request.user:
+            raise Http404
+
+        return True
+
+
 class TranscribeWebhookPermission(permissions.BasePermission):
     """
     Permissions applying to the summary webhook endpoint.

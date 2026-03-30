@@ -12,6 +12,7 @@ from core.api import get_frontend_configuration, viewsets
 router = DefaultRouter()
 router.register("users", viewsets.UserViewSet, basename="users")
 router.register("files", viewsets.FileViewSet, basename="files")
+router.register("ai-jobs", viewsets.AiJobViewSet, basename="ai-jobs")
 
 
 urlpatterns = [

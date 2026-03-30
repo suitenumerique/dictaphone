@@ -19,7 +19,7 @@ def test_api_files_transcribe_webhook_anonymous(caplog):
     """Anonymous users should not be allowed to call webhook."""
     with caplog.at_level(logging.WARNING):
         response = APIClient().post(
-            "/api/v1.0/files/ai-webhook/",
+            "/api/v1.0/ai-jobs/webhook/",
             {},
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -31,7 +31,7 @@ def test_api_files_transcribe_webhook_bad_token(caplog):
     """Anonymous users should not be allowed to call webhook."""
     with caplog.at_level(logging.WARNING):
         response = APIClient().post(
-            "/api/v1.0/files/ai-webhook/",
+            "/api/v1.0/ai-jobs/webhook/",
             {},
             headers={"Authorization": "Bearer bad-key"},
         )
@@ -47,7 +47,7 @@ def test_api_files_transcribe_webhook_authenticated(mock_task, settings):
     ai_file_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
     settings.AI_WEBHOOK_API_KEY = "good-key"
     response = APIClient().post(
-        "/api/v1.0/files/ai-webhook/",
+        "/api/v1.0/ai-jobs/webhook/",
         {
             "job_id": ai_file_job.remote_job_id,
             "type": "transcript",
@@ -76,7 +76,7 @@ def test_api_files_transcribe_webhook_authenticated_already_success(settings):
 
     settings.AI_WEBHOOK_API_KEY = "good-key"
     response = APIClient().post(
-        "/api/v1.0/files/ai-webhook/",
+        "/api/v1.0/ai-jobs/webhook/",
         {
             "job_id": ai_file_job.remote_job_id,
             "type": "transcript",
@@ -98,7 +98,7 @@ def test_api_files_transcribe_webhook_invalid_payload(mock_task, settings):
     settings.AI_WEBHOOK_API_KEY = "good-key"
 
     response = APIClient().post(
-        "/api/v1.0/files/ai-webhook/",
+        "/api/v1.0/ai-jobs/webhook/",
         {
             # Missing required `job_id`
             "type": "transcript",
@@ -118,7 +118,7 @@ def test_api_files_transcribe_webhook_unknown_job_id(mock_task, settings):
     settings.AI_WEBHOOK_API_KEY = "good-key"
 
     response = APIClient().post(
-        "/api/v1.0/files/ai-webhook/",
+        "/api/v1.0/ai-jobs/webhook/",
         {
             "job_id": "missing-job-id",
             "type": "transcript",
@@ -146,7 +146,7 @@ def test_api_files_summary_webhook_success(
     settings.AI_WEBHOOK_API_KEY = "good-key"
 
     response = APIClient().post(
-        "/api/v1.0/files/ai-webhook/",
+        "/api/v1.0/ai-jobs/webhook/",
         {
             "job_id": ai_file_job.remote_job_id,
             "type": "summary",
@@ -171,7 +171,7 @@ def test_api_files_webhook_failure_marks_job_failed(payload_type, settings):
     settings.AI_WEBHOOK_API_KEY = "good-key"
 
     response = APIClient().post(
-        "/api/v1.0/files/ai-webhook/",
+        "/api/v1.0/ai-jobs/webhook/",
         {
             "job_id": ai_file_job.remote_job_id,
             "type": payload_type,

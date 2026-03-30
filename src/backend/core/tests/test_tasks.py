@@ -199,11 +199,10 @@ def test_task_store_transcript_and_call_summary_success(mock_get, mock_post, set
         "content": "\n\n**SPEAKER_00**: Bonjour",
     }
 
-    transcript_key = f"transcripts/{ai_transcript_job.id!s}.json"
     s3_client = default_storage.connection.meta.client
     stored_obj = s3_client.get_object(
         Bucket=default_storage.bucket_name,
-        Key=transcript_key,
+        Key=ai_transcript_job.key,
     )
     assert stored_obj["Body"].read() == transcript_content
 
@@ -294,11 +293,10 @@ def test_task_store_summary_success(mock_get):
         timeout=(10, 20),
     )
 
-    summary_key = f"summaries/{ai_summary_job.id!s}.txt"
     s3_client = default_storage.connection.meta.client
     stored_obj = s3_client.get_object(
         Bucket=default_storage.bucket_name,
-        Key=summary_key,
+        Key=ai_summary_job.key,
     )
     assert stored_obj["Body"].read() == summary_content
 
