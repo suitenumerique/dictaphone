@@ -84,7 +84,9 @@ def store_transcript_and_call_summary(remote_job_id, url):
     """
     Store the transcript and call the summarize service for a given file.
     """
-    ai_transcript_job = AiFileJob.objects.filter(remote_job_id=remote_job_id).first()
+    ai_transcript_job = AiFileJob.objects.filter(
+        remote_job_id=remote_job_id, type=AiJobTypeChoices.TRANSCRIPT
+    ).first()
     if not ai_transcript_job:
         logger.warning("No AI file job found for job ID: %s", remote_job_id)
         return
@@ -129,3 +131,34 @@ def store_transcript_and_call_summary(remote_job_id, url):
         status=AiJobStatusChoices.PENDING,
     )
     logger.info("Summary job created for file %s", file.id)
+
+
+@app.task
+def store_summary(remote_job_id, url):
+    """
+    Store the summary of a given file.
+    """
+    ai_summary_job = AiFileJob.objects.filter(
+        remote_job_id=remote_job_id, type=AiJobTypeChoices.SUMMARIZE
+    ).first()
+    if not ai_summary_job:
+        logger.warning("No AI file job found for job ID: %s", remote_job_id)
+        return
+
+    file = ai_summary_job.file
+
+    logger.info("Storing summary for file %s & url %s", file.id, url)
+    # could be streamed to S3 later
+    response = requests.get(url, timeout=(10, 20))
+    response.raise_for_status()
+
+    s3_client = default_storage.connection.meta.client
+    s3_client.put_object(
+        Bucket=default_storage.bucket_name,
+        Key=f"summaries/{ai_summary_job.id!s}.txt",
+        Body=response.content,
+        ContentType="text/plain",
+    )
+    logger.info("Summary stored for file %s & url %s", file.id, url)
+    ai_summary_job.status = AiJobStatusChoices.SUCCESS
+    ai_summary_job.save()

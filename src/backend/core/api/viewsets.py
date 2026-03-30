@@ -34,6 +34,7 @@ from core.authentication.webhooks import AiWebhookAuthentication
 from core.tasks.file import (
     call_transcribe_service,
     process_file_deletion,
+    store_summary,
     store_transcript_and_call_summary,
 )
 
@@ -528,22 +529,20 @@ class FileViewSet(
             return drf_response.Response(
                 {"message": "No AI file job found for job ID, ignoring."},
             )
+        if ai_file_job.status == AiJobStatusChoices.SUCCESS:
+            logger.warning(
+                "AI file job already in success state for job ID: %s", payload.job_id
+            )
+            return drf_response.Response(
+                {"message": "AI file job already in success state, ignoring."},
+            )
 
         if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):
             store_transcript_and_call_summary.apply_async(
                 args=[payload.job_id, payload.transcription_data_url]
             )
         elif isinstance(payload, webhook_models.SummarizeWebhookSuccessPayload):
-            # We do it directly for this one
-            s3_client = default_storage.connection.meta.client
-            s3_client.put_object(
-                Bucket=default_storage.bucket_name,
-                Key=f"summaries/{ai_file_job.id!s}.json",
-                Body=payload.summary,
-                ContentType="application/json",
-            )
-            ai_file_job.status = AiJobStatusChoices.SUCCESS
-            ai_file_job.save()
+            store_summary.apply_async(args=[payload.job_id, payload.summary_data_url])
         elif isinstance(
             payload,
             (

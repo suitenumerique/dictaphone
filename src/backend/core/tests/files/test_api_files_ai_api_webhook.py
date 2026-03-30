@@ -3,14 +3,14 @@ Tests for files API endpoint in dictaphone's core app: create
 """
 
 import logging
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
-from core.models import AiJobStatusChoices
+from core.models import AiJobStatusChoices, AiJobTypeChoices
 
 pytestmark = pytest.mark.django_db
 
@@ -44,7 +44,7 @@ def test_api_files_transcribe_webhook_bad_token(caplog):
 def test_api_files_transcribe_webhook_authenticated(mock_task, settings):
     """Calls to the webhook with a proper API key should be accepted"""
 
-    ai_file_job = factories.AiFileJobFactory()
+    ai_file_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
     settings.AI_WEBHOOK_API_KEY = "good-key"
     response = APIClient().post(
         "/api/v1.0/files/ai-webhook/",
@@ -65,6 +65,29 @@ def test_api_files_transcribe_webhook_authenticated(mock_task, settings):
         ai_file_job.remote_job_id,
         "http://example.com/transcription.json",
     ]
+
+
+def test_api_files_transcribe_webhook_authenticated_already_success(settings):
+    """Calls for an AI job that is already successful shouldn't do anything"""
+
+    ai_file_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
+    ai_file_job.status = AiJobStatusChoices.SUCCESS
+    ai_file_job.save()
+
+    settings.AI_WEBHOOK_API_KEY = "good-key"
+    response = APIClient().post(
+        "/api/v1.0/files/ai-webhook/",
+        {
+            "job_id": ai_file_job.remote_job_id,
+            "type": "transcript",
+            "status": "success",
+            "transcription_data_url": "http://example.com/transcription.json",
+        },
+        headers={"Authorization": "Bearer good-key"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"message": "AI file job already in success state, ignoring."}
 
 
 @patch("core.api.viewsets.store_transcript_and_call_summary")
@@ -108,16 +131,17 @@ def test_api_files_transcribe_webhook_unknown_job_id(mock_task, settings):
     assert mock_task.apply_async.call_count == 0
 
 
-@patch("core.api.viewsets.default_storage")
+@patch("core.api.viewsets.store_summary")
 @patch("core.api.viewsets.store_transcript_and_call_summary")
-def test_api_files_summary_webhook_success(mock_task, mock_default_storage, settings):
-    """Summary success events should store summary and mark job as SUCCESS."""
-    ai_file_job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
+def test_api_files_summary_webhook_success(
+    mock_store_transcript, mock_store_summary, settings
+):
+    """Summary success events should enqueue summary storage task."""
+    ai_file_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
+    )
     settings.AI_WEBHOOK_API_KEY = "good-key"
-
-    mock_default_storage.bucket_name = "test-bucket"
-    mock_s3_client = Mock()
-    mock_default_storage.connection.meta.client = mock_s3_client
 
     response = APIClient().post(
         "/api/v1.0/files/ai-webhook/",
@@ -125,23 +149,17 @@ def test_api_files_summary_webhook_success(mock_task, mock_default_storage, sett
             "job_id": ai_file_job.remote_job_id,
             "type": "summary",
             "status": "success",
-            "summary": "Summary content",
+            "summary_data_url": "http://example.com/summary.txt",
         },
         headers={"Authorization": "Bearer good-key"},
     )
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Event processed."}
-    assert mock_task.apply_async.call_count == 0
-    mock_s3_client.put_object.assert_called_once_with(
-        Bucket="test-bucket",
-        Key=f"summaries/{ai_file_job.id!s}.json",
-        Body="Summary content",
-        ContentType="application/json",
+    assert mock_store_transcript.apply_async.call_count == 0
+    mock_store_summary.apply_async.assert_called_once_with(
+        args=[ai_file_job.remote_job_id, "http://example.com/summary.txt"]
     )
-
-    ai_file_job.refresh_from_db()
-    assert ai_file_job.status == AiJobStatusChoices.SUCCESS
 
 
 @pytest.mark.parametrize("payload_type", ["transcript", "summary"])

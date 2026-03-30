@@ -12,6 +12,7 @@ from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
 from core.tasks.file import (
     call_transcribe_service,
     process_file_deletion,
+    store_summary,
     store_transcript_and_call_summary,
 )
 
@@ -108,6 +109,23 @@ def test_task_store_transcript_and_call_summary_job_does_not_exist(mock_get, moc
 
     assert mock_get.call_count == 0
     assert mock_post.call_count == 0
+
+
+@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.requests.get")
+def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
+    mock_get, mock_post
+):
+    """No external calls should be made if remote id belongs to a non-transcript job."""
+    ai_summary_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
+
+    store_transcript_and_call_summary(
+        remote_job_id=ai_summary_job.remote_job_id,
+        url="http://example.com/transcript.json",
+    )
+
+    mock_get.assert_not_called()
+    mock_post.assert_not_called()
 
 
 @patch("core.tasks.file.requests.post")
@@ -226,6 +244,88 @@ def test_task_store_transcript_and_call_summary_get_error(mock_get, mock_post):
     ).exists()
     assert not default_storage.exists(f"transcripts/{ai_transcript_job.id!s}.json")
     assert mock_post.call_count == 0
+
+
+@patch("core.tasks.file.requests.get")
+def test_task_store_summary_job_does_not_exist(mock_get):
+    """No external calls should be made for unknown summary remote job id."""
+    store_summary(
+        remote_job_id="missing-summary-job",
+        url="http://example.com/summary.txt",
+    )
+
+    mock_get.assert_not_called()
+
+
+@patch("core.tasks.file.requests.get")
+def test_task_store_summary_ignores_non_summary_job(mock_get):
+    """No external calls should be made if remote id belongs to a non-summary job."""
+    ai_transcript_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
+
+    store_summary(
+        remote_job_id=ai_transcript_job.remote_job_id,
+        url="http://example.com/summary.txt",
+    )
+
+    mock_get.assert_not_called()
+
+
+@patch("core.tasks.file.requests.get")
+def test_task_store_summary_success(mock_get):
+    """Summary should be stored and summary job marked success."""
+    ai_summary_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    summary_content = b"Summary content"
+    get_response = Mock()
+    get_response.raise_for_status.return_value = None
+    get_response.content = summary_content
+    mock_get.return_value = get_response
+
+    store_summary(
+        remote_job_id=ai_summary_job.remote_job_id,
+        url="http://example.com/summary.txt",
+    )
+
+    mock_get.assert_called_once_with(
+        "http://example.com/summary.txt",
+        timeout=(10, 20),
+    )
+
+    summary_key = f"summaries/{ai_summary_job.id!s}.txt"
+    s3_client = default_storage.connection.meta.client
+    stored_obj = s3_client.get_object(
+        Bucket=default_storage.bucket_name,
+        Key=summary_key,
+    )
+    assert stored_obj["Body"].read() == summary_content
+
+    ai_summary_job.refresh_from_db()
+    assert ai_summary_job.status == AiJobStatusChoices.SUCCESS
+
+
+@patch("core.tasks.file.requests.get")
+def test_task_store_summary_get_error(mock_get):
+    """If summary download fails, nothing should be persisted."""
+    ai_summary_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
+    )
+    get_response = Mock()
+    get_response.raise_for_status.side_effect = RuntimeError("download failure")
+    mock_get.return_value = get_response
+
+    with pytest.raises(RuntimeError, match="download failure"):
+        store_summary(
+            remote_job_id=ai_summary_job.remote_job_id,
+            url="http://example.com/summary.txt",
+        )
+
+    ai_summary_job.refresh_from_db()
+    assert ai_summary_job.status == AiJobStatusChoices.PENDING
+    assert not default_storage.exists(f"summaries/{ai_summary_job.id!s}.txt")
 
 
 @patch("core.tasks.file.requests.post")
