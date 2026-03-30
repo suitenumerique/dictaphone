@@ -223,6 +223,7 @@ class File(BaseModel):
     hard_deleted_at = models.DateTimeField(null=True, blank=True)
 
     filename = models.CharField(max_length=255, null=False, blank=False)
+    duration_seconds = models.FloatField()
 
     upload_state = models.CharField(
         max_length=25,

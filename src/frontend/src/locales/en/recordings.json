@@ -1,6 +1,7 @@
 {
   "errorFetching": "Error fetching recordings",
   "noRecordings": "You don't have any recordings yet.",
+  "duration": "{{duration, formatDuration}}",
   "list": {
     "title": "My recordings",
     "columns": {

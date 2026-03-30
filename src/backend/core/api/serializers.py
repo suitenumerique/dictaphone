@@ -54,6 +54,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "deleted_at",
             "hard_deleted_at",
             "filename",
+            "duration_seconds",
             "upload_state",
             "mimetype",
             "size",
@@ -69,6 +70,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "deleted_at",
             "hard_deleted_at",
             "filename",
+            "duration_seconds",
             "upload_state",
             "mimetype",
             "size",
@@ -112,7 +114,7 @@ class CreateFileSerializer(ListFileSerializer):
             *(
                 field
                 for field in ListFileSerializer.Meta.read_only_fields
-                if field != "filename"
+                if field not in {"filename", "duration_seconds"}
             ),
             "policy",
         ]

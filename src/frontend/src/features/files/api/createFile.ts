@@ -57,14 +57,20 @@ export const uploadFile = (
  */
 export const createFile = async ({
   file,
+  durationSeconds,
   onProgress,
 }: {
   file: File
+  durationSeconds: number
   onProgress: (progress: number) => void
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
-    body: JSON.stringify({ filename: file.name, type: 'audio_recording' }),
+    body: JSON.stringify({
+      filename: file.name,
+      type: 'audio_recording',
+      duration_seconds: durationSeconds,
+    }),
   })
   if (res.upload_state !== 'pending') {
     throw new Error('State should be pending right after creation')

@@ -87,6 +87,7 @@ def test_api_files_get_format():
         "url": None,
         "mimetype": file_obj.mimetype,
         "filename": file_obj.filename,
+        "duration_seconds": file_obj.duration_seconds,
         "size": None,
         "description": None,
         "deleted_at": None,

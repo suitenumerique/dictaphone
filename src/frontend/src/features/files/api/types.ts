@@ -21,6 +21,7 @@ export type ApiFileItem = {
   mimetype: string // e.g. "image/png"
   size: number // file size in bytes
   description: string | null
+  duration_seconds: number
 } & (
   | {
       upload_state: 'ready'

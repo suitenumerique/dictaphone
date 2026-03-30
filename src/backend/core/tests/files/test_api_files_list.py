@@ -91,6 +91,7 @@ def test_api_files_list_format():
             "url": None,
             "mimetype": file.mimetype,
             "filename": file.filename,
+            "duration_seconds": file.duration_seconds,
             "size": None,
             "description": None,
             "deleted_at": None,

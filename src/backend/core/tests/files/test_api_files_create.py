@@ -26,6 +26,7 @@ def test_api_files_create_anonymous():
         {
             "title": "My file",
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
         },
     )
 
@@ -48,6 +49,7 @@ def test_api_files_create_authenticated_success():
         {
             "title": "my file",
             "filename": "my_file.ogg",
+            "duration_seconds": 1,
             "type": FileTypeChoices.AUDIO_RECORDING,
         },
         format="json",
@@ -75,6 +77,7 @@ def test_api_files_create_file_authenticated_no_filename():
         {
             "title": "my item",
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
         },
         format="json",
     )
@@ -98,6 +101,7 @@ def test_api_files_create_file_authenticated_success():
             {
                 "type": FileTypeChoices.AUDIO_RECORDING,
                 "title": "Eiffle tower",
+                "duration_seconds": 1,
                 "filename": "file.ogg",
             },
             format="json",
@@ -146,6 +150,7 @@ def test_api_files_create_file_authenticated_extension_not_allowed():
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
             "title": "Paris tower",
+            "duration_seconds": 1,
             "filename": "file.notallowed",
         },
         format="json",
@@ -165,6 +170,7 @@ def test_api_files_create_file_authenticated_extension_case_insensitive():
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "file.mp4",
         },
         format="json",
@@ -186,6 +192,7 @@ def test_api_files_create_file_authenticated_not_checking_extension(settings):
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "file.notallowed",
         },
         format="json",
@@ -209,6 +216,7 @@ def test_api_files_create_file_authenticated_no_extension_but_checking_it_should
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "file",
         },
         format="json",
@@ -231,6 +239,7 @@ def test_api_files_create_file_authenticated_hidden_file_but_checking_extension_
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": ".file",
         },
     )
@@ -260,6 +269,7 @@ def test_api_files_create_file_too_many(
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "1.ogg",
         },
     )
@@ -270,6 +280,7 @@ def test_api_files_create_file_too_many(
         "/api/v1.0/files/",
         {
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "2.ogg",
         },
     )
@@ -295,6 +306,7 @@ def test_api_files_create_force_id_success():
             "id": str(forced_id),
             "title": "my item",
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "my_file.ogg",
         },
         format="json",
@@ -322,6 +334,7 @@ def test_api_files_create_force_id_existing():
             "id": str(file.id),
             "title": "my file",
             "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
             "filename": "my_file.ogg",
         },
         format="json",
@@ -349,6 +362,7 @@ def test_api_files_create_file_race_condition():
             {
                 "title": title,
                 "type": FileTypeChoices.AUDIO_RECORDING,
+                "duration_seconds": 1,
                 "filename": "my_file.ogg",
             },
             format="json",

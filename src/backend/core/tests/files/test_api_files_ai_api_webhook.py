@@ -87,7 +87,9 @@ def test_api_files_transcribe_webhook_authenticated_already_success(settings):
     )
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {"message": "AI file job already in success state, ignoring."}
+    assert response.json() == {
+        "message": "AI file job already in success state, ignoring."
+    }
 
 
 @patch("core.api.viewsets.store_transcript_and_call_summary")

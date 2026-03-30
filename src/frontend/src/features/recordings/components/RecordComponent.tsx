@@ -153,6 +153,7 @@ export default function RecordComponent() {
     try {
       await createFileMutation.mutateAsync({
         file: recordedFile,
+        durationSeconds: duration,
         onProgress: (progress) => setUploadProgress(progress),
       })
       setIsUploading(false)

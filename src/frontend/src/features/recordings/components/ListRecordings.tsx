@@ -7,18 +7,7 @@ import { Pagination } from '@/components/Pagination.tsx'
 import { useLocation } from 'wouter'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
-
-const toMockDuration = ({ id, size }: { id: string; size: number }) => {
-  const seed = [...id.replace(/-/g, '')].reduce((sum, value) => {
-    return sum + value.charCodeAt(0)
-  }, 0)
-  const totalSeconds = 30 + ((seed + size) % 971)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes.toString().padStart(2, '0')}:${seconds
-    .toString()
-    .padStart(2, '0')}`
-}
+import { intervalToDuration } from 'date-fns'
 
 function HeaderAction() {
   const { t } = useTranslation('upload')
@@ -93,7 +82,14 @@ export default function ListRecordings({
                   onClick={() => navigate(`/recordings/${file.id}`)}
                 >
                   <td>{file.title || file.filename}</td>
-                  <td>{toMockDuration(file)}</td>
+                  <td>
+                    {t('duration', {
+                      duration: intervalToDuration({
+                        start: 0,
+                        end: file.duration_seconds * 1000,
+                      }),
+                    })}
+                  </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"

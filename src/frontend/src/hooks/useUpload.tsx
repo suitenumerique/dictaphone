@@ -153,7 +153,7 @@ export const useUploadZone = () => {
           </ToasterItem>
         )
       }
-      const validFiles: FileWithPath[] = []
+      const validFiles: (FileWithPath & { durationSeconds: number })[] = []
 
       for (const file of acceptedFiles as FileWithPath[]) {
         const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`
@@ -190,7 +190,9 @@ export const useUploadZone = () => {
           continue
         }
 
-        validFiles.push(file)
+        ;(file as FileWithPath & { durationSeconds: number }).durationSeconds =
+          durationSeconds
+        validFiles.push(file as FileWithPath & { durationSeconds: number })
       }
       if (validFiles.length === 0) {
         return
@@ -224,6 +226,7 @@ export const useUploadZone = () => {
               createFile.mutate(
                 {
                   file,
+                  durationSeconds: file.durationSeconds,
                   onProgress: (progress) => {
                     setUploadingState((prev) => {
                       return {
