@@ -1,8 +1,22 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+
+
 .recording-page {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 4rem;
+
+  @media (max-width: $tablet) {
+    flex-direction: column-reverse;
+    margin-bottom: unset;
+    overflow: hidden;
+    height: calc(100dvh - 58px);
+    min-height: 0;
+  }
 }
 
 .recording-page__content {
@@ -15,18 +29,49 @@
 
 .recording-page__card {
   background: var(--c--contextuals--background--surface--primary);
-  border: 1px solid var(--c--contextuals--border--surface--primary);
-  border-radius: 0.75rem;
   padding: 1rem;
-  display: flex;
-  flex-direction: column;
+  border-radius: 0.75rem;
+
+  @media (min-width: $tablet) {
+    border: 1px solid var(--c--contextuals--border--surface--primary);
+
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+  }
+
+  @media (max-width: $tablet) {
+    flex: 1;
+    min-height: 0;
+
+    .recording-page__panel-header {
+      display: none;
+    }
+
+    .c__tabs {
+      height: 100%;
+
+      .react-aria-TabPanel {
+        flex: 1;
+      }
+    }
+  }
+}
+
+.react-aria-TabPanel {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .recording-page__player {
-  position: sticky;
-  top: 0;
   padding: 1rem;
   background: var(--c--globals--colors--gray-025);
+
+  @media (min-width: $tablet) {
+    position: sticky;
+    top: 0;
+    padding-top: 2rem;
+  }
 }
 
 .recording-page__panel-header {
@@ -48,18 +93,4 @@
   color: var(--c--contextuals--content--surface--primary);
   line-height: 1.6;
   white-space: pre-wrap;
-}
-
-@media (max-width: 1024px) {
-  .recording-page__content {
-    grid-template-columns: 1fr;
-  }
-
-  .recording-page__panel {
-    min-height: auto;
-  }
-
-  .recording-page__panel--transcript {
-    max-height: 50vh;
-  }
 }

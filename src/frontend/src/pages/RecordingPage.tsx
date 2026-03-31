@@ -8,8 +8,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Transcript } from '@/features/recordings/components/Transcript.tsx'
 import { Summary } from '@/features/recordings/components/Summary.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { CustomTabs, useResponsive } from '@gouvfr-lasuite/ui-kit'
+import { useTranslation } from 'react-i18next'
 
 export function RecordingPage({ recordingId }: { recordingId: string }) {
+  const { t } = useTranslation('recordings')
   const playerRef = useRef<AudioPlayerHandle>(null)
   const [currentTime, setCurrentTime] = useState(0)
 
@@ -23,6 +26,8 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
     playerRef.current?.seekTo(seconds)
     setCurrentTime(seconds)
   }, [])
+
+  const { isDesktop } = useResponsive()
 
   if (recordingQ.isPending) {
     return <span>Loading...</span>
@@ -45,18 +50,46 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
           </div>
         </div>
 
-        <div className="recording-page__content">
+        {isDesktop ? (
+          <div className="recording-page__content">
+            <div className="recording-page__card">
+              <Transcript
+                lastAiJobTranscript={lastAiJobTranscript}
+                seekTo={seekTo}
+                currentTime={currentTime}
+              />
+            </div>
+            <div className="recording-page__card">
+              <Summary lastAiJobSummary={lastAiJobSummary} />
+            </div>
+          </div>
+        ) : (
           <div className="recording-page__card">
-            <Transcript
-              lastAiJobTranscript={lastAiJobTranscript}
-              seekTo={seekTo}
-              currentTime={currentTime}
+            <CustomTabs
+              defaultSelectedTab="transcript"
+              tabs={[
+                {
+                  content: (
+                    <Transcript
+                      lastAiJobTranscript={lastAiJobTranscript}
+                      seekTo={seekTo}
+                      currentTime={currentTime}
+                    />
+                  ),
+                  icon: 'format_align_left',
+                  id: 'transcript',
+                  label: t("transcript.title"),
+                },
+                {
+                  content: <Summary lastAiJobSummary={lastAiJobSummary} />,
+                  icon: 'unfold_less',
+                  id: 'summary',
+                  label: t("summary.title"),
+                },
+              ]}
             />
           </div>
-          <div className="recording-page__card">
-            <Summary lastAiJobSummary={lastAiJobSummary} />
-          </div>
-        </div>
+        )}
       </div>
     </ConnectedLayout>
   )
