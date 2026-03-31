@@ -5,7 +5,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 .dictaphone__connected_layout_container {
   background-color: var(--c--globals--colors--white-950);
   min-height: 100%;
-  padding: 2rem;
+  padding: 1rem 2rem 2rem;
   display: flex;
   justify-content: center;
 

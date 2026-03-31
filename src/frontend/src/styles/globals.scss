@@ -12,8 +12,10 @@
 @use './../features/ui/preview/preview';
 @use './../features/recordings/components/RecordComponent';
 @use './../features/recordings/components/ListRecordings';
+@use './../features/recordings/components/Transcript';
 @use './../features/files/components/FileUploadToast';
 @use './../features/ui/components/toaster';
+@use './../pages/RecordingPage';
 
 // Buggy otherwise for some reason
 .c__avatar__initials {

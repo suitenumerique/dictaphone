@@ -1,13 +1,17 @@
 import { useListMyFiles } from '@/features/files/api/listFiles.ts'
 import { useDeleteFile } from '@/features/files/api/deleteFile.ts'
 import { useTranslation } from 'react-i18next'
-import { Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Badge, Spinner } from '@gouvfr-lasuite/ui-kit'
 import { Card } from '@/components/Card.tsx'
 import { Pagination } from '@/components/Pagination.tsx'
 import { useLocation } from 'wouter'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
+import { ApiFileItem } from '@/features/files/api/types.ts'
+import { ComponentProps, useMemo } from 'react'
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 
 function HeaderAction() {
   const { t } = useTranslation('upload')
@@ -23,6 +27,39 @@ function HeaderAction() {
       </Button>
       <RecordComponent />
     </>
+  )
+}
+
+const BADGE_TYPE_BY_STATUS: Record<
+  ApiAiJob['status'],
+  ComponentProps<typeof Badge>['type']
+> = {
+  pending: 'info',
+  success: 'success',
+  failed: 'danger',
+}
+
+function RecordingStatus({ recording }: { recording: ApiFileItem }) {
+  const { t } = useTranslation('recordings')
+
+  const { lastAiJobTranscript, lastAiJobSummary } = useMemo(
+    () => getMainAiJobs(recording.ai_jobs),
+    [recording.ai_jobs]
+  )
+
+  return (
+    <div className="recording-status">
+      {lastAiJobTranscript !== null && (
+        <Badge type={BADGE_TYPE_BY_STATUS[lastAiJobTranscript.status]}>
+          {t(`transcript.statusPreview.${lastAiJobTranscript.status}`)}
+        </Badge>
+      )}
+      {lastAiJobSummary !== null && (
+        <Badge type={BADGE_TYPE_BY_STATUS[lastAiJobSummary.status]}>
+          {t(`summary.statusPreview.${lastAiJobSummary.status}`)}
+        </Badge>
+      )}
+    </div>
   )
 }
 
@@ -68,6 +105,7 @@ export default function ListRecordings({
             <tr>
               <th scope="col">{t('list.columns.title')}</th>
               <th scope="col">{t('list.columns.duration')}</th>
+              <th scope="col">{t('list.columns.processes')}</th>
               <th scope="col">{t('list.columns.actions')}</th>
             </tr>
           </thead>
@@ -89,6 +127,9 @@ export default function ListRecordings({
                         end: file.duration_seconds * 1000,
                       }),
                     })}
+                  </td>
+                  <td>
+                    <RecordingStatus recording={file} />
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <button

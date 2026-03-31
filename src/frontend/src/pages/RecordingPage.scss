@@ -1,0 +1,65 @@
+.recording-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 4rem;
+}
+
+.recording-page__content {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 1rem;
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+.recording-page__card {
+  background: var(--c--contextuals--background--surface--primary);
+  border: 1px solid var(--c--contextuals--border--surface--primary);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.recording-page__player {
+  position: sticky;
+  top: 0;
+  padding: 1rem;
+  background: var(--c--globals--colors--gray-025);
+}
+
+.recording-page__panel-header {
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--c--contextuals--content--surface--primary);
+  }
+}
+
+.recording-page__state {
+  color: var(--c--contextuals--content--surface--secondary);
+  font-size: 0.95rem;
+}
+
+.recording-page__summary {
+  color: var(--c--contextuals--content--surface--primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1024px) {
+  .recording-page__content {
+    grid-template-columns: 1fr;
+  }
+
+  .recording-page__panel {
+    min-height: auto;
+  }
+
+  .recording-page__panel--transcript {
+    max-height: 50vh;
+  }
+}

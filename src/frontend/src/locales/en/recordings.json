@@ -7,6 +7,7 @@
     "columns": {
       "title": "Title",
       "duration": "Duration",
+      "processes": "Processes",
       "actions": "Actions"
     },
     "ariaLabelTable": "Recordings list",
@@ -14,6 +15,32 @@
     "paginationAriaLabel": "Recordings pagination",
     "paginationPreviousAriaLabel": "Go to previous page",
     "paginationNextAriaLabel": "Go to next page"
+  },
+  "transcript": {
+    "title": "Transcript",
+    "status": {
+      "pending": "Transcript is still being generated.",
+      "failed": "Transcript generation failed.",
+      "empty": "Transcript is empty."
+    },
+    "statusPreview": {
+      "pending": "Pending transcript",
+      "failed": "Transcript error",
+      "success": "Transcript"
+    }
+  },
+  "summary": {
+    "title": "Summary (beta)",
+    "status": {
+      "pending": "Summary is still being generated.",
+      "failed": "Summary generation failed.",
+      "empty": "Summary is empty."
+    },
+    "statusPreview": {
+      "pending": "Pending summary",
+      "failed": "Summary error",
+      "success": "Summary"
+    }
   },
   "player": {
     "player": "Audio player",

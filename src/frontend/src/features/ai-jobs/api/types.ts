@@ -1,0 +1,28 @@
+export type ApiAiJob = {
+  id: string // UUID
+  type: 'transcript' | 'summary'
+  status: 'pending' | 'success' | 'failed'
+  created_at: string // ISO datetime string
+  updated_at: string // ISO datetime string
+}
+
+export type WordSegment = {
+  word: string
+  start: number
+  end: number
+  score: number | null
+  speaker: string | null
+}
+
+export type Segment = {
+  start: number
+  end: number
+  text: string
+  words: WordSegment[] | null
+  speaker: string | null
+}
+
+export type WhisperXResponse = {
+  segments: Segment[]
+  word_segments: WordSegment[]
+}

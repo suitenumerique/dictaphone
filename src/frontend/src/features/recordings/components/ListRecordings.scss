@@ -26,6 +26,12 @@
     width: 56px;
     text-align: right;
   }
+
+  .recording-status {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
 }
 
 .recordings-list__delete-button {

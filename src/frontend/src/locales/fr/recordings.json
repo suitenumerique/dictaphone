@@ -7,6 +7,7 @@
     "columns": {
       "title": "Titre",
       "duration": "Durée",
+      "processes": "Traitements",
       "actions": "Actions"
     },
     "ariaLabelTable": "Liste des enregistrements",
@@ -14,6 +15,32 @@
     "paginationAriaLabel": "Pagination des enregistrements",
     "paginationPreviousAriaLabel": "Aller à la page précédente",
     "paginationNextAriaLabel": "Aller à la page suivante"
+  },
+  "transcript": {
+    "title": "Transcription",
+    "status": {
+      "pending": "Transcription en cours de génération.",
+      "failed": "Échec de la génération de la transcription.",
+      "empty": "La transcription est vide."
+    },
+    "statusPreview": {
+      "pending": "Transcription en cours",
+      "failed": "Erreur de transcription",
+      "success": "Transcrit"
+    }
+  },
+  "summary": {
+    "title": "Résumé (beta)",
+    "status": {
+      "pending": "Résumé en cours de génération.",
+      "failed": "Échec de la génération de la résumé.",
+      "empty": "Le résumé est vide."
+    },
+    "statusPreview": {
+      "pending": "Résumé en cours",
+      "failed": "Erreur de résumé",
+      "success": "Résumé"
+    }
   },
   "player": {
     "player": "Lecteur",

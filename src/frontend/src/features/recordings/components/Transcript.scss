@@ -1,0 +1,110 @@
+.transcript__transcript-list {
+  overflow-y: scroll;
+  padding-right: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 100%;
+}
+
+.transcript__segment {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    background: color-mix(
+      in srgb,
+      var(--c--contextuals--background--semantic--brand--tertiary) 30%,
+      transparent
+    );
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--c--contextuals--border--semantic--brand--primary);
+    box-shadow: 0 0 0 1px
+      var(--c--contextuals--border--semantic--brand--primary);
+  }
+
+  &[data-active='true'] {
+    background: color-mix(
+      in srgb,
+      var(--c--contextuals--background--semantic--brand--tertiary) 55%,
+      transparent
+    );
+    border-color: color-mix(
+      in srgb,
+      var(--c--contextuals--border--semantic--brand--primary) 35%,
+      transparent
+    );
+  }
+}
+
+.transcript__segment-time {
+  color: var(--c--contextuals--content--surface--secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.transcript__segment-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.transcript__speaker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  font-size: 0.75rem;
+  color: var(--c--contextuals--content--semantic--brand--primary);
+  background: color-mix(
+    in srgb,
+    var(--c--contextuals--background--semantic--brand--tertiary) 75%,
+    transparent
+  );
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+}
+
+.transcript__segment-text {
+  color: var(--c--contextuals--content--surface--primary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: row;
+  gap: 0.06em;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.transcript__word {
+  border-radius: 0.2rem;
+  padding: 0.02rem 0.12rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.transcript__word[data-active='true'] {
+  background: color-mix(
+    in srgb,
+    var(--c--contextuals--background--semantic--brand--primary) 30%,
+    transparent
+  );
+}

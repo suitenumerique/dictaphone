@@ -1,3 +1,5 @@
+import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
+
 export type ApiFileCreator = {
   id: string // UUID
   full_name: string | null
@@ -22,6 +24,7 @@ export type ApiFileItem = {
   size: number // file size in bytes
   description: string | null
   duration_seconds: number
+  ai_jobs: ApiAiJob[]
 } & (
   | {
       upload_state: 'ready'
