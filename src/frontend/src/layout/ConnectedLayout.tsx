@@ -5,11 +5,14 @@ import { useUser } from '@/features/auth'
 import { Link, Redirect } from 'wouter'
 import LeftPanel from '@/layout/LeftPanel.tsx'
 import { useTranslation } from 'react-i18next'
+import clsx from 'clsx'
 
 export default function ConnectedLayout({
   children,
+  ...rest
 }: {
   children: React.ReactNode
+  className?: string
 }) {
   const { t } = useTranslation('layout')
   const user = useUser()
@@ -36,7 +39,13 @@ export default function ConnectedLayout({
       rightHeaderContent={<HeaderRight />}
       leftPanelContent={<LeftPanel />}
     >
-      <div className="dictaphone__connected_layout_container">
+      <div
+        {...rest}
+        className={clsx(
+          'dictaphone__connected_layout_container',
+          rest.className
+        )}
+      >
         <main className="dictaphone__connected_layout_content">{children}</main>
       </div>
     </MainLayout>

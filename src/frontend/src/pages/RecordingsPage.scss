@@ -1,0 +1,29 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+
+.recordings-page {
+  @media (min-width: $tablet) {
+    margin-top: 2rem;
+    padding: 2rem;
+  }
+
+
+  .drop-zone--drag-in-progress {
+    background-color: var(
+            --c--contextuals--background--semantic--brand--tertiary
+    );
+  }
+
+  .drop-zone--drag-in-progress-main-area {
+
+    @media (max-width: $tablet) {
+      border: 4px solid var(--c--contextuals--border--semantic--brand--primary);
+    }
+    @media (min-width: $tablet) {
+      box-shadow: var(--c--contextuals--border--semantic--brand--primary) 0 0 0 3px;
+
+    }
+  }
+}

@@ -30,31 +30,31 @@ export function RecordingsPage() {
 
   const filesQ = useListMyFiles(listFilesQueryParams)
   const { dropZone } = useUploadZone()
+  const isDropZoneActive =
+    dropZone.isFocused || dropZone.isDragAccept || dropZone.isDragReject
 
   return (
-    <ConnectedLayout>
-      <div
-        {...dropZone.getRootProps({
-          className: clsx({
-            'drop-zone--drag-in-progress':
-              dropZone.isFocused ||
-              dropZone.isDragAccept ||
-              dropZone.isDragReject,
-          }),
-        })}
-      >
+    <ConnectedLayout
+      {...dropZone.getRootProps({
+        className: clsx({
+          'drop-zone--drag-in-progress': isDropZoneActive,
+        }),
+      })}
+    >
+      <div className="recordings-page">
         <ListRecordings
           queryData={filesQ}
           page={page}
           pageSize={PAGE_SIZE}
           onPageChange={setPage}
-        />
-        <input
-          {...dropZone.getInputProps({
-            id: 'import-files',
-          })}
+          isDropZoneActive={isDropZoneActive}
         />
       </div>
+      <input
+        {...dropZone.getInputProps({
+          id: 'import-files',
+        })}
+      />
     </ConnectedLayout>
   )
 }

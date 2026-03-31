@@ -18,9 +18,14 @@ export const FileUploadToast = (
   const [isOpen, setIsOpen] = useState(true)
   const pendingFilesCount = Object.values(
     props.uploadingState.filesMeta
-  ).filter((meta) => meta.progress < 100).length
+  ).filter(
+    (meta) => meta.status === 'uploading'
+  ).length
   const doneFilesCount = Object.values(props.uploadingState.filesMeta).filter(
-    (meta) => meta.progress >= 100
+    (meta) => meta.status === 'done'
+  ).length
+  const failedFilesCount = Object.values(props.uploadingState.filesMeta).filter(
+    (meta) => meta.status === 'error'
   ).length
   // Does not show the files list and the open button.
   const simpleMode = props.uploadingState.step === 'preparing'
@@ -82,7 +87,9 @@ export const FileUploadToast = (
                     ? t('uploader.files.description_done', {
                         count: doneFilesCount,
                       })
-                    : null}
+                    : failedFilesCount > 0
+                      ? t('errors.uploadFailed')
+                      : null}
               </>
             )}
           </div>

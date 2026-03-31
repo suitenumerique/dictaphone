@@ -9,8 +9,13 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 4rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 
   @media (max-width: $tablet) {
+    padding-left: 0;
+    padding-right: 0;
+
     flex-direction: column-reverse;
     margin-bottom: unset;
     overflow: hidden;
@@ -51,6 +56,10 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     .c__tabs {
       height: 100%;
 
+      .react-aria-Tabs {
+        width: 100%;
+      }
+
       .react-aria-TabPanel {
         flex: 1;
       }
@@ -61,6 +70,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 .react-aria-TabPanel {
   min-height: 0;
   overflow-y: auto;
+  width: 100%;
 }
 
 .recording-page__player {

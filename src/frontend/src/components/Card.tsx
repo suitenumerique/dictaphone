@@ -1,16 +1,18 @@
 import { PropsWithChildren, ReactNode, useId } from 'react'
+import clsx from 'clsx'
 
 type CardProps = PropsWithChildren<{
   title: ReactNode
   action?: ReactNode
   contentAriaLabel?: string
+  className?: string
 }>
 
-export function Card({ title, action, contentAriaLabel, children }: CardProps) {
+export function Card({ title, action, contentAriaLabel, children, className }: CardProps) {
   const titleId = useId()
 
   return (
-    <section className="card" aria-labelledby={titleId}>
+    <section className={clsx('card', className)} aria-labelledby={titleId}>
       <header className="card__header">
         <h2 id={titleId} className="card__title">
           {title}

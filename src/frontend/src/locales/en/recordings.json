@@ -34,7 +34,8 @@
     "status": {
       "pending": "Summary is still being generated.",
       "failed": "Summary generation failed.",
-      "empty": "Summary is empty."
+      "empty": "Summary is empty.",
+      "notStarted": "Summary not available yet."
     },
     "statusPreview": {
       "pending": "Pending summary",

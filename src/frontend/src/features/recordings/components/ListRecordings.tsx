@@ -12,6 +12,7 @@ import { ApiFileItem } from '@/features/files/api/types.ts'
 import { ComponentProps, useMemo } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
+import clsx from 'clsx'
 
 function HeaderAction() {
   const { t } = useTranslation('upload')
@@ -68,101 +69,101 @@ export default function ListRecordings({
   page,
   pageSize,
   onPageChange,
+  isDropZoneActive
 }: {
   queryData: ReturnType<typeof useListMyFiles>
   page: number
   pageSize: number
-  onPageChange: (page: number) => void
+  onPageChange: (page: number) => void,
+  isDropZoneActive: boolean,
 }) {
   const [, navigate] = useLocation()
   const { t } = useTranslation('recordings')
   const deleteFileMutation = useDeleteFile()
 
-  if (queryData.isPending && !queryData.data) {
-    return <Spinner />
-  }
-
-  if (!queryData.data) {
-    return <div>{t('errorFetching')}</div>
-  }
-
-  if (queryData.data?.count === 0) {
-    return (
-      <Card title={t('list.title')} action={<HeaderAction />}>
-        <div>{t('noRecordings')}</div>
-      </Card>
-    )
-  }
-
   return (
-    <Card title={t('list.title')} action={<HeaderAction />}>
-      <div className="recordings-list">
-        <table
-          className="recordings-list__table"
-          aria-label={t('list.ariaLabelTable')}
-        >
-          <thead>
-            <tr>
-              <th scope="col">{t('list.columns.title')}</th>
-              <th scope="col">{t('list.columns.duration')}</th>
-              <th scope="col">{t('list.columns.processes')}</th>
-              <th scope="col">{t('list.columns.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {queryData.data.results.map((file) => {
-              const isDeletingCurrentFile =
-                deleteFileMutation.isPending &&
-                deleteFileMutation.variables?.fileId === file.id
-              return (
-                <tr
-                  key={file.id}
-                  onClick={() => navigate(`/recordings/${file.id}`)}
-                >
-                  <td>{file.title || file.filename}</td>
-                  <td>
-                    {t('duration', {
-                      duration: intervalToDuration({
-                        start: 0,
-                        end: file.duration_seconds * 1000,
-                      }),
-                    })}
-                  </td>
-                  <td>
-                    <RecordingStatus recording={file} />
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="recordings-list__delete-button"
-                      aria-label={t('list.deleteAriaLabel', {
-                        title: file.title || file.filename,
+    <Card
+      title={t('list.title')}
+      action={<HeaderAction />}
+      className={clsx({
+        'drop-zone--drag-in-progress-main-area': isDropZoneActive,
+      })}
+    >
+      {queryData.isPending && !queryData.data && <Spinner />}
+      {queryData.error && <div>{t('errorFetching')}</div>}
+      {queryData.data && queryData.data.count === 0 && (
+        <div>{t('noRecordings')}</div>
+      )}
+      {queryData.data && queryData.data.count > 0 && (
+        <div className="recordings-list">
+          <table
+            className="recordings-list__table"
+            aria-label={t('list.ariaLabelTable')}
+          >
+            <thead>
+              <tr>
+                <th scope="col">{t('list.columns.title')}</th>
+                <th scope="col">{t('list.columns.duration')}</th>
+                <th scope="col">{t('list.columns.processes')}</th>
+                <th scope="col">{t('list.columns.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {queryData.data.results.map((file) => {
+                const isDeletingCurrentFile =
+                  deleteFileMutation.isPending &&
+                  deleteFileMutation.variables?.fileId === file.id
+                return (
+                  <tr
+                    className="clickable"
+                    key={file.id}
+                    onClick={() => navigate(`/recordings/${file.id}`)}
+                  >
+                    <td>{file.title || file.filename}</td>
+                    <td>
+                      {t('duration', {
+                        duration: intervalToDuration({
+                          start: 0,
+                          end: file.duration_seconds * 1000,
+                        }),
                       })}
-                      onClick={() =>
-                        deleteFileMutation.mutate({ fileId: file.id })
-                      }
-                      disabled={isDeletingCurrentFile}
-                    >
-                      <span className="material-icons" aria-hidden="true">
-                        delete
-                      </span>
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalItems={queryData.data.count}
-          onPageChange={onPageChange}
-          ariaLabel={t('list.paginationAriaLabel')}
-          previousAriaLabel={t('list.paginationPreviousAriaLabel')}
-          nextAriaLabel={t('list.paginationNextAriaLabel')}
-        />
-      </div>
+                    </td>
+                    <td>
+                      <RecordingStatus recording={file} />
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="recordings-list__delete-button"
+                        aria-label={t('list.deleteAriaLabel', {
+                          title: file.title || file.filename,
+                        })}
+                        onClick={() =>
+                          deleteFileMutation.mutate({ fileId: file.id })
+                        }
+                        disabled={isDeletingCurrentFile}
+                      >
+                        <span className="material-icons" aria-hidden="true">
+                          delete
+                        </span>
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={queryData.data.count}
+            onPageChange={onPageChange}
+            ariaLabel={t('list.paginationAriaLabel')}
+            previousAriaLabel={t('list.paginationPreviousAriaLabel')}
+            nextAriaLabel={t('list.paginationNextAriaLabel')}
+          />
+        </div>
+      )}
     </Card>
   )
 }

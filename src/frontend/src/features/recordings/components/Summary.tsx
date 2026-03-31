@@ -16,6 +16,12 @@ export function Summary({
         <h2>{t('summary.title')}</h2>
       </header>
 
+      {lastAiJobSummary === null && (
+        <div className="recording-page__state">
+          {t('summary.status.notStarted')}
+        </div>
+      )}
+
       {lastAiJobSummary?.status === 'failed' && (
         <div className="recording-page__state">
           {t('summary.status.failed')}

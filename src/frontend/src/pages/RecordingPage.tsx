@@ -78,13 +78,13 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
                   ),
                   icon: 'format_align_left',
                   id: 'transcript',
-                  label: t("transcript.title"),
+                  label: t('transcript.title'),
                 },
                 {
                   content: <Summary lastAiJobSummary={lastAiJobSummary} />,
                   icon: 'unfold_less',
                   id: 'summary',
-                  label: t("summary.title"),
+                  label: t('summary.title'),
                 },
               ]}
             />

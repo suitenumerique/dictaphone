@@ -12,7 +12,11 @@ import prettyBytes from 'pretty-bytes'
 import { getAudioDuration } from '@/features/recordings/utils/getAudioDuration.ts'
 import { intervalToDuration } from 'date-fns'
 
-export type FileUploadMeta = { file: File; progress: number }
+export type FileUploadMeta = {
+  file: File
+  progress: number
+  status: 'uploading' | 'done' | 'error'
+}
 
 enum UploadingStep {
   NONE = 'none',
@@ -117,6 +121,30 @@ export const useUploadZone = () => {
       dismissDragToast()
     },
     onDrop: async (acceptedFiles, fileRejections) => {
+      dismissDragToast()
+
+      for (const rejection of fileRejections) {
+        let label = 'error'
+        if (rejection.errors[0].code === 'file-invalid-type') {
+          label = t('errors.unsupportedMimeType', {
+            mimeType: rejection.file.name,
+          })
+        } else if (rejection.errors[0].code === 'file-too-large') {
+          label = t('errors.tooLarge', {
+            value: prettyBytes(maxSize),
+          })
+        }
+        addToast(
+          <ToasterItem type="error">
+            <span>{label}</span>
+          </ToasterItem>
+        )
+      }
+
+      if (acceptedFiles.length === 0) {
+        return
+      }
+
       setUploadingState((prev) => ({
         ...prev,
         step: UploadingStep.PREPARING,
@@ -134,25 +162,7 @@ export const useUploadZone = () => {
           }
         )
       }
-      dismissDragToast()
 
-      for (const rejection of fileRejections) {
-        let label = 'error'
-        if (rejection.errors[0].code === 'file-invalid-type') {
-          label = t('errors.unsupportedMimeType', {
-            mimeType: rejection.file.type,
-          })
-        } else if (rejection.errors[0].code === 'file-too-large') {
-          label = t('errors.tooLarge', {
-            maxSize: prettyBytes(maxSize),
-          })
-        }
-        addToast(
-          <ToasterItem type="error">
-            <span>{label}</span>
-          </ToasterItem>
-        )
-      }
       const validFiles: (FileWithPath & { durationSeconds: number })[] = []
 
       for (const file of acceptedFiles as FileWithPath[]) {
@@ -209,6 +219,7 @@ export const useUploadZone = () => {
         newUploadingState.filesMeta[pathNicefy(file.path!)] = {
           file,
           progress: 0,
+          status: 'uploading',
         }
       }
       setUploadingState(newUploadingState)
@@ -233,7 +244,11 @@ export const useUploadZone = () => {
                         ...prev,
                         filesMeta: {
                           ...prev.filesMeta,
-                          [pathNicefy(file.path!)]: { file, progress },
+                          [pathNicefy(file.path!)]: {
+                            file,
+                            progress,
+                            status: progress >= 100 ? 'done' : 'uploading',
+                          },
                         },
                       }
                     })
@@ -241,11 +256,25 @@ export const useUploadZone = () => {
                 },
                 {
                   onError: () => {
+                    addToast(
+                      <ToasterItem type="error">
+                        <span>{t('errors.uploadFailed')}</span>
+                      </ToasterItem>
+                    )
                     setUploadingState((prev) => {
-                      // Remove the file from the uploading state on error
-                      const newState = { ...prev }
-                      delete newState.filesMeta[pathNicefy(file.path!)]
-                      return newState
+                      return {
+                        ...prev,
+                        filesMeta: {
+                          ...prev.filesMeta,
+                          [pathNicefy(file.path!)]: {
+                            file,
+                            progress:
+                              prev.filesMeta[pathNicefy(file.path!)]?.progress ??
+                              0,
+                            status: 'error',
+                          },
+                        },
+                      }
                     })
                   },
                   onSettled: () => {

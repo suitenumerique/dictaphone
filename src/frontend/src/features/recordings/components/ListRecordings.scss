@@ -32,6 +32,15 @@
     align-items: center;
     gap: 0.25rem;
   }
+
+  tr {
+    &.clickable {
+      cursor: pointer;
+      &:hover {
+        background: var(--c--globals--colors--gray-025);
+      }
+    }
+  }
 }
 
 .recordings-list__delete-button {

@@ -34,7 +34,8 @@
     "status": {
       "pending": "Résumé en cours de génération.",
       "failed": "Échec de la génération de la résumé.",
-      "empty": "Le résumé est vide."
+      "empty": "Le résumé est vide.",
+      "notStarted": "Le résumé n'est pas encore disponible."
     },
     "statusPreview": {
       "pending": "Résumé en cours",
