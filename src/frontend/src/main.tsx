@@ -9,7 +9,7 @@ import { CunninghamProvider } from '@gouvfr-lasuite/ui-kit'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <CunninghamProvider>
+    <CunninghamProvider theme="dsfr-light">
       <App />
     </CunninghamProvider>
   </React.StrictMode>

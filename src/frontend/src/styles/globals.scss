@@ -1,7 +1,6 @@
 @use '@gouvfr-lasuite/ui-kit/sass/fonts';
-@use '@gouvfr-lasuite/cunningham-react/icons';
-@use '@gouvfr-lasuite/cunningham-react/style';
-@use 'cunningham-tokens';
+@use '@gouvfr-lasuite/ui-kit/style';
+@use './cunningham-tokens.css';
 
 @use './../layout/LogoApp';
 @use './../layout/ConnectedLayout';
