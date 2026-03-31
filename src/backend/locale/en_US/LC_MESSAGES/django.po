@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-10 16:25+0000\n"
+"POT-Creation-Date: 2026-03-31 17:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,55 +17,71 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: core/admin.py:26
+#: core/admin.py:51
 msgid "Personal info"
 msgstr "Personal info"
 
-#: core/admin.py:39
+#: core/admin.py:64
 msgid "Permissions"
 msgstr "Permissions"
 
-#: core/admin.py:51
+#: core/admin.py:76
 msgid "Important dates"
 msgstr "Important dates"
+
+#: core/admin.py:184
+msgid "Content"
+msgstr "Conent"
+
+#: core/admin.py:195
+msgid "Deletion"
+msgstr "Deletion"
+
+#: core/admin.py:204
+msgid "Derived info"
+msgstr "Derived info"
+
+#: core/admin.py:215 core/admin.py:270
+msgid "Timestamps"
+msgstr "Timestamps"
 
 #: core/api/filters.py:25
 msgid "Creator is me"
 msgstr "Creator is me"
 
-#: core/api/serializers.py:156
+#: core/api/serializers.py:170
 msgid "This file extension is not allowed."
 msgstr "This file extension is not allowed."
 
-#: core/api/serializers.py:173 core/api/viewsets.py:280
+#: core/api/serializers.py:187 core/api/viewsets.py:299
 msgid "You have reached the maximum number of files for this type."
 msgstr "You have reached the maximum number of files for this type."
 
-#: core/models.py:35
+#: core/models.py:50
 msgid "id"
 msgstr "id"
 
-#: core/models.py:36
+#: core/models.py:51
 msgid "primary key for the record as UUID"
 msgstr "primary key for the record as UUID"
 
-#: core/models.py:42
+#: core/models.py:57
 msgid "created on"
 msgstr "created on"
 
-#: core/models.py:43
+#: core/models.py:58
 msgid "date and time at which a record was created"
 msgstr "date and time at which a record was created"
 
-#: core/models.py:48
+#: core/models.py:63
 msgid "updated on"
 msgstr "updated on"
 
-#: core/models.py:49
+#: core/models.py:64
 msgid "date and time at which a record was last updated"
 msgstr "date and time at which a record was last updated"
 
-#: core/models.py:69
+#: core/models.py:84
 msgid ""
 "Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
 "_ characters."
@@ -73,11 +89,11 @@ msgstr ""
 "Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
 "_ characters."
 
-#: core/models.py:75
+#: core/models.py:90
 msgid "sub"
 msgstr "sub"
 
-#: core/models.py:77
+#: core/models.py:92
 msgid ""
 "Optional for pending users; required upon account activation. 255 characters "
 "or fewer. Letters, numbers, and @/./+/-/_ characters only."
@@ -85,55 +101,55 @@ msgstr ""
 "Required. 255 characters or fewer. Letters, numbers, and @/./+/-/_ "
 "characters only."
 
-#: core/models.py:86
+#: core/models.py:101
 msgid "identity email address"
 msgstr "identity email address"
 
-#: core/models.py:91
+#: core/models.py:106
 msgid "admin email address"
 msgstr "admin email address"
 
-#: core/models.py:93
+#: core/models.py:108
 msgid "full name"
 msgstr "full name"
 
-#: core/models.py:95
+#: core/models.py:110
 msgid "short name"
 msgstr "short name"
 
-#: core/models.py:101
+#: core/models.py:116
 msgid "language"
 msgstr "language"
 
-#: core/models.py:102
+#: core/models.py:117
 msgid "The language in which the user wants to see the interface."
 msgstr "The language in which the user wants to see the interface."
 
-#: core/models.py:108
+#: core/models.py:123
 msgid "The timezone in which the user wants to see times."
 msgstr "The timezone in which the user wants to see times."
 
-#: core/models.py:111
+#: core/models.py:126
 msgid "device"
 msgstr "device"
 
-#: core/models.py:113
+#: core/models.py:128
 msgid "Whether the user is a device or a real user."
 msgstr "Whether the user is a device or a real user."
 
-#: core/models.py:116
+#: core/models.py:131
 msgid "staff status"
 msgstr "staff status"
 
-#: core/models.py:118
+#: core/models.py:133
 msgid "Whether the user can log into this admin site."
 msgstr "Whether the user can log into this admin site."
 
-#: core/models.py:121
+#: core/models.py:136
 msgid "active"
 msgstr "active"
 
-#: core/models.py:124
+#: core/models.py:139
 msgid ""
 "Whether this user should be treated as active. Unselect this instead of "
 "deleting accounts."
@@ -141,58 +157,92 @@ msgstr ""
 "Whether this user should be treated as active. Unselect this instead of "
 "deleting accounts."
 
-#: core/models.py:137
+#: core/models.py:152
 msgid "user"
 msgstr "user"
 
-#: core/models.py:138
+#: core/models.py:153
 msgid "users"
 msgstr "users"
 
-#: core/models.py:188
+#: core/models.py:203 core/models.py:421
 #, fuzzy
 #| msgid "Recording"
 msgid "Pending"
 msgstr "Pending"
 
-#: core/models.py:196
+#: core/models.py:211
 msgid "Ready"
 msgstr "Ready"
 
-#: core/models.py:202
+#: core/models.py:217
 msgid "Audio recording"
 msgstr "Audio recording"
 
-#: core/models.py:214
+#: core/models.py:229
 msgid "title"
 msgstr "title"
 
-#: core/models.py:238
+#: core/models.py:254
 msgid "Malware detection info when the analysis status is unsafe."
 msgstr "Malware detection info when the analysis status is unsafe."
 
-#: core/models.py:243
+#: core/models.py:259
 msgid "File"
 msgstr "File"
 
-#: core/models.py:244
+#: core/models.py:260
 msgid "Files"
 msgstr "Files"
 
-#: core/models.py:348
+#: core/models.py:369
 #, fuzzy
 #| msgid "This user is already in this recording."
 msgid "This file is already hard deleted."
 msgstr "This file is already hard deleted."
 
-#: core/models.py:358
+#: core/models.py:379
 msgid "To hard delete a file, it must first be soft deleted."
 msgstr "To hard delete a file, it must first be soft deleted."
 
-#: dictaphone/settings.py:214
+#: core/models.py:396
+#, fuzzy
+#| msgid "This user is already in this recording."
+msgid "This item is not deleted."
+msgstr "This file is already hard deleted."
+
+#: core/models.py:406
+msgid "This item was permanently deleted and cannot be restored."
+msgstr "This item was permanently deleted and cannot be restored."
+
+#: core/models.py:422
+msgid "Success"
+msgstr "Success"
+
+#: core/models.py:423
+msgid "Failed"
+msgstr "Failed"
+
+#: core/models.py:429
+msgid "Transcript"
+msgstr "Transcript"
+
+#: core/models.py:430
+msgid "Summary"
+msgstr "Summary"
+
+#: core/models.py:451
+msgid "AiJob"
+msgstr "AiJob"
+
+#: core/models.py:452
+msgid "AiJobs"
+msgstr "AiJobs"
+
+#: dictaphone/settings.py:249
 msgid "English"
 msgstr "English"
 
-#: dictaphone/settings.py:215
+#: dictaphone/settings.py:250
 msgid "French"
 msgstr "French"

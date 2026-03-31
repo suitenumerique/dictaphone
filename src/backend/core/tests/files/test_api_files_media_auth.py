@@ -90,7 +90,7 @@ def test_api_files_media_get_own():
 
 def test_api_files_media_auth_file_pending():
     """
-    Users who have a specific access to an file, whatever the role, should not be able to
+    Users who have a specific access to a file, whatever the role, should not be able to
     retrieve related attachments if the file is not ready.
     """
     user = factories.UserFactory()

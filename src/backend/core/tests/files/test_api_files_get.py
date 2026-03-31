@@ -2,8 +2,6 @@
 Tests for files API endpoint in dictaphone's core app: get
 """
 
-from django.utils import timezone
-
 import pytest
 from faker import Faker
 from rest_framework.test import APIClient
@@ -95,35 +93,15 @@ def test_api_files_get_format():
         "hard_deleted_at": None,
         "abilities": {
             "destroy": True,
-            "hard_delete": True,
+            "hard_delete": False,
             "media_auth": True,
             "partial_update": True,
+            "restore": False,
             "retrieve": True,
             "update": True,
             "upload_ended": True,
         },
     }
-
-
-def test_api_files_get_deleted_file_not_retrievable():
-    """
-    A soft-deleted file shouldn't be retrievable.
-    """
-    user = factories.UserFactory()
-    client = APIClient()
-    client.force_login(user)
-
-    deleted_at = timezone.now()
-    file_obj = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
-        creator=user,
-        deleted_at=deleted_at,
-        title="deleted item",
-    )
-
-    response = client.get(f"/api/v1.0/files/{file_obj.id}/")
-
-    assert response.status_code == 404
 
 
 def test_api_files_get_authentificated_non_creator_not_allowed():

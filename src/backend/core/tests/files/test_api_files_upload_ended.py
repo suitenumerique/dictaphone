@@ -1,4 +1,4 @@
-"""Test related to item upload ended API."""
+"""Test related to file upload ended API."""
 
 import logging
 from io import BytesIO

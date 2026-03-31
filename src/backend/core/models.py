@@ -5,6 +5,7 @@ Declare and configure the models for the Dictaphone core application
 # pylint: disable=too-many-lines
 
 import uuid
+from datetime import timedelta
 from logging import getLogger
 from os.path import splitext
 from typing import List
@@ -21,6 +22,20 @@ from django.utils.translation import gettext_lazy as _
 from timezone_field import TimeZoneField
 
 logger = getLogger(__name__)
+
+
+def get_trashbin_cutoff():
+    """
+    Calculate the cutoff datetime for soft-deleted files based on the retention policy.
+
+    The function returns the current datetime minus the number of days specified in
+    the TRASHBIN_CUTOFF_DAYS setting, indicating the oldest date for files that can
+    remain in the trash bin.
+
+    Returns:
+        datetime: The cutoff datetime for soft-deleted files.
+    """
+    return timezone.now() - timedelta(days=settings.TRASHBIN_CUTOFF_DAYS)
 
 
 class BaseModel(models.Model):
@@ -311,9 +326,15 @@ class File(BaseModel):
         is_creator = user == self.creator
         retrieve = is_creator
         is_deleted = self.deleted_at is not None
+        is_hard_deleted = self.hard_deleted_at is not None
         can_update = is_creator and not is_deleted and user.is_authenticated
-        can_hard_delete = is_creator and user.is_authenticated
-        can_destroy = can_hard_delete and not is_deleted
+        can_hard_delete = (
+            is_creator and user.is_authenticated and not is_hard_deleted and is_deleted
+        )
+        can_destroy = is_creator and not is_deleted and user.is_authenticated
+        can_restore = (
+            is_creator and is_deleted and user.is_authenticated and not is_hard_deleted
+        )
 
         return {
             "destroy": can_destroy,
@@ -323,6 +344,7 @@ class File(BaseModel):
             "partial_update": can_update,
             "update": can_update,
             "upload_ended": can_update and user.is_authenticated,
+            "restore": can_restore,
         }
 
     @transaction.atomic
@@ -364,6 +386,35 @@ class File(BaseModel):
 
         self.hard_deleted_at = timezone.now()
         self.save(update_fields=["hard_deleted_at"])
+
+    @transaction.atomic
+    def restore(self):
+        """Cancelling a soft delete with checks."""
+        # This should not happen
+        if self.deleted_at is None:
+            raise ValidationError(
+                {
+                    "deleted_at": ValidationError(
+                        _("This item is not deleted."),
+                        code="item_restore_not_deleted",
+                    )
+                }
+            )
+
+        if self.deleted_at < get_trashbin_cutoff():
+            raise ValidationError(
+                {
+                    "deleted_at": ValidationError(
+                        _("This item was permanently deleted and cannot be restored."),
+                        code="item_restore_hard_deleted",
+                    )
+                }
+            )
+
+        # Restore the current item
+        self.deleted_at = None
+
+        self.save(update_fields=["deleted_at"])
 
 
 class AiJobStatusChoices(models.TextChoices):

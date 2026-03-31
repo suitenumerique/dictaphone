@@ -13,19 +13,19 @@ pytestmark = pytest.mark.django_db
 def test_api_files_delete_anonymous():
     """Anonymous users should not be allowed to destroy a file."""
     file = factories.FileFactory()
-    existing_items = models.File.objects.all().count()
+    existing_files = models.File.objects.all().count()
 
     response = APIClient().delete(
         f"/api/v1.0/files/{file.id!s}/",
     )
 
     assert response.status_code == 401
-    assert models.File.objects.count() == existing_items
+    assert models.File.objects.count() == existing_files
 
 
 def test_api_files_delete_authenticated_owner():
     """
-    Authenticated users should be able to delete a item they own.
+    Authenticated users should be able to delete a file they own.
     """
     user = factories.UserFactory()
 

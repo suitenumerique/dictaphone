@@ -53,10 +53,10 @@ def test_api_files_list_format():
     # A file from another user should not appear
     factories.FileFactory(
         type=models.FileTypeChoices.AUDIO_RECORDING,
-        title="item 2",
+        title="file 2",
     )
 
-    # hard deleted item should not appear
+    # hard deleted file should not appear
     factories.FileFactory(
         type=models.FileTypeChoices.AUDIO_RECORDING,
         hard_deleted_at=timezone.now(),
@@ -99,8 +99,9 @@ def test_api_files_list_format():
             "hard_deleted_at": None,
             "abilities": {
                 "destroy": True,
-                "hard_delete": True,
+                "hard_delete": False,
                 "media_auth": True,
+                "restore": False,
                 "partial_update": True,
                 "retrieve": True,
                 "update": True,
@@ -141,8 +142,8 @@ def test_api_files_list_pagination(
     assert content["previous"] is None
 
     assert len(content["results"]) == 2
-    for item in content["results"]:
-        file_ids.remove(item["id"])
+    for file in content["results"]:
+        file_ids.remove(file["id"])
 
     # Get page 2
     response = client.get(
@@ -157,6 +158,6 @@ def test_api_files_list_pagination(
     assert content["previous"] == "http://testserver/api/v1.0/files/"
 
     assert len(content["results"]) == 1
-    for item in content["results"]:
-        file_ids.remove(item["id"])
+    for file in content["results"]:
+        file_ids.remove(file["id"])
     assert file_ids == []

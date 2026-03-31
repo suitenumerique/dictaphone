@@ -410,6 +410,32 @@ class FileViewSet(
 
         return drf_response.Response(serializer.data, status=drf_status.HTTP_200_OK)
 
+    @decorators.action(detail=True, methods=["delete"], url_path="hard-delete")
+    def hard_delete(self, request, *args, **kwargs):
+        """
+        Hard delete a file.
+        """
+        instance = self.get_object()
+        instance.hard_delete()
+        process_file_deletion.delay(instance.id)
+        return drf_response.Response(status=drf_status.HTTP_204_NO_CONTENT)
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+    )
+    def restore(self, request, *args, **kwargs):
+        """
+        Restore a soft-deleted file if it was deleted less than x days ago.
+        """
+        file = self.get_object()
+        file.restore()
+
+        return drf_response.Response(
+            {"detail": "file has been successfully restored."},
+            status=drf_status.HTTP_200_OK,
+        )
+
     def _complete_file_deletion(self, file):
         """Delete a file completely."""
         file.soft_delete()
@@ -492,7 +518,7 @@ class FileViewSet(
     @decorators.action(detail=False, methods=["get"], url_path="media-auth")
     def media_auth(self, request, *args, **kwargs):
         """
-        This view is used by an Nginx subrequest to control access to an file's
+        This view is used by an Nginx subrequest to control access to a file's
         attachment file.
 
         When we let the request go through, we compute authorization headers that will be added to
@@ -537,7 +563,6 @@ class AiJobViewSet(
 
         return queryset.filter(
             file__creator=user,
-            file__deleted_at__isnull=True,
             file__hard_deleted_at__isnull=True,
         )
 

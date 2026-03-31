@@ -197,7 +197,7 @@ class CreateFileSerializer(ListFileSerializer):
         return attrs
 
     def get_policy(self, file):
-        """Return the policy to use if the item is a file."""
+        """Return the policy to use if the file is a file."""
 
         if file.upload_state == models.FileUploadStateChoices.READY:
             return None

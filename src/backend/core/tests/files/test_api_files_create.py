@@ -20,7 +20,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_api_files_create_anonymous():
-    """Anonymous users should not be allowed to create items."""
+    """Anonymous users should not be allowed to create files."""
     response = APIClient().post(
         "/api/v1.0/files/",
         {
@@ -65,7 +65,7 @@ def test_api_files_create_authenticated_success():
 
 def test_api_files_create_file_authenticated_no_filename():
     """
-    Creating a file item without providing a filename should fail.
+    Creating a file file without providing a filename should fail.
     """
     user = factories.UserFactory()
 
@@ -75,7 +75,7 @@ def test_api_files_create_file_authenticated_no_filename():
     response = client.post(
         "/api/v1.0/files/",
         {
-            "title": "my item",
+            "title": "my file",
             "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
         },
@@ -140,7 +140,7 @@ def test_api_files_create_file_authenticated_success():
 
 def test_api_files_create_file_authenticated_extension_not_allowed():
     """
-    Creating a file item with an extension not allowed should fail.
+    Creating a file file with an extension not allowed should fail.
     """
     user = factories.UserFactory()
     client = APIClient()
@@ -161,7 +161,7 @@ def test_api_files_create_file_authenticated_extension_not_allowed():
 
 def test_api_files_create_file_authenticated_extension_case_insensitive():
     """
-    Creating a file item with an extension, no matter the case used, should be allowed.
+    Creating a file file with an extension, no matter the case used, should be allowed.
     """
     user = factories.UserFactory()
     client = APIClient()
@@ -293,7 +293,7 @@ def test_api_files_create_file_too_many(
 
 
 def test_api_files_create_force_id_success():
-    """It should be possible to force the item ID when creating a   item."""
+    """It should be possible to force the file ID when creating a   file."""
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
@@ -304,7 +304,7 @@ def test_api_files_create_force_id_success():
         "/api/v1.0/files/",
         {
             "id": str(forced_id),
-            "title": "my item",
+            "title": "my file",
             "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "my_file.ogg",
@@ -353,7 +353,7 @@ def test_api_files_create_file_race_condition():
     without causing any race conditions or data integrity issues.
     """
 
-    def create_item(title):
+    def create_file(title):
         user = factories.UserFactory()
         client = APIClient()
         client.force_login(user)
@@ -369,8 +369,8 @@ def test_api_files_create_file_race_condition():
         )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        future1 = executor.submit(create_item, "my item 1")
-        future2 = executor.submit(create_item, "my item 2")
+        future1 = executor.submit(create_file, "my item 1")
+        future2 = executor.submit(create_file, "my item 2")
 
         response1 = future1.result()
         response2 = future2.result()

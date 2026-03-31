@@ -174,6 +174,9 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
+    TRASHBIN_CUTOFF_DAYS = values.IntegerValue(
+        default=30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
+    )
     FILE_UPLOAD_PATH = values.Value(
         "files", environ_name="FILE_UPLOAD_PATH", environ_prefix=None
     )
@@ -760,7 +763,7 @@ class Production(Base):
     SECURE_HSTS_SECONDS = 60
     SECURE_HSTS_PRELOAD = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = True
     SECURE_REDIRECT_EXEMPT = [
         "^__lbheartbeat__",
         "^__heartbeat__",

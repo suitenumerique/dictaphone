@@ -13,7 +13,7 @@ pytestmark = pytest.mark.django_db
 
 def test_api_files_update_anonymous_forbidden():
     """
-    Anonymous users should not be allowed to update an file when link
+    Anonymous users should not be allowed to update a file when link
     configuration does not allow it.
     """
 

@@ -1,4 +1,4 @@
-"""Test the ordering of items."""
+"""Test the ordering of files."""
 
 import operator
 
@@ -11,7 +11,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_api_files_list_ordering_default():
-    """items should be ordered by descending "updated_at" by default"""
+    """files should be ordered by descending "updated_at" by default"""
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)

@@ -25,7 +25,7 @@ def process_file_deletion(file_id):
     Definitely delete it in the database.
     Delete the files from the storage.
     """
-    logger.info("Processing item deletion for %s", file_id)
+    logger.info("Processing file deletion for %s", file_id)
     try:
         file = File.objects.get(id=file_id)
     except File.DoesNotExist:
@@ -33,7 +33,7 @@ def process_file_deletion(file_id):
         return
 
     if file.hard_deleted_at is None:
-        logger.error("To process an item deletion, it must be hard deleted first.")
+        logger.error("To process a file deletion, it must be hard deleted first.")
         return
 
     logger.info("Deleting file %s", file.file_key)
