@@ -62,7 +62,7 @@ class AiJobPermission(IsAuthenticated):
         """
         Return a 404 if AI job's file is deleted or user is not the creator.
         """
-        if obj.file.deleted_at is not None or obj.file.hard_deleted_at is not None:
+        if obj.file.hard_deleted_at is not None:
             raise Http404
 
         if obj.file.creator != request.user:

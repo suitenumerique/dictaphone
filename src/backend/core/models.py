@@ -340,7 +340,7 @@ class File(BaseModel):
             "destroy": can_destroy,
             "hard_delete": can_hard_delete,
             "retrieve": retrieve,
-            "media_auth": retrieve and not is_deleted,
+            "media_auth": retrieve and not is_hard_deleted,
             "partial_update": can_update,
             "update": can_update,
             "upload_ended": can_update and user.is_authenticated,

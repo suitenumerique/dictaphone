@@ -116,7 +116,7 @@ def test_api_files_media_auth_file_pending():
 def test_api_files_media_auth_own_file_deleted():
     """
     This function tests the access restrictions on deleted files through the media
-    authorization API endpoint. It ensures that a user cannot retrieve a file that is deleted.
+    authorization API endpoint. It ensures that a user can retrieve a file that is soft deleted.
     """
     user = factories.UserFactory()
 
@@ -140,4 +140,4 @@ def test_api_files_media_auth_own_file_deleted():
         "/api/v1.0/files/media-auth/", HTTP_X_ORIGINAL_URL=original_url
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 200

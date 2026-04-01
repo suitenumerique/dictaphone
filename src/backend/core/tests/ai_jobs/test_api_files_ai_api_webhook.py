@@ -44,7 +44,9 @@ def test_api_files_transcribe_webhook_bad_token(caplog):
 def test_api_files_transcribe_webhook_authenticated(mock_task, settings):
     """Calls to the webhook with a proper API key should be accepted"""
 
-    ai_file_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
+    ai_file_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+    )
     settings.AI_WEBHOOK_API_KEY = "good-key"
     response = APIClient().post(
         "/api/v1.0/ai-jobs/webhook/",
