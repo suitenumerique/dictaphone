@@ -117,7 +117,13 @@ export default function ListRecordings({
                   key={file.id}
                   onClick={() => navigate(`/recordings/${file.id}`)}
                 >
-                  <td>{file.title || file.filename}</td>
+                  <td className="recordings-list__table__title">
+                    <img
+                      src="/assets/files/icons/mime-audio.svg"
+                      alt="Audio logo"
+                    />
+                    {file.title || file.filename}
+                  </td>
                   <td>
                     {t('duration', {
                       duration: intervalToDuration({

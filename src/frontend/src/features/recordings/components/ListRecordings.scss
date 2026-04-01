@@ -17,7 +17,6 @@
   td {
     text-align: left;
     padding: var(--c--globals--spacings--xs) var(--c--globals--spacings--2xs);
-    border-bottom: 1px solid var(--c--globals--colors--gray-200);
     vertical-align: middle;
   }
 
@@ -40,6 +39,12 @@
         background: var(--c--globals--colors--gray-025);
       }
     }
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 }
 

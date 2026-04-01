@@ -9,7 +9,7 @@
     "title": "Tous les enregistrements",
     "titleTrash": "Corbeille",
     "columns": {
-      "title": "Titre",
+      "title": "Nom",
       "duration": "Durée",
       "processes": "Traitements",
       "actions": "Actions"
@@ -44,8 +44,8 @@
     },
     "renameModal": {
       "title": "Renommer l'enregistrement",
-      "label": "Nouveau titre",
-      "placeholder": "Entrez un nouveau titre"
+      "label": "Nouveau nom",
+      "placeholder": "Entrez un nouveau nom"
     }
   },
   "transcript": {
