@@ -52,11 +52,13 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
 
   return (
     <div className="recording-status">
-      {lastAiJobTranscript !== null && (
-        <Badge type={BADGE_TYPE_BY_STATUS[lastAiJobTranscript.status]}>
-          {t(`transcript.statusPreview.${lastAiJobTranscript.status}`)}
-        </Badge>
-      )}
+      <Badge
+        type={BADGE_TYPE_BY_STATUS[lastAiJobTranscript?.status ?? 'pending']}
+      >
+        {t(
+          `transcript.statusPreview.${lastAiJobTranscript?.status ?? 'pending'}`
+        )}
+      </Badge>
       {lastAiJobSummary !== null && (
         <Badge type={BADGE_TYPE_BY_STATUS[lastAiJobSummary.status]}>
           {t(`summary.statusPreview.${lastAiJobSummary.status}`)}
