@@ -8,7 +8,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Transcript } from '@/features/recordings/components/Transcript.tsx'
 import { Summary } from '@/features/recordings/components/Summary.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
-import { CustomTabs, useResponsive } from '@gouvfr-lasuite/ui-kit'
+import { Badge, CustomTabs, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import { useTranslation } from 'react-i18next'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 
@@ -60,7 +60,14 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
               ref={playerRef}
               title={recording.title}
               onTimeUpdate={setCurrentTime}
-              extraTitle={<FileActionMenu file={recording} largeTrigger />}
+              extraTitle={
+                <>
+                  {recording.deleted_at && (
+                    <Badge type="warning">{t('deleted')}</Badge>
+                  )}
+                  <FileActionMenu file={recording} largeTrigger />
+                </>
+              }
             />
           </div>
         </div>

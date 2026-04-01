@@ -4,6 +4,7 @@
   "noRecordingsTrash": "Vous n'avez pas encore d'enregistrements dans la corbeille.",
   "notFound": "Enregistrement introuvable.",
   "duration": "{{duration, formatDuration}}",
+  "deleted": "Supprimé",
   "list": {
     "title": "Tous les enregistrements",
     "titleTrash": "Corbeille",

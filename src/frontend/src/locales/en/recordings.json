@@ -4,6 +4,7 @@
   "noRecordingsTrash": "You don't have any recordings in the trash.",
   "notFound": "Recording not found",
   "duration": "{{duration, formatDuration}}",
+  "deleted": "Deleted",
   "list": {
     "title": "My recordings",
     "titleTrash": "Trash",
