@@ -8,6 +8,7 @@
   "list": {
     "title": "Tous les enregistrements",
     "titleTrash": "Corbeille",
+    "trashInfo": "Les enregistrements sont supprimés définitivement après 30 jours",
     "columns": {
       "title": "Nom",
       "duration": "Durée",

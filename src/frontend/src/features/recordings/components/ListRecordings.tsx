@@ -85,7 +85,15 @@ export default function ListRecordings({
   return (
     <Card
       title={t(isTrashPage ? 'list.titleTrash' : 'list.title')}
-      action={isTrashPage ? <></> : <HeaderAction />}
+      action={
+        isTrashPage ? (
+          <span className="recordings-list__trash-info">
+            {t('list.trashInfo')}
+          </span>
+        ) : (
+          <HeaderAction />
+        )
+      }
       className={clsx({
         'drop-zone--drag-in-progress-main-area':
           !isTrashPage && isDropZoneActive,

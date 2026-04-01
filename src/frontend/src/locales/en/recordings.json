@@ -8,6 +8,7 @@
   "list": {
     "title": "My recordings",
     "titleTrash": "Trash",
+    "trashInfo": "Files are permanently after 30 days",
     "columns": {
       "title": "Title",
       "duration": "Duration",

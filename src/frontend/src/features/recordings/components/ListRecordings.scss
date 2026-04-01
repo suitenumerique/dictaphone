@@ -2,6 +2,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--c--globals--spacings--base);
+
+  &__trash-info {
+    font-size: 0.875rem;
+    color: var(--c--globals--colors--gray-600);
+  }
 }
 
 .recordings-list__count {
