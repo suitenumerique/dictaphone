@@ -269,8 +269,8 @@ export const useUploadZone = () => {
                           [pathNicefy(file.path!)]: {
                             file,
                             progress:
-                              prev.filesMeta[pathNicefy(file.path!)]?.progress ??
-                              0,
+                              prev.filesMeta[pathNicefy(file.path!)]
+                                ?.progress ?? 0,
                             status: 'error',
                           },
                         },

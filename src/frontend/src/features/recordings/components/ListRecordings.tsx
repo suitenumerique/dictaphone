@@ -1,5 +1,4 @@
 import { useListMyFiles } from '@/features/files/api/listFiles.ts'
-import { useDeleteFile } from '@/features/files/api/deleteFile.ts'
 import { useTranslation } from 'react-i18next'
 import { Badge, Spinner } from '@gouvfr-lasuite/ui-kit'
 import { Card } from '@/components/Card.tsx'
@@ -13,6 +12,7 @@ import { ComponentProps, useMemo } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import clsx from 'clsx'
+import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 
 function HeaderAction() {
   const { t } = useTranslation('upload')
@@ -69,30 +69,32 @@ export default function ListRecordings({
   page,
   pageSize,
   onPageChange,
-  isDropZoneActive
+  isDropZoneActive,
+  isTrashPage = false,
 }: {
   queryData: ReturnType<typeof useListMyFiles>
   page: number
   pageSize: number
-  onPageChange: (page: number) => void,
-  isDropZoneActive: boolean,
+  onPageChange: (page: number) => void
+  isDropZoneActive: boolean
+  isTrashPage?: boolean
 }) {
   const [, navigate] = useLocation()
   const { t } = useTranslation('recordings')
-  const deleteFileMutation = useDeleteFile()
 
   return (
     <Card
-      title={t('list.title')}
-      action={<HeaderAction />}
+      title={t(isTrashPage ? 'list.titleTrash' : 'list.title')}
+      action={isTrashPage ? <></> : <HeaderAction />}
       className={clsx({
-        'drop-zone--drag-in-progress-main-area': isDropZoneActive,
+        'drop-zone--drag-in-progress-main-area':
+          !isTrashPage && isDropZoneActive,
       })}
     >
       {queryData.isPending && !queryData.data && <Spinner />}
       {queryData.error && <div>{t('errorFetching')}</div>}
       {queryData.data && queryData.data.count === 0 && (
-        <div>{t('noRecordings')}</div>
+        <div>{t(isTrashPage ? 'noRecordingsTrash' : 'noRecordings')}</div>
       )}
       {queryData.data && queryData.data.count > 0 && (
         <div className="recordings-list">
@@ -109,48 +111,29 @@ export default function ListRecordings({
               </tr>
             </thead>
             <tbody>
-              {queryData.data.results.map((file) => {
-                const isDeletingCurrentFile =
-                  deleteFileMutation.isPending &&
-                  deleteFileMutation.variables?.fileId === file.id
-                return (
-                  <tr
-                    className="clickable"
-                    key={file.id}
-                    onClick={() => navigate(`/recordings/${file.id}`)}
-                  >
-                    <td>{file.title || file.filename}</td>
-                    <td>
-                      {t('duration', {
-                        duration: intervalToDuration({
-                          start: 0,
-                          end: file.duration_seconds * 1000,
-                        }),
-                      })}
-                    </td>
-                    <td>
-                      <RecordingStatus recording={file} />
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="recordings-list__delete-button"
-                        aria-label={t('list.deleteAriaLabel', {
-                          title: file.title || file.filename,
-                        })}
-                        onClick={() =>
-                          deleteFileMutation.mutate({ fileId: file.id })
-                        }
-                        disabled={isDeletingCurrentFile}
-                      >
-                        <span className="material-icons" aria-hidden="true">
-                          delete
-                        </span>
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+              {queryData.data.results.map((file) => (
+                <tr
+                  className="clickable"
+                  key={file.id}
+                  onClick={() => navigate(`/recordings/${file.id}`)}
+                >
+                  <td>{file.title || file.filename}</td>
+                  <td>
+                    {t('duration', {
+                      duration: intervalToDuration({
+                        start: 0,
+                        end: file.duration_seconds * 1000,
+                      }),
+                    })}
+                  </td>
+                  <td>
+                    <RecordingStatus recording={file} />
+                  </td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <FileActionMenu file={file} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
           <Pagination

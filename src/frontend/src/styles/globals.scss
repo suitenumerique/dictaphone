@@ -16,7 +16,7 @@
 @use './../features/files/components/FileUploadToast';
 @use './../features/ui/components/toaster';
 @use './../pages/RecordingPage';
-@use "./../pages/RecordingsPage";
+@use './../pages/RecordingsPage';
 
 // Buggy otherwise for some reason
 .c__avatar__initials {

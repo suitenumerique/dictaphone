@@ -10,6 +10,7 @@ import { Summary } from '@/features/recordings/components/Summary.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { CustomTabs, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import { useTranslation } from 'react-i18next'
+import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 
 export function RecordingPage({ recordingId }: { recordingId: string }) {
   const { t } = useTranslation('recordings')
@@ -30,11 +31,24 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
   const { isDesktop } = useResponsive()
 
   if (recordingQ.isPending) {
-    return <span>Loading...</span>
+    return (
+      <ConnectedLayout>
+        <div />
+      </ConnectedLayout>
+    )
   }
+
   if (!recordingQ.data) {
-    return <span>No recording</span>
+    return (
+      <ConnectedLayout>
+        <div className="recording-page__not-found">
+          <span className="material-icons">search_off</span>
+          {t('notFound')}
+        </div>
+      </ConnectedLayout>
+    )
   }
+
   const recording = recordingQ.data
   return (
     <ConnectedLayout>
@@ -46,6 +60,7 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
               ref={playerRef}
               title={recording.title}
               onTimeUpdate={setCurrentTime}
+              extraTitle={<FileActionMenu file={recording} largeTrigger />}
             />
           </div>
         </div>

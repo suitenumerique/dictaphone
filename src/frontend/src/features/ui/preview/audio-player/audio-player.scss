@@ -10,14 +10,17 @@
   }
 
   &__info {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    line-height: 1;
   }
 
   &__title {
     font-size: 16px;
     font-weight: 600;
-    margin-bottom: 4px;
-    line-height: 1.2;
+    line-height: 1;
   }
 }
 

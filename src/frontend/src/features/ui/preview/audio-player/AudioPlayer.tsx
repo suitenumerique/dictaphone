@@ -19,6 +19,7 @@ export interface AudioPlayerHandle {
 interface AudioPlayerProps {
   src: string
   title?: string
+  extraTitle?: React.ReactElement
   className?: string
   autoPlay?: boolean
   onPlay?: () => void
@@ -38,6 +39,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       onPause,
       onEnded,
       onTimeUpdate,
+      extraTitle,
     },
     ref
   ) => {
@@ -213,6 +215,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           {/* Track info */}
           <div className="audio-player__info">
             <div className="audio-player__title">{title}</div>
+            {extraTitle}
           </div>
 
           <ProgressBar

@@ -1,9 +1,12 @@
 {
   "errorFetching": "Une erreur s'est produite lors de la récupération des enregistrements.",
   "noRecordings": "Vous n'avez pas encore d'enregistrements.",
+  "noRecordingsTrash": "Vous n'avez pas encore d'enregistrements dans la corbeille.",
+  "notFound": "Enregistrement introuvable.",
   "duration": "{{duration, formatDuration}}",
   "list": {
     "title": "Tous les enregistrements",
+    "titleTrash": "Corbeille",
     "columns": {
       "title": "Titre",
       "duration": "Durée",
@@ -15,6 +18,34 @@
     "paginationAriaLabel": "Pagination des enregistrements",
     "paginationPreviousAriaLabel": "Aller à la page précédente",
     "paginationNextAriaLabel": "Aller à la page suivante"
+  },
+  "actions": {
+    "cta": "Actions",
+    "delete": {
+      "label": "Supprimer",
+      "success": "Enregistrement supprimé",
+      "error": "Échec de la suppression de l'enregistrement"
+    },
+    "restore": {
+      "label": "Restaurer",
+      "success": "Enregistrement restauré",
+      "error": "Échec de la restauration de l'enregistrement"
+    },
+    "rename": {
+      "label": "Renommer",
+      "success": "Enregistrement renommé",
+      "error": "Échec du renommage de l'enregistrement"
+    },
+    "deletePermanently": {
+      "label": "Supprimer définitivement",
+      "success": "Enregistrement supprimé définitivement",
+      "error": "Échec de la suppression définitive de l'enregistrement"
+    },
+    "renameModal": {
+      "title": "Renommer l'enregistrement",
+      "label": "Nouveau titre",
+      "placeholder": "Entrez un nouveau titre"
+    }
   },
   "transcript": {
     "title": "Transcription",

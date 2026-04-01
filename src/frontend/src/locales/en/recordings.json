@@ -1,9 +1,12 @@
 {
   "errorFetching": "Error fetching recordings",
   "noRecordings": "You don't have any recordings yet.",
+  "noRecordingsTrash": "You don't have any recordings in the trash.",
+  "notFound": "Recording not found",
   "duration": "{{duration, formatDuration}}",
   "list": {
     "title": "My recordings",
+    "titleTrash": "Trash",
     "columns": {
       "title": "Title",
       "duration": "Duration",
@@ -11,10 +14,37 @@
       "actions": "Actions"
     },
     "ariaLabelTable": "Recordings list",
-    "deleteAriaLabel": "Delete recording {{title}}",
     "paginationAriaLabel": "Recordings pagination",
     "paginationPreviousAriaLabel": "Go to previous page",
     "paginationNextAriaLabel": "Go to next page"
+  },
+  "actions": {
+    "cta": "Actions",
+    "delete": {
+      "label": "Delete",
+      "success": "Recording deleted",
+      "error": "Failed to delete recording"
+    },
+    "restore": {
+      "label": "Restore",
+      "success": "Recording restored",
+      "error": "Failed to restore recording"
+    },
+    "rename": {
+      "label": "Rename",
+      "success": "Recording renamed",
+      "error": "Failed to rename recording"
+    },
+    "deletePermanently": {
+      "label": "Delete permanently",
+      "success": "Recording permanently deleted",
+      "error": "Failed to permanently delete recording"
+    },
+    "renameModal": {
+      "title": "Rename recording",
+      "label": "New title",
+      "placeholder": "Enter a new title"
+    }
   },
   "transcript": {
     "title": "Transcript",

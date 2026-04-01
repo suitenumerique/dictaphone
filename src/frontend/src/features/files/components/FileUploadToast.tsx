@@ -18,9 +18,7 @@ export const FileUploadToast = (
   const [isOpen, setIsOpen] = useState(true)
   const pendingFilesCount = Object.values(
     props.uploadingState.filesMeta
-  ).filter(
-    (meta) => meta.status === 'uploading'
-  ).length
+  ).filter((meta) => meta.status === 'uploading').length
   const doneFilesCount = Object.values(props.uploadingState.filesMeta).filter(
     (meta) => meta.status === 'done'
   ).length

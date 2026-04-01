@@ -8,7 +8,13 @@ type CardProps = PropsWithChildren<{
   className?: string
 }>
 
-export function Card({ title, action, contentAriaLabel, children, className }: CardProps) {
+export function Card({
+  title,
+  action,
+  contentAriaLabel,
+  children,
+  className,
+}: CardProps) {
   const titleId = useId()
 
   return (

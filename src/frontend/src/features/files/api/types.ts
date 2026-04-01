@@ -25,6 +25,13 @@ export type ApiFileItem = {
   description: string | null
   duration_seconds: number
   ai_jobs: ApiAiJob[]
+  abilities: {
+    destroy: boolean
+    partial_update: boolean
+    restore: boolean
+    hard_delete: boolean
+    // ...
+  }
 } & (
   | {
       upload_state: 'ready'
