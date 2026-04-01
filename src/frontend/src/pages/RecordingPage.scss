@@ -42,7 +42,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 .recording-page__card {
   background: var(--c--contextuals--background--surface--primary);
   padding: 1rem;
-  border-radius: 0.75rem;
+  border-radius: 0.25rem;
 
   @media (min-width: $tablet) {
     border: 1px solid var(--c--contextuals--border--surface--primary);

@@ -4,7 +4,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
 .card {
   border: 1px solid var(--c--globals--colors--gray-200);
-  border-radius: 8px;
+  border-radius: 0.25rem;
   background: var(--c--globals--colors--gray-000);
 
   @media (max-width: $tablet) {

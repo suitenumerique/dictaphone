@@ -50,28 +50,21 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
-}
-
-.recordings-list__delete-button {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--c--globals--colors--error-550);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover:not(:disabled),
-  &:focus-visible:not(:disabled) {
-    background: var(--c--globals--colors--error-100);
+    word-break: break-word;
   }
 
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
+  &__title-container {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+  }
+
+  &__title-extra {
+    font-size: 0.875rem;
+    color: var(--c--globals--colors--gray-600);
+    margin-left: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }

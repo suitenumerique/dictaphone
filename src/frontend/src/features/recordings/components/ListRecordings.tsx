@@ -1,6 +1,6 @@
 import { useListMyFiles } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
-import { Badge, Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Badge, Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import { Card } from '@/components/Card.tsx'
 import { Pagination } from '@/components/Pagination.tsx'
 import { useLocation } from 'wouter'
@@ -16,6 +16,8 @@ import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.
 
 function HeaderAction() {
   const { t } = useTranslation('upload')
+  const { isDesktop } = useResponsive()
+
   return (
     <>
       <Button
@@ -24,7 +26,7 @@ function HeaderAction() {
         icon={<span className="material-icons">upload</span>}
         variant="secondary"
       >
-        <span className="recording-upload-bnt-label">{t('cta')}</span>
+        {isDesktop && <span>{t('cta')}</span>}
       </Button>
       <RecordComponent />
     </>
@@ -81,6 +83,7 @@ export default function ListRecordings({
 }) {
   const [, navigate] = useLocation()
   const { t } = useTranslation('recordings')
+  const { isDesktop } = useResponsive()
 
   return (
     <Card
@@ -110,7 +113,7 @@ export default function ListRecordings({
             className="recordings-list__table"
             aria-label={t('list.ariaLabelTable')}
           >
-            <thead>
+            <thead className={clsx({ hidden: !isDesktop })}>
               <tr>
                 <th scope="col">{t('list.columns.title')}</th>
                 <th scope="col">{t('list.columns.duration')}</th>
@@ -125,14 +128,29 @@ export default function ListRecordings({
                   key={file.id}
                   onClick={() => navigate(`/recordings/${file.id}`)}
                 >
-                  <td className="recordings-list__table__title">
-                    <img
-                      src="/assets/files/icons/mime-audio.svg"
-                      alt="Audio logo"
-                    />
-                    {file.title || file.filename}
+                  <td className="recordings-list__table__title-container">
+                    <div className="recordings-list__table__title">
+                      <img
+                        src="/assets/files/icons/mime-audio.svg"
+                        alt="Audio logo"
+                      />
+                      {file.title || file.filename}
+                    </div>
+                    {!isDesktop && (
+                      <div className="recordings-list__table__title-extra">
+                        <span>
+                          {t('duration', {
+                            duration: intervalToDuration({
+                              start: 0,
+                              end: file.duration_seconds * 1000,
+                            }),
+                          })}
+                        </span>
+                        <RecordingStatus recording={file} />
+                      </div>
+                    )}
                   </td>
-                  <td>
+                  <td className={clsx({ hidden: !isDesktop })}>
                     {t('duration', {
                       duration: intervalToDuration({
                         start: 0,
@@ -140,7 +158,7 @@ export default function ListRecordings({
                       }),
                     })}
                   </td>
-                  <td>
+                  <td className={clsx({ hidden: !isDesktop })}>
                     <RecordingStatus recording={file} />
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
