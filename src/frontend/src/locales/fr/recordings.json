@@ -52,7 +52,7 @@
   "transcript": {
     "title": "Transcription",
     "status": {
-      "pending": "Transcription en cours de génération.",
+      "pending": "La transcription en cours de génération.",
       "failed": "Échec de la génération de la transcription.",
       "empty": "La transcription est vide."
     },
