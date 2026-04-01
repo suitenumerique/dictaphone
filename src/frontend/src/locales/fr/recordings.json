@@ -6,7 +6,7 @@
   "duration": "{{duration, formatDuration}}",
   "deleted": "Supprimé",
   "list": {
-    "title": "Tous les enregistrements",
+    "title": "Mes enregistrements",
     "titleTrash": "Corbeille",
     "trashInfo": "Les enregistrements sont supprimés définitivement après 30 jours",
     "columns": {
