@@ -7,6 +7,9 @@ import {
   ApiFileUploadState,
 } from '@/features/files/api/types.ts'
 import { useUser } from '@/features/auth'
+import { shouldRefetchMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+
+const REFRESH_AI_JOBS_INTERVAL_MS = 10_000
 
 type ListFilesResponse = {
   count: number
@@ -62,6 +65,15 @@ export const useListMyFiles = (params: Parameters<typeof listMyFiles>[0]) => {
     queryFn: () => listMyFiles(params),
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
+    refetchInterval: (query) => {
+      const files = query.state.data?.results
+      if (!files) {
+        return false
+      }
+      return files.some((file) => shouldRefetchMainAiJobs(file.ai_jobs))
+        ? REFRESH_AI_JOBS_INTERVAL_MS
+        : false
+    },
     placeholderData: keepPreviousData,
     enabled: isLoggedIn,
   })

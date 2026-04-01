@@ -15,3 +15,17 @@ export function getMainAiJobs(aiJobs: ApiAiJob[] | undefined) {
     lastAiJobSummary: aiJobs.find((el) => el.type === 'summary') ?? null,
   }
 }
+
+/**
+ * Main jobs are considered unresolved when one is still pending or missing.
+ */
+export function shouldRefetchMainAiJobs(aiJobs: ApiAiJob[] | undefined) {
+  const { lastAiJobTranscript, lastAiJobSummary } = getMainAiJobs(aiJobs)
+  if (!lastAiJobTranscript) return true
+  if (lastAiJobTranscript.status === 'pending') return true
+  if (lastAiJobTranscript.status === 'failed') return false
+  if (!lastAiJobSummary) return true
+  if (lastAiJobSummary.status === 'pending') return true
+  if (lastAiJobSummary.status === 'failed') return false
+  return true
+}
