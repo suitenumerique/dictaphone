@@ -1,5 +1,5 @@
 export type ApiAiJob = {
-  id: string // UUID
+  id: string | null // UUID
   type: 'transcript' | 'summary'
   status: 'pending' | 'success' | 'failed'
   created_at: string // ISO datetime string

@@ -53,29 +53,40 @@ def call_transcribe_service(file_id):
         logger.error("Item %s does not exist", file_id)
         return
 
-    response = requests.post(
-        settings.AI_SERVICE_URL + "async-jobs/transcribe/",
-        json={
-            "user_sub": file.creator.sub,
-            "language": "fr",
-            "cloud_storage_url": generate_download_file_url(
-                file, expires_in=60 * 60 * 24, override_domain=False
-            ),
-        },
-        headers={
-            "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
-        },
-        timeout=10,
-    )
-    response.raise_for_status()
-    data = response.json()
-
-    AiFileJob.objects.create(
-        remote_job_id=data["job_id"],
+    ai_transcribe_job = AiFileJob.objects.create(
+        remote_job_id=None,
         file=file,
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.PENDING,
     )
+
+    try:
+        response = requests.post(
+            settings.AI_SERVICE_URL + "async-jobs/transcribe/",
+            json={
+                "user_sub": file.creator.sub,
+                "language": "fr",
+                "cloud_storage_url": generate_download_file_url(
+                    file, expires_in=60 * 60 * 24, override_domain=False
+                ),
+            },
+            headers={
+                "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+    except Exception as e:
+        logger.error("Creating transcription job failed for file %s: %s", file_id, e)
+        ai_transcribe_job.status = AiJobStatusChoices.FAILED
+        ai_transcribe_job.save()
+        raise e
+
+    data = response.json()
+
+    ai_transcribe_job.remote_job_id = data["job_id"]
+    ai_transcribe_job.save()
+
     logger.info("Transcription job created for file %s", file_id)
 
 
@@ -110,26 +121,36 @@ def store_transcript_and_call_summary(remote_job_id, url):
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
     ai_transcript_job.save()
 
-    summary_response = requests.post(
-        settings.AI_SERVICE_URL + "async-jobs/summarize/",
-        json={
-            "user_sub": file.creator.sub,
-            "language": "fr",
-            "content": format_transcript(transcript),
-        },
-        headers={
-            "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
-        },
-        timeout=10,
-    )
-
-    summary_response.raise_for_status()
-    AiFileJob.objects.create(
-        remote_job_id=summary_response.json()["job_id"],
+    ai_summary_job = AiFileJob.objects.create(
+        remote_job_id=None,
         file=file,
         type=AiJobTypeChoices.SUMMARIZE,
         status=AiJobStatusChoices.PENDING,
     )
+
+    try:
+        summary_response = requests.post(
+            settings.AI_SERVICE_URL + "async-jobs/summarize/",
+            json={
+                "user_sub": file.creator.sub,
+                "language": "fr",
+                "content": format_transcript(transcript),
+            },
+            headers={
+                "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
+            },
+            timeout=10,
+        )
+        summary_response.raise_for_status()
+    except Exception as e:
+        logger.error("Creating summary job failed for file %s: %s", file.id, e)
+        ai_summary_job.status = AiJobStatusChoices.FAILED
+        ai_summary_job.save()
+        raise e
+
+    ai_summary_job.remote_job_id = summary_response.json()["job_id"]
+    ai_summary_job.save()
+
     logger.info("Summary job created for file %s", file.id)
 
 

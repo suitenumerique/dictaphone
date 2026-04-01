@@ -85,7 +85,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
 
 @patch("core.tasks.file.requests.post")
 def test_task_call_transcribe_service_http_error(mock_post):
-    """Errors from AI transcribe API should bubble up and not create jobs."""
+    """Errors from AI transcribe API should bubble up and mark job as failed."""
     file = factories.FileFactory(upload_bytes=b"hello")
 
     response = Mock()
@@ -95,7 +95,9 @@ def test_task_call_transcribe_service_http_error(mock_post):
     with pytest.raises(RuntimeError, match="transcribe failure"):
         call_transcribe_service(file.id)
 
-    assert not AiFileJob.objects.filter(file=file).exists()
+    ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
+    assert ai_job.status == AiJobStatusChoices.FAILED
+    assert ai_job.remote_job_id is None
 
 
 @patch("core.tasks.file.requests.post")
@@ -331,7 +333,7 @@ def test_task_store_summary_get_error(mock_get):
 def test_task_store_transcript_and_call_summary_post_error(mock_get, mock_post):
     """
     If summary API fails after transcript storage, transcript remains saved and
-    transcript job stays SUCCESS.
+    transcript job stays SUCCESS and summary job is created as failed.
     """
     ai_transcript_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
@@ -368,7 +370,9 @@ def test_task_store_transcript_and_call_summary_post_error(mock_get, mock_post):
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
     assert default_storage.exists(f"transcripts/{ai_transcript_job.id!s}.json")
-    assert not AiFileJob.objects.filter(
+    ai_summary_job = AiFileJob.objects.get(
         file=ai_transcript_job.file,
         type=AiJobTypeChoices.SUMMARIZE,
-    ).exists()
+    )
+    assert ai_summary_job.status == AiJobStatusChoices.FAILED
+    assert ai_summary_job.remote_job_id is None

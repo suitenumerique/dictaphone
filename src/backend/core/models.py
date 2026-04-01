@@ -437,7 +437,7 @@ class AiFileJob(BaseModel):
     A job that is run to process an audio file.
     """
 
-    remote_job_id = models.CharField(max_length=255, unique=True)
+    remote_job_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     type = models.CharField(
         max_length=25,
         choices=AiJobTypeChoices.choices,

@@ -6,7 +6,7 @@ import { ApiAiJob, WhisperXResponse } from '@/features/ai-jobs/api/types.ts'
 export const getTranscript = async (
   aiJob: ApiAiJob | null
 ): Promise<WhisperXResponse> => {
-  if (!aiJob) {
+  if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }
   return fetchApi<WhisperXResponse>(`/ai-jobs/${aiJob.id}/transcript/`, {
@@ -15,7 +15,7 @@ export const getTranscript = async (
 }
 
 export const getSummary = async (aiJob: ApiAiJob | null): Promise<string> => {
-  if (!aiJob) {
+  if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }
   return fetchApi<string>(`/ai-jobs/${aiJob.id}/summary/`, {
@@ -27,7 +27,7 @@ export const useTranscript = (params: Parameters<typeof getTranscript>[0]) => {
   return useQuery({
     queryKey: [keys.aiJobs, params?.id, params],
     queryFn: () => getTranscript(params),
-    enabled: params?.status === 'success',
+    enabled: params?.status === 'success' && Boolean(params?.id),
   })
 }
 
@@ -35,6 +35,6 @@ export const useSummary = (params: Parameters<typeof getSummary>[0]) => {
   return useQuery({
     queryKey: [keys.aiJobs, params?.id, params],
     queryFn: () => getSummary(params),
-    enabled: params?.status === 'success',
+    enabled: params?.status === 'success' && Boolean(params?.id),
   })
 }
