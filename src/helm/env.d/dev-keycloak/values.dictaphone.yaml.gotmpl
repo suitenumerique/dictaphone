@@ -32,6 +32,8 @@ backend:
     OIDC_RP_SCOPES: "openid email"
     OIDC_REDIRECT_ALLOWED_HOSTS: https://dictaphone.127.0.0.1.nip.io
     OIDC_AUTH_REQUEST_EXTRA_PARAMS: "{'acr_values': 'eidas1'}"
+    # valid value just for dev, we should not store this here but it's technically ok for now
+    OIDC_STORE_REFRESH_TOKEN_KEY: {{ .Values.oidcStoreRefreshTokenKey }}
     LOGIN_REDIRECT_URL: https://dictaphone.127.0.0.1.nip.io
     LOGIN_REDIRECT_URL_FAILURE: https://dictaphone.127.0.0.1.nip.io
     LOGOUT_REDIRECT_URL: https://dictaphone.127.0.0.1.nip.io

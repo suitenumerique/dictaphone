@@ -6,6 +6,10 @@ export type ApiAiJob = {
   updated_at: string // ISO datetime string
 }
 
+export type ApiOpenInDocsResponse = {
+  doc_url: string
+}
+
 export type WordSegment = {
   word: string
   start: number

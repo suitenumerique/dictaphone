@@ -230,6 +230,16 @@ class Base(Configuration):
         "token_summary", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
     )
 
+    # Docs integration
+    DOCS_INTEGRATION_ENABLED = values.BooleanValue(
+        default=True, environ_name="DOCS_INTEGRATION_ENABLED", environ_prefix=None
+    )
+    DOCS_BASE_URL = values.Value(
+        "https://impress-staging.beta.numerique.gouv.fr/",
+        environ_name="DOCS_BASE_URL",
+        environ_prefix=None,
+    )
+
     # Internationalization
     # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
@@ -429,9 +439,6 @@ class Base(Configuration):
     SENTRY_DSN = values.Value(None, environ_name="SENTRY_DSN")
 
     # Celery
-    # Defaults to False to avoid breaking change, async task will be run
-    # synchronously
-    CELERY_ENABLED = values.BooleanValue(False, environ_prefix=None)
     CELERY_TASK_ALWAYS_EAGER = values.BooleanValue(False, environ_prefix=None)
     CELERY_TASK_DEFAULT_QUEUE = values.Value("dictaphone-backend", environ_prefix=None)
     CELERY_BROKER_URL = values.Value("redis://redis:6379/0", environ_prefix=None)
@@ -515,6 +522,17 @@ class Base(Configuration):
     OIDC_PKCE_CODE_VERIFIER_SIZE = values.IntegerValue(
         default=64, environ_name="OIDC_PKCE_CODE_VERIFIER_SIZE", environ_prefix=None
     )
+    # For Resource server integration
+    # Store OIDC tokens in the session
+    OIDC_STORE_ACCESS_TOKEN = True  # Store the access token in the session
+    OIDC_STORE_REFRESH_TOKEN = True  # Store the encrypted refresh token in the session
+    # Must be a valid Fernet key (32 url-safe base64-encoded bytes)
+    OIDC_STORE_REFRESH_TOKEN_KEY = values.Value(
+        default="ThisIsAnExampleKeyForTestPurposeOnly",
+        environ_name="OIDC_STORE_REFRESH_TOKEN_KEY",
+        environ_prefix=None,
+    )
+
     LOGIN_REDIRECT_URL = values.Value(
         None, environ_name="LOGIN_REDIRECT_URL", environ_prefix=None
     )
