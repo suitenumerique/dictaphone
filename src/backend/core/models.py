@@ -2,8 +2,8 @@
 Declare and configure the models for the Dictaphone core application
 # pylint: disable=too-many-lines
 """
-# pylint: disable=too-many-lines
 
+# pylint: disable=too-many-lines
 import uuid
 from datetime import timedelta
 from logging import getLogger
@@ -15,11 +15,14 @@ from django.contrib.auth import models as auth_models
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core import mail, validators
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from timezone_field import TimeZoneField
+
+from core.webhook_models import WhisperXResponse
 
 logger = getLogger(__name__)
 
@@ -462,10 +465,38 @@ class AiFileJob(BaseModel):
         return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
 
     @property
-    def key(self):
+    def key(self) -> str:
         """Return the S3 key for the AI job result file."""
         if self.type == AiJobTypeChoices.TRANSCRIPT:
             return f"transcripts/{self.id!s}.json"
         if self.type == AiJobTypeChoices.SUMMARIZE:
             return f"summaries/{self.id!s}.txt"
         raise ValueError(f"Unknown job type: {self.type}")
+
+    def to_markdown(self) -> str:
+        """Return the AI job result as a markdown string."""
+        if self.status != AiJobStatusChoices.SUCCESS:
+            raise ValueError(f"Job status is not success: {self.status}")
+
+        with default_storage.open(self.key, "rb") as result_file:
+            content = result_file.read()
+
+        if self.type == AiJobTypeChoices.TRANSCRIPT:
+            whisper_response = WhisperXResponse.model_validate_json(content)
+            # Should translate this
+            out_str = "# Transcription \n"
+
+            last_speaker = None
+            for chunk in whisper_response.segments:
+                speaker = chunk.speaker
+                if speaker != last_speaker:
+                    out_str += f"\n## {speaker}\n"
+                    last_speaker = speaker
+                out_str += f"{chunk.text}\n"
+
+            return out_str
+        if self.type == AiJobTypeChoices.SUMMARIZE:
+            # Should translate this
+            return "# Résumé \n \n " + content.decode("utf-8")
+
+        raise NotImplementedError(f"Unknown job type: {self.type}")

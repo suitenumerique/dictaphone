@@ -2,9 +2,8 @@
 # pylint: disable=too-many-lines
 
 import re
-from io import BytesIO
 from logging import getLogger
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -618,14 +617,19 @@ class AiJobViewSet(
         Returns a link to the document in the docs app.
         """
 
+        access_token = request.session.get("oidc_access_token")
+        if not access_token:
+            raise drf_exceptions.NotAuthenticated(
+                {"status": "User is not authenticated."},
+                code="user_not_authenticated",
+            )
+
         ai_job = self.get_object()
         if ai_job.status != AiJobStatusChoices.SUCCESS:
             raise drf_exceptions.ValidationError(
                 {"status": "AI job is not completed yet."},
                 code="ai_job_not_completed",
             )
-
-        access_token = request.session.get("oidc_access_token")
 
         needs_create = not ai_job.docs_app_id
         if ai_job.docs_app_id:
@@ -647,15 +651,20 @@ class AiJobViewSet(
         if needs_create:
             logger.info("Creating new document for AI job %s", ai_job.id)
 
-            # Create a new document from a file
-            file_content = b"# Test Document\n\nThis is a test."
-            file = BytesIO(file_content)
-            file.name = "readme.md"
-
+            # Should translate this
+            label = (
+                "Transcription"
+                if ai_job.type == AiJobTypeChoices.TRANSCRIPT
+                else "Résumé"
+            )
             response = requests.post(
-                f"{settings.DOCS_BASE_URL}external_api/v1.0/documents/",
+                urljoin(settings.DOCS_BASE_URL, "external_api/v1.0/documents/"),
                 {
-                    "files": file,
+                    "file": (
+                        f"{ai_job.file.title[:200]} - {label}.md",
+                        ai_job.to_markdown().encode("utf-8"),
+                        "text/markdown",
+                    ),
                 },
                 headers={
                     "Authorization": f"Bearer {access_token}",
@@ -672,7 +681,7 @@ class AiJobViewSet(
             )
 
         return drf_response.Response(
-            {"doc_url": f"{settings.DOCS_BASE_URL}docs/{ai_job.docs_app_id}/"}
+            {"doc_url": urljoin(settings.DOCS_BASE_URL, f"docs/{ai_job.docs_app_id}/")}
         )
 
     @decorators.action(
