@@ -12,15 +12,15 @@ export type ApiOpenInDocsResponse = {
 
 export type WordSegment = {
   word: string
-  start: number
-  end: number
+  start: number | null
+  end: number | null
   score: number | null
   speaker: string | null
 }
 
 export type Segment = {
-  start: number
-  end: number
+  start: number | null
+  end: number | null
   text: string
   words: WordSegment[] | null
   speaker: string | null

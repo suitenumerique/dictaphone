@@ -48,12 +48,14 @@ export function TranscriptSegment({
             return
           }
         }
-        seekTo(segment.start)
+        if (segment.start !== null) {
+          seekTo(segment.start)
+        }
       }}
       ref={(element) => setSegmentRef(segment.id, element)}
     >
       <span className="transcript__segment-time">
-        {formatTimestamp(segment.start)}
+        {formatTimestamp(segment.start ?? -1)}
       </span>
       <span className="transcript__segment-content">
         <RenderSpeaker speaker={segment.speaker} />

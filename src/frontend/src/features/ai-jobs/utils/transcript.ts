@@ -2,16 +2,16 @@ import { WhisperXResponse } from '@/features/ai-jobs/api/types.ts'
 
 export type TranscriptWord = {
   text: string
-  start: number
-  end: number
+  start: number | null
+  end: number | null
   speaker: string | null
 }
 
 export type TranscriptViewSegment = {
   id: string
   text: string
-  start: number
-  end: number
+  start: number | null
+  end: number | null
   speaker: string | null
   words: TranscriptWord[]
 }
@@ -28,29 +28,24 @@ export function buildTranscriptViewSegments(
   if (!transcript) return []
 
   if (transcript.segments.length > 0) {
-    return transcript.segments
-      .map((segment, index) => {
-        const words =
-          segment.words?.map((word) => ({
-            text: word.word,
-            start: word.start,
-            end: word.end,
-            speaker: word.speaker,
-          })) ?? []
+    return transcript.segments.map((segment, index) => {
+      const words =
+        segment.words?.map((word) => ({
+          text: word.word,
+          start: word.start,
+          end: word.end,
+          speaker: word.speaker,
+        })) ?? []
 
-        return {
-          id: `segment-${index}`,
-          text: segment.text,
-          start: segment.start,
-          end: segment.end,
-          speaker: segment.speaker,
-          words,
-        }
-      })
-      .filter(
-        (segment) =>
-          Number.isFinite(segment.start) && Number.isFinite(segment.end)
-      )
+      return {
+        id: `segment-${index}`,
+        text: segment.text,
+        start: segment.start,
+        end: segment.end,
+        speaker: segment.speaker,
+        words,
+      }
+    })
   }
 
   if (transcript.word_segments.length > 0) {
@@ -80,44 +75,27 @@ export function buildTranscriptViewSegments(
  * @param currentTime
  */
 export function findActiveSegmentIndex(
-  segments: { start: number; end: number }[],
+  segments: { start: number | null; end: number | null }[],
   currentTime: number
 ): number {
-  if (
-    segments.length === 0 ||
-    !Number.isFinite(currentTime) ||
-    currentTime < 0
-  ) {
-    return -1
-  }
+  if (!isFinite(currentTime) || currentTime < 0) return -1
 
-  // Early return if the current time is within the first or last segment
-  if (currentTime <= segments[0].start) return 0
-  if (currentTime >= segments[segments.length - 1].end)
-    return segments.length - 1
+  // Since we can have nulls as input data, dichotomic search is a bit tricky.
+  // For now we will stick to a 0(n) search.
 
-  // Binary search to find the segment containing the current time
-  let low = 0
-  let high = segments.length - 1
-
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2)
-    const segment = segments[mid]
-
+  let lastValidSegmentIdx = -1
+  for (let idx = 0; idx < segments.length; idx++) {
+    const segment = segments[idx]
+    if (segment.start === null || segment.end === null) continue
     if (currentTime < segment.start) {
-      high = mid - 1
-      continue
+      return Math.max(lastValidSegmentIdx, 0)
     }
-
-    if (currentTime > segment.end) {
-      low = mid + 1
-      continue
+    if (segment.start <= currentTime && segment.end >= currentTime) {
+      return idx
     }
-
-    return mid
+    lastValidSegmentIdx = idx
   }
-
-  return Math.max(0, high)
+  return lastValidSegmentIdx
 }
 
 const TIMESTAMP_FORMATTER = new Intl.NumberFormat(undefined, {
