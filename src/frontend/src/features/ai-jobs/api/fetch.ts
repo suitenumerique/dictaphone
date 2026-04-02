@@ -1,7 +1,11 @@
 import { fetchApi } from '@/api/fetchApi'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
-import { ApiAiJob, ApiOpenInDocsResponse, WhisperXResponse } from '@/features/ai-jobs/api/types.ts'
+import {
+  ApiAiJob,
+  ApiOpenInDocsResponse,
+  WhisperXResponse,
+} from '@/features/ai-jobs/api/types.ts'
 
 export const getTranscript = async (
   aiJob: ApiAiJob | null
@@ -23,7 +27,9 @@ export const getSummary = async (aiJob: ApiAiJob | null): Promise<string> => {
   })
 }
 
-export const openInDocs = async (aiJob: ApiAiJob | null): Promise<ApiOpenInDocsResponse> => {
+export const openInDocs = async (
+  aiJob: ApiAiJob | null
+): Promise<ApiOpenInDocsResponse> => {
   if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }

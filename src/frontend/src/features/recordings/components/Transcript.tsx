@@ -12,6 +12,36 @@ import { TranscriptSegment } from '@/features/recordings/components/TranscriptSe
 import { useTranslation } from 'react-i18next'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 
+function OpenInDocsButton({
+  lastAiJobTranscript,
+}: {
+  lastAiJobTranscript: ApiAiJob | null
+}) {
+  const { t } = useTranslation('recordings')
+  const openInDocs = useOpenInDocsMutation()
+  const handleOpenInDocs = useCallback(() => {
+    if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
+      openInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) => {
+          window.open(res.doc_url, '_blank')
+        },
+      })
+    }
+  }, [lastAiJobTranscript, openInDocs])
+
+  return (
+    <Button
+      onClick={handleOpenInDocs}
+      size="small"
+      variant="bordered"
+      disabled={lastAiJobTranscript?.status !== 'success'}
+      icon={<span className="material-icons">open_in_new</span>}
+    >
+      {t('transcript.openInDocsCta')}
+    </Button>
+  )
+}
+
 export function Transcript({
   lastAiJobTranscript,
   currentTime,
@@ -37,16 +67,6 @@ export function Transcript({
   )
 
   const transcriptQ = useTranscript(lastAiJobTranscript)
-  const openInDocs = useOpenInDocsMutation()
-  const handleOpenInDocs = useCallback(() => {
-    if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
-      openInDocs.mutate(lastAiJobTranscript, {
-        onSuccess: (res) => {
-          window.open(res.doc_url, '_blank')
-        },
-      })
-    }
-  }, [lastAiJobTranscript, openInDocs])
 
   const transcriptSegments = useMemo(
     () => buildTranscriptViewSegments(transcriptQ.data),
@@ -89,6 +109,9 @@ export function Transcript({
     <section className="recording-page__panel recording-page__panel--transcript">
       <header className="recording-page__panel-header">
         <h2> {t('transcript.title')}</h2>
+        {lastAiJobTranscript?.status === 'success' && (
+          <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
+        )}
       </header>
 
       {lastAiJobTranscript?.status === 'failed' && (
@@ -113,13 +136,6 @@ export function Transcript({
 
       {transcriptSegments.length > 0 && (
         <>
-          <Button
-            onClick={handleOpenInDocs}
-            variant="secondary"
-            disabled={lastAiJobTranscript?.status !== 'success'}
-          >
-            Open In docs
-          </Button>
           <div
             className="transcript__transcript-list"
             ref={transcriptContainerRef}

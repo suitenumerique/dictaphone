@@ -57,7 +57,10 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     min-height: 0;
 
     .recording-page__panel-header {
-      display: none;
+      justify-content: start;
+      h2 {
+        display: none;
+      }
     }
 
     .c__tabs {
@@ -93,6 +96,9 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
 .recording-page__panel-header {
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
   h2 {
     margin: 0;

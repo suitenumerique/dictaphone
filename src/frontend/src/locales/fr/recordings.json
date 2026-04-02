@@ -51,6 +51,7 @@
   },
   "transcript": {
     "title": "Transcription",
+    "openInDocsCta": "Ouvrir dans Docs",
     "status": {
       "pending": "La transcription en cours de génération.",
       "failed": "Échec de la génération de la transcription.",

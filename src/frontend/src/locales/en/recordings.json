@@ -50,6 +50,7 @@
   },
   "transcript": {
     "title": "Transcript",
+    "openInDocsCta": "Ouvrir dans Docs",
     "status": {
       "pending": "Transcript is still being generated.",
       "failed": "Transcript generation failed.",
