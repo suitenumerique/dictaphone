@@ -59,4 +59,13 @@ describe('shouldRefetchMainAiJobs', () => {
       ])
     ).toBe(false)
   })
+
+  it('Bug real case', () => {
+    expect(
+      shouldRefetchMainAiJobs([
+        createJob('summary', 'success'),
+        createJob('transcript', 'success'),
+      ])
+    ).toBe(false)
+  })
 })

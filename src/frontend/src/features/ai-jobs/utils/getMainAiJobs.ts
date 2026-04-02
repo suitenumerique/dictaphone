@@ -27,5 +27,11 @@ export function shouldRefetchMainAiJobs(aiJobs: ApiAiJob[] | undefined) {
   if (!lastAiJobSummary) return true
   if (lastAiJobSummary.status === 'pending') return true
   if (lastAiJobSummary.status === 'failed') return false
+  if (
+    lastAiJobTranscript.status === 'success' &&
+    lastAiJobSummary.status === 'success'
+  ) {
+    return false
+  }
   return true
 }
