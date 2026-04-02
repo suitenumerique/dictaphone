@@ -447,6 +447,7 @@ class AiFileJob(BaseModel):
         max_length=25,
         choices=AiJobStatusChoices.choices,
     )
+    docs_app_id = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         db_table = "ai_job"

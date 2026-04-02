@@ -51,6 +51,7 @@ def get_frontend_configuration(request):
                 "allowed_mimetypes"
             ],
         },
+        "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
     }
     frontend_configuration.update(settings.FRONTEND_CONFIGURATION)
     return Response(frontend_configuration)
