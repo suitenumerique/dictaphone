@@ -1,0 +1,48 @@
+{
+  "tabs": {
+    "record": "Record",
+    "recordings": "Recordings",
+    "settings": "Settings"
+  },
+  "home": {
+    "title": "Dictaphone",
+    "record": "Record",
+    "stop": "Stop",
+    "pause": "Pause",
+    "resume": "Resume",
+    "save": "Save",
+    "microphonePermissionTitle": "Audio Recording Permission",
+    "microphonePermissionMessage": "This app needs access to your microphone to record audio.",
+    "permissionAskLater": "Ask Me Later",
+    "permissionCancel": "Cancel",
+    "permissionOk": "OK",
+    "recordingName": "Recording {{duration}}"
+  },
+  "recordings": {
+    "emptyTitle": "No recordings yet",
+    "emptySubtitle": "Go to Record tab and capture your first audio note.",
+    "loginButton": "Login with ProConnect",
+    "delete": "Delete",
+    "deleteTitle": "Delete recording",
+    "deleteMessage": "This action cannot be undone.",
+    "deleteConfirm": "Delete",
+    "deleteCancel": "Cancel",
+    "synced": "Synced",
+    "notSynced": "Not synced"
+  },
+  "player": {
+    "play": "Play",
+    "pause": "Pause",
+    "stop": "Stop"
+  },
+  "settings": {
+    "title": "Settings",
+    "networkSync": "Allow network usage for sync",
+    "language": "Language",
+    "english": "English",
+    "french": "French"
+  },
+  "common": {
+    "loading": "Loading..."
+  }
+}

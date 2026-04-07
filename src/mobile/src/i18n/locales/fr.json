@@ -1,0 +1,48 @@
+{
+  "tabs": {
+    "record": "Enregistrer",
+    "recordings": "Enregistrements",
+    "settings": "Paramètres"
+  },
+  "home": {
+    "title": "Dictaphone",
+    "record": "Démarrer",
+    "stop": "Arrêter",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "save": "Sauvegarder",
+    "microphonePermissionTitle": "Permission d'enregistrement audio",
+    "microphonePermissionMessage": "Cette application a besoin d'accéder à votre microphone pour enregistrer l'audio.",
+    "permissionAskLater": "Plus tard",
+    "permissionCancel": "Annuler",
+    "permissionOk": "OK",
+    "recordingName": "Enregistrement {{duration}}"
+  },
+  "recordings": {
+    "emptyTitle": "Aucun enregistrement",
+    "emptySubtitle": "Allez dans l'onglet Enregistrer et capturez votre première note audio.",
+    "loginButton": "Se connecter avec ProConnect",
+    "delete": "Supprimer",
+    "deleteTitle": "Supprimer l'enregistrement",
+    "deleteMessage": "Cette action est irréversible.",
+    "deleteConfirm": "Supprimer",
+    "deleteCancel": "Annuler",
+    "synced": "Synchronisé",
+    "notSynced": "Non synchronisé"
+  },
+  "player": {
+    "play": "Lecture",
+    "pause": "Pause",
+    "stop": "Arrêter"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "networkSync": "Autoriser l'utilisation du réseau pour la synchro",
+    "language": "Langue",
+    "english": "Anglais",
+    "french": "Français"
+  },
+  "common": {
+    "loading": "Chargement..."
+  }
+}
