@@ -32,6 +32,7 @@ import { deleteRecording, getRecordings } from '../services/storage';
 import type { Recording } from '../types/recording';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { SafeAreaView } from 'react-native-screens/experimental';
+import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
 
 const RECORDINGS_PLAYLIST_NAME = 'Dictaphone Recordings';
 
@@ -341,15 +342,7 @@ export default function RecordingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <Pressable
-          style={[styles.loginButton, isLoginLoading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={isLoginLoading}
-        >
-          <Text style={styles.loginButtonText}>
-            {t('recordings.loginButton')}
-          </Text>
-        </Pressable>
+        <LoginWithProConnectButton/>
 
         {activeRecording ? (
           <View style={styles.playerCard}>

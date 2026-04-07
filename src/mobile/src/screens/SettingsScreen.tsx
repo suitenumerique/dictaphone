@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { getSettings, setSettings } from '../services/storage';
 import type { AppLanguage } from '../types/settings';
+import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -40,8 +41,9 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('settings.title')}</Text>
-
+      <View>
+        <LoginWithProConnectButton />
+      </View>
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <Text style={styles.label}>{t('settings.networkSync')}</Text>
@@ -51,7 +53,6 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
-
       <View style={styles.card}>
         <Text style={styles.label}>{t('settings.language')}</Text>
         <View style={styles.languageRow}>
