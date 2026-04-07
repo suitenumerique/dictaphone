@@ -41,9 +41,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <View>
-        <LoginWithProConnectButton />
-      </View>
+      <LoginWithProConnectButton />
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <Text style={styles.label}>{t('settings.networkSync')}</Text>
@@ -100,6 +98,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     padding: 16,
+    paddingTop: 36,
     gap: 14,
   },
   title: {

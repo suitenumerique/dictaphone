@@ -57,6 +57,7 @@ const toTrackItem = (recording: Recording): TrackItem => ({
 
 export default function RecordingsScreen() {
   const { t, i18n } = useTranslation();
+
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isPlayerBusy, setIsPlayerBusy] = useState(false);
@@ -329,7 +330,7 @@ export default function RecordingsScreen() {
                 onPress={() => handleDelete(item)}
               >
                 <Text style={styles.deleteButtonText}>
-                  <Lucide name="trash-2" />
+                  <Lucide name="trash-2" size={16} />
                 </Text>
               </Pressable>
             </View>
@@ -340,9 +341,9 @@ export default function RecordingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={{ bottom: true }} style={styles.container}>
       <View style={styles.topBar}>
-        <LoginWithProConnectButton/>
+        <LoginWithProConnectButton />
 
         {activeRecording ? (
           <View style={styles.playerCard}>
@@ -380,6 +381,7 @@ export default function RecordingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 24,
     backgroundColor: '#F9FAFB',
   },
   topBar: {
@@ -425,14 +427,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    gap: 12,
-    shadowColor: '#111827',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9', // subtle border instead of shadow
   },
   cardHeader: {
     flexDirection: 'row',
@@ -473,16 +472,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   playRecordingButton: {
-    borderRadius: 8,
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteButton: {
-    borderRadius: 8,
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteButtonText: {
     color: '#B91C1C',

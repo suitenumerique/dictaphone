@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
-import { StatusBar, StyleSheet } from 'react-native';
+import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import i18n from './src/i18n';
 import HomeScreen from './src/screens/HomeScreen';
@@ -32,7 +31,7 @@ function App() {
   }, []);
 
   return (
-    <SafeAreaProvider style={styles.container}>
+    <>
       <StatusBar barStyle="dark-content" />
       <NavigationContainer>
         <Tabs.Navigator
@@ -93,14 +92,8 @@ function App() {
           />
         </Tabs.Navigator>
       </NavigationContainer>
-    </SafeAreaProvider>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingTop: 20,
-  }
-});
 
 export default App;
