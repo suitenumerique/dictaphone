@@ -19,8 +19,9 @@ export type AudioPlayerViewState = {
 
 type AudioPlayerProps = {
   onSeek: (positionMs: number) => Promise<void> | void;
-  onStop: () => Promise<void> | void;
+  onSetSpeed: (speed: number) => Promise<void> | void;
   onTogglePlay: () => Promise<void> | void;
+  playbackSpeed: number;
   state: AudioPlayerViewState;
 };
 
@@ -31,7 +32,9 @@ const msToTimestamp = (timeMs: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-export const AudioPlayer = ({ onSeek, onTogglePlay, state }: AudioPlayerProps) => {
+const SPEED_OPTIONS = [1, 1.5, 2] as const;
+
+export const AudioPlayer = ({ onSeek, onSetSpeed, onTogglePlay, playbackSpeed, state }: AudioPlayerProps) => {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPreviewMs, setSeekPreviewMs] = useState(0);
   const [trackWidth, setTrackWidth] = useState(1);
@@ -50,6 +53,23 @@ export const AudioPlayer = ({ onSeek, onTogglePlay, state }: AudioPlayerProps) =
   const handleTrackPress = async (event: GestureResponderEvent) => {
     const nextPosition = positionFromX(event.nativeEvent.locationX);
     await onSeek(nextPosition);
+  };
+
+  const seekTo = async (positionMs: number) => {
+    const clamped = Math.max(0, Math.min(positionMs, state.durationMs));
+    await onSeek(clamped);
+  };
+
+  const handleRestart = async () => {
+    await seekTo(0);
+  };
+
+  const handleBack10 = async () => {
+    await seekTo(state.positionMs - 10000);
+  };
+
+  const handleForward10 = async () => {
+    await seekTo(state.positionMs + 10000);
   };
 
   const panResponder = useRef(
@@ -80,12 +100,55 @@ export const AudioPlayer = ({ onSeek, onTogglePlay, state }: AudioPlayerProps) =
     <View style={styles.container}>
       <View style={styles.transportRow}>
         <Pressable
+          style={[styles.controlButton, state.isLoading && styles.buttonDisabled]}
+          onPress={handleRestart}
+          disabled={state.isLoading}
+        >
+          <Lucide name="rotate-ccw" size={16}/>
+        </Pressable>
+
+        <Pressable
+          style={[styles.controlButton, state.isLoading && styles.buttonDisabled]}
+          onPress={handleBack10}
+          disabled={state.isLoading}
+        >
+          <Text style={styles.controlButtonText}>-10s</Text>
+        </Pressable>
+
+        <Pressable
           style={[styles.playButton, state.isLoading && styles.buttonDisabled]}
           onPress={onTogglePlay}
           disabled={state.isLoading}
         >
           <Lucide name={state.isPlaying ? 'pause' : 'play'}/>
         </Pressable>
+
+        <Pressable
+          style={[styles.controlButton, state.isLoading && styles.buttonDisabled]}
+          onPress={handleForward10}
+          disabled={state.isLoading}
+        >
+          <Text style={styles.controlButtonText}>+10s</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.speedRow}>
+        {SPEED_OPTIONS.map(speed => (
+          <Pressable
+            key={speed}
+            style={[
+              styles.speedButton,
+              playbackSpeed === speed && styles.speedButtonActive,
+              state.isLoading && styles.buttonDisabled,
+            ]}
+            onPress={() => onSetSpeed(speed)}
+            disabled={state.isLoading}
+          >
+            <Text style={[styles.speedButtonText, playbackSpeed === speed && styles.speedButtonTextActive]}>
+              {speed}x
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       <View
@@ -132,10 +195,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
-  playButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
+  controlButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  controlButtonText: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  speedRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  speedButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  speedButtonActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#DBEAFE',
+  },
+  speedButtonText: {
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  speedButtonTextActive: {
+    color: '#1D4ED8',
   },
   buttonDisabled: {
     opacity: 0.55,

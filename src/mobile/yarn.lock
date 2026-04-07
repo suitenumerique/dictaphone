@@ -5567,6 +5567,11 @@ react-native-nitro-modules@0.35.3:
   resolved "https://registry.yarnpkg.com/react-native-nitro-modules/-/react-native-nitro-modules-0.35.3.tgz#26c3e287d3fff780f91d7d87a62e6a9b450e3c17"
   integrity sha512-pfPfFtGeMfFpLo4HidTFs5zsAs1wRh9qaWGSiF5UeI2YQaAgRHPlson0UNxw25pTCLV9NBrKgSDaMVfPEXXbNw==
 
+react-native-nitro-player@1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/react-native-nitro-player/-/react-native-nitro-player-1.0.1.tgz#3f0c2e5c89559b1901999b6abc2f8b2c89d6c70b"
+  integrity sha512-ccQud/q7dfpK+AXlM9h6QbZiXg8XstCUYZ1pAtKpdB/ASnig3M/0TLrzer/ACynvk1Q+LYa43AaR1On+vJk2sw==
+
 react-native-nitro-sound@0.2.12:
   version "0.2.12"
   resolved "https://registry.yarnpkg.com/react-native-nitro-sound/-/react-native-nitro-sound-0.2.12.tgz#6806e59690f517e0987457ae2d92b6191eece16e"

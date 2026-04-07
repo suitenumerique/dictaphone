@@ -10,11 +10,21 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import { getSettings } from './src/services/storage';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
+import { TrackPlayer } from 'react-native-nitro-player';
 
 const Tabs = createNativeBottomTabNavigator();
 
 function App() {
   const { t } = useTranslation();
+
+  useEffect(() => {
+    TrackPlayer.configure({
+      androidAutoEnabled: true,
+      carPlayEnabled: true,
+      showInNotification: true,
+      lookaheadCount: 1,
+    });
+  }, []);
 
   useEffect(() => {
     const settings = getSettings();

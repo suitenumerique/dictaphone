@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Alert,
   FlatList,
@@ -9,113 +15,132 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
-import Sound from 'react-native-nitro-sound';
-import { AudioPlayer, type AudioPlayerViewState } from '../components/AudioPlayer';
+import {
+  PlayerQueue,
+  type TrackItem,
+  TrackPlayer,
+  useOnChangeTrack,
+  useOnPlaybackProgressChange,
+  useOnPlaybackStateChange,
+} from 'react-native-nitro-player';
+import {
+  AudioPlayer,
+  type AudioPlayerViewState,
+} from '../components/AudioPlayer';
 import { login } from '../services/authService';
 import { deleteRecording, getRecordings } from '../services/storage';
 import type { Recording } from '../types/recording';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { SafeAreaView } from 'react-native-screens/experimental';
 
-type PlaybackStateById = Record<string, AudioPlayerViewState>;
+const RECORDINGS_PLAYLIST_NAME = 'Dictaphone Recordings';
 
 const formatDurationLabel = (durationMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
+    2,
+    '0',
+  )}`;
 };
 
-const createDefaultPlayerState = (durationMs: number): AudioPlayerViewState => ({
-  durationMs,
-  isLoading: false,
-  isPaused: false,
-  isPlaying: false,
-  positionMs: 0,
+const toTrackItem = (recording: Recording): TrackItem => ({
+  id: recording.id,
+  title: recording.name,
+  artist: 'Dictaphone',
+  album: 'Recordings',
+  duration: Math.max(1, Math.floor(recording.duration / 1000)),
+  url: recording.filePath,
 });
 
 export default function RecordingsScreen() {
   const { t, i18n } = useTranslation();
   const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [playbackStateById, setPlaybackStateById] = useState<PlaybackStateById>({});
   const [isLoginLoading, setIsLoginLoading] = useState(false);
-  const activeRecordingIdRef = useRef<string | null>(null);
+  const [isPlayerBusy, setIsPlayerBusy] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
-  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }), [i18n.language]);
+  const playlistIdRef = useRef<string | null>(null);
+  const isPlayerConfiguredRef = useRef(false);
+  const isPlayerConfigInFlightRef = useRef<Promise<void> | null>(null);
 
-  const clearPlaybackListeners = () => {
-    Sound.removePlayBackListener();
-    Sound.removePlaybackEndListener();
-  };
+  const { track: currentTrack } = useOnChangeTrack();
+  const { state: playbackState } = useOnPlaybackStateChange();
+  const { position, totalDuration } = useOnPlaybackProgressChange();
 
-  const updatePlaybackState = (recordingId: string, updater: (current: AudioPlayerViewState) => AudioPlayerViewState) => {
-    setPlaybackStateById(prev => {
-      const current = prev[recordingId] ?? createDefaultPlayerState(0);
-      return {
-        ...prev,
-        [recordingId]: updater(current),
-      };
-    });
-  };
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.language, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+    [i18n.language],
+  );
 
-  const attachPlaybackListeners = (recordingId: string) => {
-    clearPlaybackListeners();
+  const activeRecording = useMemo(
+    () =>
+      recordings.find(recording => recording.id === currentTrack?.id) ?? null,
+    [recordings, currentTrack?.id],
+  );
 
-    Sound.addPlayBackListener(playback => {
-      updatePlaybackState(recordingId, current => ({
-        ...current,
-        durationMs: Math.max(current.durationMs, Math.floor(playback.duration)),
-        positionMs: Math.floor(playback.currentPosition),
-      }));
-    });
+  const currentPlayerState = useMemo<AudioPlayerViewState>(
+    () => ({
+      durationMs: Math.max(
+        Math.floor(totalDuration * 1000),
+        activeRecording?.duration ?? 0,
+      ),
+      isLoading: isPlayerBusy,
+      isPaused: playbackState === 'paused',
+      isPlaying: playbackState === 'playing',
+      positionMs: Math.floor(position * 1000),
+    }),
+    [
+      activeRecording?.duration,
+      isPlayerBusy,
+      playbackState,
+      position,
+      totalDuration,
+    ],
+  );
 
-    Sound.addPlaybackEndListener(() => {
-      updatePlaybackState(recordingId, current => ({
-        ...current,
-        isLoading: false,
-        isPaused: false,
-        isPlaying: false,
-        positionMs: 0,
-      }));
-      activeRecordingIdRef.current = null;
-      clearPlaybackListeners();
-    });
-  };
-
-  const stopActiveRecording = async ({ preservePosition }: { preservePosition: boolean }) => {
-    const activeRecordingId = activeRecordingIdRef.current;
-    if (!activeRecordingId) {
+  const ensurePlayerConfigured = useCallback(async () => {
+    if (isPlayerConfiguredRef.current) {
       return;
     }
 
-    await Sound.stopPlayer();
-    clearPlaybackListeners();
+    if (!isPlayerConfigInFlightRef.current) {
+      isPlayerConfigInFlightRef.current = TrackPlayer.configure({
+        androidAutoEnabled: false,
+        carPlayEnabled: false,
+        showInNotification: false,
+      })
+        .then(() => {
+          isPlayerConfiguredRef.current = true;
+        })
+        .finally(() => {
+          isPlayerConfigInFlightRef.current = null;
+        });
+    }
 
-    updatePlaybackState(activeRecordingId, current => ({
-      ...current,
-      isLoading: false,
-      isPaused: preservePosition,
-      isPlaying: false,
-      positionMs: preservePosition ? current.positionMs : 0,
-    }));
+    await isPlayerConfigInFlightRef.current;
+  }, []);
 
-    activeRecordingIdRef.current = null;
-  };
+  const clearPlaybackPlaylist = useCallback(async () => {
+    await TrackPlayer.pause().catch(() => undefined);
+
+    const currentPlaylistId = playlistIdRef.current;
+    if (!currentPlaylistId) {
+      return;
+    }
+
+    await PlayerQueue.deletePlaylist(currentPlaylistId).catch(() => undefined);
+    playlistIdRef.current = null;
+  }, []);
 
   const loadRecordings = useCallback(() => {
     const nextRecordings = getRecordings();
     setRecordings(nextRecordings);
-
-    setPlaybackStateById(prev => {
-      const next: PlaybackStateById = {};
-      nextRecordings.forEach(recording => {
-        next[recording.id] = prev[recording.id] ?? createDefaultPlayerState(recording.duration);
-      });
-      return next;
-    });
   }, []);
 
   useEffect(() => {
@@ -130,128 +155,122 @@ export default function RecordingsScreen() {
 
   useEffect(() => {
     return () => {
-      clearPlaybackListeners();
-      Sound.stopPlayer().catch(() => undefined);
+      clearPlaybackPlaylist().catch(() => undefined);
     };
-  }, []);
+  }, [clearPlaybackPlaylist]);
 
-  const withLoading = async (recordingId: string, operation: () => Promise<void>) => {
-    updatePlaybackState(recordingId, current => ({ ...current, isLoading: true }));
+  useEffect(() => {
+    if (!activeRecording) {
+      return;
+    }
+
+    let isMounted = true;
+    const syncPlaybackSpeed = async () => {
+      try {
+        await ensurePlayerConfigured();
+        const speed = await TrackPlayer.getPlaybackSpeed();
+        if (isMounted) {
+          setPlaybackSpeed(speed);
+        }
+      } catch (error) {
+        console.error('Failed to read playback speed:', error);
+      }
+    };
+
+    syncPlaybackSpeed().catch(() => undefined);
+    return () => {
+      isMounted = false;
+    };
+  }, [activeRecording, ensurePlayerConfigured]);
+
+  const handlePlayRecording = async (recording: Recording) => {
+    setIsPlayerBusy(true);
     try {
-      await operation();
+      await ensurePlayerConfigured();
+      await clearPlaybackPlaylist();
+
+      const playlistId = await PlayerQueue.createPlaylist(
+        RECORDINGS_PLAYLIST_NAME,
+      );
+      playlistIdRef.current = playlistId;
+
+      const track = toTrackItem(recording);
+      await PlayerQueue.addTrackToPlaylist(playlistId, track);
+      await PlayerQueue.loadPlaylist(playlistId);
+      await TrackPlayer.playSong(track.id, playlistId);
+      await TrackPlayer.play();
     } catch (error) {
       console.error('Playback operation failed:', error);
     } finally {
-      updatePlaybackState(recordingId, current => ({ ...current, isLoading: false }));
+      setIsPlayerBusy(false);
     }
   };
 
-  const handleTogglePlay = async (recording: Recording) => {
-    const playerState = playbackStateById[recording.id] ?? createDefaultPlayerState(recording.duration);
+  const handleToggleCurrentTrack = async () => {
+    if (!activeRecording) {
+      return;
+    }
 
-    await withLoading(recording.id, async () => {
-      const activeRecordingId = activeRecordingIdRef.current;
-
-      if (activeRecordingId && activeRecordingId !== recording.id) {
-        await stopActiveRecording({ preservePosition: true });
+    setIsPlayerBusy(true);
+    try {
+      await ensurePlayerConfigured();
+      if (playbackState === 'playing') {
+        await TrackPlayer.pause();
+      } else {
+        await TrackPlayer.play();
       }
-
-      if (activeRecordingId === recording.id && playerState.isPlaying) {
-        await Sound.pausePlayer();
-        updatePlaybackState(recording.id, current => ({
-          ...current,
-          isPaused: true,
-          isPlaying: false,
-        }));
-        return;
-      }
-
-      if (activeRecordingId === recording.id && playerState.isPaused) {
-        await Sound.resumePlayer();
-        updatePlaybackState(recording.id, current => ({
-          ...current,
-          isPaused: false,
-          isPlaying: true,
-        }));
-        return;
-      }
-
-      await Sound.startPlayer(recording.filePath);
-      attachPlaybackListeners(recording.id);
-
-      if (playerState.positionMs > 0) {
-        await Sound.seekToPlayer(playerState.positionMs);
-      }
-
-      activeRecordingIdRef.current = recording.id;
-      updatePlaybackState(recording.id, current => ({
-        ...current,
-        durationMs: Math.max(current.durationMs, recording.duration),
-        isPaused: false,
-        isPlaying: true,
-      }));
-    });
+    } catch (error) {
+      console.error('Toggle play failed:', error);
+    } finally {
+      setIsPlayerBusy(false);
+    }
   };
 
-  const handleStop = async (recording: Recording) => {
-    await withLoading(recording.id, async () => {
-      if (activeRecordingIdRef.current === recording.id) {
-        await stopActiveRecording({ preservePosition: false });
-      }
-
-      updatePlaybackState(recording.id, current => ({
-        ...current,
-        isPaused: false,
-        isPlaying: false,
-        positionMs: 0,
-      }));
-    });
-  };
-
-  const handleSeek = async (recording: Recording, positionMs: number) => {
-    updatePlaybackState(recording.id, current => ({
-      ...current,
-      positionMs,
-    }));
-
-    if (activeRecordingIdRef.current !== recording.id) {
+  const handleSeekCurrentTrack = async (positionMs: number) => {
+    if (!activeRecording) {
       return;
     }
 
     try {
-      await Sound.seekToPlayer(positionMs);
+      await TrackPlayer.seek(positionMs / 1000);
     } catch (error) {
       console.error('Seek failed:', error);
     }
   };
 
+  const handleSetPlaybackSpeed = async (speed: number) => {
+    if (!activeRecording) {
+      return;
+    }
+
+    try {
+      await ensurePlayerConfigured();
+      await TrackPlayer.setPlaybackSpeed(speed);
+      setPlaybackSpeed(speed);
+    } catch (error) {
+      console.error('Set playback speed failed:', error);
+    }
+  };
+
   const handleDelete = (recording: Recording) => {
-    Alert.alert(
-      t('recordings.deleteTitle'),
-      t('recordings.deleteMessage'),
-      [
-        {
-          style: 'cancel',
-          text: t('recordings.deleteCancel'),
+    Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
+      {
+        style: 'cancel',
+        text: t('recordings.deleteCancel'),
+      },
+      {
+        style: 'destructive',
+        text: t('recordings.deleteConfirm'),
+        onPress: async () => {
+          if (currentTrack?.id === recording.id) {
+            await clearPlaybackPlaylist();
+          }
+
+          const nextRecordings = deleteRecording(recording.id);
+          setRecordings(nextRecordings);
         },
-        {
-          style: 'destructive',
-          text: t('recordings.deleteConfirm'),
-          onPress: async () => {
-            if (activeRecordingIdRef.current === recording.id) {
-              await stopActiveRecording({ preservePosition: false });
-            }
-            const nextRecordings = deleteRecording(recording.id);
-            setRecordings(nextRecordings);
-            setPlaybackStateById(prev => {
-              const rest = { ...prev };
-              delete rest[recording.id];
-              return rest;
-            });
-          },
-        },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleLogin = async () => {
@@ -266,36 +285,55 @@ export default function RecordingsScreen() {
   };
 
   const renderItem = ({ item }: { item: Recording }) => {
-    const playerState = playbackStateById[item.id] ?? createDefaultPlayerState(item.duration);
-
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>
-              {dateFormatter.format(new Date(item.createdAt))} • {formatDurationLabel(item.duration)}
+              {dateFormatter.format(new Date(item.createdAt))} •{' '}
+              {formatDurationLabel(item.duration)}
             </Text>
           </View>
 
           <View style={styles.headerActions}>
             <View style={styles.syncStatusRow}>
-              <View style={[styles.syncDot, item.synced ? styles.syncDotOk : styles.syncDotPending]} />
-              <Text style={styles.syncLabel}>{item.synced ? t('recordings.synced') : t('recordings.notSynced')}</Text>
+              <View
+                style={[
+                  styles.syncDot,
+                  item.synced ? styles.syncDotOk : styles.syncDotPending,
+                ]}
+              />
+              <Text style={styles.syncLabel}>
+                {item.synced
+                  ? t('recordings.synced')
+                  : t('recordings.notSynced')}
+              </Text>
             </View>
 
-            <Pressable style={styles.deleteButton} onPress={() => handleDelete(item)}>
-              <Text style={styles.deleteButtonText}><Lucide name="trash-2"/></Text>
-            </Pressable>
+            <View style={styles.rowActions}>
+              <Pressable
+                style={[
+                  styles.playRecordingButton,
+                  isPlayerBusy && styles.buttonDisabled,
+                ]}
+                onPress={() => handlePlayRecording(item)}
+                disabled={isPlayerBusy}
+              >
+                <Lucide name="play" size={16} color="#1D4ED8" />
+              </Pressable>
+
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() => handleDelete(item)}
+              >
+                <Text style={styles.deleteButtonText}>
+                  <Lucide name="trash-2" />
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-
-        <AudioPlayer
-          onSeek={position => handleSeek(item, position)}
-          onStop={() => handleStop(item)}
-          onTogglePlay={() => handleTogglePlay(item)}
-          state={playerState}
-        />
       </View>
     );
   };
@@ -312,6 +350,19 @@ export default function RecordingsScreen() {
             {t('recordings.loginButton')}
           </Text>
         </Pressable>
+
+        {activeRecording ? (
+          <View style={styles.playerCard}>
+            <Text style={styles.playerTitle}>{activeRecording.name}</Text>
+            <AudioPlayer
+              onSeek={handleSeekCurrentTrack}
+              onSetSpeed={handleSetPlaybackSpeed}
+              onTogglePlay={handleToggleCurrentTrack}
+              playbackSpeed={playbackSpeed}
+              state={currentPlayerState}
+            />
+          </View>
+        ) : null}
       </View>
 
       {recordings.length === 0 ? (
@@ -342,6 +393,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 8,
+    gap: 12,
   },
   loginButton: {
     borderRadius: 10,
@@ -353,6 +405,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  playerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    shadowColor: '#111827',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  playerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -386,6 +454,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 8,
   },
+  rowActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   syncStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -406,6 +478,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4B5563',
     fontWeight: '600',
+  },
+  playRecordingButton: {
+    borderRadius: 8,
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   deleteButton: {
     borderRadius: 8,
