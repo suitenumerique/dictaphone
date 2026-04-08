@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Redirecting...</title>
+  <script>
+    (function() {
+      const sessionKey = "{{ session_key }}";
+      const cookieName = "{{ cookie_name }}";
+      const deepLink = "{{ deep_link }}";
+
+      if (sessionKey) {
+        const url = `${deepLink}?${cookieName}=${sessionKey}`;
+        window.location.href = url;
+      } else {
+        document.body.innerText = "Missing session.";
+      }
+    })();
+  </script>
+</head>
+<body>
+  Redirecting to app...
+</body>
+</html>

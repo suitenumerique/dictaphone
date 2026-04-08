@@ -2,10 +2,12 @@
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.shortcuts import render
 
 from rest_framework import exceptions as drf_exceptions
 from rest_framework import views as drf_views
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
 
@@ -55,3 +57,18 @@ def get_frontend_configuration(request):
     }
     frontend_configuration.update(settings.FRONTEND_CONFIGURATION)
     return Response(frontend_configuration)
+
+
+@api_view(["GET"])
+def get_mobile_redirect(request):
+    session_key = request.session.session_key
+    if session_key is None:
+        raise NotAuthenticated()
+
+    context = {
+        "deep_link": settings.MOBILE_DEEP_LINK_SCHEME,
+        "session_key": session_key,
+        "cookie_name": settings.SESSION_COOKIE_NAME,
+    }
+
+    return render(request, "mobile_redirect.html", context)

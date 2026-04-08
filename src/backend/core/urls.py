@@ -6,7 +6,7 @@ from django.urls import include, path
 from lasuite.oidc_login.urls import urlpatterns as oidc_urls
 from rest_framework.routers import DefaultRouter
 
-from core.api import get_frontend_configuration, viewsets
+from core.api import get_frontend_configuration, get_mobile_redirect, viewsets
 
 # - Main endpoints
 router = DefaultRouter()
@@ -23,6 +23,7 @@ urlpatterns = [
                 *router.urls,
                 *oidc_urls,
                 path("config/", get_frontend_configuration, name="config"),
+                path("mobile-redirect/", get_mobile_redirect, name="mobile-redirect"),
             ]
         ),
     ),

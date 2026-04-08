@@ -615,6 +615,13 @@ class Base(Configuration):
         default=None, environ_name="OIDC_RS_SCOPES_PREFIX", environ_prefix=None
     )
 
+    # Mobile App Handling
+    MOBILE_DEEP_LINK_SCHEME = values.Value(
+        default="lasuite-dictaphone://auth/callback",
+        environ_name="MOBILE_DEEP_LINK_SCHEME",
+        environ_prefix=None,
+    )
+
     # pylint: disable=invalid-name
     @property
     def ENVIRONMENT(self):
