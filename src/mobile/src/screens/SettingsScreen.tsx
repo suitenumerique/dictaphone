@@ -5,9 +5,11 @@ import i18n from '../i18n';
 import { getSettings, setSettings } from '../services/storage';
 import type { AppLanguage } from '../types/settings';
 import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
+import { useUser } from '@/features/auth/api/useUser';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
+  const user = useUser()
   const [allowNetworkSync, setAllowNetworkSync] = useState(false);
   const [language, setLanguage] = useState<AppLanguage>('en');
 

@@ -17,6 +17,8 @@ import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/un
 import { TrackPlayer } from 'react-native-nitro-player';
 import { storeSessionCookie } from './src/services/authService';
 import { useNavigation } from '@react-navigation/core';
+import { queryClient } from '@/api/queryClient';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 const Tabs = createNativeBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -124,7 +126,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <StatusBar barStyle="dark-content" />
       <NavigationContainer
         linking={{
@@ -146,7 +148,7 @@ function App() {
           />
         </RootStack.Navigator>
       </NavigationContainer>
-    </>
+    </QueryClientProvider>
   );
 }
 

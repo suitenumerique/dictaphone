@@ -2,17 +2,17 @@
 import { Linking } from 'react-native';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import * as Keychain from 'react-native-keychain';
+import { API_URL } from '../api/constants';
 
-const BACKEND_URL =
-  'https://dictaphone-staging.beta.numerique.gouv.fr/api/v1.0';
+
 const SESSION_COOKIE_NAME = 'sessionid';
-const API_REDIRECT_URL = `${BACKEND_URL}/mobile-redirect/`;
+const API_REDIRECT_URL = `${API_URL}/mobile-redirect/`;
 const REDIRECT_URL = 'lasuite-dictaphone://auth/callback';
 
 // The same route your webapp uses
 function buildAuthUrl(silent: boolean, returnTo: string): string {
   return (
-    `${BACKEND_URL}/authenticate/` +
+    `${API_URL}/authenticate/` +
     `?silent=${encodeURIComponent(silent)}` +
     `&returnTo=${encodeURIComponent(returnTo)}`
   );
@@ -24,6 +24,15 @@ export async function storeSessionCookie(cookie: string): Promise<void> {
     SESSION_COOKIE_NAME,
     cookie,
   );
+}
+
+export async function getSessionCookie(): Promise<string | null> {
+  const data = await Keychain.getInternetCredentials(SESSION_COOKIE_NAME);
+  if (data === false) {
+    return null
+  } else {
+    return data.password
+  }
 }
 
 // --- Login: open the backend auth URL in a browser, capture the session cookie ---

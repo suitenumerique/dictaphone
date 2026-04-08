@@ -1,0 +1,1 @@
+export const API_URL = 'https://dictaphone-staging.beta.numerique.gouv.fr/api/v1.0'

@@ -33,6 +33,8 @@ import type { Recording } from '../types/recording';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { SafeAreaView } from 'react-native-screens/experimental';
 import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
+import { useUser } from '@/features/auth/api/useUser';
+import { useListMyFiles } from '@/features/files/api/listFiles';
 
 const RECORDINGS_PLAYLIST_NAME = 'Dictaphone Recordings';
 
@@ -57,6 +59,15 @@ const toTrackItem = (recording: Recording): TrackItem => ({
 
 export default function RecordingsScreen() {
   const { t, i18n } = useTranslation();
+
+  const userData = useUser()
+  const files = useListMyFiles({pagination: { page: 1, pageSize: 1000 }});
+  useEffect(() => {
+    console.log("userData", userData)
+  }, [userData]);
+  useEffect(() => {
+    console.log('files', files.data);
+  }, [files.data]);
 
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
