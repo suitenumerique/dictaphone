@@ -1,11 +1,12 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 // @ts-ignore
 import ProConnectContent from '../assets/proconnect-content.svg';
+import { login } from '../services/authService';
 
 export function LoginWithProConnectButton() {
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => console.log('Pressed')} style={styles.button}>
+      <Pressable onPress={() => login()} style={styles.button}>
         <ProConnectContent/>
       </Pressable>
     </View>

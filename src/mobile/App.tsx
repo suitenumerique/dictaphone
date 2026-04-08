@@ -1,6 +1,11 @@
 import React, { useEffect } from 'react';
-import { StatusBar } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { StatusBar, Text, View } from 'react-native';
+import {
+  NavigationContainer,
+  RouteProp,
+  useRoute,
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import i18n from './src/i18n';
 import HomeScreen from './src/screens/HomeScreen';
@@ -10,12 +15,100 @@ import { getSettings } from './src/services/storage';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import { TrackPlayer } from 'react-native-nitro-player';
+import { storeSessionCookie } from './src/services/authService';
+import { useNavigation } from '@react-navigation/core';
 
 const Tabs = createNativeBottomTabNavigator();
+const RootStack = createNativeStackNavigator();
 
-function App() {
+type AuthCallbackRoute = RouteProp<
+  Record<string, { [key: string]: string | undefined }>,
+  'AuthCallback'
+>;
+
+function AuthCallbackScreen() {
+  const route = useRoute<AuthCallbackRoute>();
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (route.params.sessionId) {
+      storeSessionCookie(route.params.sessionId);
+    }
+    navigation.navigate('MainTabs');
+  }, [navigation, route.params]);
+
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Text>Auth callback received</Text>
+    </View>
+  );
+}
+
+function MainTabs() {
   const { t } = useTranslation();
 
+  return (
+    <Tabs.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#111827',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="Record"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: t('tabs.record'),
+          tabBarIcon: ({ focused }) => ({
+            type: 'image',
+            source: Lucide.getImageSourceSync(
+              'mic',
+              24,
+              focused ? '#111827' : '#9CA3AF',
+            ),
+          }),
+        }}
+      />
+      <Tabs.Screen
+        name="Recordings"
+        component={RecordingsScreen}
+        options={{
+          tabBarLabel: t('tabs.recordings'),
+          tabBarIcon: ({ focused }) => ({
+            type: 'image',
+            source: Lucide.getImageSourceSync(
+              'list-music',
+              24,
+              focused ? '#111827' : '#9CA3AF',
+            ),
+          }),
+        }}
+      />
+      <Tabs.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: t('tabs.settings'),
+          tabBarIcon: ({ focused }) => ({
+            type: 'image',
+            source: Lucide.getImageSourceSync(
+              'settings',
+              24,
+              focused ? '#111827' : '#9CA3AF',
+            ),
+          }),
+        }}
+      />
+    </Tabs.Navigator>
+  );
+}
+
+function App() {
   useEffect(() => {
     TrackPlayer.configure({
       androidAutoEnabled: true,
@@ -33,64 +126,25 @@ function App() {
   return (
     <>
       <StatusBar barStyle="dark-content" />
-      <NavigationContainer>
-        <Tabs.Navigator
-          screenOptions={{
-            headerShown: false,
-            tabBarActiveTintColor: '#111827',
-            tabBarInactiveTintColor: '#9CA3AF',
-            tabBarLabelStyle: {
-              fontSize: 12,
-              fontWeight: '600',
+      <NavigationContainer
+        linking={{
+          prefixes: ['lasuite-dictaphone://'],
+          config: {
+            screens: {
+              MainTabs: 'record',
+              AuthCallback: 'auth/callback',
             },
-          }}
-        >
-          <Tabs.Screen
-            name="Record"
-            component={HomeScreen}
-            options={{
-              tabBarLabel: t('tabs.record'),
-              tabBarIcon: ({ focused }) => ({
-                type: 'image',
-                source: Lucide.getImageSourceSync(
-                  'mic',
-                  24,
-                  focused ? '#111827' : '#9CA3AF',
-                ),
-              }),
-            }}
+          },
+        }}
+        fallback={<Text>Loading</Text>}
+      >
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="MainTabs" component={MainTabs} />
+          <RootStack.Screen
+            name="AuthCallback"
+            component={AuthCallbackScreen}
           />
-          <Tabs.Screen
-            name="Recordings"
-            component={RecordingsScreen}
-            options={{
-              tabBarLabel: t('tabs.recordings'),
-              tabBarIcon: ({ focused }) => ({
-                type: 'image',
-                source: Lucide.getImageSourceSync(
-                  'list-music',
-                  24,
-                  focused ? '#111827' : '#9CA3AF',
-                ),
-              }),
-            }}
-          />
-          <Tabs.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{
-              tabBarLabel: t('tabs.settings'),
-              tabBarIcon: ({ focused }) => ({
-                type: 'image',
-                source: Lucide.getImageSourceSync(
-                  'settings',
-                  24,
-                  focused ? '#111827' : '#9CA3AF',
-                ),
-              }),
-            }}
-          />
-        </Tabs.Navigator>
+        </RootStack.Navigator>
       </NavigationContainer>
     </>
   );

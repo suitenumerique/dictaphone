@@ -1,79 +1,84 @@
 // src/services/authService.ts
-import { authorize, AuthConfiguration } from 'react-native-app-auth';
+import { Linking } from 'react-native';
+import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import * as Keychain from 'react-native-keychain';
 
-const PROCONNECT_CONFIG: AuthConfiguration = {
-  issuer: 'https://www.proconnect.gouv.fr',
-  clientId: 'YOUR_CLIENT_ID',
-  redirectUrl: 'yourapp://auth/callback',
-  scopes: ['openid', 'email', 'profile'],
-  usePKCE: true,
-};
+const BACKEND_URL =
+  'https://dictaphone-staging.beta.numerique.gouv.fr/api/v1.0';
+const SESSION_COOKIE_NAME = 'sessionid';
+const API_REDIRECT_URL = `${BACKEND_URL}/mobile-redirect/`;
+const REDIRECT_URL = 'lasuite-dictaphone://auth/callback';
 
-const TOKEN_KEY = 'django_auth_token';
-
-interface DjangoTokens {
-  access: string;
-  refresh: string;
-}
-
-// --- ProConnect login ---
-export async function login(): Promise<DjangoTokens> {
-  const authResult = await authorize(PROCONNECT_CONFIG);
-  const djangoTokens = await exchangeWithBackend(authResult.idToken);
-  await storeTokens(djangoTokens);
-  return djangoTokens;
-}
-
-// --- Send ProConnect id_token to your Django backend ---
-async function exchangeWithBackend(idToken: string): Promise<DjangoTokens> {
-  const response = await fetch('https://your-api.com/api/auth/mobile-login/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id_token: idToken }),
-  });
-
-  if (!response.ok) throw new Error('Backend auth exchange failed');
-
-  return response.json() as Promise<DjangoTokens>;
-}
-
-// --- Store Django JWT securely ---
-async function storeTokens(tokens: DjangoTokens): Promise<void> {
-  await Keychain.setGenericPassword(
-    'auth',
-    JSON.stringify(tokens),
-    { service: TOKEN_KEY }
+// The same route your webapp uses
+function buildAuthUrl(silent: boolean, returnTo: string): string {
+  return (
+    `${BACKEND_URL}/authenticate/` +
+    `?silent=${encodeURIComponent(silent)}` +
+    `&returnTo=${encodeURIComponent(returnTo)}`
   );
 }
 
-// --- Retrieve stored tokens ---
-export async function getTokens(): Promise<DjangoTokens | null> {
-  const credentials = await Keychain.getGenericPassword({ service: TOKEN_KEY });
-  if (!credentials) return null;
-  return JSON.parse(credentials.password) as DjangoTokens;
+export async function storeSessionCookie(cookie: string): Promise<void> {
+  await Keychain.setInternetCredentials(
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_NAME,
+    cookie,
+  );
 }
 
-// --- Refresh Django JWT using the refresh token ---
-export async function refreshAccessToken(): Promise<string> {
-  const tokens = await getTokens();
-  if (!tokens?.refresh) throw new Error('No refresh token available');
-
-  const response = await fetch('https://your-api.com/api/auth/token/refresh/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh: tokens.refresh }),
-  });
-
-  if (!response.ok) throw new Error('Token refresh failed');
-
-  const { access } = await response.json() as Pick<DjangoTokens, 'access'>;
-  await storeTokens({ access, refresh: tokens.refresh });
-
-  return access;
+// --- Login: open the backend auth URL in a browser, capture the session cookie ---
+export async function login(): Promise<void> {
+  const url = buildAuthUrl(false, API_REDIRECT_URL);
+  const isAvailable = await InAppBrowser.isAvailable();
+  if (isAvailable) {
+    const result = await InAppBrowser.openAuth(url, REDIRECT_URL, {
+      // iOS Properties
+      dismissButtonStyle: 'cancel',
+      preferredBarTintColor: '#453AA4',
+      preferredControlTintColor: 'white',
+      readerMode: false,
+      animated: true,
+      modalPresentationStyle: 'fullScreen',
+      modalTransitionStyle: 'coverVertical',
+      modalEnabled: true,
+      enableBarCollapsing: false,
+      // Android Properties
+      showTitle: false,
+      toolbarColor: '#6200EE',
+      secondaryToolbarColor: 'black',
+      navigationBarColor: 'black',
+      navigationBarDividerColor: 'white',
+      enableUrlBarHiding: true,
+      enableDefaultShare: false,
+      forceCloseOnRedirection: true,
+      // Specify full animation resource identifier(package:anim/name)
+      // or only resource name(in case of animation bundled with app).
+      animations: {
+        startEnter: 'slide_in_right',
+        startExit: 'slide_out_left',
+        endEnter: 'slide_in_left',
+        endExit: 'slide_out_right',
+      },
+      headers: {
+      },
+    });
+    if (result.type === 'success') {
+      const sessionId = result.url.split('?sessionid=')[1];
+      await storeSessionCookie(sessionId);
+    }
+  } else {
+    Linking.openURL(url);
+  }
 }
 
-// --- Logout ---
+//
+// // --- Check if we have a session cookie (i.e. user is logged in) ---
+// export async function isAuthenticated(): Promise<boolean> {
+//   const cookie = await getSessionCookie();
+//   return cookie !== null;
+// }
+
+// --- Logout: clear all cookies ---
 export async function logout(): Promise<void> {
-  await Keychain.resetGenericPassword({ service: TOKEN_KEY });
+  await Keychain.resetGenericPassword();
 }
