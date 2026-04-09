@@ -192,6 +192,7 @@ class Base(Configuration):
                 "max_count_by_user": 100,
                 "allowed_extensions": [
                     ".mp4",
+                    ".m4a",
                     ".webm",
                     ".ogg",
                     ".ogv",
@@ -201,6 +202,8 @@ class Base(Configuration):
                 "allowed_mimetypes": [
                     "audio/webm",
                     "audio/mp4",
+                    # libmagic can report .m4a as video/mp4
+                    "video/mp4",
                     "audio/webm;codecs=opus",
                     "audio/mp4",
                     "application/ogg",
