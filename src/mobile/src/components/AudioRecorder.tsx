@@ -10,16 +10,20 @@ import {
   Alert,
   Animated,
   Easing,
-  PermissionsAndroid,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import Sound from 'react-native-nitro-sound';
 import { Lucide } from '@react-native-vector-icons/lucide';
+import {
+  AudioManager,
+  AudioRecorder as AudioRecorderApi,
+  FileFormat,
+  FilePreset,
+  RecordingNotificationManager,
+} from 'react-native-audio-api';
 
 type RecordingResult = {
   createdAt: string;
@@ -31,14 +35,96 @@ type AudioRecorderProps = {
   onRecordingComplete?: (recording: RecordingResult) => void;
 };
 
+AudioManager.setAudioSessionOptions({
+  iosCategory: 'record',
+  iosMode: 'default',
+  iosOptions: ['defaultToSpeaker', 'allowBluetoothA2DP'],
+});
+
+const audioRecorder = new AudioRecorderApi();
+audioRecorder.enableFileOutput({
+  format: FileFormat.M4A,
+  preset: FilePreset.High,
+});
+
+const formatDuration = (durationMs: number) => {
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
+    2,
+    '0',
+  )}`;
+}
+
+
 export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [recordTimeLabel, setRecordTimeLabel] = useState('00:00');
-  const durationMsRef = useRef(0);
+  const [recordingTimeMs, setRecordingTimeMs] = useState(0);
+  const recordTimeLabel = useMemo(() => formatDuration(recordingTimeMs), [recordingTimeMs]);
   const pulse = useRef(new Animated.Value(1)).current;
+  const recordingDurationInterval = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+
+  const updateNotification = (paused: boolean) => {
+    RecordingNotificationManager.show({
+      paused,
+    });
+  };
+
+  const setupNotification = (paused: boolean) => {
+    RecordingNotificationManager.show({
+      title: 'Recording Demo',
+      contentText: paused ? 'Paused recording' : 'Recording...',
+      paused,
+      smallIconResourceName: 'logo',
+      pauseIconResourceName: 'pause',
+      resumeIconResourceName: 'resume',
+      color: 0xff6200,
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      audioRecorder.stop();
+      AudioManager.setAudioSessionActivity(false);
+      RecordingNotificationManager.hide();
+    };
+  }, []);
+
+
+
+
+  useEffect(() => {
+    if (!isRecording || isPaused) {
+      if (recordingDurationInterval.current) {
+        clearInterval(recordingDurationInterval.current);
+        recordingDurationInterval.current = null;
+      }
+      return;
+    }
+
+    if (!recordingDurationInterval.current) {
+      recordingDurationInterval.current = setInterval(() => {
+        try {
+          const duration = audioRecorder.getCurrentDuration();
+          setRecordingTimeMs(duration * 1000);
+        } catch (error) {
+          console.error('Failed to get current recording duration:', error);
+        }
+      }, 200);
+    }
+
+    return () => {
+      if (recordingDurationInterval.current)
+        clearInterval(recordingDurationInterval.current);
+    };
+  }, [isPaused, isRecording]);
 
   const recordActionLabel = useMemo(() => {
     if (isLoading) {
@@ -78,47 +164,34 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     ).start();
   }, [isPaused, isRecording, pulse]);
 
-  useEffect(() => {
-    return () => {
-      Sound.removeRecordBackListener();
-    };
-  }, []);
-
   const onStartRecord = useCallback(async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: t('home.microphonePermissionTitle'),
-            message: t('home.microphonePermissionMessage'),
-            buttonNeutral: t('home.permissionAskLater'),
-            buttonNegative: t('home.permissionCancel'),
-            buttonPositive: t('home.permissionOk'),
-          },
-        );
-
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('Recording permission granted');
-        } else {
-          console.log('Recording permission denied');
-          return;
-        }
-      } catch (err) {
-        console.warn(err);
-        return;
-      }
+    const permissions = await AudioManager.requestRecordingPermissions();
+    if (permissions !== 'Granted') {
+      console.warn('Permissions are not granted');
+      return;
     }
 
     setIsLoading(true);
     try {
-      await Sound.startRecorder();
-      durationMsRef.current = 0;
-      setRecordTimeLabel('00:00');
-      Sound.addRecordBackListener(e => {
-        durationMsRef.current = Math.floor(e.currentPosition);
-        setRecordTimeLabel(Sound.mmssss(durationMsRef.current));
-      });
+      // Activate audio session
+      const success = await AudioManager.setAudioSessionActivity(true);
+
+      if (!success) {
+        console.warn('Could not activate the audio session');
+        return;
+      }
+
+      const result = audioRecorder.start();
+      if (result.status === 'error') {
+        console.warn(result.message);
+        return;
+      }
+      setupNotification(false);
+
+      console.log('Recording started to file:', result.path);
+      setIsRecording(true);
+
+      setRecordingTimeMs(0);
       setIsRecording(true);
       setIsPaused(false);
     } catch (error) {
@@ -126,13 +199,14 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   const onPauseRecord = useCallback(async () => {
     setIsLoading(true);
     try {
-      await Sound.pauseRecorder();
+      audioRecorder.pause();
       setIsPaused(true);
+      updateNotification(true);
     } catch (error) {
       console.error('Failed to pause recording:', error);
     } finally {
@@ -143,7 +217,8 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const onResumeRecord = useCallback(async () => {
     setIsLoading(true);
     try {
-      await Sound.resumeRecorder();
+      audioRecorder.resume();
+      updateNotification(false);
       setIsPaused(false);
     } catch (error) {
       console.error('Failed to resume recording:', error);
@@ -155,23 +230,54 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const onStopRecord = useCallback(async () => {
     setIsLoading(true);
     try {
-      const filePath = await Sound.stopRecorder();
-      Sound.removeRecordBackListener();
+      const result = audioRecorder.stop();
+      await RecordingNotificationManager.hide();
+      if (result.status === 'error') {
+        console.warn(result.message);
+        return;
+      }
+
       setIsRecording(false);
       setIsPaused(false);
+      await AudioManager.setAudioSessionActivity(false);
+
       onRecordingComplete?.({
         createdAt: new Date().toISOString(),
-        duration: durationMsRef.current,
-        filePath,
+        duration: result.duration * 1000,
+        filePath: result.path,
       });
-      durationMsRef.current = 0;
-      setRecordTimeLabel('00:00');
+
+      setRecordingTimeMs(0);
     } catch (error) {
       console.error('Failed to stop recording:', error);
     } finally {
       setIsLoading(false);
     }
   }, [onRecordingComplete]);
+
+  useEffect(() => {
+    const pauseListener = RecordingNotificationManager.addEventListener(
+      'recordingNotificationPause',
+      () => {
+        console.log('Notification pause action received');
+        onPauseRecord();
+      },
+    );
+
+    const resumeListener = RecordingNotificationManager.addEventListener(
+      'recordingNotificationResume',
+      () => {
+        console.log('Notification resume action received');
+        onResumeRecord();
+      },
+    );
+
+    return () => {
+      pauseListener.remove();
+      resumeListener.remove();
+      RecordingNotificationManager.hide();
+    };
+  }, [onPauseRecord, onResumeRecord]);
 
   const onClearRecord = useCallback(async () => {
     setIsLoading(true);
@@ -188,11 +294,10 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
         text: t('recordings.deleteConfirm'),
         onPress: async () => {
           try {
-            await Sound.stopRecorder();
-            Sound.removeRecordBackListener();
+            audioRecorder.stop();
             setIsRecording(false);
             setIsPaused(false);
-            setRecordTimeLabel('00:00');
+            setRecordingTimeMs(0);
           } finally {
             setIsLoading(false);
           }
@@ -258,7 +363,8 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
           onPress={onStopRecord}
           disabled={!isRecording || isLoading}
         >
-          <Lucide name="save" size={36} /><Text>{t("home.save")}</Text>
+          <Lucide name="save" size={36} />
+          <Text>{t('home.save')}</Text>
         </Pressable>
       </View>
 
