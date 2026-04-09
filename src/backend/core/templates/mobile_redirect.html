@@ -5,11 +5,11 @@
   <script>
     (function() {
       const sessionKey = "{{ session_key }}";
-      const cookieName = "{{ cookie_name }}";
       const deepLink = "{{ deep_link }}";
+      const csrfToken = "{{ csrf_token }}";
 
       if (sessionKey) {
-        const url = `${deepLink}?${cookieName}=${sessionKey}`;
+        const url = `${deepLink}?$sessionId=${sessionKey}&csrfToken=${csrfToken}`;
         window.location.href = url;
       } else {
         document.body.innerText = "Missing session.";

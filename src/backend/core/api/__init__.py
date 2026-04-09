@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.shortcuts import render
+from django.middleware.csrf import get_token
 
 from rest_framework import exceptions as drf_exceptions
 from rest_framework import views as drf_views
@@ -68,7 +69,7 @@ def get_mobile_redirect(request):
     context = {
         "deep_link": settings.MOBILE_DEEP_LINK_SCHEME,
         "session_key": session_key,
-        "cookie_name": settings.SESSION_COOKIE_NAME,
+        "csrf_token": get_token(request),
     }
 
     return render(request, "mobile_redirect.html", context)

@@ -707,8 +707,6 @@ class Development(Base):
     CSRF_TRUSTED_ORIGINS = ["http://localhost:8072", "http://localhost:3000"]
     DEBUG = True
 
-    SESSION_COOKIE_NAME = "dictaphone_sessionid"
-
     USE_SWAGGER = True
 
     def __init__(self):
