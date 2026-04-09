@@ -11,7 +11,7 @@ import { type ApiUser } from './ApiUser';
  */
 export const fetchUser = (): Promise<ApiUser | false> => {
   return new Promise((resolve, reject) => {
-    fetchApi<ApiUser>('/users/me')
+    fetchApi<ApiUser>('/users/me/')
       .then(resolve)
       .catch(error => {
         // we assume that a 401 means the user is not logged in

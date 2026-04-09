@@ -1,34 +1,31 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AudioRecorder } from '../components/AudioRecorder';
-import { addRecording } from '../services/storage';
 import type { Recording } from '../types/recording';
+import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 import uuid from 'react-native-uuid';
-
-const formatDurationLabel = (durationMs: number) => {
-  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-};
+import { formatDuration } from '@/features/recordings/utils/formatDuration';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
+  const { addRecording, isUploading } = useLocalRecordings();
 
   const handleRecordingComplete = ({
     createdAt,
-    duration,
+    durationMs,
     filePath,
-  }: Omit<Recording, 'id' | 'name' | 'synced'>) => {
-    const name = t('home.recordingName', { duration: formatDurationLabel(duration) });
+  }: Omit<Recording, 'id' | 'name' | 'uploadingStatus'>) => {
+    const name = t('home.recordingName', {
+      duration: formatDuration(durationMs),
+    });
     addRecording({
       createdAt,
-      duration,
+      durationMs,
       filePath,
-      id: String(uuid.v4()),
       name,
-      synced: false,
+      id: uuid.v4(),
+      uploadingStatus: "to_upload",
     });
   };
 
@@ -36,6 +33,12 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>{t('home.title')}</Text>
       <AudioRecorder onRecordingComplete={handleRecordingComplete} />
+      {isUploading ? (
+        <View style={styles.uploadingContainer}>
+          <ActivityIndicator size="small" color="#1D4ED8" />
+          <Text style={styles.uploadingText}>{t('recordings.uploading')}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -54,5 +57,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     marginBottom: 8,
+  },
+  uploadingContainer: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  uploadingText: {
+    color: '#1F2937',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

@@ -24,10 +24,11 @@ import {
   FilePreset,
   RecordingNotificationManager,
 } from 'react-native-audio-api';
+import { formatDuration } from '@/features/recordings/utils/formatDuration';
 
 type RecordingResult = {
   createdAt: string;
-  duration: number;
+  durationMs: number;
   filePath: string;
 };
 
@@ -42,21 +43,6 @@ AudioManager.setAudioSessionOptions({
 });
 
 const audioRecorder = new AudioRecorderApi();
-audioRecorder.enableFileOutput({
-  format: FileFormat.M4A,
-  preset: FilePreset.High,
-});
-
-const formatDuration = (durationMs: number) => {
-  const totalSeconds = Math.floor(durationMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
-    2,
-    '0',
-  )}`;
-}
 
 
 export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
@@ -65,7 +51,10 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [recordingTimeMs, setRecordingTimeMs] = useState(0);
-  const recordTimeLabel = useMemo(() => formatDuration(recordingTimeMs), [recordingTimeMs]);
+  const recordTimeLabel = useMemo(
+    () => formatDuration(recordingTimeMs),
+    [recordingTimeMs],
+  );
   const pulse = useRef(new Animated.Value(1)).current;
   const recordingDurationInterval = useRef<ReturnType<
     typeof setTimeout
@@ -90,15 +79,22 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   };
 
   useEffect(() => {
+    AudioManager.requestRecordingPermissions().then(res => {
+      if (res === "Granted") {
+        audioRecorder.enableFileOutput({
+          format: FileFormat.M4A,
+          preset: FilePreset.High,
+        });
+      }
+    })
+
     return () => {
       audioRecorder.stop();
+      audioRecorder.disableFileOutput()
       AudioManager.setAudioSessionActivity(false);
       RecordingNotificationManager.hide();
     };
   }, []);
-
-
-
 
   useEffect(() => {
     if (!isRecording || isPaused) {
@@ -243,7 +239,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 
       onRecordingComplete?.({
         createdAt: new Date().toISOString(),
-        duration: result.duration * 1000,
+        durationMs: result.duration * 1000,
         filePath: result.path,
       });
 

@@ -1,42 +1,21 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useMemo } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   FlatList,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
-import {
-  PlayerQueue,
-  type TrackItem,
-  TrackPlayer,
-  useOnChangeTrack,
-  useOnPlaybackProgressChange,
-  useOnPlaybackStateChange,
-} from 'react-native-nitro-player';
-import {
-  AudioPlayer,
-  type AudioPlayerViewState,
-} from '../components/AudioPlayer';
-import { login } from '../services/authService';
-import { deleteRecording, getRecordings } from '../services/storage';
 import type { Recording } from '../types/recording';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { SafeAreaView } from 'react-native-screens/experimental';
+import { InAppBrowser } from 'react-native-inappbrowser-reborn';
+import { BASE_URL } from '@/api/constants';
+import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
-import { useUser } from '@/features/auth/api/useUser';
-import { useListMyFiles } from '@/features/files/api/listFiles';
-
-const RECORDINGS_PLAYLIST_NAME = 'Dictaphone Recordings';
 
 const formatDurationLabel = (durationMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -48,40 +27,14 @@ const formatDurationLabel = (durationMs: number) => {
   )}`;
 };
 
-const toTrackItem = (recording: Recording): TrackItem => ({
-  id: recording.id,
-  title: recording.name,
-  artist: 'Dictaphone',
-  album: 'Recordings',
-  duration: Math.max(1, Math.floor(recording.duration / 1000)),
-  url: recording.filePath,
-});
 
 export default function RecordingsScreen() {
   const { t, i18n } = useTranslation();
-
-  const userData = useUser()
-  const files = useListMyFiles({pagination: { page: 1, pageSize: 1000 }});
-  useEffect(() => {
-    console.log("userData", userData)
-  }, [userData]);
-  useEffect(() => {
-    console.log('files', files.data);
-  }, [files.data]);
-
-  const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [isLoginLoading, setIsLoginLoading] = useState(false);
-  const [isPlayerBusy, setIsPlayerBusy] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-
-  const playlistIdRef = useRef<string | null>(null);
-  const isPlayerConfiguredRef = useRef(false);
-  const isPlayerConfigInFlightRef = useRef<Promise<void> | null>(null);
-
-  const { track: currentTrack } = useOnChangeTrack();
-  const { state: playbackState } = useOnPlaybackStateChange();
-  const { position, totalDuration } = useOnPlaybackProgressChange();
-
+  const {
+    recordings,
+    isUploading,
+    recordingIdBeingUploaded,
+  } = useLocalRecordings();
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.language, {
@@ -91,259 +44,48 @@ export default function RecordingsScreen() {
     [i18n.language],
   );
 
-  const activeRecording = useMemo(
-    () =>
-      recordings.find(recording => recording.id === currentTrack?.id) ?? null,
-    [recordings, currentTrack?.id],
-  );
-
-  const currentPlayerState = useMemo<AudioPlayerViewState>(
-    () => ({
-      durationMs: Math.max(
-        Math.floor(totalDuration * 1000),
-        activeRecording?.duration ?? 0,
-      ),
-      isLoading: isPlayerBusy,
-      isPaused: playbackState === 'paused',
-      isPlaying: playbackState === 'playing',
-      positionMs: Math.floor(position * 1000),
-    }),
-    [
-      activeRecording?.duration,
-      isPlayerBusy,
-      playbackState,
-      position,
-      totalDuration,
-    ],
-  );
-
-  const ensurePlayerConfigured = useCallback(async () => {
-    if (isPlayerConfiguredRef.current) {
-      return;
-    }
-
-    if (!isPlayerConfigInFlightRef.current) {
-      isPlayerConfigInFlightRef.current = TrackPlayer.configure({
-        androidAutoEnabled: false,
-        carPlayEnabled: false,
-        showInNotification: false,
-      })
-        .then(() => {
-          isPlayerConfiguredRef.current = true;
-        })
-        .finally(() => {
-          isPlayerConfigInFlightRef.current = null;
+  const handleOpenWebRecordings = async () => {
+    try {
+      const available = await InAppBrowser.isAvailable();
+      if (available) {
+        await InAppBrowser.open(BASE_URL, {
+          animated: true,
+          dismissButtonStyle: 'close',
+          enableDefaultShare: false,
+          forceCloseOnRedirection: false,
+          showTitle: true,
+          toolbarColor: '#111827',
         });
-    }
-
-    await isPlayerConfigInFlightRef.current;
-  }, []);
-
-  const clearPlaybackPlaylist = useCallback(async () => {
-    await TrackPlayer.pause().catch(() => undefined);
-
-    const currentPlaylistId = playlistIdRef.current;
-    if (!currentPlaylistId) {
-      return;
-    }
-
-    await PlayerQueue.deletePlaylist(currentPlaylistId).catch(() => undefined);
-    playlistIdRef.current = null;
-  }, []);
-
-  const loadRecordings = useCallback(() => {
-    const nextRecordings = getRecordings();
-    setRecordings(nextRecordings);
-  }, []);
-
-  useEffect(() => {
-    loadRecordings();
-  }, [loadRecordings]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadRecordings();
-    }, [loadRecordings]),
-  );
-
-  useEffect(() => {
-    return () => {
-      clearPlaybackPlaylist().catch(() => undefined);
-    };
-  }, [clearPlaybackPlaylist]);
-
-  useEffect(() => {
-    if (!activeRecording) {
-      return;
-    }
-
-    let isMounted = true;
-    const syncPlaybackSpeed = async () => {
-      try {
-        await ensurePlayerConfigured();
-        const speed = await TrackPlayer.getPlaybackSpeed();
-        if (isMounted) {
-          setPlaybackSpeed(speed);
-        }
-      } catch (error) {
-        console.error('Failed to read playback speed:', error);
+        return;
       }
-    };
 
-    syncPlaybackSpeed().catch(() => undefined);
-    return () => {
-      isMounted = false;
-    };
-  }, [activeRecording, ensurePlayerConfigured]);
-
-  const handlePlayRecording = async (recording: Recording) => {
-    setIsPlayerBusy(true);
-    try {
-      await ensurePlayerConfigured();
-      await clearPlaybackPlaylist();
-
-      const playlistId = await PlayerQueue.createPlaylist(
-        RECORDINGS_PLAYLIST_NAME,
-      );
-      playlistIdRef.current = playlistId;
-
-      const track = toTrackItem(recording);
-      await PlayerQueue.addTrackToPlaylist(playlistId, track);
-      await PlayerQueue.loadPlaylist(playlistId);
-      await TrackPlayer.playSong(track.id, playlistId);
-      await TrackPlayer.play();
+      await Linking.openURL(BASE_URL);
     } catch (error) {
-      console.error('Playback operation failed:', error);
-    } finally {
-      setIsPlayerBusy(false);
-    }
-  };
-
-  const handleToggleCurrentTrack = async () => {
-    if (!activeRecording) {
-      return;
-    }
-
-    setIsPlayerBusy(true);
-    try {
-      await ensurePlayerConfigured();
-      if (playbackState === 'playing') {
-        await TrackPlayer.pause();
-      } else {
-        await TrackPlayer.play();
-      }
-    } catch (error) {
-      console.error('Toggle play failed:', error);
-    } finally {
-      setIsPlayerBusy(false);
-    }
-  };
-
-  const handleSeekCurrentTrack = async (positionMs: number) => {
-    if (!activeRecording) {
-      return;
-    }
-
-    try {
-      await TrackPlayer.seek(positionMs / 1000);
-    } catch (error) {
-      console.error('Seek failed:', error);
-    }
-  };
-
-  const handleSetPlaybackSpeed = async (speed: number) => {
-    if (!activeRecording) {
-      return;
-    }
-
-    try {
-      await ensurePlayerConfigured();
-      await TrackPlayer.setPlaybackSpeed(speed);
-      setPlaybackSpeed(speed);
-    } catch (error) {
-      console.error('Set playback speed failed:', error);
-    }
-  };
-
-  const handleDelete = (recording: Recording) => {
-    Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
-      {
-        style: 'cancel',
-        text: t('recordings.deleteCancel'),
-      },
-      {
-        style: 'destructive',
-        text: t('recordings.deleteConfirm'),
-        onPress: async () => {
-          if (currentTrack?.id === recording.id) {
-            await clearPlaybackPlaylist();
-          }
-
-          const nextRecordings = deleteRecording(recording.id);
-          setRecordings(nextRecordings);
-        },
-      },
-    ]);
-  };
-
-  const handleLogin = async () => {
-    setIsLoginLoading(true);
-    try {
-      await login();
-    } catch (error) {
-      console.error('Login failed:', error);
-    } finally {
-      setIsLoginLoading(false);
+      console.error('Failed to open recordings page:', error);
     }
   };
 
   const renderItem = ({ item }: { item: Recording }) => {
+
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
+      <View style={styles.itemCard}>
+        <View style={styles.itemHeader}>
           <View style={styles.cardHeaderLeft}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>
               {dateFormatter.format(new Date(item.createdAt))} •{' '}
-              {formatDurationLabel(item.duration)}
+              {formatDurationLabel(item.durationMs)}
             </Text>
           </View>
 
           <View style={styles.headerActions}>
             <View style={styles.syncStatusRow}>
-              <View
-                style={[
-                  styles.syncDot,
-                  item.synced ? styles.syncDotOk : styles.syncDotPending,
-                ]}
-              />
+              <View style={styles.syncDotPending} />
               <Text style={styles.syncLabel}>
-                {item.synced
-                  ? t('recordings.synced')
+                {recordingIdBeingUploaded === item.id
+                  ? t('recordings.uploading')
                   : t('recordings.notSynced')}
               </Text>
-            </View>
-
-            <View style={styles.rowActions}>
-              <Pressable
-                style={[
-                  styles.playRecordingButton,
-                  isPlayerBusy && styles.buttonDisabled,
-                ]}
-                onPress={() => handlePlayRecording(item)}
-                disabled={isPlayerBusy}
-              >
-                <Lucide name="play" size={16} color="#1D4ED8" />
-              </Pressable>
-
-              <Pressable
-                style={styles.deleteButton}
-                onPress={() => handleDelete(item)}
-              >
-                <Text style={styles.deleteButtonText}>
-                  <Lucide name="trash-2" size={16} />
-                </Text>
-              </Pressable>
             </View>
           </View>
         </View>
@@ -355,36 +97,55 @@ export default function RecordingsScreen() {
     <SafeAreaView edges={{ bottom: true }} style={styles.container}>
       <View style={styles.topBar}>
         <LoginWithProConnectButton />
+        <Pressable
+          style={styles.manageButton}
+          onPress={handleOpenWebRecordings}
+        >
+          <Lucide name="external-link" size={16} color="#FFFFFF" />
+          <Text style={styles.manageButtonText}>
+            {t('recordings.manageOnline')}
+          </Text>
+        </Pressable>
 
-        {activeRecording ? (
-          <View style={styles.playerCard}>
-            <Text style={styles.playerTitle}>{activeRecording.name}</Text>
-            <AudioPlayer
-              onSeek={handleSeekCurrentTrack}
-              onSetSpeed={handleSetPlaybackSpeed}
-              onTogglePlay={handleToggleCurrentTrack}
-              playbackSpeed={playbackSpeed}
-              state={currentPlayerState}
-            />
+        {isUploading ? (
+          <View style={styles.uploadingRow}>
+            <ActivityIndicator size="small" color="#1D4ED8" />
+            <Text style={styles.uploadingText}>
+              {t('recordings.uploading')}
+            </Text>
           </View>
         ) : null}
       </View>
 
-      {recordings.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>{t('recordings.emptyTitle')}</Text>
-          <Text style={styles.emptySubtitle}>
-            {t('recordings.emptySubtitle')}
+      <View style={styles.pendingCard}>
+        <View style={styles.pendingHeader}>
+          <Text style={styles.pendingTitle}>
+            {t('recordings.pendingTitle')}
           </Text>
+          <Pressable
+            style={styles.retryButton}
+            // onPress={() => retryPendingUploads().catch(() => undefined)}
+          >
+            <Lucide name="refresh-cw" size={15} color="#1D4ED8" />
+          </Pressable>
         </View>
-      ) : (
-        <FlatList
-          data={recordings}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={renderItem}
-        />
-      )}
+
+        {recordings.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>{t('recordings.emptyTitle')}</Text>
+            <Text style={styles.emptySubtitle}>
+              {t('recordings.emptySubtitle')}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={recordings}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            renderItem={renderItem}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -401,13 +162,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 12,
   },
-  loginButton: {
+  manageButton: {
     borderRadius: 10,
     backgroundColor: '#111827',
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
-  loginButtonText: {
+  manageButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
@@ -428,23 +192,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
+  uploadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadingText: {
+    color: '#1F2937',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  pendingCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  pendingHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pendingTitle: {
+    color: '#111827',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  retryButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+  },
   buttonDisabled: {
     opacity: 0.6,
   },
   listContent: {
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     gap: 12,
   },
-  card: {
+  itemCard: {
     backgroundColor: '#FFFFFF',
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9', // subtle border instead of shadow
+    borderColor: '#F1F5F9',
   },
-  cardHeader: {
+  itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 10,
@@ -466,15 +272,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  syncDot: {
+  syncDotPending: {
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  syncDotOk: {
-    backgroundColor: '#10B981',
-  },
-  syncDotPending: {
     backgroundColor: '#F59E0B',
   },
   syncLabel: {
@@ -497,11 +298,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteButtonText: {
-    color: '#B91C1C',
-    fontWeight: '700',
-    fontSize: 12,
-  },
   name: {
     fontSize: 18,
     fontWeight: '700',
@@ -516,6 +312,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    minHeight: 200,
   },
   emptyTitle: {
     color: '#111827',

@@ -21,6 +21,9 @@
   "recordings": {
     "emptyTitle": "No recordings yet",
     "emptySubtitle": "Go to Record tab and capture your first audio note.",
+    "pendingTitle": "Pending uploads",
+    "manageOnline": "Manage recordings online",
+    "uploading": "Uploading...",
     "loginButton": "Login with ProConnect",
     "delete": "Delete",
     "deleteTitle": "Delete recording",

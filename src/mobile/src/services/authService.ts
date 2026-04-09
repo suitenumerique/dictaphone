@@ -6,6 +6,7 @@ import { API_URL } from '../api/constants';
 
 
 const SESSION_COOKIE_NAME = 'sessionid';
+const CSRF_COOKIE_NAME = 'csrftoken';
 const API_REDIRECT_URL = `${API_URL}/mobile-redirect/`;
 const REDIRECT_URL = 'lasuite-dictaphone://auth/callback';
 
@@ -26,8 +27,26 @@ export async function storeSessionCookie(cookie: string): Promise<void> {
   );
 }
 
+export async function storeCsrfToken(token: string): Promise<void> {
+  await Keychain.setInternetCredentials(
+    CSRF_COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    token,
+  );
+  console.log("stored", await getCsrfToken())
+}
+
 export async function getSessionCookie(): Promise<string | null> {
   const data = await Keychain.getInternetCredentials(SESSION_COOKIE_NAME);
+  if (data === false) {
+    return null
+  } else {
+    return data.password
+  }
+}
+
+export async function getCsrfToken(): Promise<string | null> {
+  const data = await Keychain.getInternetCredentials(CSRF_COOKIE_NAME);
   if (data === false) {
     return null
   } else {
@@ -72,8 +91,13 @@ export async function login(): Promise<void> {
       },
     });
     if (result.type === 'success') {
-      const sessionId = result.url.split('?sessionid=')[1];
-      await storeSessionCookie(sessionId);
+      const searchParams = new URLSearchParams(result.url.split('?')[1]);
+      const sessionId = searchParams.get('sessionId');
+      const csrfToken = searchParams.get('csrfToken');
+      if (sessionId && csrfToken) {
+        await storeSessionCookie(sessionId);
+        await storeCsrfToken(csrfToken);
+      }
     }
   } else {
     Linking.openURL(url);

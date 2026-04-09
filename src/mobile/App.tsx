@@ -14,8 +14,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import { getSettings } from './src/services/storage';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
-import { TrackPlayer } from 'react-native-nitro-player';
-import { storeSessionCookie } from './src/services/authService';
+import { storeCsrfToken, storeSessionCookie } from './src/services/authService';
 import { useNavigation } from '@react-navigation/core';
 import { queryClient } from '@/api/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -33,10 +32,17 @@ function AuthCallbackScreen() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    if (route.params.sessionId) {
-      storeSessionCookie(route.params.sessionId);
+    if (route.params["$sessionId"] && route.params.csrfToken) {
+      Promise.all([
+        storeSessionCookie(route.params['$sessionId']),
+        storeCsrfToken(route.params.csrfToken),
+      ])
+        .then(() => queryClient.invalidateQueries())
+        .catch(e =>
+          console.error('Failed to store session cookie and csrf token:', e),
+        );
     }
-    navigation.navigate('MainTabs');
+    navigation.navigate('MainTabs' as never);
   }, [navigation, route.params]);
 
   return (
@@ -112,15 +118,6 @@ function MainTabs() {
 
 function App() {
   useEffect(() => {
-    TrackPlayer.configure({
-      androidAutoEnabled: true,
-      carPlayEnabled: true,
-      showInNotification: true,
-      lookaheadCount: 1,
-    });
-  }, []);
-
-  useEffect(() => {
     const settings = getSettings();
     i18n.changeLanguage(settings.language).catch(() => undefined);
   }, []);
@@ -138,7 +135,7 @@ function App() {
             },
           },
         }}
-        fallback={<Text>Loading</Text>}
+        fallback={<></>}
       >
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           <RootStack.Screen name="MainTabs" component={MainTabs} />

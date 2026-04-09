@@ -1,7 +1,17 @@
-import { fetchApi } from '@/api/fetchApi'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ApiFileItem } from '@/features/files/api/types.ts'
-import { keys } from '@/api/queryKeys.ts'
+import { fetchApi } from '@/api/fetchApi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ApiFileItem } from '@/features/files/api/types.ts';
+import { keys } from '@/api/queryKeys.ts';
+import {
+  uploadFiles,
+  stat,
+} from '@dr.pogodin/react-native-fs';
+
+type FileSource = {
+  name: string;
+  type: string;
+  uri: string;
+};
 
 /**
  * Upload a file, using XHR so we can report on progress through a handler.
@@ -10,42 +20,33 @@ import { keys } from '@/api/queryKeys.ts'
  * @param file The file to upload.
  * @param progressHandler A handler that receives progress updates as a single integer `0 <= x <= 100`.
  */
-export const uploadFile = (
+export const uploadFile = async (
   url: string,
-  file: File,
-  progressHandler: (progress: number) => void
-) =>
-  new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('PUT', url)
-    xhr.setRequestHeader('X-amz-acl', 'private')
-    xhr.setRequestHeader('Content-Type', file.type)
+  file: FileSource,
+  progressHandler: (progress: number) => void,
+) => {
+  console.log({url, file})
+  const fileStat = await stat(file.uri)
 
-    xhr.addEventListener('error', reject)
-    xhr.addEventListener('abort', reject)
-
-    xhr.addEventListener('readystatechange', () => {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200) {
-          // Make sure to always set the progress to 100% when the upload is done.
-          // Because 'progress' event listener is not called when the file size is 0.
-          progressHandler(100)
-          return resolve(true)
-        }
-        reject(new Error(`Failed to perform the upload on ${url}.`))
-      }
-    })
-
-    xhr.upload.addEventListener('progress', (progressEvent) => {
-      if (progressEvent.lengthComputable) {
-        progressHandler(
-          Math.floor((progressEvent.loaded / progressEvent.total) * 100)
-        )
-      }
-    })
-
-    xhr.send(file)
-  })
+  return await uploadFiles({
+    toUrl: url,
+    files: [
+      {
+        name: file.name,
+        filepath: fileStat.originalFilepath,
+        filetype: file.type,
+        filename: file.name,
+      },
+    ],
+    method: 'PUT',
+    headers: {
+      'X-amz-acl': 'private',
+      'Content-Type': file.type,
+    },
+    progress: el =>
+      progressHandler((100 * el.totalBytesSent) / el.totalBytesExpectedToSend),
+  }).promise;
+};
 
 /**
  * Asynchronously creates a new file and uploads it to the server.
@@ -60,9 +61,9 @@ export const createFile = async ({
   durationSeconds,
   onProgress,
 }: {
-  file: File
-  durationSeconds: number
-  onProgress: (progress: number) => void
+  file: FileSource;
+  durationSeconds: number;
+  onProgress: (progress: number) => void;
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -71,26 +72,30 @@ export const createFile = async ({
       type: 'audio_recording',
       duration_seconds: durationSeconds,
     }),
-  })
+  });
   if (res.upload_state !== 'pending') {
-    throw new Error('State should be pending right after creation')
+    throw new Error('State should be pending right after creation');
   }
-  const policy = res.policy
-  await uploadFile(policy, file, onProgress)
+  const policy = res.policy;
+  await uploadFile(policy, file, onProgress);
   return await fetchApi<ApiFileItem>(`/files/${res.id}/upload-ended/`, {
     method: 'POST',
-  })
-}
+  });
+};
 
 export const useCreateFile = () => {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: [keys.files, 'create'],
     mutationFn: createFile,
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [keys.files],
-      })
+      });
     },
-  })
-}
+    onError: error => {
+      console.error('Error creating file:', error);
+    },
+  });
+};

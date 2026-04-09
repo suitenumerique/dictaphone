@@ -21,6 +21,9 @@
   "recordings": {
     "emptyTitle": "Aucun enregistrement",
     "emptySubtitle": "Allez dans l'onglet Enregistrer et capturez votre première note audio.",
+    "pendingTitle": "Envois en attente",
+    "manageOnline": "Gérer les enregistrements en ligne",
+    "uploading": "Envoi en cours...",
     "loginButton": "Se connecter avec ProConnect",
     "delete": "Supprimer",
     "deleteTitle": "Supprimer l'enregistrement",

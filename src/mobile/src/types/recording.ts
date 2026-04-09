@@ -1,8 +1,8 @@
 export type Recording = {
   createdAt: string;
-  duration: number;
+  durationMs: number;
   filePath: string;
   id: string;
   name: string;
-  synced: boolean;
+  uploadingStatus: "to_upload" | "uploading" | "failed";
 };
