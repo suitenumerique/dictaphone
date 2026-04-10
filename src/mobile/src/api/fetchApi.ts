@@ -14,7 +14,7 @@ export const fetchApi = async <T = Record<string, unknown>>(
   }
   let cookie = `sessionid=${sessionId}`;
   if (options?.method === "POST" || options?.method === "PUT") {
-    cookie += `; csrftoken=${csrfToken ?? 'not_set'}`;
+    cookie += `; csrftoken=${csrfToken ?? 'not_set'};`;
   }
 
   const response = await fetch(`${API_URL}${url}`, {

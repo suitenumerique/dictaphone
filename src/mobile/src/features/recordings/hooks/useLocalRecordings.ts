@@ -37,7 +37,6 @@ export const useLocalRecordings = () => {
               type: 'audio/mp4',
               uri: recordingToUpload.filePath,
             },
-            onProgress: () => undefined,
           },
           {
             onError: () => {

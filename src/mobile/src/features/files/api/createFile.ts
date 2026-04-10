@@ -2,10 +2,7 @@ import { fetchApi } from '@/api/fetchApi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiFileItem } from '@/features/files/api/types.ts';
 import { keys } from '@/api/queryKeys.ts';
-import {
-  uploadFiles,
-  stat,
-} from '@dr.pogodin/react-native-fs';
+import { uploadFileToS3 } from '@/utils/fileUpload';
 
 type FileSource = {
   name: string;
@@ -18,34 +15,12 @@ type FileSource = {
  *
  * @param url The URL to PUT the file to.
  * @param file The file to upload.
- * @param progressHandler A handler that receives progress updates as a single integer `0 <= x <= 100`.
  */
 export const uploadFile = async (
   url: string,
   file: FileSource,
-  progressHandler: (progress: number) => void,
 ) => {
-  console.log({url, file})
-  const fileStat = await stat(file.uri)
-
-  return await uploadFiles({
-    toUrl: url,
-    files: [
-      {
-        name: file.name,
-        filepath: fileStat.originalFilepath,
-        filetype: file.type,
-        filename: file.name,
-      },
-    ],
-    method: 'PUT',
-    headers: {
-      'X-amz-acl': 'private',
-      'Content-Type': file.type,
-    },
-    progress: el =>
-      progressHandler((100 * el.totalBytesSent) / el.totalBytesExpectedToSend),
-  }).promise;
+  await uploadFileToS3(file.uri, url, file.type);
 };
 
 /**
@@ -59,11 +34,9 @@ export const uploadFile = async (
 export const createFile = async ({
   file,
   durationSeconds,
-  onProgress,
 }: {
   file: FileSource;
   durationSeconds: number;
-  onProgress: (progress: number) => void;
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -77,7 +50,7 @@ export const createFile = async ({
     throw new Error('State should be pending right after creation');
   }
   const policy = res.policy;
-  await uploadFile(policy, file, onProgress);
+  await uploadFile(policy, file);
   return await fetchApi<ApiFileItem>(`/files/${res.id}/upload-ended/`, {
     method: 'POST',
   });
