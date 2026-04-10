@@ -24,6 +24,7 @@
     "react-i18next": "17.0.2",
     "react-native": "0.84.1",
     "react-native-audio-api": "0.11.7",
+    "react-native-bootsplash": "7.3.1",
     "react-native-inappbrowser-reborn": "3.7.1",
     "react-native-keychain": "10.0.0",
     "react-native-mmkv": "4.3.1",

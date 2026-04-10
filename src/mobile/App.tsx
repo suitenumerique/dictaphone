@@ -18,6 +18,7 @@ import { storeCsrfToken, storeSessionCookie } from './src/services/authService';
 import { useNavigation } from '@react-navigation/core';
 import { queryClient } from '@/api/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
+import BootSplash from 'react-native-bootsplash';
 
 const Tabs = createNativeBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -126,6 +127,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <StatusBar barStyle="dark-content" />
       <NavigationContainer
+        onReady={() => {
+          BootSplash.hide();
+        }}
         linking={{
           prefixes: ['lasuite-dictaphone://'],
           config: {
