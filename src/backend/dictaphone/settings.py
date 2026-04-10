@@ -202,8 +202,7 @@ class Base(Configuration):
                 "allowed_mimetypes": [
                     "audio/webm",
                     "audio/mp4",
-                    # libmagic can report .m4a as video/mp4
-                    "video/mp4",
+                    "audio/x-m4a",
                     "audio/webm;codecs=opus",
                     "audio/mp4",
                     "application/ogg",

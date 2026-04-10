@@ -363,6 +363,17 @@ class FileViewSet(
         logger.info("upload_ended: detecting mimetype for file: %s", file.file_key)
         mimetype = utils.detect_mimetype(file_head, filename=file.filename)
 
+        if mimetype == "video/mp4" and head_response["ContentType"] in {
+            "audio/mp4",
+            "audio/x-m4a",
+        }:
+            logger.info(
+                "upload_ended: detected mimetype for file %s is video/mp4 "
+                "but it was declared as audio/mp4, leaving it that way.",
+                file.file_key,
+            )
+            mimetype = head_response["ContentType"]
+
         if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
             config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
             allowed_file_mimetypes = config_for_file_type["allowed_mimetypes"]

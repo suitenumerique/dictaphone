@@ -296,6 +296,69 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     assert head_object["Metadata"] == {"foo": "bar"}
 
 
+@pytest.mark.parametrize("declared_content_type", ["audio/mp4", "audio/x-m4a"])
+@patch("core.api.viewsets.utils.detect_mimetype", return_value="video/mp4")
+@patch("core.tasks.file.requests.post")
+def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
+    mock_post, mock_detect_mimetype, settings, caplog, declared_content_type
+):
+    """
+    When libmagic reports video/mp4 for an m4a-like file, the API should keep
+    the declared audio content type from object storage.
+    """
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    settings.FILE_UPLOAD_RESTRICTIONS = {
+        "audio_recording": {
+            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
+            "allowed_mimetypes": ["audio/mp4", "audio/x-m4a"],
+        }
+    }
+
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    file = factories.FileFactory(
+        type=FileTypeChoices.AUDIO_RECORDING,
+        filename="my_file.m4a",
+        creator=user,
+    )
+
+    s3_client = default_storage.connection.meta.client
+    s3_client.put_object(
+        Bucket=default_storage.bucket_name,
+        Key=file.file_key,
+        ContentType=declared_content_type,
+        Body=BytesIO(b"fake m4a content"),
+        Metadata={"foo": "bar"},
+    )
+
+    with caplog.at_level(logging.INFO, logger="core.api.viewsets"):
+        response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
+
+    assert response.status_code == 200
+    assert mock_post.call_count == 1
+    assert mock_detect_mimetype.call_count == 1
+    assert (
+        f"upload_ended: detected mimetype for file {file.file_key} is video/mp4 "
+        "but it was declared as audio/mp4, leaving it that way." in caplog.text
+    )
+    assert (
+        "upload_ended: content type mismatch between object storage and file"
+        not in caplog.text
+    )
+
+    file.refresh_from_db()
+    assert file.mimetype == declared_content_type
+    assert response.json()["mimetype"] == declared_content_type
+
+    head_object = s3_client.head_object(
+        Bucket=default_storage.bucket_name, Key=file.file_key
+    )
+    assert head_object["ContentType"] == declared_content_type
+    assert head_object["Metadata"] == {"foo": "bar"}
+
+
 def test_api_upload_ended_file_size_exceeded(settings, caplog):
     """
     Test when the file size exceed the allowed max upload file size
