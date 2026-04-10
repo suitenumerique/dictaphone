@@ -16,7 +16,12 @@
     "permissionAskLater": "Ask Me Later",
     "permissionCancel": "Cancel",
     "permissionOk": "OK",
-    "recordingName": "Recording {{duration}}"
+    "recordingName": "Recording {{duration}}",
+    "newRecording": "New recording",
+    "consentNotice": "Recording requires participants consent",
+    "recordingInProgress": "Recording in progress",
+    "transcriptAfterRecording": "You can pause the recording at any time.",
+    "end": "End"
   },
   "recordings": {
     "emptyTitle": "No recordings yet",

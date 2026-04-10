@@ -16,7 +16,12 @@
     "permissionAskLater": "Plus tard",
     "permissionCancel": "Annuler",
     "permissionOk": "OK",
-    "recordingName": "Enregistrement {{duration}}"
+    "recordingName": "Enregistrement {{duration}}",
+    "newRecording": "Enregistrer",
+    "consentNotice": "L'enregistrement nécessite le consentement des participant⋅es.",
+    "recordingInProgress": "Enregistrement en cours",
+    "transcriptAfterRecording": "Vous pouvez mettre en pause l'enregistrement quand vous le souhaitez.",
+    "end": "Terminer"
   },
   "recordings": {
     "emptyTitle": "Aucun enregistrement",

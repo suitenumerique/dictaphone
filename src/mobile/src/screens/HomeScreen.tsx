@@ -7,6 +7,8 @@ import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordin
 import uuid from 'react-native-uuid';
 import { formatDuration } from '@/features/recordings/utils/formatDuration';
 import { SafeAreaView } from 'react-native-screens/experimental';
+// @ts-ignore
+import LogoWithName from '../assets/logo-with-name.svg';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -32,7 +34,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={{ bottom: true, top: true }} style={styles.container}>
-      <Text style={styles.title}>{t('home.title')}</Text>
+        <LogoWithName style={styles.title} />
       <View style={styles.recorderContainer}>
         <AudioRecorder onRecordingComplete={handleRecordingComplete} />
         <View
@@ -59,13 +61,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   title: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#111827',
     marginBottom: 8,
   },
   recorderContainer: {
     flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },

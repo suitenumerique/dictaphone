@@ -8,8 +8,6 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
-  Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -44,26 +42,24 @@ AudioManager.setAudioSessionOptions({
 
 const audioRecorder = new AudioRecorderApi();
 
-
 export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [recordingTimeMs, setRecordingTimeMs] = useState(0);
+
   const recordTimeLabel = useMemo(
     () => formatDuration(recordingTimeMs),
     [recordingTimeMs],
   );
-  const pulse = useRef(new Animated.Value(1)).current;
+
   const recordingDurationInterval = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
 
   const updateNotification = (paused: boolean) => {
-    RecordingNotificationManager.show({
-      paused,
-    });
+    RecordingNotificationManager.show({ paused });
   };
 
   const setupNotification = (paused: boolean) => {
@@ -80,17 +76,17 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 
   useEffect(() => {
     AudioManager.requestRecordingPermissions().then(res => {
-      if (res === "Granted") {
+      if (res === 'Granted') {
         audioRecorder.enableFileOutput({
           format: FileFormat.M4A,
           preset: FilePreset.High,
         });
       }
-    })
+    });
 
     return () => {
       audioRecorder.stop();
-      audioRecorder.disableFileOutput()
+      audioRecorder.disableFileOutput();
       AudioManager.setAudioSessionActivity(false);
       RecordingNotificationManager.hide();
     };
@@ -117,48 +113,11 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     }
 
     return () => {
-      if (recordingDurationInterval.current)
+      if (recordingDurationInterval.current) {
         clearInterval(recordingDurationInterval.current);
+      }
     };
   }, [isPaused, isRecording]);
-
-  const recordActionLabel = useMemo(() => {
-    if (isLoading) {
-      return '';
-    }
-    if (isPaused) {
-      return t('home.resume');
-    }
-    if (isRecording) {
-      return t('home.pause');
-    }
-    return t('home.record');
-  }, [isLoading, isPaused, isRecording, t]);
-
-  useEffect(() => {
-    if (!isRecording || isPaused) {
-      pulse.stopAnimation();
-      pulse.setValue(1);
-      return;
-    }
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1.05,
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [isPaused, isRecording, pulse]);
 
   const onStartRecord = useCallback(async () => {
     const permissions = await AudioManager.requestRecordingPermissions();
@@ -169,9 +128,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 
     setIsLoading(true);
     try {
-      // Activate audio session
       const success = await AudioManager.setAudioSessionActivity(true);
-
       if (!success) {
         console.warn('Could not activate the audio session');
         return;
@@ -182,11 +139,8 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
         console.warn(result.message);
         return;
       }
+
       setupNotification(false);
-
-      console.log('Recording started to file:', result.path);
-      setIsRecording(true);
-
       setRecordingTimeMs(0);
       setIsRecording(true);
       setIsPaused(false);
@@ -255,7 +209,6 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     const pauseListener = RecordingNotificationManager.addEventListener(
       'recordingNotificationPause',
       () => {
-        console.log('Notification pause action received');
         onPauseRecord();
       },
     );
@@ -263,7 +216,6 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     const resumeListener = RecordingNotificationManager.addEventListener(
       'recordingNotificationResume',
       () => {
-        console.log('Notification resume action received');
         onResumeRecord();
       },
     );
@@ -302,65 +254,83 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     ]);
   }, [t]);
 
-  const recordAction = useCallback(() => {
-    if (isLoading) {
-      return;
-    }
-    if (isPaused) {
-      onResumeRecord();
-    } else if (isRecording) {
-      onPauseRecord();
-    } else {
-      onStartRecord();
-    }
-  }, [
-    isLoading,
-    isPaused,
-    isRecording,
-    onPauseRecord,
-    onResumeRecord,
-    onStartRecord,
-  ]);
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.timer}>{recordTimeLabel}</Text>
-
-      <Animated.View
-        style={[styles.recordButtonOuter, { transform: [{ scale: pulse }] }]}
-      >
+  if (!isRecording) {
+    return (
+      <View style={styles.idleContainer}>
         <Pressable
-          style={[styles.recordButton, isRecording && styles.recordingButton]}
-          onPress={recordAction}
+          style={styles.startRecordingButton}
+          onPress={onStartRecord}
           disabled={isLoading}
         >
-          <Lucide name={'mic'} size={36} color="#FFFFFF" />
-          <Text style={styles.recordButtonText}>{recordActionLabel}</Text>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Lucide name="circle-dot" size={30} color="#D62839" />
+              <Text style={styles.startRecordingButtonText}>
+                {t('home.newRecording')}
+              </Text>
+            </>
+          )}
         </Pressable>
-      </Animated.View>
 
-      <View style={styles.shortActions}>
+        <View style={styles.consentRow}>
+          <Text style={styles.consentText}>{t('home.consentNotice')}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.activeContainer}>
+      <View style={styles.statusSection}>
+        <View style={styles.statusBadge}>
+          <Lucide name="audio-lines" size={18} color="#D62839" />
+          <Text style={styles.statusTitle}>
+            {t('home.recordingInProgress')}
+          </Text>
+        </View>
+
+        <Text style={styles.statusSubtitle}>
+          {t('home.transcriptAfterRecording')}
+        </Text>
+      </View>
+
+      <View style={styles.timerSection}>
+        <Text style={styles.timer}>{recordTimeLabel}</Text>
+      </View>
+
+      <View style={styles.controlsRow}>
         <Pressable
           style={[
-            styles.actionButton,
-            (!isPaused || isLoading) && styles.actionButtonDisabled,
+            styles.controlButton,
+            styles.pauseButton,
+            isLoading && styles.buttonDisabled,
           ]}
-          onPress={onClearRecord}
-          disabled={!isPaused || isLoading}
+          onPress={isPaused ? onResumeRecord : onPauseRecord}
+          disabled={isLoading}
         >
-          <Lucide name="eraser" size={36} />
+          <Lucide
+            name={isPaused ? 'play' : 'pause'}
+            size={24}
+            color="#475467"
+          />
+          <Text style={styles.pauseButtonText}>
+            {isPaused ? t('home.resume') : t('home.pause')}
+          </Text>
         </Pressable>
 
         <Pressable
           style={[
-            styles.actionButton,
-            (!isRecording || isLoading) && styles.actionButtonDisabled,
+            styles.controlButton,
+            styles.endButton,
+            isLoading && styles.buttonDisabled,
           ]}
           onPress={onStopRecord}
-          disabled={!isRecording || isLoading}
+          disabled={isLoading}
         >
-          <Lucide name="save" size={36} />
-          <Text>{t('home.save')}</Text>
+          <Lucide name="stop-circle" size={24} color="#FFFFFF" />
+          <Text style={styles.endButtonText}>{t('home.end')}</Text>
         </Pressable>
       </View>
     </View>
@@ -368,62 +338,119 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  idleContainer: {
+    width: '100%',
+    maxWidth: 430,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9DCE3',
+    padding: 14,
+    gap: 8,
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 20,
   },
-  timer: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: '#111827',
-    minWidth: 140,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
-  recordButtonOuter: {
-    borderRadius: 100,
-  },
-  recordButton: {
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: '#DC2626',
+  startRecordingButton: {
+    backgroundColor: '#F8D9DA',
+    borderRadius: 10,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#DC2626',
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  recordingButton: {
-    backgroundColor: '#DC2626',
-  },
-  recordButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 24,
-  },
-  shortActions: {
     flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  startRecordingButtonText: {
+    color: '#D62839',
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  consentRow: {
     gap: 12,
   },
-  actionButton: {
+  consentText: {
+    flexShrink: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#667085',
+    textAlign: 'center',
+  },
+  activeContainer: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: 30,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 36,
+    paddingBottom: 20,
+  },
+  statusSection: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderRadius: 12,
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
   },
-  actionButtonDisabled: {
-    opacity: 0.6,
+  statusTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#D62839',
+  },
+  statusSubtitle: {
+    color: '#667085',
+    fontSize: 16,
+    textAlign: 'center',
+    maxWidth: 320,
+    lineHeight: 22,
+  },
+  timerSection: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timer: {
+    fontSize: 74,
+    fontWeight: '800',
+    color: '#1D2433',
+    fontVariant: ['tabular-nums'],
+    lineHeight: 80,
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'center',
+    gap: 14,
+  },
+  controlButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  pauseButton: {
+    backgroundColor: '#D9DEE7',
+  },
+  endButton: {
+    backgroundColor: '#D62839',
   },
   pauseButtonText: {
-    color: '#1F2937',
+    color: '#475467',
     fontSize: 18,
     fontWeight: '600',
+  },
+  endButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });
