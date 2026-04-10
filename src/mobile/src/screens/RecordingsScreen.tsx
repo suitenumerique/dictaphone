@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-screens/experimental';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { BASE_URL } from '@/api/constants';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
-import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
+import { UserInfoCard } from '@/components/UserInfoCard';
 
 const formatDurationLabel = (durationMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -94,9 +94,9 @@ export default function RecordingsScreen() {
   };
 
   return (
-    <SafeAreaView edges={{ bottom: true }} style={styles.container}>
+    <SafeAreaView edges={{ bottom: true, top: true }} style={styles.container}>
       <View style={styles.topBar}>
-        <LoginWithProConnectButton />
+        <UserInfoCard />
         <Pressable
           style={styles.manageButton}
           onPress={handleOpenWebRecordings}
@@ -153,7 +153,7 @@ export default function RecordingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
+    paddingTop: 36,
     backgroundColor: '#F9FAFB',
   },
   topBar: {

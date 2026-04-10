@@ -4,12 +4,11 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { getSettings, setSettings } from '../services/storage';
 import type { AppLanguage } from '../types/settings';
-import { LoginWithProConnectButton } from '../components/LoginWithProConnectButton';
-import { useUser } from '@/features/auth/api/useUser';
+import { UserInfoCard } from '@/components/UserInfoCard';
+import { SafeAreaView } from 'react-native-screens/experimental';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
-  const user = useUser()
   const [allowNetworkSync, setAllowNetworkSync] = useState(false);
   const [language, setLanguage] = useState<AppLanguage>('en');
 
@@ -42,8 +41,8 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LoginWithProConnectButton />
+    <SafeAreaView edges={{ bottom: true, top: true }} style={styles.container}>
+      <UserInfoCard />
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <Text style={styles.label}>{t('settings.networkSync')}</Text>
@@ -91,7 +90,7 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

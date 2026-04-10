@@ -6,6 +6,7 @@ import type { Recording } from '../types/recording';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 import uuid from 'react-native-uuid';
 import { formatDuration } from '@/features/recordings/utils/formatDuration';
+import { SafeAreaView } from 'react-native-screens/experimental';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -25,21 +26,26 @@ export default function HomeScreen() {
       filePath,
       name,
       id: uuid.v4(),
-      uploadingStatus: "to_upload",
+      uploadingStatus: 'to_upload',
     });
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView edges={{ bottom: true, top: true }} style={styles.container}>
       <Text style={styles.title}>{t('home.title')}</Text>
-      <AudioRecorder onRecordingComplete={handleRecordingComplete} />
-      {isUploading ? (
-        <View style={styles.uploadingContainer}>
+      <View style={styles.recorderContainer}>
+        <AudioRecorder onRecordingComplete={handleRecordingComplete} />
+        <View
+          style={{
+            ...styles.uploadingContainer,
+            ...(isUploading ? { opacity: 1 } : { opacity: 0 }),
+          }}
+        >
           <ActivityIndicator size="small" color="#1D4ED8" />
           <Text style={styles.uploadingText}>{t('recordings.uploading')}</Text>
         </View>
-      ) : null}
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -48,7 +54,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingTop: 48,
+    paddingTop: 72,
     paddingHorizontal: 24,
     backgroundColor: '#F9FAFB',
   },
@@ -57,6 +63,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     marginBottom: 8,
+  },
+  recorderContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   uploadingContainer: {
     marginTop: 16,

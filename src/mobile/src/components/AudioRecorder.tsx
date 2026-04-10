@@ -363,8 +363,6 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
           <Text>{t('home.save')}</Text>
         </Pressable>
       </View>
-
-      {isLoading && <ActivityIndicator />}
     </View>
   );
 };

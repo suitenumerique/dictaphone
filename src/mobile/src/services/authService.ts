@@ -112,6 +112,13 @@ export async function login(): Promise<void> {
 // }
 
 // --- Logout: clear all cookies ---
+export async function clearAuthCookies(): Promise<void> {
+  await Promise.all([
+    Keychain.resetInternetCredentials({ server: SESSION_COOKIE_NAME }),
+    Keychain.resetInternetCredentials({ server: SESSION_COOKIE_NAME }),
+  ]);
+}
+
 export async function logout(): Promise<void> {
-  await Keychain.resetGenericPassword();
+  await clearAuthCookies();
 }

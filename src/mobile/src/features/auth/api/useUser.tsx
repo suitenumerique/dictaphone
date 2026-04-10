@@ -2,15 +2,18 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { keys } from '@/api/queryKeys';
 import { fetchUser } from './fetchUser';
 import { type ApiUser } from './ApiUser';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useConfig } from '@/api/useConfig';
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences';
 import { queryClient } from '@/api/queryClient';
+import { fetchApi } from '@/api/fetchApi';
+import { clearAuthCookies } from '@/services/authService';
+import { clearCachedUser, setCachedUser } from '@/services/storage';
 
 type TUserInfo = {
   refetch: () => void;
   isLoading: boolean;
-  // logout: () => void;
+  logout: () => Promise<void>;
 } & (
   | {
       isLoggedIn: false;
@@ -42,7 +45,22 @@ export const useUser = () => {
   const updateUserQuery = useMutation({
     mutationFn: updateUserPreferences,
     onSuccess: data => {
+      setCachedUser(data);
       queryClient.setQueryData([keys.user], data);
+    },
+  });
+
+  const logoutQuery = useMutation({
+    mutationFn: async () => {
+      try {
+        await fetchApi<void>('/logout/');
+      } catch (error) {
+        console.warn('Logout endpoint failed, clearing local auth state.', error);
+      } finally {
+        await clearAuthCookies();
+        clearCachedUser();
+        queryClient.setQueryData([keys.user], false);
+      }
     },
   });
 
@@ -60,12 +78,17 @@ export const useUser = () => {
     });
   };
 
+  const logout = useCallback(async () => {
+    await logoutQuery.mutateAsync();
+  }, [logoutQuery]);
+
   const isLoggedIn = query.status === 'success' && query.data !== false;
 
   return useMemo<TUserInfo>(
     () =>
       ({
         refetch: query.refetch,
+        logout,
         ...(isLoggedIn
           ? {
               isLoggedIn: true,
@@ -74,8 +97,7 @@ export const useUser = () => {
             }
           : { isLoggedIn: false, updateUser: undefined, user: undefined }),
         isLoading: query.isLoading,
-        // logout,
       } as TUserInfo),
-    [query.refetch, query.data, query.isLoading, isLoggedIn, updateUser],
+    [query.refetch, query.data, query.isLoading, isLoggedIn, logout, updateUser],
   );
 };
