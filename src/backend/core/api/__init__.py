@@ -2,8 +2,8 @@
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.shortcuts import render
 from django.middleware.csrf import get_token
+from django.shortcuts import render
 
 from rest_framework import exceptions as drf_exceptions
 from rest_framework import views as drf_views
@@ -62,6 +62,12 @@ def get_frontend_configuration(request):
 
 @api_view(["GET"])
 def get_mobile_redirect(request):
+    """Redirect to the mobile app with deeplink for auth.
+
+    It sets a session key and CSRF token for authentication.
+
+    Note: this is a bit nasty hack for authentification but working for now.
+    """
     session_key = request.session.session_key
     if session_key is None:
         raise NotAuthenticated()
