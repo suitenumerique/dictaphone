@@ -89,6 +89,14 @@ android {
         ]
     }
     signingConfigs {
+        release {
+          storeFile file(MYAPP_RELEASE_STORE_FILE)
+          keyAlias MYAPP_RELEASE_KEY_ALIAS
+
+          // Read from env vars, fallback to empty string to avoid null crash
+          storePassword System.getenv("MYAPP_RELEASE_STORE_PASSWORD") ?: ""
+          keyPassword System.getenv("MYAPP_RELEASE_KEY_PASSWORD") ?: ""
+        }
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
