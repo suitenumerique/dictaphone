@@ -16,6 +16,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     padding-right: 0;
 
     flex-direction: column-reverse;
+    justify-content: space-between;
     margin-bottom: unset;
     overflow: hidden;
     height: calc(100dvh - 58px);
@@ -33,14 +34,12 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
 .recording-page__content {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: 1rem;
   margin-left: 1rem;
   margin-right: 1rem;
 }
 
 .recording-page__card {
-  background: var(--c--contextuals--background--surface--primary);
+  background: #ffffff;
   padding: 1rem;
   border-radius: 0.25rem;
 
@@ -85,7 +84,6 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
 .recording-page__player {
   padding: 1rem;
-  background: var(--c--globals--colors--gray-025);
 
   @media (min-width: $tablet) {
     position: sticky;
