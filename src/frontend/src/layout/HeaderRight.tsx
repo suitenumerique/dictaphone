@@ -2,7 +2,6 @@ import { LaGaufreV2, LanguagePicker, UserMenu } from '@gouvfr-lasuite/ui-kit'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
 
 const LANGUAGES = [
   {
@@ -21,7 +20,7 @@ export const LanguagePickerSyncedBackend = () => {
   const { i18n } = useTranslation()
   const { user, updateUser } = useUser()
   const [selectedLanguage, setSelectedLanguage] = useState<TPossibleLanguages>(
-    user?.language ?? 'en-us'
+    user?.language ?? 'fr-fr'
   )
 
   // We must set the language to lowercase because django does not use "en-US", but "en-us".
@@ -66,7 +65,6 @@ export const HeaderRight = () => {
         // The show more btn is buggy
         showMoreLimit={9}
       />
-
       <UserMenu
         actions={<LanguagePickerSyncedBackend />}
         user={{

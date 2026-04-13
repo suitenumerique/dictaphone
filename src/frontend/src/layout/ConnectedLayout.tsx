@@ -3,7 +3,6 @@ import LogoApp from '@/layout/LogoApp.tsx'
 import { HeaderRight } from '@/layout/HeaderRight.tsx'
 import { useUser } from '@/features/auth'
 import { Link, Redirect } from 'wouter'
-import LeftPanel from '@/layout/LeftPanel.tsx'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
@@ -38,7 +37,7 @@ export default function ConnectedLayout({
         </Link>
       }
       rightHeaderContent={<HeaderRight />}
-      leftPanelContent={<LeftPanel />}
+      isLeftPanelOpen={false}
     >
       <div
         {...rest}

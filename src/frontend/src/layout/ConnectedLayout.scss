@@ -1,9 +1,10 @@
 @use 'sass:map';
 @use '../styles/cunningham-tokens-sass' as *;
+
 $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
 .dictaphone__connected_layout_container {
-  background-color: var(--c--globals--colors--white-950);
+  background-color: #ffffff;
   min-height: 100%;
   display: flex;
   justify-content: center;
@@ -15,5 +16,15 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   .dictaphone__connected_layout_content {
     width: 100%;
     max-width: 1200px;
+  }
+}
+
+.c__main-layout {
+  .c__header {
+    border-bottom: none;
+    // Forced display none on mobile
+    .c__header__toggle-menu {
+      display: none;
+    }
   }
 }
