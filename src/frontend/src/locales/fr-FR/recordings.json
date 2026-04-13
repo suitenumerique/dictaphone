@@ -19,7 +19,9 @@
     "deleteAriaLabel": "Supprimer l'enregistrement {{title}}",
     "paginationAriaLabel": "Pagination des enregistrements",
     "paginationPreviousAriaLabel": "Aller à la page précédente",
-    "paginationNextAriaLabel": "Aller à la page suivante"
+    "paginationNextAriaLabel": "Aller à la page suivante",
+    "loadMore": "Afficher plus",
+    "loadingMore": "Chargement..."
   },
   "actions": {
     "cta": "Actions",

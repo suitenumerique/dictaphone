@@ -1,5 +1,9 @@
 import { fetchApi } from '@/api/fetchApi'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
 import {
   ApiFileItem,
@@ -11,7 +15,7 @@ import { shouldRefetchMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.
 
 const REFRESH_AI_JOBS_INTERVAL_MS = 10_000
 
-type ListFilesResponse = {
+export type ListFilesResponse = {
   count: number
   next: string | null
   previous: string | null
@@ -31,6 +35,11 @@ export type ListFilesParams = {
     page: number
     pageSize: number
   }
+}
+
+type ListFilesInfiniteParams = {
+  filters?: ListFilesFilters
+  pageSize: number
 }
 
 export const listMyFiles = async ({
@@ -58,6 +67,22 @@ export const listMyFiles = async ({
   })
 }
 
+const getNextPageFromUrl = (nextUrl: string | null) => {
+  if (!nextUrl) {
+    return undefined
+  }
+
+  const parsedUrl = new URL(nextUrl, window.location.origin)
+  const nextPage = parsedUrl.searchParams.get('page')
+
+  if (!nextPage) {
+    return undefined
+  }
+
+  const pageAsNumber = Number.parseInt(nextPage, 10)
+  return Number.isFinite(pageAsNumber) ? pageAsNumber : undefined
+}
+
 export const useListMyFiles = (params: Parameters<typeof listMyFiles>[0]) => {
   const { isLoggedIn } = useUser()
   return useQuery({
@@ -75,6 +100,40 @@ export const useListMyFiles = (params: Parameters<typeof listMyFiles>[0]) => {
         : false
     },
     placeholderData: keepPreviousData,
+    enabled: isLoggedIn,
+  })
+}
+
+export const useListMyFilesInfinite = ({
+  filters,
+  pageSize,
+}: ListFilesInfiniteParams) => {
+  const { isLoggedIn } = useUser()
+
+  return useInfiniteQuery({
+    queryKey: [keys.files, 'infinite', { filters, pageSize }],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      listMyFiles({
+        filters,
+        pagination: {
+          page: pageParam,
+          pageSize,
+        },
+      }),
+    getNextPageParam: (lastPage) => getNextPageFromUrl(lastPage.next),
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchInterval: (query) => {
+      const files = query.state.data?.pages.flatMap((page) => page.results)
+      if (!files) {
+        return false
+      }
+
+      return files.some((file) => shouldRefetchMainAiJobs(file.ai_jobs))
+        ? REFRESH_AI_JOBS_INTERVAL_MS
+        : false
+    },
     enabled: isLoggedIn,
   })
 }

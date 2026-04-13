@@ -18,7 +18,9 @@
     "ariaLabelTable": "Recordings list",
     "paginationAriaLabel": "Recordings pagination",
     "paginationPreviousAriaLabel": "Go to previous page",
-    "paginationNextAriaLabel": "Go to next page"
+    "paginationNextAriaLabel": "Go to next page",
+    "loadMore": "Load more",
+    "loadingMore": "Loading..."
   },
   "actions": {
     "cta": "Actions",

@@ -1,8 +1,7 @@
-import { useListMyFiles } from '@/features/files/api/listFiles.ts'
+import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
 import { Badge, Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import { Card } from '@/components/Card.tsx'
-import { Pagination } from '@/components/Pagination.tsx'
 import { useLocation } from 'wouter'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
@@ -70,22 +69,22 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
 
 export default function ListRecordings({
   queryData,
-  page,
-  pageSize,
-  onPageChange,
   isDropZoneActive,
   isTrashPage = false,
 }: {
-  queryData: ReturnType<typeof useListMyFiles>
-  page: number
-  pageSize: number
-  onPageChange: (page: number) => void
+  queryData: ReturnType<typeof useListMyFilesInfinite>
   isDropZoneActive: boolean
   isTrashPage?: boolean
 }) {
   const [, navigate] = useLocation()
   const { t } = useTranslation('recordings')
   const { isDesktop } = useResponsive()
+
+  const allFiles = useMemo(
+    () => queryData.data?.pages.flatMap((page) => page.results) ?? [],
+    [queryData.data]
+  )
+  const totalFilesCount = queryData.data?.pages[0]?.count ?? 0
 
   return (
     <Card
@@ -106,10 +105,10 @@ export default function ListRecordings({
     >
       {queryData.isPending && !queryData.data && <Spinner />}
       {queryData.error && <div>{t('errorFetching')}</div>}
-      {queryData.data && queryData.data.count === 0 && (
+      {queryData.data && totalFilesCount === 0 && (
         <div>{t(isTrashPage ? 'noRecordingsTrash' : 'noRecordings')}</div>
       )}
-      {queryData.data && queryData.data.count > 0 && (
+      {allFiles.length > 0 && (
         <div className="recordings-list">
           <table
             className="recordings-list__table"
@@ -124,7 +123,7 @@ export default function ListRecordings({
               </tr>
             </thead>
             <tbody>
-              {queryData.data.results.map((file) => (
+              {allFiles.map((file) => (
                 <tr
                   className="clickable"
                   key={file.id}
@@ -170,15 +169,21 @@ export default function ListRecordings({
               ))}
             </tbody>
           </table>
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            totalItems={queryData.data.count}
-            onPageChange={onPageChange}
-            ariaLabel={t('list.paginationAriaLabel')}
-            previousAriaLabel={t('list.paginationPreviousAriaLabel')}
-            nextAriaLabel={t('list.paginationNextAriaLabel')}
-          />
+          {queryData.hasNextPage && (
+            <div className="recordings-list__footer">
+              <Button
+                variant="secondary"
+                onClick={() => queryData.fetchNextPage()}
+                disabled={queryData.isFetchingNextPage}
+              >
+                {t(
+                  queryData.isFetchingNextPage
+                    ? 'list.loadingMore'
+                    : 'list.loadMore'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </Card>

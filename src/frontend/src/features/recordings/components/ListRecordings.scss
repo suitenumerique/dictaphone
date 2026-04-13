@@ -9,9 +9,9 @@
   }
 }
 
-.recordings-list__count {
-  font-size: 0.875rem;
-  color: var(--c--globals--colors--gray-600);
+.recordings-list__footer {
+  display: flex;
+  justify-content: center;
 }
 
 .recordings-list__table {
