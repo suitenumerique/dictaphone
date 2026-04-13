@@ -1,34 +1,13 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
-import { Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
+import { Spinner } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
-import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { useMemo } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
-import clsx from 'clsx'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
-
-function HeaderAction() {
-  const { t } = useTranslation('upload')
-  const { isDesktop } = useResponsive()
-
-  return (
-    <>
-      <Button
-        aria-label={t('cta')}
-        onClick={() => document.getElementById('import-files')?.click()}
-        icon={<span className="material-icons">upload</span>}
-        variant="secondary"
-      >
-        {isDesktop && <span>{t('cta')}</span>}
-      </Button>
-      <RecordComponent />
-    </>
-  )
-}
 
 function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   const { t } = useTranslation('recordings')
@@ -54,11 +33,9 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
 
 export function ListRecordings({
   queryData,
-  isDropZoneActive,
   isTrashPage = false,
 }: {
   queryData: ReturnType<typeof useListMyFilesInfinite>
-  isDropZoneActive: boolean
   isTrashPage?: boolean
 }) {
   const [, navigate] = useLocation()
@@ -72,14 +49,6 @@ export function ListRecordings({
 
   return (
     <>
-      <div
-        className={clsx({
-          'drop-zone--drag-in-progress-main-area':
-            !isTrashPage && isDropZoneActive,
-        })}
-      >
-        <HeaderAction />
-      </div>
       {queryData.isPending && !queryData.data && <Spinner />}
       {queryData.error && <div>{t('errorFetching')}</div>}
       {queryData.data && totalFilesCount === 0 && (

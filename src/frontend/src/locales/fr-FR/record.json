@@ -1,5 +1,6 @@
 {
   "title": "Enregistrement audio",
+  "consentWarning": "⚠ L'enregistrement nécessite le consentement des participant⋅es.",
   "startRecording": "Démarrer l'enregistrement",
   "pauseRecording": "Mettre en pause",
   "resumeRecording": "Reprendre",

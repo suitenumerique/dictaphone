@@ -5,11 +5,16 @@ import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { FileShare } from '@gouvfr-lasuite/ui-kit'
+import { useLocation } from 'wouter'
 
 const PAGE_SIZE = 10
 
 export function RecordingsPage() {
-  const { t } = useTranslation('recordings')
+  const { t } = useTranslation(['recordings', 'record'])
+  const [, navigate] = useLocation()
+
   const filesQ = useListMyFilesInfinite({
     filters: {
       type: 'audio_recording',
@@ -37,10 +42,36 @@ export function RecordingsPage() {
           <LogoApp height={60} />
           <span>{t('subtitle')}</span>
         </div>
-        <ListRecordings
-          queryData={filesQ}
-          isDropZoneActive={isDropZoneActive}
-        />
+        <div
+          className={clsx({
+            'drop-zone--drag-in-progress-main-area': isDropZoneActive,
+          })}
+        >
+          <div className="recordings-actions">
+            <div className="first-row">
+              <Button
+                onClick={() => navigate('/new-recording')}
+                className="recordings-actions__record-button"
+              >
+                <span className="material-icons">radio_button_checked</span> New
+                recording
+              </Button>
+
+              <Button
+                aria-label={t('cta')}
+                onClick={() => document.getElementById('import-files')?.click()}
+                variant="bordered"
+                color="neutral"
+                icon={<FileShare />}
+              ></Button>
+            </div>
+            <div className="recordings-actions__warning">
+              {t('record:consentWarning')}
+            </div>
+          </div>
+        </div>
+
+        <ListRecordings queryData={filesQ} />
       </div>
       <input
         {...dropZone.getInputProps({

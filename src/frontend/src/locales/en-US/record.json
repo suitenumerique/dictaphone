@@ -1,5 +1,6 @@
 {
   "title": "Audio recording",
+  "consentWarning": "⚠ Recording requires participants consent",
   "startRecording": "Start recording",
   "pauseRecording": "Pause",
   "resumeRecording": "Resume",

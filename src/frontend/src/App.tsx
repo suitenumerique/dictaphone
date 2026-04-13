@@ -14,6 +14,7 @@ import { HomePage } from '@/pages/HomePage.tsx'
 import { RecordingPage } from '@/pages/RecordingPage.tsx'
 import { RecordingsPage } from '@/pages/RecordingsPage.tsx'
 import { Toaster } from '@/features/ui/components/toaster/Toaster.tsx'
+import { RecordPage } from '@/pages/RecordPage.tsx'
 
 function App() {
   const { i18n } = useTranslation()
@@ -31,6 +32,11 @@ function App() {
                 key={'recordings'}
                 path={'/recordings'}
                 component={RecordingsPage}
+              />
+              <Route
+                key={'new-recording'}
+                path={'/new-recording'}
+                component={RecordPage}
               />
               {/*<Route*/}
               {/*  key={'trash'}*/}

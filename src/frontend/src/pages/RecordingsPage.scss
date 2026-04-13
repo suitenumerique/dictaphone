@@ -37,4 +37,47 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     text-align: center;
     color: var(--c--globals--colors--gray-600);
   }
+
+  .recordings-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--c--globals--spacings--xs);
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid #dfe2ea;
+    margin-bottom: var(--c--globals--spacings--md);
+
+    box-shadow: 0px 2px 12px 0px #0000001a;
+    border-radius: var(--c--globals--spacings--xs);
+    padding: var(--c--globals--spacings--sm);
+
+    .first-row {
+      width: 100%;
+      display: flex;
+      gap: var(--c--globals--spacings--xs);
+    }
+
+    &__record-button {
+      width: 100%;
+      background: #ffdad7;
+      color: #bd0f23;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--c--globals--spacings--xs);
+
+      &:hover {
+        background: #ffb5ad;
+      }
+    }
+
+    &__warning {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      gap: var(--c--globals--spacings--xs);
+      color: var(--c--globals--colors--gray-600);
+      text-align: center;
+    }
+  }
 }
