@@ -1,4 +1,4 @@
-import { LaGaufreV2, LanguagePicker } from '@gouvfr-lasuite/ui-kit'
+import { LaGaufreV2, LanguagePicker, UserMenu } from '@gouvfr-lasuite/ui-kit'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth'
@@ -47,32 +47,33 @@ export const LanguagePickerSyncedBackend = () => {
   )
 
   return (
-    <LanguagePicker size="small" languages={languages} onChange={onChange} />
+    <LanguagePicker
+      compact
+      size="small"
+      languages={languages}
+      onChange={onChange}
+    />
   )
 }
 
 export const HeaderRight = () => {
-  const { t } = useTranslation('layout')
-  const { logout } = useUser()
+  const { logout, user } = useUser()
 
   return (
     <>
-      <div className="dictaphone__header-right-tools">
-        <LanguagePickerSyncedBackend />
-        <Button
-          size="small"
-          variant="tertiary"
-          onClick={() => logout()}
-          icon={<span className="material-icons">logout</span>}
-        >
-          {t('logout')}
-        </Button>
-      </div>
-
       <LaGaufreV2
         apiUrl={'https://lasuite.numerique.gouv.fr/api/services'}
         // The show more btn is buggy
         showMoreLimit={9}
+      />
+
+      <UserMenu
+        actions={<LanguagePickerSyncedBackend />}
+        user={{
+          email: user!.email,
+          full_name: user!.full_name,
+        }}
+        logout={logout}
       />
     </>
   )

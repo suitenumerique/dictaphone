@@ -27,6 +27,7 @@ export default function ConnectedLayout({
 
   return (
     <MainLayout
+      hideLeftPanelOnDesktop={true}
       icon={
         <Link
           to="/recordings"

@@ -17,8 +17,8 @@ i18n
   .use(initReactI18next)
   .use(LanguageDetector)
   .init({
-    supportedLngs: ['en', 'fr', 'nl', 'de'],
-    fallbackLng: 'fr',
+    supportedLngs: ['en-US', 'fr-FR'],
+    fallbackLng: 'fr-FR',
     ns: i18nDefaultNamespace,
     detection: {
       order: ['localStorage', 'navigator'],
@@ -30,7 +30,7 @@ i18n
   .then(() => {
     i18n.services.formatter!.add('formatDuration', (value: Duration, lng) => {
       // @ts-expect-error it's ok
-      return new Intl.DurationFormat(lng ?? 'en', {
+      return new Intl.DurationFormat((lng ?? 'en').split('-')[0], {
         style: 'narrow',
       }).format(value)
     })
