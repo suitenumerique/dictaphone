@@ -619,7 +619,7 @@ class Base(Configuration):
 
     # Mobile App Handling
     MOBILE_DEEP_LINK_SCHEME = values.Value(
-        default="lasuite-dictaphone://auth/callback",
+        default="assistant-transcripts://auth/callback",
         environ_name="MOBILE_DEEP_LINK_SCHEME",
         environ_prefix=None,
     )

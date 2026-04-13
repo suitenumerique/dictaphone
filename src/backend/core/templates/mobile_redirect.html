@@ -9,7 +9,7 @@
       const csrfToken = "{{ csrf_token }}";
 
       if (sessionKey) {
-        const url = `${deepLink}?$sessionId=${sessionKey}&csrfToken=${csrfToken}`;
+        const url = `${deepLink}?sessionId=${sessionKey}&csrfToken=${csrfToken}`;
         window.location.href = url;
       } else {
         document.body.innerText = "Missing session.";

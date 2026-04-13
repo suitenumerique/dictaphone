@@ -16,7 +16,7 @@ FROM frontend-deps AS dictaphone-builder
 
 WORKDIR /home/frontend
 
-ENV VITE_APP_TITLE="Dictaphone"
+ENV VITE_APP_TITLE="Assitant Transcripts"
 ENV VITE_BUILD_SOURCEMAP="true"
 
 RUN npm run build

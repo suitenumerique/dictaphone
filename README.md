@@ -32,14 +32,14 @@ This repo is a work in progress, come back in few weeks to check it
 We <3 contributions of any kind, big and small:
 
 - Vote on features or get early access to beta functionality in our [roadmap](https://github.com/orgs/suitenumerique/projects/11/views/4)
-- Open a PR (see our instructions on [developing La Suite Dictaphone locally](./docs/developping_locally.md))
+- Open a PR (see our instructions on [developing l'Assistant Dictaphone locally](./docs/developping_locally.md))
 - Submit a [feature request](https://github.com/suitenumerique/dictaphone/issues/new?assignees=&labels=enhancement&template=Feature_request.md) or [bug report](https://github.com/suitenumerique/dictaphone/issues/new?assignees=&labels=bug&template=Bug_report.md)
 
 ## Philosophy
 
-We’re relentlessly focused on building the best open-source dictaphone product—La Suite Dictaphone. Growth comes from creating something people truly need, not just from chasing metrics.
+We’re relentlessly focused on building the best open-source transcript product—L'Assistant Transcript. Growth comes from creating something people truly need, not just from chasing metrics.
 
-Our users come first. We’re committed to making La Suite Dictaphone as accessible and easy to use as proprietary solutions, ensuring it meets the highest standards.
+Our users come first. We’re committed to making L'Assitant Transcript as accessible and easy to use as proprietary solutions, ensuring it meets the highest standards.
 
 We follow extreme programming practices, favoring pair programming and quick, iterative releases. Challenge our tech and architecture—simplicity is always our top priority.
 

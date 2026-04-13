@@ -19,7 +19,7 @@ DJANGO_EMAIL_FROM=<your email address>
 #DJANGO_EMAIL_USE_TLS=true # A flag to enable or disable TLS for email sending.
 #DJANGO_EMAIL_USE_SSL=true # A flag to enable or disable SSL for email sending.
 
-DJANGO_EMAIL_BRAND_NAME="La Suite Numérique" 
+DJANGO_EMAIL_BRAND_NAME="L'Assitant Transcripts" 
 DJANGO_EMAIL_LOGO_IMG="https://${DICTAPHONE_HOST}/assets/logo-suite-numerique.png"
 
 # Backend url

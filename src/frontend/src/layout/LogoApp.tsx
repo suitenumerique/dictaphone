@@ -1,19 +1,13 @@
 export default function LogoApp({
-  size = 26,
-  withLabel = false,
+  height = 26,
+  variant = 'single-line',
 }: {
-  size?: number
-  withLabel?: boolean
+  height?: number
+  variant?: 'picto' | 'multiline' | 'single-line'
 }) {
   return (
     <div className="dictaphone__logo-app">
-      <img
-        src="/assets/logo-dictaphone-beta.svg"
-        alt="Logo"
-        width={size}
-        height={size}
-      />
-      {withLabel && <span className="">Dictaphone</span>}
+      <img src={`/assets/logo-${variant}.svg`} alt="Logo" height={height} />
     </div>
   )
 }

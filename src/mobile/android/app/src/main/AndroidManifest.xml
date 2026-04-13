@@ -43,7 +43,7 @@
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
         <data
-          android:scheme="lasuite-dictaphone"
+          android:scheme="assistant-transcripts"
           android:host="auth"
           android:pathPrefix="/callback" />
       </intent-filter>

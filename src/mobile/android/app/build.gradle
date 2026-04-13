@@ -85,7 +85,7 @@ android {
         versionCode 1
         versionName "1.0"
         manifestPlaceholders = [
-            appAuthRedirectScheme: "lasuite-dictaphone"
+            appAuthRedirectScheme: "assistant-transcripts"
         ]
     }
     signingConfigs {

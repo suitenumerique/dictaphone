@@ -131,7 +131,7 @@ function App() {
           BootSplash.hide();
         }}
         linking={{
-          prefixes: ['lasuite-dictaphone://'],
+          prefixes: ['assistant-transcripts://'],
           config: {
             screens: {
               MainTabs: 'record',

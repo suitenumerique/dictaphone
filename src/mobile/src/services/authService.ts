@@ -8,7 +8,7 @@ import { API_URL } from '../api/constants';
 const SESSION_COOKIE_NAME = 'sessionid';
 const CSRF_COOKIE_NAME = 'csrftoken';
 const API_REDIRECT_URL = `${API_URL}/mobile-redirect/`;
-const REDIRECT_URL = 'lasuite-dictaphone://auth/callback';
+const REDIRECT_URL = 'assistant-transcripts://auth/callback';
 
 // The same route your webapp uses
 function buildAuthUrl(silent: boolean, returnTo: string): string {

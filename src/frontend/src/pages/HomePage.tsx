@@ -28,7 +28,7 @@ export function HomePage() {
           banner="/assets/hero-beta.png"
           title={t('title')}
           subtitle={t('subtitle')}
-          logo={<LogoApp size={100} />}
+          logo={<LogoApp height={42} />}
           mainButton={
             appConfig?.use_proconnect_button ? (
               <ProConnectButton
