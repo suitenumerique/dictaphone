@@ -59,16 +59,10 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
     &__record-button {
       width: 100%;
-      background: #ffdad7;
-      color: #bd0f23;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: var(--c--globals--spacings--xs);
-
-      &:hover {
-        background: #ffb5ad;
-      }
     }
 
     &__warning {

@@ -23,6 +23,10 @@
       "success": "Recording deleted",
       "error": "Failed to delete recording"
     },
+    "deleteModal": {
+      "title": "Delete recording",
+      "description": "Are you sure you want to delete this recording and associated transcript? The transcript exported to Docs will remain available in Docs."
+    },
     "restore": {
       "label": "Restore",
       "success": "Recording restored",

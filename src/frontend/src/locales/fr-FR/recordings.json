@@ -24,6 +24,10 @@
       "success": "Enregistrement supprimé",
       "error": "Échec de la suppression de l'enregistrement"
     },
+    "deleteModal": {
+      "title": "Supprimer l'enregistrement",
+      "description": "Êtes-vous sûr de vouloir supprimer cet enregistrement et son stranscript ? Le transcript exporté dans Docs restera disponible dans Docs."
+    },
     "restore": {
       "label": "Restaurer",
       "success": "Enregistrement restauré",

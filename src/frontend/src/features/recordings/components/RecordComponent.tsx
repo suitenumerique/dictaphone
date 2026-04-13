@@ -428,9 +428,9 @@ export default function RecordComponent() {
           </p>
 
           <div className="record-component__controls">
-            <button
-              type="button"
-              className="record-component__button record-component__button--muted"
+            <Button
+              color="neutral"
+              className="record-component__button"
               onClick={togglePauseResume}
               disabled={!isRecordingInProgress || isStoppingRecording}
               aria-label={t(
@@ -449,22 +449,18 @@ export default function RecordComponent() {
                     : 'record:pauseRecording'
                 )}
               </span>
-            </button>
+            </Button>
 
-            <button
-              type="button"
-              className={`record-component__button ${
-                isPausedRecording
-                  ? 'record-component__button--slate'
-                  : 'record-component__button--danger'
-              }`}
+            <Button
+              className={`record-component__button`}
+              color="error"
               onClick={handleStopRequest}
               disabled={!isRecordingInProgress || isStoppingRecording}
               aria-label={t('record:stopRecording')}
             >
               <span className="material-icons">stop_circle</span>
               <span>{t('record:stopRecording')}</span>
-            </button>
+            </Button>
           </div>
         </div>
 

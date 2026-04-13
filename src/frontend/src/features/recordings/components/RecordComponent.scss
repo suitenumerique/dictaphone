@@ -82,18 +82,8 @@
     color: var(--c--globals--colors--gray-600);
   }
 
-  .record-component__button--danger {
-    background-color: var(--c--globals--colors--red-500);
-    color: var(--c--globals--colors--white);
-  }
-
   .record-component__button--slate {
     background-color: var(--c--globals--colors--gray-600);
     color: var(--c--globals--colors--white);
-  }
-
-  .record-component__error {
-    color: var(--c--globals--colors--error-550);
-    margin: 0;
   }
 }

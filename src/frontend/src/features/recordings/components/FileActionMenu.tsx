@@ -28,6 +28,7 @@ export function FileActionMenu({
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState(file.title)
   const [openRenameModal, setOpenRenameModal] = useState(false)
+  const [openDeleteModal, setOpenDeleteModal] = useState(false)
 
   const deleteFileMutation = useDeleteFile()
   const hardDeleteFileMutation = useHardDeleteFile()
@@ -58,6 +59,29 @@ export function FileActionMenu({
     )
   }, [partialUpdateFileMutation, file.id, title, t])
 
+  const handleDelete = useCallback(() => {
+    deleteFileMutation.mutate(
+      { fileId: file.id },
+      {
+        onSuccess: () => {
+          setOpenDeleteModal(false)
+          setIsOpen(false)
+          addToast(
+            <ToasterItem type="info">
+              <span>{t('actions.delete.success')}</span>
+            </ToasterItem>
+          )
+        },
+        onError: () =>
+          addToast(
+            <ToasterItem type="error">
+              <span>{t('actions.delete.error')}</span>
+            </ToasterItem>
+          ),
+      }
+    )
+  }, [deleteFileMutation, file.id, t])
+
   const menuItems = useMemo(() => {
     const out: DropdownMenuProps['options'] = []
     if (file.abilities.partial_update) {
@@ -72,24 +96,7 @@ export function FileActionMenu({
       out.push({
         label: t('actions.delete.label'),
         icon: <span className="material-icons">delete</span>,
-        callback: () =>
-          deleteFileMutation.mutate(
-            { fileId: file.id },
-            {
-              onSuccess: () =>
-                addToast(
-                  <ToasterItem type="info">
-                    <span>{t('actions.delete.success')}</span>
-                  </ToasterItem>
-                ),
-              onError: () =>
-                addToast(
-                  <ToasterItem type="error">
-                    <span>{t('actions.delete.error')}</span>
-                  </ToasterItem>
-                ),
-            }
-          ),
+        callback: () => setOpenDeleteModal(true),
       })
     }
 
@@ -146,7 +153,6 @@ export function FileActionMenu({
 
     return out
   }, [
-    deleteFileMutation,
     file.abilities.destroy,
     file.abilities.hard_delete,
     file.abilities.partial_update,
@@ -185,7 +191,37 @@ export function FileActionMenu({
         )}
       </DropdownMenu>
       <Modal
-        size={ModalSize.SMALL}
+        size={ModalSize.MEDIUM}
+        isOpen={openDeleteModal}
+        onClose={() => setOpenDeleteModal(false)}
+        preventClose={deleteFileMutation.isPending}
+        closeOnEsc={!deleteFileMutation.isPending}
+        closeOnClickOutside={!deleteFileMutation.isPending}
+        title={t('actions.deleteModal.title')}
+        rightActions={
+          <>
+            <Button
+              variant="bordered"
+              onClick={() => setOpenDeleteModal(false)}
+              disabled={deleteFileMutation.isPending}
+              color="neutral"
+            >
+              {t('shared:actions.cancel')}
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={deleteFileMutation.isPending}
+              color="error"
+            >
+              {t('actions.delete.label')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('actions.deleteModal.description')}</p>
+      </Modal>
+      <Modal
+        size={ModalSize.MEDIUM}
         isOpen={openRenameModal}
         onClose={() => setOpenRenameModal(false)}
         preventClose={partialUpdateFileMutation.isPending}
@@ -195,9 +231,10 @@ export function FileActionMenu({
         rightActions={
           <>
             <Button
-              variant="secondary"
+              variant="bordered"
               onClick={() => setOpenRenameModal(false)}
               disabled={partialUpdateFileMutation.isPending}
+              color="neutral"
             >
               {t('shared:actions.cancel')}
             </Button>

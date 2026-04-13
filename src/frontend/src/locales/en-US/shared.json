@@ -1,4 +1,8 @@
 {
+  "actions": {
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
   "utils": {
     "formatDateTime": "{{value, formatDateTime}}",
     "duration": "{{duration, formatDuration}}"

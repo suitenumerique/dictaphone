@@ -52,6 +52,8 @@ export function RecordingsPage() {
               <Button
                 onClick={() => navigate('/new-recording?auto-start=true')}
                 className="recordings-actions__record-button"
+                color="error"
+                variant="secondary"
               >
                 <span className="material-icons">radio_button_checked</span> New
                 recording
