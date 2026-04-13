@@ -3,10 +3,13 @@ import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
 import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
+import LogoApp from '@/layout/LogoApp.tsx'
+import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 10
 
 export function RecordingsPage() {
+  const { t } = useTranslation('recordings')
   const filesQ = useListMyFilesInfinite({
     filters: {
       type: 'audio_recording',
@@ -30,6 +33,10 @@ export function RecordingsPage() {
       })}
     >
       <div className="recordings-page">
+        <div className="recordings-page__header">
+          <LogoApp height={60} />
+          <span>{t('subtitle')}</span>
+        </div>
         <ListRecordings
           queryData={filesQ}
           isDropZoneActive={isDropZoneActive}

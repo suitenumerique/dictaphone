@@ -1,7 +1,6 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
 import { Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
-import { Card } from '@/components/Card.tsx'
 import { useLocation } from 'wouter'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
@@ -72,22 +71,15 @@ export function ListRecordings({
   const totalFilesCount = queryData.data?.pages[0]?.count ?? 0
 
   return (
-    <Card
-      title={t(isTrashPage ? 'list.titleTrash' : 'list.title')}
-      action={
-        isTrashPage ? (
-          <span className="recordings-list__trash-info">
-            {t('list.trashInfo')}
-          </span>
-        ) : (
-          <HeaderAction />
-        )
-      }
-      className={clsx({
-        'drop-zone--drag-in-progress-main-area':
-          !isTrashPage && isDropZoneActive,
-      })}
-    >
+    <>
+      <div
+        className={clsx({
+          'drop-zone--drag-in-progress-main-area':
+            !isTrashPage && isDropZoneActive,
+        })}
+      >
+        <HeaderAction />
+      </div>
       {queryData.isPending && !queryData.data && <Spinner />}
       {queryData.error && <div>{t('errorFetching')}</div>}
       {queryData.data && totalFilesCount === 0 && (
@@ -167,6 +159,6 @@ export function ListRecordings({
           )}
         </div>
       )}
-    </Card>
+    </>
   )
 }

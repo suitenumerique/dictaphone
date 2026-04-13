@@ -4,8 +4,7 @@
 $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
 .dictaphone__connected_layout_container {
-  background-color: #ffffff;
-  min-height: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
 

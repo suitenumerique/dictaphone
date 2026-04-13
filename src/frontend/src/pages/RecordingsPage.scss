@@ -3,16 +3,20 @@
 
 $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 
+.drop-zone--drag-in-progress {
+  background-color: var(
+    --c--contextuals--background--semantic--brand--tertiary
+  );
+}
+
 .recordings-page {
+  max-height: 100%;
+  max-width: 455px;
+  margin: 0 auto;
+
   @media (min-width: $tablet) {
     margin-top: 2rem;
     padding: 2rem;
-  }
-
-  .drop-zone--drag-in-progress {
-    background-color: var(
-      --c--contextuals--background--semantic--brand--tertiary
-    );
   }
 
   .drop-zone--drag-in-progress-main-area {
@@ -23,5 +27,14 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
       box-shadow: var(--c--contextuals--border--semantic--brand--primary) 0 0 0
         3px;
     }
+  }
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: var(--c--globals--colors--gray-600);
   }
 }
