@@ -1,5 +1,11 @@
 {
-  "actions": {
-    "cancel": "Cancel"
+  "utils": {
+    "formatDateTime": "{{value, formatDateTime}}",
+    "duration": "{{duration, formatDuration}}"
+  },
+  "dates": {
+    "todayAt": "Today at",
+    "yesterdayAt": "Yesterday at",
+    "at": "at"
   }
 }

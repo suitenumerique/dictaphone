@@ -1,6 +1,6 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
-import ListRecordings from '@/features/recordings/components/ListRecordings.tsx'
+import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
 import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
 

@@ -3,18 +3,11 @@
   "noRecordings": "Vous n'avez pas encore d'enregistrements.",
   "noRecordingsTrash": "Vous n'avez pas encore d'enregistrements dans la corbeille.",
   "notFound": "Enregistrement introuvable.",
-  "duration": "{{duration, formatDuration}}",
   "deleted": "Supprimé",
   "list": {
     "title": "Mes enregistrements",
     "titleTrash": "Corbeille",
     "trashInfo": "Les enregistrements sont supprimés définitivement après 30 jours",
-    "columns": {
-      "title": "Nom",
-      "duration": "Durée",
-      "processes": "Traitements",
-      "actions": "Actions"
-    },
     "ariaLabelTable": "Liste des enregistrements",
     "deleteAriaLabel": "Supprimer l'enregistrement {{title}}",
     "paginationAriaLabel": "Pagination des enregistrements",

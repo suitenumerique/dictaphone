@@ -3,18 +3,11 @@
   "noRecordings": "You don't have any recordings yet.",
   "noRecordingsTrash": "You don't have any recordings in the trash.",
   "notFound": "Recording not found",
-  "duration": "{{duration, formatDuration}}",
   "deleted": "Deleted",
   "list": {
     "title": "My recordings",
     "titleTrash": "Trash",
     "trashInfo": "Files are permanently deleted after 30 days",
-    "columns": {
-      "title": "Title",
-      "duration": "Duration",
-      "processes": "Processes",
-      "actions": "Actions"
-    },
     "ariaLabelTable": "Recordings list",
     "paginationAriaLabel": "Recordings pagination",
     "paginationPreviousAriaLabel": "Go to previous page",

@@ -1,11 +1,52 @@
 .recordings-list {
   display: flex;
   flex-direction: column;
-  gap: var(--c--globals--spacings--base);
+  gap: var(--c--globals--spacings--xs);
 
   &__trash-info {
     font-size: 0.875rem;
     color: var(--c--globals--colors--gray-600);
+  }
+
+  &__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--c--globals--spacings--xxs);
+
+    &__left {
+      display: flex;
+      align-items: center;
+      gap: var(--c--globals--spacings--xs);
+    }
+
+    &__status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 42px;
+      width: 32px;
+    }
+
+    &__info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    &__title {
+      font-size: 14px;
+      line-height: 14px;
+      font-weight: 700;
+    }
+
+    &__metadata {
+      display: flex;
+      gap: 0.25rem;
+      font-size: 12px;
+      line-height: 12px;
+      color: var(--c--globals--colors--gray-600);
+    }
   }
 }
 
@@ -14,57 +55,21 @@
   justify-content: center;
 }
 
-.recordings-list__table {
+.recordings-list {
   width: 100%;
   border-collapse: collapse;
 
-  th,
-  td {
-    text-align: left;
-    padding: var(--c--globals--spacings--xs) var(--c--globals--spacings--2xs);
-    vertical-align: middle;
-  }
+  .clickable {
+    cursor: pointer;
 
-  th:last-child,
-  td:last-child {
-    width: 56px;
-    text-align: right;
+    &:hover {
+      background: var(--c--globals--colors--gray-025);
+    }
   }
 
   .recording-status {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-  }
-
-  tr {
-    &.clickable {
-      cursor: pointer;
-      &:hover {
-        background: var(--c--globals--colors--gray-025);
-      }
-    }
-  }
-
-  &__title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    word-break: break-word;
-  }
-
-  &__title-container {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
-  }
-
-  &__title-extra {
-    font-size: 0.875rem;
-    color: var(--c--globals--colors--gray-600);
-    margin-left: 0.25rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
   }
 }

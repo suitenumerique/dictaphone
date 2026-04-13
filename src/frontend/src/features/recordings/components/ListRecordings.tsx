@@ -1,15 +1,14 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
-import { Badge, Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
+import { Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import { Card } from '@/components/Card.tsx'
 import { useLocation } from 'wouter'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
 import { ApiFileItem } from '@/features/files/api/types.ts'
-import { ComponentProps, useMemo } from 'react'
+import { useMemo } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
-import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import clsx from 'clsx'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 
@@ -32,42 +31,29 @@ function HeaderAction() {
   )
 }
 
-const BADGE_TYPE_BY_STATUS: Record<
-  ApiAiJob['status'],
-  ComponentProps<typeof Badge>['type']
-> = {
-  pending: 'info',
-  success: 'success',
-  failed: 'danger',
-}
-
 function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   const { t } = useTranslation('recordings')
 
-  const { lastAiJobTranscript, lastAiJobSummary } = useMemo(
+  const { lastAiJobTranscript } = useMemo(
     () => getMainAiJobs(recording.ai_jobs),
     [recording.ai_jobs]
   )
 
-  return (
-    <div className="recording-status">
-      <Badge
-        type={BADGE_TYPE_BY_STATUS[lastAiJobTranscript?.status ?? 'pending']}
-      >
-        {t(
-          `transcript.statusPreview.${lastAiJobTranscript?.status ?? 'pending'}`
-        )}
-      </Badge>
-      {lastAiJobSummary !== null && (
-        <Badge type={BADGE_TYPE_BY_STATUS[lastAiJobSummary.status]}>
-          {t(`summary.statusPreview.${lastAiJobSummary.status}`)}
-        </Badge>
-      )}
-    </div>
-  )
+  if (lastAiJobTranscript?.status === 'success') {
+    return <img src="/assets/files/icons/doc.svg" alt="Document logo" />
+  }
+
+  if (lastAiJobTranscript?.status === 'failed') {
+    return (
+      <Tooltip content={t('transcript.status.failed')}>
+        <span aria-hidden="true">⚠️</span>
+      </Tooltip>
+    )
+  }
+  return <Spinner />
 }
 
-export default function ListRecordings({
+export function ListRecordings({
   queryData,
   isDropZoneActive,
   isTrashPage = false,
@@ -77,8 +63,7 @@ export default function ListRecordings({
   isTrashPage?: boolean
 }) {
   const [, navigate] = useLocation()
-  const { t } = useTranslation('recordings')
-  const { isDesktop } = useResponsive()
+  const { t } = useTranslation(['recordings', 'shared'])
 
   const allFiles = useMemo(
     () => queryData.data?.pages.flatMap((page) => page.results) ?? [],
@@ -109,66 +94,62 @@ export default function ListRecordings({
         <div>{t(isTrashPage ? 'noRecordingsTrash' : 'noRecordings')}</div>
       )}
       {allFiles.length > 0 && (
-        <div className="recordings-list">
-          <table
-            className="recordings-list__table"
-            aria-label={t('list.ariaLabelTable')}
-          >
-            <thead className={clsx({ hidden: !isDesktop })}>
-              <tr>
-                <th scope="col">{t('list.columns.title')}</th>
-                <th scope="col">{t('list.columns.duration')}</th>
-                <th scope="col">{t('list.columns.processes')}</th>
-                <th scope="col">{t('list.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allFiles.map((file) => (
-                <tr
-                  className="clickable"
-                  key={file.id}
-                  onClick={() => navigate(`/recordings/${file.id}`)}
-                >
-                  <td className="recordings-list__table__title-container">
-                    <div className="recordings-list__table__title">
-                      <img
-                        src="/assets/files/icons/mime-audio.svg"
-                        alt="Audio logo"
-                      />
-                      {file.title || file.filename}
-                    </div>
-                    {!isDesktop && (
-                      <div className="recordings-list__table__title-extra">
-                        <span>
-                          {t('duration', {
-                            duration: intervalToDuration({
-                              start: 0,
-                              end: file.duration_seconds * 1000,
-                            }),
-                          })}
-                        </span>
-                        <RecordingStatus recording={file} />
-                      </div>
-                    )}
-                  </td>
-                  <td className={clsx({ hidden: !isDesktop })}>
-                    {t('duration', {
-                      duration: intervalToDuration({
-                        start: 0,
-                        end: file.duration_seconds * 1000,
-                      }),
-                    })}
-                  </td>
-                  <td className={clsx({ hidden: !isDesktop })}>
-                    <RecordingStatus recording={file} />
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <FileActionMenu file={file} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div
+          className="recordings-list"
+          role="list"
+          aria-label={t('list.title')}
+        >
+          {allFiles.map((file) => (
+            <div
+              className="recordings-list__item clickable"
+              key={file.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/recordings/${file.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  navigate(`/recordings/${file.id}`)
+                }
+              }}
+              aria-label={t('list.openRecording', {
+                title: file.title || file.filename,
+              })}
+            >
+              <div className="recordings-list__item__left">
+                <div className="recordings-list__item__status">
+                  <RecordingStatus recording={file} />
+                </div>
+                <div className="recordings-list__item__info">
+                  <span className="recordings-list__item__title">
+                    {file.title || file.filename}
+                  </span>
+                  <div className="recordings-list__item__metadata">
+                    <span>
+                      {t('shared:utils.duration', {
+                        duration: intervalToDuration({
+                          start: 0,
+                          end: file.duration_seconds * 1000,
+                        }),
+                      })}
+                    </span>
+                    •
+                    <span>
+                      {t('shared:utils.formatDateTime', {
+                        value: file.created_at,
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <FileActionMenu file={file} />
+              </div>
+            </div>
+          ))}
+
           {queryData.hasNextPage && (
             <div className="recordings-list__footer">
               <Button
