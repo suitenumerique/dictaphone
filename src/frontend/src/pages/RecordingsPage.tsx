@@ -50,7 +50,7 @@ export function RecordingsPage() {
           <div className="recordings-actions">
             <div className="first-row">
               <Button
-                onClick={() => navigate('/new-recording')}
+                onClick={() => navigate('/new-recording?auto-start=true')}
                 className="recordings-actions__record-button"
               >
                 <span className="material-icons">radio_button_checked</span> New

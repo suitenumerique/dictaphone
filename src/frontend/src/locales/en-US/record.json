@@ -9,6 +9,16 @@
   "stopRecording": "Stop",
   "discardRecording": "Discard recording",
   "uploadCta": "Upload",
+  "status": {
+    "recordingInProgress": "Recording in progress",
+    "recordingPaused": "Recording paused"
+  },
+  "confirmStop": {
+    "title": "Stop recording?",
+    "description": "Your recording will be stopped and uploaded.",
+    "cancel": "Continue recording",
+    "confirm": "Stop recording"
+  },
   "warnings": {
     "stayOnPage": "You cannot quit or refresh this page while recording.",
     "keepPhoneAwake": "If you are recording on a phone, keep the screen on to reduce recording interruptions."

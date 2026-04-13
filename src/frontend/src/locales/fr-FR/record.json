@@ -2,13 +2,23 @@
   "title": "Enregistrement audio",
   "consentWarning": "⚠ L'enregistrement nécessite le consentement des participant⋅es.",
   "startRecording": "Démarrer l'enregistrement",
-  "pauseRecording": "Mettre en pause",
+  "pauseRecording": "Pause",
   "resumeRecording": "Reprendre",
   "playRecordedAudio": "Lire l'audio enregistré",
   "pauseRecordedAudio": "Mettre en pause l'audio enregistré",
   "stopRecording": "Arrêter",
   "discardRecording": "Supprimer l'enregistrement",
   "uploadCta": "Transférer",
+  "status": {
+    "recordingInProgress": "Enregistrement en cours",
+    "recordingPaused": "Enregistrement en pause"
+  },
+  "confirmStop": {
+    "title": "Arrêter l'enregistrement ?",
+    "description": "Votre enregistrement sera arrêté et transféré.",
+    "cancel": "Continuer l'enregistrement",
+    "confirm": "Arrêter et transférer"
+  },
   "warnings": {
     "stayOnPage": "Vous ne pouvez pas quitter ou recharger cette page pendant l'enregistrement.",
     "keepPhoneAwake": "Si vous enregistrez sur un téléphone, gardez l'écran allumé pour limiter les interruptions."
