@@ -20,7 +20,6 @@ export function DeletedRecordingsPage() {
       <div className="recordings-page">
         <ListRecordings
           queryData={filesQ}
-          isDropZoneActive={false}
           isTrashPage={true}
         />
       </div>

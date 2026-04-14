@@ -8,6 +8,7 @@ import App from './App.tsx'
 import { CunninghamProvider } from '@gouvfr-lasuite/ui-kit'
 import { useTranslation } from 'react-i18next'
 
+// eslint-disable-next-line react-refresh/only-export-components
 function RootApp() {
   const { i18n } = useTranslation()
   return (

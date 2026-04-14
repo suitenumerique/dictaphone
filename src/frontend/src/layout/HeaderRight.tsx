@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const LANGUAGES = [
   {
     label: 'Français',
