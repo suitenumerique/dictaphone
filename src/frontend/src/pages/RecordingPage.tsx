@@ -14,6 +14,7 @@ import {
   Clock,
   Copy,
   Shared,
+  useResponsive,
 } from '@gouvfr-lasuite/ui-kit'
 import { useTranslation } from 'react-i18next'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
@@ -22,6 +23,7 @@ import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { useOpenInDocsMutation } from '@/features/ai-jobs/api/fetch.ts'
 import { useLocation } from 'wouter'
 import { intervalToDuration } from 'date-fns'
+import { TranscriptViewSegment } from '@/features/ai-jobs/utils/transcript.ts'
 
 function OpenInDocsButton({
   lastAiJobTranscript,
@@ -39,6 +41,7 @@ function OpenInDocsButton({
       })
     }
   }, [lastAiJobTranscript, openInDocs])
+  const { isMobile } = useResponsive()
 
   return (
     <Button
@@ -46,6 +49,7 @@ function OpenInDocsButton({
       size="small"
       variant="primary"
       disabled={lastAiJobTranscript?.status !== 'success'}
+      aria-label={t('transcript.openInDocsCta')}
       icon={
         <img
           src="/assets/files/icons/docs-mono.svg"
@@ -54,20 +58,30 @@ function OpenInDocsButton({
           height={20}
         />
       }
-    >
-      {t('transcript.openInDocsCta')}
-    </Button>
+      children={!isMobile ? t('transcript.openInDocsCta') : undefined}
+    />
   )
 }
 
 export function RecordingPage({ recordingId }: { recordingId: string }) {
-  const { t } = useTranslation('recordings')
+  const { t } = useTranslation(['recordings', 'shared'])
   const [, navigate] = useLocation()
   const playerRef = useRef<AudioPlayerHandle>(null)
   const [currentTime, setCurrentTime] = useState(0)
-  const [numberOfParticipants, setNumberOfParticipants] = useState<
-    null | number
-  >(null)
+  const [transcriptSegments, setTranscriptSegments] = useState<
+    TranscriptViewSegment[]
+  >([])
+
+  const numberOfParticipants = useMemo(() => {
+    if (transcriptSegments.length === 0) {
+      return null
+    } else {
+      const speakers = new Set<string>(
+        transcriptSegments.map((el) => el.speaker).filter(Boolean) as string[]
+      )
+      return speakers.size
+    }
+  }, [transcriptSegments])
 
   const recordingQ = useGetFile(recordingId)
   const { lastAiJobTranscript } = useMemo(
@@ -79,6 +93,7 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
     playerRef.current?.seekTo(seconds)
     setCurrentTime(seconds)
   }, [])
+  const { isMobile } = useResponsive()
 
   if (recordingQ.isPending) {
     return (
@@ -105,6 +120,7 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
       <div className="recording-page">
         <div className="recording-page__actions-buttons">
           <Button
+            aria-label={t('shared:actions.back')}
             variant="bordered"
             icon={<ArrowLeft />}
             size="small"
@@ -114,14 +130,14 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
           </Button>
           <div className="recording-page__actions-buttons__right">
             <Button
+              aria-label={t('shared:actions.copy')}
               size="small"
               variant="tertiary"
               color="neutral"
               icon={<Copy />}
               disabled={lastAiJobTranscript?.status !== 'success'}
-            >
-              {t('shared:actions.copy')}
-            </Button>
+              children={!isMobile ? t('shared:actions.copy') : undefined}
+            />
             <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
             <FileActionMenu file={recording} />
           </div>
@@ -180,7 +196,7 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
           lastAiJobTranscript={lastAiJobTranscript}
           seekTo={seekTo}
           currentTime={currentTime}
-          setNumberParticipant={setNumberOfParticipants}
+          setTranscriptSegments={setTranscriptSegments}
         />
       </div>
     </ConnectedLayout>

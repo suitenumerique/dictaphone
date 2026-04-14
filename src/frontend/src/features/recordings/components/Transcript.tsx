@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   buildTranscriptViewSegments,
   findActiveSegmentIndex,
+  TranscriptViewSegment,
 } from '@/features/ai-jobs/utils/transcript.ts'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { TranscriptSegment } from '@/features/recordings/components/TranscriptSegment.tsx'
@@ -12,12 +13,12 @@ export function Transcript({
   lastAiJobTranscript,
   currentTime,
   seekTo,
-  setNumberParticipant,
+  setTranscriptSegments,
 }: {
   lastAiJobTranscript: ApiAiJob | null
   currentTime: number
   seekTo: (time: number) => void
-  setNumberParticipant: (number: number | null) => void
+  setTranscriptSegments: (segments: TranscriptViewSegment[]) => void
 }) {
   const { t } = useTranslation('recordings')
   const transcriptContainerRef = useRef<HTMLDivElement>(null)
@@ -40,20 +41,9 @@ export function Transcript({
     () => buildTranscriptViewSegments(transcriptQ.data),
     [transcriptQ.data]
   )
-  const numberOfParticipant = useMemo(() => {
-    if (transcriptSegments.length === 0) {
-      return null
-    } else {
-      const speakers = new Set<string>(
-        ...transcriptSegments.map((el) => el.speaker).filter(Boolean)
-      )
-      return speakers.size
-    }
-  }, [transcriptSegments])
-
   useEffect(() => {
-    setNumberParticipant(numberOfParticipant)
-  }, [numberOfParticipant, setNumberParticipant])
+    setTranscriptSegments(transcriptSegments)
+  }, [transcriptSegments, setTranscriptSegments])
 
   const activeSegmentIndex = useMemo(
     () => findActiveSegmentIndex(transcriptSegments, currentTime),

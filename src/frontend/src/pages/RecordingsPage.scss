@@ -2,6 +2,7 @@
 @use '../styles/cunningham-tokens-sass' as *;
 
 $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
 .drop-zone--drag-in-progress {
   background-color: var(
@@ -13,6 +14,8 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   max-height: 100%;
   max-width: 455px;
   margin: 0 auto;
+
+  padding: 0.5rem;
 
   @media (min-width: $tablet) {
     margin-top: 2rem;
@@ -36,6 +39,10 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     margin-bottom: 2rem;
     text-align: center;
     color: var(--c--globals--colors--gray-600);
+
+    @media (max-width: $mobile) {
+      display: none;
+    }
   }
 
   .recordings-actions {

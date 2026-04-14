@@ -2,20 +2,25 @@
 @use '../styles/cunningham-tokens-sass' as *;
 
 $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
 
 .dictaphone__connected_layout_container {
-  height: 100%;
   display: flex;
   justify-content: center;
-
-  @media (max-width: $tablet) {
-    padding: 0;
-  }
+  padding-bottom: 2rem;
 
   .dictaphone__connected_layout_content {
     width: 100%;
     max-width: 1200px;
     padding-top: 8rem;
+
+    @media (max-width: $tablet) {
+      padding-top: 2rem;
+    }
+
+    @media (max-width: $mobile) {
+      padding-top: 1rem;
+    }
   }
 }
 

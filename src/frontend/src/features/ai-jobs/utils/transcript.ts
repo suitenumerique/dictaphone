@@ -27,6 +27,18 @@ export function buildTranscriptViewSegments(
 ): TranscriptViewSegment[] {
   if (!transcript) return []
 
+  // We need to fix the speaker from WhisperX
+  const speakerMapped = new Map<string, string>()
+  const getSpeaker = (speaker: string | null): string | null => {
+    if (!speaker) return null
+
+    if (!speakerMapped.has(speaker)) {
+      speakerMapped.set(speaker, String(speakerMapped.size + 1))
+    }
+
+    return speakerMapped.get(speaker)!
+  }
+
   if (transcript.segments.length > 0) {
     return transcript.segments.map((segment, index) => {
       const words =
@@ -34,7 +46,7 @@ export function buildTranscriptViewSegments(
           text: word.word,
           start: word.start,
           end: word.end,
-          speaker: word.speaker,
+          speaker: getSpeaker(word.speaker),
         })) ?? []
 
       return {
@@ -42,7 +54,7 @@ export function buildTranscriptViewSegments(
         text: segment.text,
         start: segment.start,
         end: segment.end,
-        speaker: segment.speaker,
+        speaker: getSpeaker(segment.speaker),
         words,
       }
     })

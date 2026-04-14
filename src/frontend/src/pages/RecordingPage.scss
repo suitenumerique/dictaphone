@@ -2,12 +2,12 @@
 @use '../styles/cunningham-tokens-sass' as *;
 
 $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
 .recording-page {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 4rem;
+  gap: 16px;
   padding-left: 1rem;
   padding-right: 1rem;
 
@@ -35,7 +35,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   }
 
   &__title {
-    margin-top: 2rem;
+    margin-top: 1.5rem;
     font-size: 18px;
     line-height: 24px;
   }
@@ -48,6 +48,13 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     background: white; // border color between cells
     border-radius: var(--c--globals--spacings--xxxs);
     overflow: hidden;
+
+    @media (max-width: $mobile) {
+      tr {
+        display: flex;
+        flex-direction: column;
+      }
+    }
 
     &__item {
       background: #f3f4f6;

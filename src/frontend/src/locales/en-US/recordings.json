@@ -50,7 +50,7 @@
   },
   "transcript": {
     "title": "Transcript",
-    "openInDocsCta": "Ouvrir dans Docs",
+    "openInDocsCta": "Open in Docs",
     "status": {
       "pending": "Transcript is still being generated.",
       "failed": "Transcript generation failed.",
@@ -60,7 +60,8 @@
       "pending": "Pending transcript",
       "failed": "Transcript error",
       "success": "Transcript"
-    }
+    },
+    "speaker": "Speaker"
   },
   "summary": {
     "title": "Summary (beta)",

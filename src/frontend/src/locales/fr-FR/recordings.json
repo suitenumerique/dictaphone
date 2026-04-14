@@ -61,7 +61,8 @@
       "pending": "Transcription en cours",
       "failed": "Erreur de transcription",
       "success": "Transcrit"
-    }
+    },
+    "speaker": "Participant(e)"
   },
   "summary": {
     "title": "Résumé (beta)",

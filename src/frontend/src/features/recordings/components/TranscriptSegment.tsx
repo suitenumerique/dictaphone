@@ -2,22 +2,7 @@ import {
   formatTimestamp,
   TranscriptViewSegment,
 } from '@/features/ai-jobs/utils/transcript.ts'
-
-function RenderSpeaker({ speaker }: { speaker: string | null }) {
-  if (!speaker) return null
-  if (speaker.match(/^SPEAKER_\d+$/)) {
-    const speakerNumber = speaker.replace('SPEAKER_', '').replace('0', '')
-    return (
-      <div className="transcript__speaker">
-        <span className="material-icons" aria-hidden="true">
-          campaign
-        </span>
-        {speakerNumber}
-      </div>
-    )
-  }
-  return <span className="transcript__speaker">{speaker}</span>
-}
+import { useTranslation } from 'react-i18next'
 
 export function TranscriptSegment({
   segment,
@@ -32,6 +17,7 @@ export function TranscriptSegment({
   seekTo: (seconds: number) => void
   setSegmentRef: (id: string, element: HTMLButtonElement | null) => void
 }) {
+  const { t } = useTranslation('recordings')
   return (
     <button
       key={segment.id}
@@ -54,14 +40,18 @@ export function TranscriptSegment({
       }}
       ref={(element) => setSegmentRef(segment.id, element)}
     >
-      <span className="transcript__segment-time">
-        {formatTimestamp(segment.start ?? -1)}
-      </span>
-      <span className="transcript__segment-content">
-        <RenderSpeaker speaker={segment.speaker} />
-        {segment.words.length > 0 ? (
-          <span className="transcript__segment-text">
-            {segment.words.map((word, wordIndex) => (
+      <span className="transcript__segment-text">
+        <span className="transcript__intro">
+          {formatTimestamp(segment.start ?? -1)}
+        </span>
+        {segment.speaker && (
+          <span className={'transcript__intro'}>
+            &nbsp;{`· ${t('transcript.speaker')} ${segment.speaker}`}
+          </span>
+        )}
+        <span className="transcript__intro__spacer" />
+        {segment.words.length > 0
+          ? segment.words.map((word, wordIndex) => (
               <span
                 key={`${segment.id}-${wordIndex}-${word.start}`}
                 className="transcript__word"
@@ -70,11 +60,8 @@ export function TranscriptSegment({
               >
                 {word.text}
               </span>
-            ))}
-          </span>
-        ) : (
-          <span className="transcript__segment-text">{segment.text}</span>
-        )}
+            ))
+          : segment.text}
       </span>
     </button>
   )
