@@ -16,7 +16,7 @@ FROM frontend-deps AS dictaphone-builder
 
 WORKDIR /home/frontend
 
-ENV VITE_APP_TITLE="Assitant Transcripts"
+ENV VITE_APP_TITLE="Assistant Transcripts"
 ENV VITE_BUILD_SOURCEMAP="true"
 
 RUN npm run build
@@ -25,18 +25,6 @@ RUN npm run build
 # This metadata is essential for correctly mapping errors to source maps in production
 RUN set -e && \
     npx @posthog/cli@0.4.8 sourcemap inject --directory ./dist/assets
-
-COPY ./docker/dinum-frontend/dinum-styles.css \
-    ./dist/assets/
-
-COPY ./docker/dinum-frontend/logo.svg \
-    ./dist/assets/logo.svg
-
-COPY ./docker/dinum-frontend/assets/ \
-    ./dist/assets/
-
-COPY ./docker/dinum-frontend/fonts/ \
-    ./dist/assets/fonts/
 
 # ---- Front-end image ----
 FROM nginxinc/nginx-unprivileged:alpine3.21 AS frontend-production

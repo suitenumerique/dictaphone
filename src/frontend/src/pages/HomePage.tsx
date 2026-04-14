@@ -97,7 +97,7 @@ export function HomePage() {
             alt="Logo LaSuite Assistant"
             src="/assets/logo-lasuite-assistant.svg"
           />
-          <p>{t('introLasuiteAssitant')}</p>
+          <p>{t('introLasuiteAssistant')}</p>
           <div className="home-page__showcase-assistant__buttons">
             <Button
               variant="bordered"

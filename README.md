@@ -39,7 +39,7 @@ We <3 contributions of any kind, big and small:
 
 We’re relentlessly focused on building the best open-source transcript product—L'Assistant Transcript. Growth comes from creating something people truly need, not just from chasing metrics.
 
-Our users come first. We’re committed to making L'Assitant Transcript as accessible and easy to use as proprietary solutions, ensuring it meets the highest standards.
+Our users come first. We’re committed to making L'Assistant Transcript as accessible and easy to use as proprietary solutions, ensuring it meets the highest standards.
 
 We follow extreme programming practices, favoring pair programming and quick, iterative releases. Challenge our tech and architecture—simplicity is always our top priority.
 

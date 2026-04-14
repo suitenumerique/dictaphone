@@ -12,7 +12,7 @@ PYTHONPATH=/app
 # Mail
 DJANGO_EMAIL_HOST="mailcatcher"
 DJANGO_EMAIL_PORT=1025
-DJANGO_EMAIL_BRAND_NAME=L'Assitant Transcripts
+DJANGO_EMAIL_BRAND_NAME=L'Assistant Transcripts
 DJANGO_EMAIL_SUPPORT_EMAIL=test@yopmail.com
 DJANGO_EMAIL_LOGO_IMG=http://localhost:3000/assets/logo-suite-numerique.png
 DJANGO_EMAIL_DOMAIN=localhost:3000

@@ -144,7 +144,7 @@ services:
       target: frontend-production
       args:
         VITE_API_BASE_URL: "http://localhost:8071"
-        VITE_APP_TITLE: "Assitant Transcripts"
+        VITE_APP_TITLE: "Assistant Transcripts"
     image: dictaphone:frontend-development
     ports:
       - "3000:8080"
