@@ -172,8 +172,9 @@ export function FileActionMenu({
       >
         {largeTrigger ? (
           <Button
-            size="nano"
+            size="medium"
             variant="secondary"
+            color="neutral"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="more_actions"
             icon={<span className="material-icons more">more_horiz</span>}
@@ -198,6 +199,7 @@ export function FileActionMenu({
         closeOnEsc={!deleteFileMutation.isPending}
         closeOnClickOutside={!deleteFileMutation.isPending}
         title={t('actions.deleteModal.title')}
+        hideCloseButton={true}
         rightActions={
           <>
             <Button

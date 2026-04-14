@@ -1,13 +1,18 @@
 {
   "actions": {
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "back": "Back",
+    "copy": "Copy"
   },
   "utils": {
+    "formatDate": "{{value, formatDate}}",
     "formatDateTime": "{{value, formatDateTime}}",
     "duration": "{{duration, formatDuration}}"
   },
   "dates": {
+    "today": "Today",
+    "yesterday": "Yesterday",
     "todayAt": "Today at",
     "yesterdayAt": "Yesterday at",
     "at": "at"

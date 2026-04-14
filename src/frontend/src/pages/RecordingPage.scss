@@ -12,15 +12,6 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   padding-right: 1rem;
 
   @media (max-width: $tablet) {
-    padding-left: 0;
-    padding-right: 0;
-
-    flex-direction: column-reverse;
-    justify-content: space-between;
-    margin-bottom: unset;
-    overflow: hidden;
-    height: calc(100dvh - 58px);
-    min-height: 0;
   }
 
   &__not-found {
@@ -30,88 +21,51 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
     margin-top: 4rem;
     height: 100%;
   }
-}
 
-.recording-page__content {
-  display: grid;
-  margin-left: 1rem;
-  margin-right: 1rem;
-}
-
-.recording-page__card {
-  background: #ffffff;
-  padding: 1rem;
-  border-radius: 0.25rem;
-
-  @media (min-width: $tablet) {
-    border: 1px solid var(--c--contextuals--border--surface--primary);
-
+  &__actions-buttons {
     display: flex;
-    flex-direction: column;
-    height: fit-content;
-  }
+    align-items: center;
+    justify-content: space-between;
 
-  @media (max-width: $tablet) {
-    flex: 1;
-    min-height: 0;
-
-    .recording-page__panel-header {
-      justify-content: start;
-      h2 {
-        display: none;
-      }
-    }
-
-    .c__tabs {
-      height: 100%;
-
-      .react-aria-Tabs {
-        width: 100%;
-      }
-
-      .react-aria-TabPanel {
-        flex: 1;
-      }
+    &__right {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
     }
   }
-}
 
-.react-aria-TabPanel {
-  min-height: 0;
-  overflow-y: auto;
-  width: 100%;
-}
-
-.recording-page__player {
-  padding: 1rem;
-
-  @media (min-width: $tablet) {
-    position: sticky;
-    top: 0;
-    padding-top: 2rem;
+  &__title {
+    margin-top: 2rem;
+    font-size: 18px;
+    line-height: 24px;
   }
-}
 
-.recording-page__panel-header {
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  &__metadata {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border-spacing: 1px;
+    background: white; // border color between cells
+    border-radius: var(--c--globals--spacings--xxxs);
+    overflow: hidden;
 
-  h2 {
-    margin: 0;
-    font-size: 1rem;
-    color: var(--c--contextuals--content--surface--primary);
+    &__item {
+      background: #f3f4f6;
+      padding: 4px;
+      white-space: nowrap;
+      text-align: center;
+      color: #4b5563;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      line-height: 100%;
+      font-size: 12px;
+
+      &__icon {
+        width: 16px;
+        height: 16px;
+      }
+    }
   }
-}
-
-.recording-page__state {
-  color: var(--c--contextuals--content--surface--secondary);
-  font-size: 0.95rem;
-}
-
-.recording-page__summary {
-  color: var(--c--contextuals--content--surface--primary);
-  line-height: 1.6;
-  white-space: pre-wrap;
 }

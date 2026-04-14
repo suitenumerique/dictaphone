@@ -15,6 +15,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
   .dictaphone__connected_layout_content {
     width: 100%;
     max-width: 1200px;
+    padding-top: 8rem;
   }
 }
 

@@ -1,7 +1,4 @@
-import {
-  useOpenInDocsMutation,
-  useTranscript,
-} from '@/features/ai-jobs/api/fetch.ts'
+import { useTranscript } from '@/features/ai-jobs/api/fetch.ts'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   buildTranscriptViewSegments,
@@ -10,46 +7,17 @@ import {
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { TranscriptSegment } from '@/features/recordings/components/TranscriptSegment.tsx'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
-
-function OpenInDocsButton({
-  lastAiJobTranscript,
-}: {
-  lastAiJobTranscript: ApiAiJob | null
-}) {
-  const { t } = useTranslation('recordings')
-  const openInDocs = useOpenInDocsMutation()
-  const handleOpenInDocs = useCallback(() => {
-    if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
-      openInDocs.mutate(lastAiJobTranscript, {
-        onSuccess: (res) => {
-          window.open(res.doc_url, '_blank')
-        },
-      })
-    }
-  }, [lastAiJobTranscript, openInDocs])
-
-  return (
-    <Button
-      onClick={handleOpenInDocs}
-      size="small"
-      variant="bordered"
-      disabled={lastAiJobTranscript?.status !== 'success'}
-      icon={<span className="material-icons">open_in_new</span>}
-    >
-      {t('transcript.openInDocsCta')}
-    </Button>
-  )
-}
 
 export function Transcript({
   lastAiJobTranscript,
   currentTime,
   seekTo,
+  setNumberParticipant,
 }: {
   lastAiJobTranscript: ApiAiJob | null
   currentTime: number
   seekTo: (time: number) => void
+  setNumberParticipant: (number: number | null) => void
 }) {
   const { t } = useTranslation('recordings')
   const transcriptContainerRef = useRef<HTMLDivElement>(null)
@@ -72,6 +40,21 @@ export function Transcript({
     () => buildTranscriptViewSegments(transcriptQ.data),
     [transcriptQ.data]
   )
+  const numberOfParticipant = useMemo(() => {
+    if (transcriptSegments.length === 0) {
+      return null
+    } else {
+      const speakers = new Set<string>(
+        ...transcriptSegments.map((el) => el.speaker).filter(Boolean)
+      )
+      return speakers.size
+    }
+  }, [transcriptSegments])
+
+  useEffect(() => {
+    setNumberParticipant(numberOfParticipant)
+  }, [numberOfParticipant, setNumberParticipant])
+
   const activeSegmentIndex = useMemo(
     () => findActiveSegmentIndex(transcriptSegments, currentTime),
     [transcriptSegments, currentTime]
@@ -107,13 +90,6 @@ export function Transcript({
 
   return (
     <section className="recording-page__panel recording-page__panel--transcript">
-      <header className="recording-page__panel-header">
-        <h2> {t('transcript.title')}</h2>
-        {lastAiJobTranscript?.status === 'success' && (
-          <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
-        )}
-      </header>
-
       {lastAiJobTranscript?.status === 'failed' && (
         <div className="recording-page__state">
           {t('transcript.status.failed')}
