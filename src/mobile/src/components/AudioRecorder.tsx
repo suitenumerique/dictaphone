@@ -23,6 +23,8 @@ import {
   RecordingNotificationManager,
 } from 'react-native-audio-api';
 import { formatDuration } from '@/features/recordings/utils/formatDuration';
+// @ts-ignore
+import RecordIcon from '@/assets/icons/record.svg';
 
 type RecordingResult = {
   createdAt: string;
@@ -227,6 +229,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     };
   }, [onPauseRecord, onResumeRecord]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onClearRecord = useCallback(async () => {
     setIsLoading(true);
     Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
@@ -266,7 +269,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Lucide name="circle-dot" size={30} color="#D62839" />
+              <RecordIcon width={24} height={24}/>
               <Text style={styles.startRecordingButtonText}>
                 {t('home.newRecording')}
               </Text>
@@ -352,9 +355,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   startRecordingButton: {
-    backgroundColor: '#F8D9DA',
-    borderRadius: 10,
-    minHeight: 56,
+    backgroundColor: '#FFDAD7',
+    borderRadius: 4,
+    minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -362,18 +365,20 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   startRecordingButtonText: {
-    color: '#D62839',
-    fontSize: 28,
+    color: '#BD0F23',
+    fontSize: 16,
     fontWeight: '700',
+    fontFamily: "Marianne",
   },
   consentRow: {
     gap: 12,
   },
   consentText: {
     flexShrink: 1,
-    fontSize: 16,
+    fontSize: 12,
+    fontFamily: "Marianne",
     fontWeight: '500',
-    color: '#667085',
+    color: '#626A80',
     textAlign: 'center',
   },
   activeContainer: {

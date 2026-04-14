@@ -1,0 +1,53 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Marianne-Bold.ttf",
+      "sha1": "ce6337da70fe939ed7c4a93a7490303ef73f9823"
+    },
+    {
+      "path": "assets/fonts/Marianne-BoldItalic.ttf",
+      "sha1": "c1b3a38ab0d0db45b53b22c4ad088a3a06cec4b5"
+    },
+    {
+      "path": "assets/fonts/Marianne-ExtraBold.ttf",
+      "sha1": "7f9e3171b70a24be03163fdbf3c8d40e4e576f40"
+    },
+    {
+      "path": "assets/fonts/Marianne-ExtraBoldItalic.ttf",
+      "sha1": "c3f240a5d5b574e088b775bb37ba03c1d05368e3"
+    },
+    {
+      "path": "assets/fonts/Marianne-Light.ttf",
+      "sha1": "ce88b9822b83a21d5e3e20b51d328d8c7c8411b3"
+    },
+    {
+      "path": "assets/fonts/Marianne-LightItalic.ttf",
+      "sha1": "22779c91adea7eedf20664a5886caa7c95967c0f"
+    },
+    {
+      "path": "assets/fonts/Marianne-Medium.ttf",
+      "sha1": "a18295627548dc285ba52165c09cd143b24cd8a8"
+    },
+    {
+      "path": "assets/fonts/Marianne-MediumItalic.ttf",
+      "sha1": "1493f700d7e8ce6752c79d8cbaf0b2b34a88b1c3"
+    },
+    {
+      "path": "assets/fonts/Marianne-Regular.ttf",
+      "sha1": "c13c34fa0d826a175881946a8ac5e98ad40fc24a"
+    },
+    {
+      "path": "assets/fonts/Marianne-RegularItalic.ttf",
+      "sha1": "cceefbf6f9accc01963a745e1311b50326512305"
+    },
+    {
+      "path": "assets/fonts/Marianne-Thin.ttf",
+      "sha1": "6041fdd4531c984985b8366efd0dc0dda95185e9"
+    },
+    {
+      "path": "assets/fonts/Marianne-ThinItalic.ttf",
+      "sha1": "4ae8e75a7dbe55931c28f90924f1508a1abbd32f"
+    }
+  ]
+}

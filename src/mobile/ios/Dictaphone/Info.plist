@@ -43,7 +43,7 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Give $(PRODUCT_NAME) permission to use your microphone. Your record wont be shared without your permission.</string>
 	<key>RCTNewArchEnabled</key>
@@ -74,6 +74,18 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>Lucide.ttf</string>
+		<string>Marianne-Bold.ttf</string>
+		<string>Marianne-BoldItalic.ttf</string>
+		<string>Marianne-ExtraBold.ttf</string>
+		<string>Marianne-ExtraBoldItalic.ttf</string>
+		<string>Marianne-Light.ttf</string>
+		<string>Marianne-LightItalic.ttf</string>
+		<string>Marianne-Medium.ttf</string>
+		<string>Marianne-MediumItalic.ttf</string>
+		<string>Marianne-Regular.ttf</string>
+		<string>Marianne-RegularItalic.ttf</string>
+		<string>Marianne-Thin.ttf</string>
+		<string>Marianne-ThinItalic.ttf</string>
 	</array>
 </dict>
 </plist>
