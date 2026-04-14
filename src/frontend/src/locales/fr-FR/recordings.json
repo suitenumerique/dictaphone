@@ -52,6 +52,8 @@
   "transcript": {
     "title": "Transcription",
     "openInDocsCta": "Ouvrir dans Docs",
+    "copySuccess": "Transcript copié dans le presse-papiers",
+    "copyError": "Échec de la copie du transcript dans le presse-papiers",
     "status": {
       "pending": "La transcription en cours de génération.",
       "failed": "Échec de la génération de la transcription.",

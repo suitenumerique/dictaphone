@@ -23,7 +23,14 @@ import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { useOpenInDocsMutation } from '@/features/ai-jobs/api/fetch.ts'
 import { useLocation } from 'wouter'
 import { intervalToDuration } from 'date-fns'
-import { TranscriptViewSegment } from '@/features/ai-jobs/utils/transcript.ts'
+import {
+  formatTimestamp,
+  TranscriptViewSegment,
+} from '@/features/ai-jobs/utils/transcript.ts'
+import {
+  addToast,
+  ToasterItem,
+} from '@/features/ui/components/toaster/Toaster.tsx'
 
 function OpenInDocsButton({
   lastAiJobTranscript,
@@ -84,6 +91,8 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
   }, [transcriptSegments])
 
   const recordingQ = useGetFile(recordingId)
+  const recording = recordingQ.data
+
   const { lastAiJobTranscript } = useMemo(
     () => getMainAiJobs(recordingQ.data?.ai_jobs),
     [recordingQ.data?.ai_jobs]
@@ -95,6 +104,31 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
   }, [])
   const { isMobile } = useResponsive()
 
+  const transcriptMarkdown = useMemo(() => {
+    if (transcriptSegments.length === 0) {
+      return null
+    }
+    let out = `# ${recording!.title}\n\n`
+    transcriptSegments.forEach((segment) => {
+      out += `**${formatTimestamp(segment.start ?? -1)} · ${t('transcript.speaker')} ${segment.speaker}** ${segment.text} \n\n`
+    })
+    return out
+  }, [recording, transcriptSegments, t])
+  const handleCopy = useCallback(() => {
+    navigator.clipboard
+      .writeText(transcriptMarkdown!)
+      .then(() => {
+        addToast(
+          <ToasterItem type="info">{t('transcript.copySuccess')}</ToasterItem>
+        )
+      })
+      .catch(() => {
+        addToast(
+          <ToasterItem type="error">{t('transcript.copyError')}</ToasterItem>
+        )
+      })
+  }, [t, transcriptMarkdown])
+
   if (recordingQ.isPending) {
     return (
       <ConnectedLayout>
@@ -103,7 +137,7 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
     )
   }
 
-  if (!recordingQ.data || recordingQ.data.deleted_at !== null) {
+  if (!recording || recording.deleted_at !== null) {
     return (
       <ConnectedLayout>
         <div className="recording-page__not-found">
@@ -114,7 +148,6 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
     )
   }
 
-  const recording = recordingQ.data
   return (
     <ConnectedLayout>
       <div className="recording-page">
@@ -135,8 +168,11 @@ export function RecordingPage({ recordingId }: { recordingId: string }) {
               variant="tertiary"
               color="neutral"
               icon={<Copy />}
-              disabled={lastAiJobTranscript?.status !== 'success'}
+              disabled={
+                lastAiJobTranscript?.status !== 'success' || !transcriptMarkdown
+              }
               children={!isMobile ? t('shared:actions.copy') : undefined}
+              onClick={handleCopy}
             />
             <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
             <FileActionMenu file={recording} />

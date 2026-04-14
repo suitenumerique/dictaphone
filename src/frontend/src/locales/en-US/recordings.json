@@ -51,6 +51,8 @@
   "transcript": {
     "title": "Transcript",
     "openInDocsCta": "Open in Docs",
+    "copySuccess": "Transcript copied to clipboard",
+    "copyError": "Failed to copy transcript to clipboard",
     "status": {
       "pending": "Transcript is still being generated.",
       "failed": "Transcript generation failed.",
