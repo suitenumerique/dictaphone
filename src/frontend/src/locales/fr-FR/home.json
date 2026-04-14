@@ -1,5 +1,9 @@
 {
-  "title": "Transcription facile",
-  "subtitle": "Enregistrez vos idées, rencontres et réunions, transcrivez-les automatiquement",
-  "login": "Se connecter"
+  "title": "Vos réunions, transcrites automatiquement.",
+  "subtitle": "Transcripts enregistre vos réunions en présentiel et génère automatiquement un compte-rendu structuré dans Docs, avec transcription IA.",
+  "login": "Se connecter",
+  "license": "Sauf mention contraire, tous les contenus de ce site sont sous",
+  "introLasuiteAssitant": "Transcripts fait partie de LaSuite Assistant, l’application d'intelligence artificielle de LaSuite.",
+  "discoverAssistant": "Découvrir l'Assistant IA",
+  "discoverLaSuite": "Découvrir LaSuite"
 }

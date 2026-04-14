@@ -1,5 +1,9 @@
 {
-  "title": "Easy transcription",
-  "subtitle": "Record your ideas, meetings and conferences, transcribe them automatically",
-  "login": "Log in"
+  "title": "Your meetings, automatically transcribed.",
+  "subtitle": "Transcripts records your in-person meetings and automatically generates a structured report in Docs, with AI transcription.",
+  "login": "Log in",
+  "license": "Unless otherwise stated, all content on this site is under",
+  "introLasuiteAssitant": "Transcripts is part of LaSuite Assistant, the AI app of LaSuite.",
+  "discoverAssistant": "Discover AI Assistant",
+  "discoverLaSuite": "Discover LaSuite"
 }

@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth'
 
-const LANGUAGES = [
+export const LANGUAGES = [
   {
     label: 'Français',
     value: 'fr-fr',
