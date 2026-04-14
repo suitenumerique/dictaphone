@@ -102,7 +102,7 @@ To learn more about React Native, take a look at the following resources:
 ## To generate assets
 
 ```bash
-yarn react-native-bootsplash generate src/assets/logo.svg \ 
+yarn react-native-bootsplash generate src/assets/logo.svg \
   --platforms=android,ios \
   --background=F5FCFF \
   --logo-width=100 \
