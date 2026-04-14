@@ -56,6 +56,9 @@ i18n
         style: 'narrow',
       }).format(value)
     })
+    i18n.services.formatter!.add('formatDateTimeStatic', (value, _lng, options) => {
+      return format(value, options?.formatStr ?? 'Pp')
+    })
     i18n.services.formatter!.add('formatDateTime', (value, lng, options) => {
       if (isToday(value)) {
         return `${i18n.t('shared:dates.todayAt')} ${format(value, 'p')}`

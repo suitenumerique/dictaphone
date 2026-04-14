@@ -8,6 +8,7 @@
   "utils": {
     "formatDate": "{{value, formatDate}}",
     "formatDateTime": "{{value, formatDateTime}}",
+    "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
     "duration": "{{duration, formatDuration}}"
   },
   "dates": {

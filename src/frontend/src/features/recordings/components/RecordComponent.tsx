@@ -73,6 +73,7 @@ export default function RecordComponent() {
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
+  const recordingRealStartDateRef = useRef<Date | null>(null)
   const recordingStartedAtRef = useRef<number | null>(null)
   const accumulatedDurationMsRef = useRef(0)
   const recordingFailedRef = useRef(false)
@@ -148,6 +149,7 @@ export default function RecordComponent() {
     }
 
     setRecorderState('starting')
+    recordingRealStartDateRef.current = new Date()
     recordedBlobRef.current = null
     setRecordedMimeType(preferredMimeType)
     chunksRef.current = []
@@ -244,10 +246,9 @@ export default function RecordComponent() {
     }
 
     const extension = getExtensionForMimeType(recordedMimeType)
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const recordedFile = new File(
       [blob],
-      `recording-${timestamp}.${extension}`,
+      `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: recordingRealStartDateRef.current! })}.${extension}`,
       { type: recordedMimeType }
     )
 
