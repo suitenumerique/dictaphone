@@ -18,10 +18,7 @@ export function DeletedRecordingsPage() {
   return (
     <ConnectedLayout>
       <div className="recordings-page">
-        <ListRecordings
-          queryData={filesQ}
-          isTrashPage={true}
-        />
+        <ListRecordings queryData={filesQ} isTrashPage={true} />
       </div>
     </ConnectedLayout>
   )

@@ -29,7 +29,8 @@ export const LanguagePickerSyncedBackend = () => {
   const languages = useMemo(() => {
     return LANGUAGES.map((language) => ({
       ...language,
-      isChecked: language.value === selectedLanguage,
+      isChecked:
+        language.value.toLowerCase() === selectedLanguage.toLowerCase(),
     }))
   }, [selectedLanguage])
 

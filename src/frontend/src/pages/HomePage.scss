@@ -166,7 +166,6 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
       @media (max-width: $tablet) {
         height: 66px;
       }
-
     }
 
     p {
@@ -185,7 +184,6 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
         flex-direction: column;
         align-items: center;
       }
-
     }
   }
 

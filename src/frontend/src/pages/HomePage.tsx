@@ -11,10 +11,12 @@ export function HomePage() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>(
     i18n.language
   )
+
   const languages = useMemo(() => {
     return LANGUAGES.map((language) => ({
       ...language,
-      isChecked: language.value === selectedLanguage,
+      isChecked:
+        language.value.toLowerCase() === selectedLanguage.toLowerCase(),
     }))
   }, [selectedLanguage])
   const onChange = useCallback(
