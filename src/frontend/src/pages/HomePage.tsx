@@ -36,6 +36,7 @@ export function HomePage() {
           <div className="home-page__header__left">
             <img alt="Logo gouvernement" src="/assets/gouv-logo.svg" />
             <img
+              className="home-page__header__app-logo"
               alt="L'assistant transcript logo"
               src="/assets/logo-single-line.svg"
             />
@@ -65,6 +66,11 @@ export function HomePage() {
         </div>
 
         <section className="home-page__content">
+          <img
+            className="home-page__app-logo"
+            alt="L'assistant transcript logo"
+            src="/assets/logo-single-line.svg"
+          />
           <div className="home-page__hero">
             <div className="home-page__hero__intro">
               <h1>{t('title')}</h1>
