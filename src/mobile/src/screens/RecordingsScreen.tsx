@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { LocalRecording } from '@/types/localRecording';
-import { SafeAreaView } from 'react-native-screens/experimental';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useNetInfo } from '@react-native-community/netinfo';
@@ -20,8 +19,6 @@ import FileDisabledIcon from '@/assets/icons/file-disabled.svg'; // @ts-expect-e
 import FileIcon from '@/assets/icons/file.svg'; // @ts-expect-error
 import WarningIcon from '@/assets/icons/warning.svg'; // @ts-expect-error
 import PauseIcon from '@/assets/icons/pause.svg';
-
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/features/auth/api/useUser';
 import { LoginButton } from '@/features/auth/LoginButton';
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles';
@@ -33,6 +30,7 @@ import { keys } from '@/api/queryKeys';
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
 import { intervalToDuration } from 'date-fns';
 import MainMenu from '@/components/MainMenu';
+import { useInsets } from '@/utils/useInsets';
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
@@ -134,7 +132,7 @@ export default function RecordingsScreen() {
   const netInfo = useNetInfo();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const safeAreaInsets = useSafeAreaInsets();
+  const insets = useInsets();
   const { recordings, isUploading } = useLocalRecordings();
   const { isLoggedIn, isLoading } = useUser();
   const filesQ = useListMyFilesInfinite({
@@ -188,13 +186,7 @@ export default function RecordingsScreen() {
         return;
       }
       navigation.navigate('RecordingDetails', {
-        recording: {
-          id: item.id,
-          title: item.title,
-          createdAt: item.created_at,
-          durationSeconds: item.duration_seconds,
-          kind: item.kind,
-        },
+        id: item.id,
       });
     },
     [navigation],
@@ -242,7 +234,12 @@ export default function RecordingsScreen() {
   };
 
   return (
-    <SafeAreaView edges={{ top: true }} style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        insets,
+      ]}
+    >
       <View style={styles.topBar}>
         <View style={styles.topBarHeader}>
           <LogoWithName style={styles.title} />
@@ -250,7 +247,9 @@ export default function RecordingsScreen() {
         </View>
         {isOnline && !isLoading && !isLoggedIn && (
           <View style={styles.loginCard}>
-            <Text style={styles.loginHelperText}>{t("recordings.loginHelper")}</Text>
+            <Text style={styles.loginHelperText}>
+              {t('recordings.loginHelper')}
+            </Text>
             <LoginButton />
           </View>
         )}
@@ -285,7 +284,7 @@ export default function RecordingsScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: safeAreaInsets.bottom + 120 },
+          { paddingBottom: insets.paddingBottom + 120 },
         ]}
         renderItem={renderItem}
         ItemSeparatorComponent={<View style={styles.recordingListSeparator} />}
@@ -316,7 +315,7 @@ export default function RecordingsScreen() {
       <View
         style={[
           styles.startRecordingPositioner,
-          { bottom: safeAreaInsets.bottom + 16 },
+          { bottom: insets.paddingBottom + 16 },
         ]}
       >
         <View style={styles.startRecordingContainer}>
@@ -338,7 +337,7 @@ export default function RecordingsScreen() {
           </View>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -348,7 +347,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   topBar: {
-    paddingTop: 20,
     paddingHorizontal: 16,
     paddingBottom: 14,
     gap: 12,

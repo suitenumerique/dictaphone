@@ -3,10 +3,10 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/services/storage';
-import { SafeAreaView } from 'react-native-screens/experimental';
 // @ts-ignore
 import LogoWithName from '../assets/logo-single-line.svg';
 import { LoginButton } from '@/features/auth/LoginButton';
+import { useInsets } from '@/utils/useInsets';
 
 type LoginScreenProps = {
   navigation: {
@@ -18,6 +18,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { t } = useTranslation();
 
   const { user } = useUserStore();
+  const insets = useInsets();
 
   useEffect(() => {
     if (user) {
@@ -30,7 +31,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   }
 
   return (
-    <SafeAreaView edges={{ bottom: true, top: true }} style={styles.safeArea}>
+    <View style={[insets]}>
       <View style={styles.container}>
         <View style={styles.infoContainer}>
           <LogoWithName />
@@ -38,15 +39,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         </View>
         <LoginButton />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: '#ffffff',
-    flex: 1,
-  },
   container: {
     display: 'flex',
     height: '100%',

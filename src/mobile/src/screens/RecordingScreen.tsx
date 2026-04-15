@@ -1,26 +1,24 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AudioRecorder } from '../components/AudioRecorder';
-import { SafeAreaView } from 'react-native-screens/experimental';
+import { useInsets } from '@/utils/useInsets';
 
 export default function RecordScreen() {
+  const insets = useInsets()
+
   return (
-    <SafeAreaView edges={{ bottom: true, top: true }} style={styles.container}>
+    <View style={[styles.container, insets]}>
       <View style={styles.recorderContainer}>
         <AudioRecorder />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingTop: 72,
-    paddingHorizontal: 24,
-    backgroundColor: '#F9FAFB',
   },
   title: {
     marginBottom: 8,
@@ -30,6 +28,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   uploadingContainer: {
     marginTop: 16,
