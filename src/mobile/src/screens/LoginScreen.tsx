@@ -1,5 +1,5 @@
 // src/screens/LoginScreen.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/services/storage';
@@ -19,8 +19,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const { user } = useUserStore();
 
+  useEffect(() => {
+    if (user) {
+      navigation.replace('Main');
+    }
+  }, [user, navigation]);
+
   if (user) {
-    navigation.replace('Main');
     return null;
   }
 

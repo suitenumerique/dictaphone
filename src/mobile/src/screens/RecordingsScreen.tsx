@@ -32,6 +32,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { keys } from '@/api/queryKeys';
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
 import { intervalToDuration } from 'date-fns';
+import MainMenu from '@/components/MainMenu';
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
@@ -129,7 +130,7 @@ function formatRecordMeta(
 }
 
 export default function RecordingsScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const netInfo = useNetInfo();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -243,9 +244,16 @@ export default function RecordingsScreen() {
   return (
     <SafeAreaView edges={{ top: true }} style={styles.container}>
       <View style={styles.topBar}>
-        <LogoWithName style={styles.title} />
-
-        {isOnline && !isLoading && !isLoggedIn && <LoginButton />}
+        <View style={styles.topBarHeader}>
+          <LogoWithName style={styles.title} />
+          <MainMenu />
+        </View>
+        {isOnline && !isLoading && !isLoggedIn && (
+          <View style={styles.loginCard}>
+            <Text style={styles.loginHelperText}>{t("recordings.loginHelper")}</Text>
+            <LoginButton />
+          </View>
+        )}
         {!isOnline && (
           <View style={[styles.networkCard, styles.offlineCard]}>
             <Lucide
@@ -258,7 +266,6 @@ export default function RecordingsScreen() {
             </Text>
           </View>
         )}
-
         {isUploading ? (
           <View style={styles.uploadingRow}>
             <ActivityIndicator size="small" color="#1D4ED8" />
@@ -269,7 +276,9 @@ export default function RecordingsScreen() {
         ) : null}
       </View>
 
-      {isOnline && filesQ.isPending && <ActivityIndicator size={'large'} />}
+      {isOnline && isLoggedIn && filesQ.isPending && (
+        <ActivityIndicator size={'large'} />
+      )}
 
       <FlatList
         data={allRecordings}
@@ -343,6 +352,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 14,
     gap: 12,
+  },
+  topBarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 8,
+  },
+  loginCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9DCE3',
+    boxShadow: [
+      {
+        blurRadius: 15,
+        spreadDistance: 5,
+        color: '#D9DCE3',
+        offsetX: 0,
+        offsetY: 0,
+      },
+    ],
+  },
+  loginHelperText: {
+    fontSize: 14,
+    color: '#555E74',
   },
   title: {
     marginBottom: 2,
@@ -471,15 +510,15 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D9DCE3',
     padding: 14,
     gap: 8,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9DCE3',
     boxShadow: [
       {
         blurRadius: 20,

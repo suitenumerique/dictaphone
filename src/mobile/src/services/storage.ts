@@ -30,11 +30,9 @@ const recordingListSchema = z.array(recordingSchema);
 
 const mmkvStorage: StateStorage = {
   setItem: (name, value) => {
-    console.log('setItem', name, value);
     storage.set(name, value);
   },
   getItem: name => {
-    console.log('getItem', name, storage.getString(name));
     return storage.getString(name) ?? null;
   },
   removeItem: name => {

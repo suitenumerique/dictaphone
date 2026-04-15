@@ -1,7 +1,8 @@
 {
   "login": {
     "loginCta": "Me connecter",
-    "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions."
+    "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
+    "logout": "Me déconnecter"
   },
   "home": {
     "record": "Démarrer",
@@ -31,6 +32,7 @@
     "uploading": "Envoi en cours...",
     "loginButton": "Se connecter avec ProConnect",
     "delete": "Supprimer",
+    "loginHelper": "Connectez-vous pour accéder à vos transcriptions.",
     "deleteTitle": "Supprimer l'enregistrement",
     "deleteMessage": "Cette action est irréversible.",
     "deleteConfirm": "Supprimer",

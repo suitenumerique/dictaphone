@@ -1,7 +1,8 @@
 {
   "login": {
     "loginCta": "Login",
-    "subtitle": "Record your in-person meetings and access your transcripts."
+    "subtitle": "Record your in-person meetings and access your transcripts.",
+    "logout": "Logout"
   },
   "home": {
     "record": "Record",
@@ -30,6 +31,7 @@
     "manageOnline": "Manage recordings online",
     "uploading": "Uploading...",
     "loginButton": "Login with ProConnect",
+    "loginHelper": "Log in to access your transcripts.",
     "delete": "Delete",
     "deleteTitle": "Delete recording",
     "deleteMessage": "This action cannot be undone.",

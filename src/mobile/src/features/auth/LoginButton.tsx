@@ -15,7 +15,13 @@ export function LoginButton() {
   }, []);
 
   return (
-    <Pressable style={styles.loginButton} onPress={handleLogin}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.loginButton,
+        pressed && styles.loginButtonPressed,
+      ]}
+      onPress={handleLogin}
+    >
       <Text style={styles.loginButtonText}>{t('login.loginCta')}</Text>
     </Pressable>
   );
@@ -32,7 +38,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    maxWidth: 300,
+  },
+  loginButtonPressed: {
+    backgroundColor: '#5771e7',
   },
   loginButtonText: {
     color: '#FFFFFF',

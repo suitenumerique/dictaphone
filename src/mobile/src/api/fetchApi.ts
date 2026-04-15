@@ -35,7 +35,7 @@ export const fetchApi = async <T = Record<string, unknown>>(
     result = undefined as T;
   } else {
     const contentType = response.headers.get('content-type') ?? '';
-    if (contentType === 'text/plain') {
+    if (contentType === 'text/plain' || contentType.includes('text/html')) {
       result = (await response.text()) as T;
     } else if (!contentType.includes('application/json')) {
       result = undefined as T;

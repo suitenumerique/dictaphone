@@ -32,7 +32,6 @@ type TUserInfo = {
  * `isLoggedIn` is undefined while query is loading and true/false when it's done
  */
 export const useUser = () => {
-
   const { setCachedUser, clearCachedUser } = useUserStore();
 
   const query = useQuery({
@@ -52,7 +51,32 @@ export const useUser = () => {
   const logoutQuery = useMutation({
     mutationFn: async () => {
       try {
-        await fetchApi<void>('/logout/');
+        const response = await fetchApi<string>('/logout/');
+
+        const html = String(response ?? '');
+
+        const actionMatch = html.match(/<form[^>]*action="([^"]+)"/i);
+        const xsrfMatch = html.match(/name="xsrf"\s+value="([^"]+)"/i);
+        const logoutMatch = html.match(/name="logout"\s+value="([^"]+)"/i);
+
+        const action = actionMatch?.[1];
+        const xsrf = xsrfMatch?.[1];
+        const logout = logoutMatch?.[1];
+
+        if (action && xsrf && logout) {
+          const body = new URLSearchParams({
+            xsrf,
+            logout,
+          });
+
+          await fetch(action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+          });
+        }
       } catch (error) {
         console.warn(
           'Logout endpoint failed, clearing local auth state.',
@@ -61,7 +85,7 @@ export const useUser = () => {
       } finally {
         await clearAuthCookies();
         clearCachedUser();
-        queryClient.setQueryData([keys.user], false);
+        queryClient.resetQueries();
       }
     },
   });
