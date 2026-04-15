@@ -51,6 +51,9 @@
       "processingFailed": "Processing failed"
     }
   },
+  "transcript": {
+    "speaker": "Speaker"
+  },
   "player": {
     "play": "Play",
     "pause": "Pause",

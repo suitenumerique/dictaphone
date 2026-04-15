@@ -51,6 +51,9 @@
       "processingFailed": "Échec du traitement"
     }
   },
+  "transcript": {
+    "speaker": "Participant(e)"
+  },
   "player": {
     "play": "Lecture",
     "pause": "Pause",
