@@ -234,12 +234,7 @@ export default function RecordingsScreen() {
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        insets,
-      ]}
-    >
+    <View style={[styles.container, insets]}>
       <View style={styles.topBar}>
         <View style={styles.topBarHeader}>
           <LogoWithName style={styles.title} />
@@ -416,7 +411,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 10,
-    paddingHorizontal: 12,
   },
   recordingListSeparator: {
     height: 1,

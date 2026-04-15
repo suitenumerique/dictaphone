@@ -49,10 +49,21 @@
       "uploading": "Uploading",
       "waitingForUpload": "Waiting for upload",
       "processingFailed": "Processing failed"
+    },
+    "menu": {
+      "rename": "Rename",
+      "renameTitle": "Rename recording",
+      "renameDescription": "Choose a clear title so you can find this recording quickly.",
+      "renamePlaceholder": "Recording title",
+      "save": "Save",
+      "errorTitle": "Something went wrong",
+      "deleteError": "Unable to delete this recording right now.",
+      "renameError": "Unable to rename this recording right now."
     }
   },
   "transcript": {
-    "speaker": "Speaker"
+    "speaker": "Speaker",
+    "notAvailable": "No transcript available"
   },
   "player": {
     "play": "Play",

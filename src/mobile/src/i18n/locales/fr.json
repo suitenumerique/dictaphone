@@ -49,10 +49,21 @@
       "uploading": "Envoi en cours",
       "waitingForUpload": "En attente d'envoi",
       "processingFailed": "Échec du traitement"
+    },
+    "menu": {
+      "rename": "Renommer",
+      "renameTitle": "Renommer l'enregistrement",
+      "renameDescription": "Choisissez un titre clair pour retrouver rapidement cet enregistrement.",
+      "renamePlaceholder": "Titre de l'enregistrement",
+      "save": "Enregistrer",
+      "errorTitle": "Une erreur est survenue",
+      "deleteError": "Impossible de supprimer cet enregistrement pour le moment.",
+      "renameError": "Impossible de renommer cet enregistrement pour le moment."
     }
   },
   "transcript": {
-    "speaker": "Participant(e)"
+    "speaker": "Participant(e)",
+    "notAvailable": "Transcription non disponible"
   },
   "player": {
     "play": "Lecture",

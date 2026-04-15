@@ -2,6 +2,10 @@ import { ApiError } from './ApiError';
 import { getCsrfToken, getSessionCookie } from '@/services/authService';
 import { API_URL, BASE_URL } from '@/api/constants';
 
+function isModifierMethod(method?: string) {
+  return ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method ?? '');
+}
+
 export const fetchApi = async <T = Record<string, unknown>>(
   url: string,
   options?: RequestInit,
@@ -13,7 +17,7 @@ export const fetchApi = async <T = Record<string, unknown>>(
     url = `/${url}`;
   }
   let cookie = `sessionid=${sessionId}`;
-  if (options?.method === "POST" || options?.method === "PUT") {
+  if (isModifierMethod(options?.method)) {
     cookie += `; csrftoken=${csrfToken ?? 'not_set'};`;
   }
 
@@ -22,7 +26,7 @@ export const fetchApi = async <T = Record<string, unknown>>(
     headers: {
       'Content-Type': 'application/json',
       Cookie: cookie,
-      ...(options?.method === 'POST' || options?.method === 'PUT'
+      ...(isModifierMethod(options?.method)
         ? { 'X-CSRFToken': csrfToken ?? 'not_set' }
         : {}),
       Referer: BASE_URL,

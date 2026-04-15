@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useInsets } from '@/utils/useInsets';
 import Lucide from '@react-native-vector-icons/lucide'; // @ts-expect-error
 import DocsIcon from '@/assets/icons/docs.svg';
+import RecordingMenu from '@/components/RecordingMenu';
 import { intervalToDuration } from 'date-fns';
 
 type RecordingDetailsRouteProp = RouteProp<
@@ -76,6 +77,10 @@ export default function RecordingDetailsScreen() {
     return out;
   }, [recording, transcriptSegments, t]);
 
+  const onDeleted = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
   const onOpenInDocs = async () => {
     if (transcriptMarkdown) {
       await Share.share({
@@ -102,9 +107,15 @@ export default function RecordingDetailsScreen() {
           {recording ? recording.title : ''}
         </Text>
 
-        <Pressable style={styles.iconButton} hitSlop={10}>
-          <Lucide name="ellipsis" size={26} color="#3E5DE7" />
-        </Pressable>
+        {recording ? (
+          <RecordingMenu
+            fileId={recording.id}
+            currentTitle={recording.title}
+            onDeleted={onDeleted}
+          />
+        ) : (
+          <View style={styles.iconButton} />
+        )}
       </View>
 
       {recording && (
@@ -131,10 +142,14 @@ export default function RecordingDetailsScreen() {
               {/*{formatDurationLabel(durationSeconds || 0)}*/}
             </Text>
           </View>
-          <View style={styles.metaChip}>
-            <Lucide name="users" size={16} color="#6B7280" />
-            <Text style={styles.metaChipText}>{numberOfParticipants ?? 0}</Text>
-          </View>
+          {transcriptSegments.length > 0 && (
+            <View style={styles.metaChip}>
+              <Lucide name="users" size={16} color="#6B7280" />
+              <Text style={styles.metaChipText}>
+                {numberOfParticipants ?? 0}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -148,7 +163,7 @@ export default function RecordingDetailsScreen() {
       >
         <View style={styles.transcriptContainer}>
           {transcriptSegments.length === 0 ? (
-            <Text style={styles.emptyText}>No transcript available.</Text>
+            <Text style={styles.emptyText}>{t('transcript.notAvailable')}</Text>
           ) : (
             transcriptSegments.map((segment, index) => (
               <Text
