@@ -1,12 +1,12 @@
 // src/screens/LoginScreen.tsx
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { login } from '../services/authService';
 import { useUserStore } from '@/services/storage';
 import { SafeAreaView } from 'react-native-screens/experimental';
 // @ts-ignore
 import LogoWithName from '../assets/logo-single-line.svg';
+import { LoginButton } from '@/features/auth/LoginButton';
 
 type LoginScreenProps = {
   navigation: {
@@ -19,14 +19,6 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const { user } = useUserStore();
 
-  async function handleLogin(): Promise<void> {
-    try {
-      await login();
-    } catch (error) {
-      console.error('Login failed:', error);
-    }
-  }
-
   if (user) {
     navigation.replace('Main');
     return null;
@@ -36,12 +28,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     <SafeAreaView edges={{ bottom: true, top: true }} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.infoContainer}>
-            <LogoWithName />
+          <LogoWithName />
           <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
         </View>
-        <Pressable style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>{t('login.loginCta')}</Text>
-        </Pressable>
+        <LoginButton />
       </View>
     </SafeAreaView>
   );

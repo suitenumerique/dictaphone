@@ -8,75 +8,235 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import type { Recording } from '../types/recording';
+import type { LocalRecording } from '@/types/localRecording';
 import { SafeAreaView } from 'react-native-screens/experimental';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { useNavigation } from '@react-navigation/core';
-// @ts-ignore
-import LogoWithName from '../assets/logo-with-name.svg';
-// @ts-ignore
-import RecordIcon from '@/assets/icons/record.svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/core'; // @ts-expect-error
+import LogoWithName from '../assets/logo-with-name.svg'; // @ts-expect-error
+import RecordIcon from '@/assets/icons/record.svg'; // @ts-expect-error
+import FileDisabledIcon from '@/assets/icons/file-disabled.svg'; // @ts-expect-error
+import FileIcon from '@/assets/icons/file.svg'; // @ts-expect-error
+import WarningIcon from '@/assets/icons/warning.svg'; // @ts-expect-error
+import PauseIcon from '@/assets/icons/pause.svg';
 
-const formatDurationLabel = (durationMs: number) => {
-  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
-    2,
-    '0',
-  )}`;
-};
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUser } from '@/features/auth/api/useUser';
+import { LoginButton } from '@/features/auth/LoginButton';
+import { useListMyFilesInfinite } from '@/features/files/api/listFiles';
+import { ApiFileItem } from '@/features/files/api/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { keys } from '@/api/queryKeys';
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
+import { intervalToDuration } from 'date-fns';
+
+type LocalOrRemoteRecording =
+  | (ApiFileItem & { kind: 'remote' })
+  | (LocalRecording & { kind: 'local' })
+  | { kind: 'fake'; id: string };
+
+function StatusIndicator({
+  item,
+  canUpload,
+}: {
+  item: LocalOrRemoteRecording;
+  canUpload: boolean;
+}) {
+  if (item.kind === 'fake') {
+    return <FileDisabledIcon />;
+  }
+  if (item.kind === 'local') {
+    if (!canUpload) {
+      return <PauseIcon />;
+    }
+    if (item.uploadingStatus === 'uploading') {
+      return <ActivityIndicator size="small" />;
+    } else {
+      return <WarningIcon />;
+    }
+  }
+
+  if (item.kind === 'remote') {
+    const { lastAiJobTranscript } = getMainAiJobs(item.ai_jobs);
+    if (lastAiJobTranscript?.status === 'failed') {
+      return <WarningIcon />;
+    } else if (lastAiJobTranscript?.status === 'success') {
+      return <FileIcon />;
+    } else {
+      return <ActivityIndicator size="small" />;
+    }
+  }
+
+  return <FileIcon />;
+}
+
+function formatRecordMeta(
+  recording: LocalOrRemoteRecording,
+  t: ReturnType<typeof useTranslation>['t'],
+  isOnline: boolean,
+  isLoggedIn: boolean,
+): string {
+  if (recording.kind === 'fake') {
+    return '';
+  }
+
+  const dateLabel = t('shared.utils.formatDateTime', {
+    value: recording.created_at,
+  });
+  const durationLabel = t('shared.utils.duration', {
+    duration: intervalToDuration({
+      start: 0,
+      end: recording.duration_seconds * 1000,
+    }),
+  });
+
+  if (recording.kind === 'local') {
+    if (!isLoggedIn) {
+      return `${durationLabel} • ${t('recordings.meta.loginToSync')}`;
+    } else if (!isOnline) {
+      return `${durationLabel} • ${t('recordings.meta.offline')}`;
+    } else if (recording.uploadingStatus === 'uploading') {
+      return `${durationLabel} • ${t('recordings.meta.uploading')}`;
+    } else if (recording.uploadingStatus === 'failed') {
+      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`;
+    } else if (recording.uploadingStatus === 'to_upload') {
+      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`;
+    }
+    {
+      return `${durationLabel} • ${dateLabel}`;
+    }
+  }
+
+  if (recording.kind === 'remote') {
+    const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs);
+    if (lastAiJobTranscript?.status === 'failed') {
+      return `${durationLabel} • ${dateLabel} • ${t(
+        'recordings.meta.processingFailed',
+      )}`;
+    } else if (lastAiJobTranscript?.status === 'success') {
+      return `${durationLabel} • ${dateLabel}`;
+    } else {
+      return `${durationLabel} • ${dateLabel} • ${t(
+        'recordings.meta.processing',
+      )}`;
+    }
+  }
+
+  return '';
+}
 
 export default function RecordingsScreen() {
   const { t, i18n } = useTranslation();
   const netInfo = useNetInfo();
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const safeAreaInsets = useSafeAreaInsets();
-  const { recordings, isUploading, recordingIdBeingUploaded } =
-    useLocalRecordings();
-
-  const handleStartRecording = useCallback(() => {
-    // @ts-ignore
-    navigation.navigate('RecordingInProgress');
-  }, [navigation]);
-
+  const { recordings, isUploading } = useLocalRecordings();
+  const { isLoggedIn, isLoading } = useUser();
+  const filesQ = useListMyFilesInfinite({
+    pageSize: 20,
+    filters: {
+      type: 'audio_recording',
+      is_creator_me: true,
+      is_deleted: false,
+      upload_state: 'ready',
+    },
+  });
+  const queryClient = useQueryClient();
   const isOnline =
     netInfo.isConnected === true && netInfo.isInternetReachable !== false;
 
-  const dateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }),
-    [i18n.language],
+  const allRecordings = useMemo<LocalOrRemoteRecording[]>(() => {
+    const out: LocalOrRemoteRecording[] = [];
+    for (const recording of recordings) {
+      out.push({
+        ...recording,
+        kind: 'local',
+      });
+    }
+    if (isOnline) {
+      for (const page of filesQ.data?.pages ?? []) {
+        for (const recording of page.results) {
+          out.push({
+            ...recording,
+            kind: 'remote',
+          });
+        }
+      }
+    } else {
+      for (let i = 0; i < 5; i++) {
+        out.push({
+          id: `fake-${i}`,
+          kind: 'fake',
+        });
+      }
+    }
+    return out;
+  }, [filesQ.data?.pages, recordings, isOnline]);
+
+  const handleStartRecording = useCallback(() => {
+    navigation.navigate('RecordingInProgress');
+  }, [navigation]);
+
+  const handleOpenRecording = useCallback(
+    (item: LocalOrRemoteRecording) => {
+      if (item.kind === 'fake') {
+        return;
+      }
+      navigation.navigate('RecordingDetails', {
+        recording: {
+          id: item.id,
+          title: item.title,
+          createdAt: item.created_at,
+          durationSeconds: item.duration_seconds,
+          kind: item.kind,
+        },
+      });
+    },
+    [navigation],
   );
 
-  const renderItem = ({ item }: { item: Recording }) => {
+  const renderItem = ({ item }: { item: LocalOrRemoteRecording }) => {
     return (
-      <View style={styles.itemCard}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.itemCard,
+          pressed && item.kind === 'remote' && styles.itemCardPressed,
+        ]}
+        disabled={item.kind !== 'remote'}
+        onPress={() => handleOpenRecording(item)}
+      >
         <View style={styles.itemHeader}>
           <View style={styles.cardHeaderLeft}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>
-              {dateFormatter.format(new Date(item.createdAt))} •{' '}
-              {formatDurationLabel(item.durationMs)}
-            </Text>
+            <StatusIndicator item={item} canUpload={isOnline} />
           </View>
-
-          <View style={styles.syncStatusRow}>
-            <View style={styles.syncDotPending} />
-            <Text style={styles.syncLabel}>
-              {recordingIdBeingUploaded === item.id
-                ? t('recordings.uploading')
-                : t('recordings.notSynced')}
-            </Text>
+          <View style={styles.cardHeaderRight}>
+            {item.kind !== 'fake' ? (
+              <>
+                <Text
+                  style={[
+                    styles.recordingTitle,
+                    item.kind !== 'remote' && styles.notAvailable,
+                  ]}
+                >
+                  {item.title}
+                </Text>
+                <Text style={styles.meta}>
+                  {formatRecordMeta(item, t, isOnline, isLoggedIn)}
+                </Text>
+              </>
+            ) : (
+              <>
+                <View style={styles.recordingTitleSkeleton} />
+                <View style={styles.metaSkeleton} />
+              </>
+            )}
           </View>
         </View>
-      </View>
+      </Pressable>
     );
   };
 
@@ -85,9 +245,14 @@ export default function RecordingsScreen() {
       <View style={styles.topBar}>
         <LogoWithName style={styles.title} />
 
+        {isOnline && !isLoading && !isLoggedIn && <LoginButton />}
         {!isOnline && (
           <View style={[styles.networkCard, styles.offlineCard]}>
-            <Lucide name={'wifi-off'} size={16} color={'#991B1B'} />
+            <Lucide
+              name={'wifi-off'}
+              size={16}
+              color={styles.offlineText.color}
+            />
             <Text style={[styles.networkText, styles.offlineText]}>
               {t('recordings.offline')}
             </Text>
@@ -104,39 +269,53 @@ export default function RecordingsScreen() {
         ) : null}
       </View>
 
-      <View style={styles.pendingCard}>
-        <View style={styles.pendingHeader}>
-          <Text style={styles.pendingTitle}>
-            {t('recordings.pendingTitle')}
-          </Text>
-        </View>
+      {isOnline && filesQ.isPending && <ActivityIndicator size={'large'} />}
 
-        {recordings.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>{t('recordings.emptyTitle')}</Text>
-            <Text style={styles.emptySubtitle}>
-              {t('recordings.emptySubtitle')}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={recordings}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.listContent}
-            renderItem={renderItem}
-          />
-        )}
-      </View>
+      <FlatList
+        data={allRecordings}
+        keyExtractor={item => item.id}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: safeAreaInsets.bottom + 120 },
+        ]}
+        renderItem={renderItem}
+        ItemSeparatorComponent={<View style={styles.recordingListSeparator} />}
+        onEndReached={() => {
+          if (isOnline && filesQ.hasNextPage && !filesQ.isFetchingNextPage) {
+            filesQ.fetchNextPage();
+          }
+        }}
+        refreshing={isOnline ? filesQ.isRefetching : undefined}
+        onRefresh={
+          isOnline
+            ? () => queryClient.invalidateQueries({ queryKey: [keys.files] })
+            : undefined
+        }
+        ListFooterComponent={
+          isOnline && !filesQ.isPending ? (
+            filesQ.hasNextPage ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.listFooter}>
+                {t('recordings.listFooter')}
+              </Text>
+            )
+          ) : undefined
+        }
+      />
 
       <View
         style={[
-          styles.startRecordingPositionner,
+          styles.startRecordingPositioner,
           { bottom: safeAreaInsets.bottom + 16 },
         ]}
       >
         <View style={styles.startRecordingContainer}>
           <Pressable
-            style={styles.startRecordingButton}
+            style={({ pressed }) => [
+              styles.startRecordingButton,
+              pressed && styles.startRecordingButtonPressed,
+            ]}
             onPress={handleStartRecording}
           >
             <RecordIcon width={24} height={24} />
@@ -157,12 +336,12 @@ export default function RecordingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#ffffff',
   },
   topBar: {
-    paddingTop: 16,
+    paddingTop: 20,
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 14,
     gap: 12,
   },
   title: {
@@ -170,7 +349,7 @@ const styles = StyleSheet.create({
   },
   networkCard: {
     borderRadius: 10,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,18 +357,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   offlineCard: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: '#FFEEDF',
+    borderColor: '#FFCA9C',
   },
   networkText: {
     fontSize: 14,
-    fontWeight: '600',
-  },
-  onlineText: {
-    color: '#065F46',
+    fontWeight: 500,
   },
   offlineText: {
-    color: '#991B1B',
+    color: '#984800',
   },
   uploadingRow: {
     flexDirection: 'row',
@@ -201,49 +377,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  pendingCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
-  },
-  pendingHeader: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  pendingTitle: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 16,
-  },
   listContent: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    gap: 12,
-    paddingBottom: 130,
+  },
+  recordingListSeparator: {
+    height: 1,
+    backgroundColor: '#DFE2EA',
+    marginVertical: 4,
+    marginHorizontal: 12,
+  },
+  listFooter: {
+    color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 12,
+    paddingBottom: 14,
   },
   itemCard: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  itemCardPressed: {
+    backgroundColor: '#F3F4F6',
   },
   itemHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 4,
+  },
+  notAvailable: {
+    color: '#626A80',
   },
   cardHeaderLeft: {
+    width: 50,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeaderRight: {
     flex: 1,
-    gap: 4,
+    gap: 6,
   },
   syncStatusRow: {
     flexDirection: 'row',
@@ -261,33 +437,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 12,
   },
-  name: {
+  recordingTitle: {
     color: '#111827',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
+    lineHeight: 14,
+  },
+  recordingTitleSkeleton: {
+    width: 140,
+    height: 14,
+    borderRadius: 6,
+    backgroundColor: '#EEF1F4',
   },
   meta: {
     color: '#6B7280',
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 12,
   },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    gap: 8,
+  metaSkeleton: {
+    width: 100,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EEF1F4',
   },
-  emptyTitle: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 18,
-  },
-  emptySubtitle: {
-    color: '#6B7280',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  startRecordingPositionner: {
+  startRecordingPositioner: {
     position: 'absolute',
     width: '100%',
     display: 'flex',
@@ -307,6 +480,15 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    boxShadow: [
+      {
+        blurRadius: 20,
+        spreadDistance: 15,
+        color: 'white',
+        offsetX: 0,
+        offsetY: 5,
+      },
+    ],
   },
   startRecordingButton: {
     backgroundColor: '#FFDAD7',
@@ -317,6 +499,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     width: '100%',
+  },
+  startRecordingButtonPressed: {
+    backgroundColor: '#ffd2cf',
   },
   startRecordingButtonText: {
     color: '#BD0F23',

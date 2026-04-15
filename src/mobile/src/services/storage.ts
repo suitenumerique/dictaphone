@@ -5,7 +5,7 @@ import {
   type StateStorage,
 } from 'zustand/middleware';
 import { create } from 'zustand';
-import { type Recording, recordingSchema } from '../types/recording';
+import { type LocalRecording, recordingSchema } from '../types/localRecording';
 import { type AppSettings, appSettingsSchema } from '../types/settings';
 import type { ApiUser } from '@/features/auth/api/ApiUser';
 import { z } from 'zod/v4';
@@ -44,10 +44,10 @@ const mmkvStorage: StateStorage = {
 
 export interface RecordingsStore {
   hasHydrated: boolean;
-  recordings: Recording[];
-  addRecording: (recording: Recording) => void;
+  recordings: LocalRecording[];
+  addRecording: (recording: LocalRecording) => void;
   deleteRecording: (recordingId: string) => void;
-  updateRecording: (id: string, data: Partial<Omit<Recording, 'id'>>) => void;
+  updateRecording: (id: string, data: Partial<Omit<LocalRecording, 'id'>>) => void;
 }
 
 export interface SettingsStore {

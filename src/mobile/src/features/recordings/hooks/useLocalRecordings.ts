@@ -28,12 +28,9 @@ export const useLocalRecordings = () => {
         updateRecording(recordingToUpload.id, { uploadingStatus: 'uploading' });
         createFileMutation.mutate(
           {
-            durationSeconds: Math.max(
-              1,
-              Math.round(recordingToUpload.durationMs / 1000),
-            ),
+            durationSeconds: recordingToUpload.duration_seconds,
             file: {
-              name: `${recordingToUpload.name}.m4a`,
+              name: `${recordingToUpload.title}.m4a`,
               type: 'audio/mp4',
               uri: recordingToUpload.filePath,
             },

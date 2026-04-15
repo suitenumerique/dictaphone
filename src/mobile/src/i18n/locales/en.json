@@ -38,7 +38,16 @@
     "synced": "Synced",
     "notSynced": "Not synced",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "listFooter": "No other recordings",
+    "meta": {
+      "loginToSync": "Login to sync",
+      "offline": "Will sync when online",
+      "processing": "Processing",
+      "uploading": "Uploading",
+      "waitingForUpload": "Waiting for upload",
+      "processingFailed": "Processing failed"
+    }
   },
   "player": {
     "play": "Play",
@@ -54,5 +63,23 @@
   },
   "common": {
     "loading": "Loading..."
+  },
+  "shared": {
+    "utils": {
+      "formatDate": "{{value, formatDate}}",
+      "formatDateTime": "{{value, formatDateTime}}",
+      "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
+      "duration": "{{duration, formatDuration}}",
+      "durationMinsSeconds": "{{mins}} min {{secs}}",
+      "durationMins": "{{mins}} min",
+      "durationSeconds": "{{secs}} sec"
+    },
+    "dates": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "todayAt": "Today at",
+      "yesterdayAt": "Yesterday at",
+      "at": "at"
+    }
   }
 }

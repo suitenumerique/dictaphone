@@ -3,7 +3,6 @@ import { keys } from '@/api/queryKeys';
 import { fetchUser } from './fetchUser';
 import { type ApiUser } from './ApiUser';
 import { useCallback, useMemo } from 'react';
-import { useConfig } from '@/api/useConfig';
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences';
 import { queryClient } from '@/api/queryClient';
 import { fetchApi } from '@/api/fetchApi';
@@ -33,7 +32,6 @@ type TUserInfo = {
  * `isLoggedIn` is undefined while query is loading and true/false when it's done
  */
 export const useUser = () => {
-  const { isLoading: isConfigLoading } = useConfig();
 
   const { setCachedUser, clearCachedUser } = useUserStore();
 
@@ -41,7 +39,6 @@ export const useUser = () => {
     queryKey: [keys.user],
     queryFn: () => fetchUser(),
     staleTime: Infinity,
-    enabled: !isConfigLoading,
   });
 
   const updateUserQuery = useMutation({

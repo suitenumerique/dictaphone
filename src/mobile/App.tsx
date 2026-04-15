@@ -15,13 +15,12 @@ import { queryClient } from '@/api/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
 import LoginScreen from '@/screens/LoginScreen';
+import RecordingDetailsScreen from '@/screens/RecordingDetailsScreen';
+import type { RootStackParamList } from '@/navigation/types';
 
-const RootStack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-type AuthCallbackRoute = RouteProp<
-  Record<string, { [key: string]: string | undefined }>,
-  'AuthCallback'
->;
+type AuthCallbackRoute = RouteProp<RootStackParamList, 'AuthCallback'>;
 
 function AuthCallbackScreen() {
   const route = useRoute<AuthCallbackRoute>();
@@ -74,6 +73,10 @@ function App() {
             name="RecordingInProgress"
             component={RecordingScreen}
             options={{ gestureEnabled: false }}
+          />
+          <RootStack.Screen
+            name="RecordingDetails"
+            component={RecordingDetailsScreen}
           />
           <RootStack.Screen
             name="AuthCallback"

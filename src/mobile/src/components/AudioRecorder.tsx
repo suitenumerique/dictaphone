@@ -231,10 +231,10 @@ export const AudioRecorder = () => {
         duration: formatDuration(result.duration * 1000),
       });
       addRecording({
-        createdAt: new Date().toISOString(),
-        durationMs: result.duration * 1000,
+        created_at: new Date().toISOString(),
+        duration_seconds: result.duration,
         filePath: result.path,
-        name,
+        title: name,
         id: uuid.v4(),
         uploadingStatus: 'to_upload',
       });

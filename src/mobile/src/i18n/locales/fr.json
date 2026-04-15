@@ -38,7 +38,16 @@
     "synced": "Synchronisé",
     "notSynced": "Non synchronisé",
     "online": "En ligne",
-    "offline": "Hors ligne"
+    "offline": "Hors ligne",
+    "listFooter": "Pas d'autres enregistrements",
+    "meta": {
+      "loginToSync": "Se connecter pour synchroniser",
+      "offline": "Synchronisera une fois en ligne",
+      "processing": "Traitement en cours",
+      "uploading": "Envoi en cours",
+      "waitingForUpload": "En attente d'envoi",
+      "processingFailed": "Échec du traitement"
+    }
   },
   "player": {
     "play": "Lecture",
@@ -54,5 +63,23 @@
   },
   "common": {
     "loading": "Chargement..."
+  },
+  "shared": {
+    "utils": {
+      "formatDate": "{{value, formatDate}}",
+      "formatDateTime": "{{value, formatDateTime}}",
+      "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
+      "duration": "{{duration, formatDuration}}",
+      "durationMinsSeconds": "{{mins}} min {{secs}}",
+      "durationMins": "{{mins}} min",
+      "durationSeconds": "{{secs}} sec"
+    },
+    "dates": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "todayAt": "Aujourd'hui à",
+      "yesterdayAt": "Hier à",
+      "at": "à"
+    }
   }
 }
