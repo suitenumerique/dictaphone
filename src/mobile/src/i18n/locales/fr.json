@@ -1,11 +1,9 @@
 {
-  "tabs": {
-    "record": "Enregistrer",
-    "recordings": "Enregistrements",
-    "settings": "Paramètres"
+  "login": {
+    "loginCta": "Me connecter",
+    "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions."
   },
   "home": {
-    "title": "Dictaphone",
     "record": "Démarrer",
     "stop": "Arrêter",
     "pause": "Pause",
@@ -18,9 +16,11 @@
     "permissionOk": "OK",
     "recordingName": "Enregistrement {{duration}}",
     "newRecording": "Enregistrer",
-    "consentNotice": "L'enregistrement nécessite le consentement des participant⋅es.",
+    "consentNotice": "⚠ L'enregistrement nécessite le consentement des participant⋅es.",
     "recordingInProgress": "Enregistrement en cours",
-    "transcriptAfterRecording": "Vous pouvez mettre en pause l'enregistrement quand vous le souhaitez.",
+    "recordingPaused": "Enregistrement en pause",
+    "recordingSubtitle": "Vous pouvez mettre en pause l'enregistrement quand vous le souhaitez.",
+    "recordingSubtitlePaused": "Vous pouvez reprendre l'enregistrement quand vous le souhaitez.",
     "end": "Terminer"
   },
   "recordings": {
@@ -36,7 +36,9 @@
     "deleteConfirm": "Supprimer",
     "deleteCancel": "Annuler",
     "synced": "Synchronisé",
-    "notSynced": "Non synchronisé"
+    "notSynced": "Non synchronisé",
+    "online": "En ligne",
+    "offline": "Hors ligne"
   },
   "player": {
     "play": "Lecture",

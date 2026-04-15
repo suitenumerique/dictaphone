@@ -5,14 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import {
@@ -23,18 +16,10 @@ import {
   RecordingNotificationManager,
 } from 'react-native-audio-api';
 import { formatDuration } from '@/features/recordings/utils/formatDuration';
-// @ts-ignore
-import RecordIcon from '@/assets/icons/record.svg';
-
-type RecordingResult = {
-  createdAt: string;
-  durationMs: number;
-  filePath: string;
-};
-
-type AudioRecorderProps = {
-  onRecordingComplete?: (recording: RecordingResult) => void;
-};
+import { useNavigation, usePreventRemove } from '@react-navigation/core';
+import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types';
+import uuid from 'react-native-uuid';
+import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
@@ -44,12 +29,16 @@ AudioManager.setAudioSessionOptions({
 
 const audioRecorder = new AudioRecorderApi();
 
-export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
+export const AudioRecorder = () => {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [recordingTimeMs, setRecordingTimeMs] = useState(0);
+  const [permissionStatus, setPermissionStatus] =
+    useState<PermissionStatus>('Undetermined');
+  const { addRecording } = useLocalRecordings();
+  const navigation = useNavigation();
 
   const recordTimeLabel = useMemo(
     () => formatDuration(recordingTimeMs),
@@ -60,12 +49,12 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     typeof setTimeout
   > | null>(null);
 
-  const updateNotification = (paused: boolean) => {
-    RecordingNotificationManager.show({ paused });
+  const updateNotification = async (paused: boolean) => {
+    await RecordingNotificationManager.show({ paused });
   };
 
-  const setupNotification = (paused: boolean) => {
-    RecordingNotificationManager.show({
+  const setupNotification = async (paused: boolean) => {
+    await RecordingNotificationManager.show({
       title: 'Recording Demo',
       contentText: paused ? 'Paused recording' : 'Recording...',
       paused,
@@ -76,8 +65,18 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     });
   };
 
+  const clearRecording = () => {
+    audioRecorder.stop();
+    audioRecorder.disableFileOutput();
+    AudioManager.setAudioSessionActivity(false);
+    RecordingNotificationManager.hide();
+    // Todo delete file as option for when going back alert
+  };
+
   useEffect(() => {
+    // Todo properly manage permissions
     AudioManager.requestRecordingPermissions().then(res => {
+      setPermissionStatus(res);
       if (res === 'Granted') {
         audioRecorder.enableFileOutput({
           format: FileFormat.M4A,
@@ -87,12 +86,40 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     });
 
     return () => {
-      audioRecorder.stop();
-      audioRecorder.disableFileOutput();
-      AudioManager.setAudioSessionActivity(false);
-      RecordingNotificationManager.hide();
+      clearRecording();
     };
   }, []);
+
+  useEffect(() => {
+    if (permissionStatus === 'Denied') {
+      Alert.alert(
+        'Permission Denied',
+        'Recording permission is required to use this feature.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Handle the "OK" button press
+            },
+          },
+        ],
+      );
+    }
+  }, [permissionStatus]);
+
+  usePreventRemove(isRecording, ({ data }) => {
+    Alert.alert('A recording is in progress.', 'Do you want to discard it?', [
+      { text: "Don't leave", style: 'cancel', onPress: () => {} },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => {
+          clearRecording();
+          navigation.dispatch(data.action);
+        },
+      },
+    ]);
+  });
 
   useEffect(() => {
     if (!isRecording || isPaused) {
@@ -121,7 +148,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     };
   }, [isPaused, isRecording]);
 
-  const onStartRecord = useCallback(async () => {
+  const handleStartRecording = useCallback(async () => {
     const permissions = await AudioManager.requestRecordingPermissions();
     if (permissions !== 'Granted') {
       console.warn('Permissions are not granted');
@@ -152,6 +179,12 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (permissionStatus === 'Granted') {
+      handleStartRecording();
+    }
+  }, [permissionStatus, handleStartRecording]);
 
   const onPauseRecord = useCallback(async () => {
     setIsLoading(true);
@@ -193,11 +226,19 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
       setIsPaused(false);
       await AudioManager.setAudioSessionActivity(false);
 
-      onRecordingComplete?.({
+      // TODO finish name
+      const name = t('home.recordingName', {
+        duration: formatDuration(result.duration * 1000),
+      });
+      addRecording({
         createdAt: new Date().toISOString(),
         durationMs: result.duration * 1000,
         filePath: result.path,
+        name,
+        id: uuid.v4(),
+        uploadingStatus: 'to_upload',
       });
+      navigation.navigate('Main' as never);
 
       setRecordingTimeMs(0);
     } catch (error) {
@@ -205,7 +246,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [onRecordingComplete]);
+  }, [addRecording, navigation, t]);
 
   useEffect(() => {
     const pauseListener = RecordingNotificationManager.addEventListener(
@@ -257,50 +298,35 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
     ]);
   }, [t]);
 
-  if (!isRecording) {
-    return (
-      <View style={styles.idleContainer}>
-        <Pressable
-          style={styles.startRecordingButton}
-          onPress={onStartRecord}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <RecordIcon width={24} height={24}/>
-              <Text style={styles.startRecordingButtonText}>
-                {t('home.newRecording')}
-              </Text>
-            </>
-          )}
-        </Pressable>
-
-        <View style={styles.consentRow}>
-          <Text style={styles.consentText}>{t('home.consentNotice')}</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.activeContainer}>
       <View style={styles.statusSection}>
         <View style={styles.statusBadge}>
-          <Lucide name="audio-lines" size={18} color="#D62839" />
-          <Text style={styles.statusTitle}>
-            {t('home.recordingInProgress')}
+          {isPaused ? (
+            <Lucide name="pause-circle" size={18} color="#555E74" />
+          ) : (
+            <Lucide name="audio-lines" size={18} color="#BD0F23" />
+          )}
+          <Text
+            style={[styles.statusTitle, isPaused && styles.statusTitlePaused]}
+          >
+            {t(isPaused ? 'home.recordingPaused' : 'home.recordingInProgress')}
           </Text>
         </View>
 
         <Text style={styles.statusSubtitle}>
-          {t('home.transcriptAfterRecording')}
+          {t(
+            isPaused
+              ? 'home.recordingSubtitlePaused'
+              : 'home.recordingSubtitle',
+          )}
         </Text>
       </View>
 
       <View style={styles.timerSection}>
-        <Text style={styles.timer}>{recordTimeLabel}</Text>
+        <Text style={[styles.timer, isPaused && styles.timerPaused]}>
+          {recordTimeLabel}
+        </Text>
       </View>
 
       <View style={styles.controlsRow}>
@@ -341,47 +367,8 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 };
 
 const styles = StyleSheet.create({
-  idleContainer: {
-    width: '100%',
-    maxWidth: 430,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D9DCE3',
-    padding: 14,
-    gap: 8,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  startRecordingButton: {
-    backgroundColor: '#FFDAD7',
-    borderRadius: 4,
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  startRecordingButtonText: {
-    color: '#BD0F23',
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: "Marianne",
-  },
-  consentRow: {
-    gap: 12,
-  },
-  consentText: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontFamily: "Marianne",
-    fontWeight: '500',
-    color: '#626A80',
-    textAlign: 'center',
-  },
   activeContainer: {
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
     gap: 30,
@@ -401,13 +388,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#D62839',
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#BD0F23',
+  },
+  statusTitlePaused: {
+    color: '#555E74',
   },
   statusSubtitle: {
     color: '#667085',
-    fontSize: 16,
+    fontSize: 12,
     textAlign: 'center',
     maxWidth: 320,
     lineHeight: 22,
@@ -418,11 +408,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timer: {
-    fontSize: 74,
+    fontSize: 44,
     fontWeight: '800',
     color: '#1D2433',
     fontVariant: ['tabular-nums'],
     lineHeight: 80,
+  },
+  timerPaused: {
+    color: '#626A80',
   },
   controlsRow: {
     flexDirection: 'row',
@@ -447,12 +440,12 @@ const styles = StyleSheet.create({
   },
   pauseButtonText: {
     color: '#475467',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   endButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   buttonDisabled: {

@@ -1,11 +1,9 @@
 {
-  "tabs": {
-    "record": "Record",
-    "recordings": "Recordings",
-    "settings": "Settings"
+  "login": {
+    "loginCta": "Login",
+    "subtitle": "Record your in-person meetings and access your transcripts."
   },
   "home": {
-    "title": "Dictaphone",
     "record": "Record",
     "stop": "Stop",
     "pause": "Pause",
@@ -18,9 +16,11 @@
     "permissionOk": "OK",
     "recordingName": "Recording {{duration}}",
     "newRecording": "New recording",
-    "consentNotice": "Recording requires participants consent",
+    "consentNotice": "⚠ Recording requires participants consent",
     "recordingInProgress": "Recording in progress",
-    "transcriptAfterRecording": "You can pause the recording at any time.",
+    "recordingPaused": "Recording paused",
+    "recordingSubtitle": "You can pause the recording at any time.",
+    "recordingSubtitlePaused": "You can resume the recording at any time.",
     "end": "End"
   },
   "recordings": {
@@ -36,7 +36,9 @@
     "deleteConfirm": "Delete",
     "deleteCancel": "Cancel",
     "synced": "Synced",
-    "notSynced": "Not synced"
+    "notSynced": "Not synced",
+    "online": "Online",
+    "offline": "Offline"
   },
   "player": {
     "play": "Play",

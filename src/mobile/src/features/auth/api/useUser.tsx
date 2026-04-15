@@ -8,7 +8,7 @@ import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences
 import { queryClient } from '@/api/queryClient';
 import { fetchApi } from '@/api/fetchApi';
 import { clearAuthCookies } from '@/services/authService';
-import { clearCachedUser, setCachedUser } from '@/services/storage';
+import { useUserStore } from '@/services/storage';
 
 type TUserInfo = {
   refetch: () => void;
@@ -35,6 +35,8 @@ type TUserInfo = {
 export const useUser = () => {
   const { isLoading: isConfigLoading } = useConfig();
 
+  const { setCachedUser, clearCachedUser } = useUserStore();
+
   const query = useQuery({
     queryKey: [keys.user],
     queryFn: () => fetchUser(),
@@ -55,7 +57,10 @@ export const useUser = () => {
       try {
         await fetchApi<void>('/logout/');
       } catch (error) {
-        console.warn('Logout endpoint failed, clearing local auth state.', error);
+        console.warn(
+          'Logout endpoint failed, clearing local auth state.',
+          error,
+        );
       } finally {
         await clearAuthCookies();
         clearCachedUser();
@@ -98,6 +103,13 @@ export const useUser = () => {
           : { isLoggedIn: false, updateUser: undefined, user: undefined }),
         isLoading: query.isLoading,
       } as TUserInfo),
-    [query.refetch, query.data, query.isLoading, isLoggedIn, logout, updateUser],
+    [
+      query.refetch,
+      query.data,
+      query.isLoading,
+      isLoggedIn,
+      logout,
+      updateUser,
+    ],
   );
 };

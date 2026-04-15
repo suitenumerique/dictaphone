@@ -3,7 +3,6 @@ import { z } from 'zod/v4';
 export const appLanguageSchema = z.enum(['en', 'fr']);
 
 export const appSettingsSchema = z.object({
-  allowNetworkSync: z.boolean(),
   language: appLanguageSchema,
 });
 

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useCreateFile } from '@/features/files/api/createFile';
-import { useRecordings } from '@/services/storage';
+import { useRecordingsStore } from '@/services/storage';
 
 export const useLocalRecordings = () => {
   const netInfo = useNetInfo();
   const createFileMutation = useCreateFile();
 
   const { recordings, addRecording, deleteRecording, updateRecording } =
-    useRecordings();
+    useRecordingsStore();
   const [recordingIdBeingUploaded, setRecordingIdBeingUploaded] = useState<
     string | null
   >(null);
@@ -20,12 +20,12 @@ export const useLocalRecordings = () => {
   useEffect(() => {
     if (recordingIdBeingUploaded === null && !isUploading.current) {
       const recordingToUpload = recordings.find(
-        recording => recording.uploadingStatus === "to_upload",
+        recording => recording.uploadingStatus === 'to_upload',
       );
       if (recordingToUpload && isOnline) {
         isUploading.current = true;
         setRecordingIdBeingUploaded(recordingToUpload.id);
-        updateRecording(recordingToUpload.id, { uploadingStatus: "uploading" });
+        updateRecording(recordingToUpload.id, { uploadingStatus: 'uploading' });
         createFileMutation.mutate(
           {
             durationSeconds: Math.max(
@@ -40,7 +40,9 @@ export const useLocalRecordings = () => {
           },
           {
             onError: () => {
-              updateRecording(recordingToUpload.id, { uploadingStatus: "failed" });
+              updateRecording(recordingToUpload.id, {
+                uploadingStatus: 'failed',
+              });
               setRecordingIdBeingUploaded(null);
             },
             onSuccess: () => {

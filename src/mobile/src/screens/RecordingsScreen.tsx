@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -10,12 +9,16 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { Recording } from '../types/recording';
-import { Lucide } from '@react-native-vector-icons/lucide';
 import { SafeAreaView } from 'react-native-screens/experimental';
-import { InAppBrowser } from 'react-native-inappbrowser-reborn';
-import { BASE_URL } from '@/api/constants';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
-import { UserInfoCard } from '@/components/UserInfoCard';
+import { Lucide } from '@react-native-vector-icons/lucide';
+import { useNetInfo } from '@react-native-community/netinfo';
+import { useNavigation } from '@react-navigation/core';
+// @ts-ignore
+import LogoWithName from '../assets/logo-with-name.svg';
+// @ts-ignore
+import RecordIcon from '@/assets/icons/record.svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const formatDurationLabel = (durationMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -27,14 +30,22 @@ const formatDurationLabel = (durationMs: number) => {
   )}`;
 };
 
-
 export default function RecordingsScreen() {
   const { t, i18n } = useTranslation();
-  const {
-    recordings,
-    isUploading,
-    recordingIdBeingUploaded,
-  } = useLocalRecordings();
+  const netInfo = useNetInfo();
+  const navigation = useNavigation();
+  const safeAreaInsets = useSafeAreaInsets();
+  const { recordings, isUploading, recordingIdBeingUploaded } =
+    useLocalRecordings();
+
+  const handleStartRecording = useCallback(() => {
+    // @ts-ignore
+    navigation.navigate('RecordingInProgress');
+  }, [navigation]);
+
+  const isOnline =
+    netInfo.isConnected === true && netInfo.isInternetReachable !== false;
+
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.language, {
@@ -44,29 +55,7 @@ export default function RecordingsScreen() {
     [i18n.language],
   );
 
-  const handleOpenWebRecordings = async () => {
-    try {
-      const available = await InAppBrowser.isAvailable();
-      if (available) {
-        await InAppBrowser.open(BASE_URL, {
-          animated: true,
-          dismissButtonStyle: 'close',
-          enableDefaultShare: false,
-          forceCloseOnRedirection: false,
-          showTitle: true,
-          toolbarColor: '#111827',
-        });
-        return;
-      }
-
-      await Linking.openURL(BASE_URL);
-    } catch (error) {
-      console.error('Failed to open recordings page:', error);
-    }
-  };
-
   const renderItem = ({ item }: { item: Recording }) => {
-
     return (
       <View style={styles.itemCard}>
         <View style={styles.itemHeader}>
@@ -78,15 +67,13 @@ export default function RecordingsScreen() {
             </Text>
           </View>
 
-          <View style={styles.headerActions}>
-            <View style={styles.syncStatusRow}>
-              <View style={styles.syncDotPending} />
-              <Text style={styles.syncLabel}>
-                {recordingIdBeingUploaded === item.id
-                  ? t('recordings.uploading')
-                  : t('recordings.notSynced')}
-              </Text>
-            </View>
+          <View style={styles.syncStatusRow}>
+            <View style={styles.syncDotPending} />
+            <Text style={styles.syncLabel}>
+              {recordingIdBeingUploaded === item.id
+                ? t('recordings.uploading')
+                : t('recordings.notSynced')}
+            </Text>
           </View>
         </View>
       </View>
@@ -94,18 +81,18 @@ export default function RecordingsScreen() {
   };
 
   return (
-    <SafeAreaView edges={{ bottom: true, top: true }} style={styles.container}>
+    <SafeAreaView edges={{ top: true }} style={styles.container}>
       <View style={styles.topBar}>
-        <UserInfoCard />
-        <Pressable
-          style={styles.manageButton}
-          onPress={handleOpenWebRecordings}
-        >
-          <Lucide name="external-link" size={16} color="#FFFFFF" />
-          <Text style={styles.manageButtonText}>
-            {t('recordings.manageOnline')}
-          </Text>
-        </Pressable>
+        <LogoWithName style={styles.title} />
+
+        {!isOnline && (
+          <View style={[styles.networkCard, styles.offlineCard]}>
+            <Lucide name={'wifi-off'} size={16} color={'#991B1B'} />
+            <Text style={[styles.networkText, styles.offlineText]}>
+              {t('recordings.offline')}
+            </Text>
+          </View>
+        )}
 
         {isUploading ? (
           <View style={styles.uploadingRow}>
@@ -122,12 +109,6 @@ export default function RecordingsScreen() {
           <Text style={styles.pendingTitle}>
             {t('recordings.pendingTitle')}
           </Text>
-          <Pressable
-            style={styles.retryButton}
-            // onPress={() => retryPendingUploads().catch(() => undefined)}
-          >
-            <Lucide name="refresh-cw" size={15} color="#1D4ED8" />
-          </Pressable>
         </View>
 
         {recordings.length === 0 ? (
@@ -146,6 +127,29 @@ export default function RecordingsScreen() {
           />
         )}
       </View>
+
+      <View
+        style={[
+          styles.startRecordingPositionner,
+          { bottom: safeAreaInsets.bottom + 16 },
+        ]}
+      >
+        <View style={styles.startRecordingContainer}>
+          <Pressable
+            style={styles.startRecordingButton}
+            onPress={handleStartRecording}
+          >
+            <RecordIcon width={24} height={24} />
+            <Text style={styles.startRecordingButtonText}>
+              {t('home.newRecording')}
+            </Text>
+          </Pressable>
+
+          <View style={styles.consentRow}>
+            <Text style={styles.consentText}>{t('home.consentNotice')}</Text>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -153,7 +157,6 @@ export default function RecordingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 36,
     backgroundColor: '#F9FAFB',
   },
   topBar: {
@@ -162,35 +165,31 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 12,
   },
-  manageButton: {
+  title: {
+    marginBottom: 2,
+  },
+  networkCard: {
     borderRadius: 10,
-    backgroundColor: '#111827',
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+    borderWidth: 1,
   },
-  manageButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+  offlineCard: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
-  playerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-    shadowColor: '#111827',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+  networkText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
-  playerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+  onlineText: {
+    color: '#065F46',
+  },
+  offlineText: {
+    color: '#991B1B',
   },
   uploadingRow: {
     flexDirection: 'row',
@@ -217,30 +216,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   pendingTitle: {
     color: '#111827',
     fontWeight: '700',
     fontSize: 16,
   },
-  retryButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EFF6FF',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
   listContent: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 12,
+    paddingBottom: 130,
   },
   itemCard: {
     backgroundColor: '#FFFFFF',
@@ -259,14 +245,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  headerActions: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   syncStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -279,50 +257,82 @@ const styles = StyleSheet.create({
     backgroundColor: '#F59E0B',
   },
   syncLabel: {
+    color: '#92400E',
+    fontWeight: '700',
     fontSize: 12,
-    color: '#4B5563',
-    fontWeight: '600',
-  },
-  playRecordingButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#E0F2FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   name: {
-    fontSize: 18,
-    fontWeight: '700',
     color: '#111827',
+    fontWeight: '700',
+    fontSize: 15,
   },
   meta: {
-    fontSize: 14,
     color: '#6B7280',
+    fontSize: 13,
   },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    minHeight: 200,
+    padding: 20,
+    gap: 8,
   },
   emptyTitle: {
     color: '#111827',
     fontWeight: '700',
-    fontSize: 22,
-    marginBottom: 8,
+    fontSize: 18,
   },
   emptySubtitle: {
     color: '#6B7280',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  startRecordingPositionner: {
+    position: 'absolute',
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  startRecordingContainer: {
+    width: '100%',
+    maxWidth: 400,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9DCE3',
+    padding: 14,
+    gap: 8,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  startRecordingButton: {
+    backgroundColor: '#FFDAD7',
+    borderRadius: 4,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  startRecordingButtonText: {
+    color: '#BD0F23',
     fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'Marianne',
+  },
+  consentRow: {
+    gap: 12,
+  },
+  consentText: {
+    flexShrink: 1,
+    fontSize: 12,
+    fontFamily: 'Marianne',
+    fontWeight: '500',
+    color: '#626A80',
     textAlign: 'center',
   },
 });

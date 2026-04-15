@@ -33,7 +33,6 @@ export async function storeCsrfToken(token: string): Promise<void> {
     CSRF_COOKIE_NAME,
     token,
   );
-  console.log("stored", await getCsrfToken())
 }
 
 export async function getSessionCookie(): Promise<string | null> {
@@ -59,7 +58,7 @@ export async function login(): Promise<void> {
   const url = buildAuthUrl(false, API_REDIRECT_URL);
   const isAvailable = await InAppBrowser.isAvailable();
   if (isAvailable) {
-    const result = await InAppBrowser.openAuth(url, REDIRECT_URL, {
+    await InAppBrowser.openAuth(url, REDIRECT_URL, {
       // iOS Properties
       dismissButtonStyle: 'cancel',
       preferredBarTintColor: '#453AA4',
@@ -90,15 +89,6 @@ export async function login(): Promise<void> {
       headers: {
       },
     });
-    if (result.type === 'success') {
-      const searchParams = new URLSearchParams(result.url.split('?')[1]);
-      const sessionId = searchParams.get('sessionId');
-      const csrfToken = searchParams.get('csrfToken');
-      if (sessionId && csrfToken) {
-        await storeSessionCookie(sessionId);
-        await storeCsrfToken(csrfToken);
-      }
-    }
   } else {
     Linking.openURL(url);
   }

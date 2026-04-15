@@ -9,4 +9,4 @@ export const resources = {
   fr: { translation: fr },
 } as const;
 
-export const defaultLanguage = 'en' as const;
+export const defaultLanguage = 'fr' as const;
