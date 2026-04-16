@@ -9,6 +9,10 @@ import { type LocalRecording, recordingSchema } from '../types/localRecording';
 import { type AppSettings, appSettingsSchema } from '../types/settings';
 import type { ApiUser } from '@/features/auth/api/ApiUser';
 import { z } from 'zod/v4';
+import NetInfo from '@react-native-community/netinfo';
+import { createFile } from '@/features/files/api/createFile';
+import { queryClient } from '@/api/queryClient';
+import { keys } from '@/api/queryKeys';
 
 const storage = createMMKV({
   id: 'transcript-storage',
@@ -45,7 +49,10 @@ export interface RecordingsStore {
   recordings: LocalRecording[];
   addRecording: (recording: LocalRecording) => void;
   deleteRecording: (recordingId: string) => void;
-  updateRecording: (id: string, data: Partial<Omit<LocalRecording, 'id'>>) => void;
+  updateRecording: (
+    id: string,
+    data: Partial<Omit<LocalRecording, 'id'>>,
+  ) => void;
 }
 
 export interface SettingsStore {
@@ -63,6 +70,74 @@ export interface UserStore {
   setCachedUser: (user: ApiUser) => void;
   clearCachedUser: () => void;
 }
+
+const checkIsOnline = async (): Promise<boolean> => {
+  const state = await NetInfo.fetch();
+  return state.isConnected === true && state.isInternetReachable !== false;
+};
+
+let isUploadInProgress = false;
+const triggerUpload = async (): Promise<void> => {
+  if (isUploadInProgress) {
+    return;
+  }
+
+  const online = await checkIsOnline();
+  if (!online) {
+    return;
+  }
+
+  const { recordings, updateRecording, deleteRecording } =
+    useRecordingsStore.getState();
+  const recordingToUpload =
+    recordings.find(r => r.uploadingStatus === 'to_upload') ?? null;
+
+  if (!recordingToUpload) {
+    return;
+  }
+
+  isUploadInProgress = true;
+  updateRecording(recordingToUpload.id, { uploadingStatus: 'uploading' });
+
+  try {
+    await createFile({
+      durationSeconds: recordingToUpload.duration_seconds,
+      file: {
+        name: `${recordingToUpload.title}.m4a`,
+        type: 'audio/mp4',
+        uri: recordingToUpload.filePath,
+      },
+    });
+    deleteRecording(recordingToUpload.id);
+    await queryClient.invalidateQueries({ queryKey: [keys.files] });
+  } catch (error) {
+    console.error('Error creating file:', error);
+    updateRecording(recordingToUpload.id, { uploadingStatus: 'failed' });
+  } finally {
+    isUploadInProgress = false;
+    triggerUpload().catch(console.error);
+  }
+};
+
+let isRecordingsUploadManagerStarted = false;
+const startRecordingsUploadManager = () => {
+  if (isRecordingsUploadManagerStarted) {
+    return;
+  }
+  isRecordingsUploadManagerStarted = true;
+
+  useRecordingsStore.subscribe(state => {
+    if (state.recordings.some(r => r.uploadingStatus === 'to_upload')) {
+      triggerUpload().catch(console.error);
+    }
+  });
+
+  NetInfo.addEventListener(() => {
+    triggerUpload().catch(console.error);
+  });
+
+  triggerUpload().catch(console.error);
+};
 
 export const useRecordingsStore = create<RecordingsStore>()(
   persist(
@@ -148,3 +223,5 @@ export const useUserStore = create<UserStore>()(
     },
   ),
 );
+
+startRecordingsUploadManager();

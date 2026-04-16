@@ -133,7 +133,7 @@ export default function RecordingsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useInsets();
-  const { recordings, isUploading } = useLocalRecordings();
+  const { recordings } = useLocalRecordings();
   const { isLoggedIn, isLoading } = useUser();
   const filesQ = useListMyFilesInfinite({
     pageSize: 20,
@@ -260,14 +260,6 @@ export default function RecordingsScreen() {
             </Text>
           </View>
         )}
-        {isUploading ? (
-          <View style={styles.uploadingRow}>
-            <ActivityIndicator size="small" color="#1D4ED8" />
-            <Text style={styles.uploadingText}>
-              {t('recordings.uploading')}
-            </Text>
-          </View>
-        ) : null}
       </View>
 
       {isOnline && isLoggedIn && filesQ.isPending && (
