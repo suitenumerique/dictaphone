@@ -5,7 +5,15 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Button,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import {
@@ -74,7 +82,6 @@ export const AudioRecorder = () => {
   };
 
   useEffect(() => {
-    // Todo properly manage permissions
     AudioManager.requestRecordingPermissions().then(res => {
       setPermissionStatus(res);
       if (res === 'Granted') {
@@ -297,6 +304,42 @@ export const AudioRecorder = () => {
       },
     ]);
   }, [t]);
+
+  useEffect(() => {
+    if (permissionStatus === 'Denied') {
+      Alert.alert(t('home.permissionDenied'), t('home.recordingDisabled'), [
+        {
+          text: t('home.permissionCancel'),
+          onPress: () => {
+            navigation.navigate('Main' as never);
+          },
+        },
+        {
+          text: t('home.openSettings'),
+          onPress: () => {
+            Linking.openSettings();
+          },
+        },
+      ]);
+    }
+  }, [navigation, permissionStatus, t]);
+
+  if (permissionStatus === 'Denied') {
+    return (
+      <View style={styles.activeContainer}>
+        <View style={styles.statusSection}>
+          <View style={styles.statusBadge}>
+            <Lucide name="mic-off" size={18} color="#BD0F23" />
+          </View>
+          <Text>{t('home.recordingDisabled')}</Text>
+          <Button
+            onPress={() => Linking.openSettings()}
+            title={t('home.openSettings')}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.activeContainer}>

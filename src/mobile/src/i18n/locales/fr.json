@@ -22,7 +22,10 @@
     "recordingPaused": "Enregistrement en pause",
     "recordingSubtitle": "Vous pouvez mettre en pause l'enregistrement quand vous le souhaitez.",
     "recordingSubtitlePaused": "Vous pouvez reprendre l'enregistrement quand vous le souhaitez.",
-    "end": "Terminer"
+    "end": "Terminer",
+    "permissionDenied": "Permission refusée",
+    "recordingDisabled": "Veuillez autoriser l'utilisation du microphone pour enregistrer.",
+    "openSettings": "Ouvrir les paramètres"
   },
   "recordings": {
     "emptyTitle": "Aucun enregistrement",

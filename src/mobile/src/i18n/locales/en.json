@@ -22,7 +22,10 @@
     "recordingPaused": "Recording paused",
     "recordingSubtitle": "You can pause the recording at any time.",
     "recordingSubtitlePaused": "You can resume the recording at any time.",
-    "end": "End"
+    "end": "End",
+    "permissionDenied": "Permission denied",
+    "recordingDisabled": "Please enable microphone permission to record audio.",
+    "openSettings": "Open Settings"
   },
   "recordings": {
     "emptyTitle": "No recordings yet",
