@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -29,6 +29,7 @@ export default function RecordingMenu({
   const [isPopoverVisible, setIsPopoverVisible] = useState(false);
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState(currentTitle);
+  const [pendingRename, setPendingRename] = useState(false);
 
   const deleteMutation = useDeleteFile();
   const renameMutation = usePartialUpdateFile();
@@ -36,11 +37,27 @@ export default function RecordingMenu({
   const isBusy = deleteMutation.isPending || renameMutation.isPending;
   const sanitizedTitle = useMemo(() => draftTitle.trim(), [draftTitle]);
 
+  useEffect(() => {
+    if (isRenameModalVisible) {
+      setDraftTitle(currentTitle);
+    }
+  }, [currentTitle, isRenameModalVisible]);
+
   const openRenameModal = useCallback(() => {
+    setPendingRename(true);
     setIsPopoverVisible(false);
-    setDraftTitle(currentTitle);
-    setIsRenameModalVisible(true);
-  }, [currentTitle]);
+  }, []);
+
+  const handlePopoverCloseComplete = useCallback(() => {
+    if (pendingRename) {
+      setPendingRename(false);
+
+      // Hack for opening the rename modal to work on iOS
+      setTimeout(() => {
+        setIsRenameModalVisible(true);
+      }, 50)
+    }
+  }, [pendingRename]);
 
   const closeRenameModal = useCallback(() => {
     if (!renameMutation.isPending) {
@@ -96,6 +113,7 @@ export default function RecordingMenu({
           arrowSize={{ width: 0, height: 0 }}
           popoverStyle={styles.popover}
           onRequestClose={() => setIsPopoverVisible(false)}
+          onCloseComplete={handlePopoverCloseComplete}
           from={
             <Pressable
               style={styles.iconButton}
