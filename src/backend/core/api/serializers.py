@@ -40,8 +40,15 @@ class AiJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.AiFileJob
-        fields = ["id", "type", "status", "created_at", "updated_at"]
-        read_only_fields = ["id", "type", "status", "created_at", "updated_at"]
+        fields = ["id", "type", "status", "created_at", "updated_at", "docs_app_id"]
+        read_only_fields = [
+            "id",
+            "type",
+            "status",
+            "created_at",
+            "updated_at",
+            "docs_app_id",
+        ]
 
 
 class ListFileSerializer(serializers.ModelSerializer):
