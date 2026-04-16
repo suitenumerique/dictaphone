@@ -11,7 +11,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
 
   .dictaphone__connected_layout_content {
     width: 100%;
-    max-width: 1200px;
+    max-width: 800px;
     padding-top: 8rem;
 
     @media (max-width: $tablet) {
