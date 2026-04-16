@@ -237,13 +237,14 @@ class Base(Configuration):
         default=True, environ_name="DOCS_INTEGRATION_ENABLED", environ_prefix=None
     )
     DOCS_BASE_URL = values.Value(
-        "https://impress-staging.beta.numerique.gouv.fr/",
+        "https://example.com",
         environ_name="DOCS_BASE_URL",
         environ_prefix=None,
     )
     DOCS_SERVER_TO_SERVER_API_KEY = values.Value(
         None,
         environ_name="DOCS_SERVER_TO_SERVER_API_KEY",
+        environ_prefix=None,
     )
 
     # Internationalization
@@ -792,7 +793,7 @@ class Production(Base):
     SECURE_HSTS_SECONDS = 60
     SECURE_HSTS_PRELOAD = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False
     SECURE_REDIRECT_EXEMPT = [
         "^__lbheartbeat__",
         "^__heartbeat__",

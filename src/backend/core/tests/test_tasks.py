@@ -11,9 +11,10 @@ from core import factories
 from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
 from core.tasks.file import (
     call_transcribe_service,
+    create_document_in_docs,
+    handle_transcript_received,
     process_file_deletion,
     store_summary,
-    store_transcript_and_call_summary,
 )
 
 pytestmark = pytest.mark.django_db
@@ -104,7 +105,7 @@ def test_task_call_transcribe_service_http_error(mock_post):
 @patch("core.tasks.file.requests.get")
 def test_task_store_transcript_and_call_summary_job_does_not_exist(mock_get, mock_post):
     """No external calls should be made for unknown remote job id."""
-    store_transcript_and_call_summary(
+    handle_transcript_received(
         remote_job_id="missing-remote-job",
         url="http://example.com/transcript.json",
     )
@@ -121,7 +122,7 @@ def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
     """No external calls should be made if remote id belongs to a non-transcript job."""
     ai_summary_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
 
-    store_transcript_and_call_summary(
+    handle_transcript_received(
         remote_job_id=ai_summary_job.remote_job_id,
         url="http://example.com/transcript.json",
     )
@@ -130,9 +131,12 @@ def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
     mock_post.assert_not_called()
 
 
+@patch("core.tasks.file.create_document_in_docs.apply_async")
 @patch("core.tasks.file.requests.post")
 @patch("core.tasks.file.requests.get")
-def test_task_store_transcript_and_call_summary_success(mock_get, mock_post, settings):
+def test_task_store_transcript_and_call_summary_success(
+    mock_get, mock_post, mock_create_document_in_docs, settings
+):
     """Transcript should be stored, transcript job marked success and summary job created."""
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
@@ -182,7 +186,7 @@ def test_task_store_transcript_and_call_summary_success(mock_get, mock_post, set
     post_response.json.return_value = {"job_id": "remote-summary-job-id"}
     mock_post.return_value = post_response
 
-    store_transcript_and_call_summary(
+    handle_transcript_received(
         remote_job_id=ai_transcript_job.remote_job_id,
         url="http://example.com/transcript.json",
     )
@@ -200,6 +204,7 @@ def test_task_store_transcript_and_call_summary_success(mock_get, mock_post, set
         "language": "fr",
         "content": "\n\n**SPEAKER_00**: Bonjour",
     }
+    mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
 
     s3_client = default_storage.connection.meta.client
     stored_obj = s3_client.get_object(
@@ -232,7 +237,7 @@ def test_task_store_transcript_and_call_summary_get_error(mock_get, mock_post):
     mock_get.return_value = get_response
 
     with pytest.raises(RuntimeError, match="download failure"):
-        store_transcript_and_call_summary(
+        handle_transcript_received(
             remote_job_id=ai_transcript_job.remote_job_id,
             url="http://example.com/transcript.json",
         )
@@ -328,9 +333,12 @@ def test_task_store_summary_get_error(mock_get):
     assert not default_storage.exists(f"summaries/{ai_summary_job.id!s}.txt")
 
 
+@patch("core.tasks.file.create_document_in_docs.apply_async")
 @patch("core.tasks.file.requests.post")
 @patch("core.tasks.file.requests.get")
-def test_task_store_transcript_and_call_summary_post_error(mock_get, mock_post):
+def test_task_store_transcript_and_call_summary_post_error(
+    mock_get, mock_post, mock_create_document_in_docs
+):
     """
     If summary API fails after transcript storage, transcript remains saved and
     transcript job stays SUCCESS and summary job is created as failed.
@@ -362,7 +370,7 @@ def test_task_store_transcript_and_call_summary_post_error(mock_get, mock_post):
     mock_post.return_value = post_response
 
     with pytest.raises(RuntimeError, match="summary failure"):
-        store_transcript_and_call_summary(
+        handle_transcript_received(
             remote_job_id=ai_transcript_job.remote_job_id,
             url="http://example.com/transcript.json",
         )
@@ -376,3 +384,62 @@ def test_task_store_transcript_and_call_summary_post_error(mock_get, mock_post):
     )
     assert ai_summary_job.status == AiJobStatusChoices.FAILED
     assert ai_summary_job.remote_job_id is None
+    mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
+
+
+@patch("core.tasks.file.requests.post")
+def test_task_create_document_in_docs_ignores_non_transcript_job(mock_post):
+    """Non-transcript jobs should not trigger Docs document creation."""
+    ai_summary_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
+
+    create_document_in_docs(ai_summary_job.id)
+
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.requests.post")
+def test_task_create_document_in_docs_ignores_existing_doc(mock_post):
+    """Jobs with existing docs id should not call Docs API again."""
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id="existing-doc-id",
+    )
+
+    create_document_in_docs(ai_transcript_job.id)
+
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
+def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, settings):
+    """Transcript jobs should create Docs documents and store docs id."""
+    settings.DOCS_BASE_URL = "https://docs.example.com"
+    settings.DOCS_SERVER_TO_SERVER_API_KEY = "docs-api-key"
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+        file__title="Meeting notes",
+    )
+
+    mock_to_markdown.return_value = "# Transcript"
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"id": "new-doc-id"}
+    mock_post.return_value = response
+
+    create_document_in_docs(ai_transcript_job.id)
+
+    mock_post.assert_called_once_with(
+        "https://docs.example.com/api/v1.0/documents/create-for-owner/",
+        json={
+            "title": "Meeting notes",
+            "content": "# Transcript",
+            "email": ai_transcript_job.file.creator.email,
+            "sub": ai_transcript_job.file.creator.sub,
+        },
+        headers={"Authorization": "Bearer docs-api-key"},
+        timeout=20,
+    )
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.docs_app_id == "new-doc-id"

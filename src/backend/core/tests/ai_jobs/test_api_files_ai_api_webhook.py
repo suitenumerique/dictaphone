@@ -40,7 +40,7 @@ def test_api_files_transcribe_webhook_bad_token(caplog):
     assert "Bad Authorization header (ip:" in caplog.text
 
 
-@patch("core.api.viewsets.store_transcript_and_call_summary")
+@patch("core.api.viewsets.handle_transcript_received")
 def test_api_files_transcribe_webhook_authenticated(mock_task, settings):
     """Calls to the webhook with a proper API key should be accepted"""
 
@@ -94,7 +94,7 @@ def test_api_files_transcribe_webhook_authenticated_already_success(settings):
     }
 
 
-@patch("core.api.viewsets.store_transcript_and_call_summary")
+@patch("core.api.viewsets.handle_transcript_received")
 def test_api_files_transcribe_webhook_invalid_payload(mock_task, settings):
     """Invalid payloads should be rejected with a 400."""
     settings.AI_WEBHOOK_API_KEY = "good-key"
@@ -114,7 +114,7 @@ def test_api_files_transcribe_webhook_invalid_payload(mock_task, settings):
     assert mock_task.apply_async.call_count == 0
 
 
-@patch("core.api.viewsets.store_transcript_and_call_summary")
+@patch("core.api.viewsets.handle_transcript_received")
 def test_api_files_transcribe_webhook_unknown_job_id(mock_task, settings):
     """Unknown jobs should be ignored without dispatching tasks."""
     settings.AI_WEBHOOK_API_KEY = "good-key"
@@ -136,7 +136,7 @@ def test_api_files_transcribe_webhook_unknown_job_id(mock_task, settings):
 
 
 @patch("core.api.viewsets.store_summary")
-@patch("core.api.viewsets.store_transcript_and_call_summary")
+@patch("core.api.viewsets.handle_transcript_received")
 def test_api_files_summary_webhook_success(
     mock_store_transcript, mock_store_summary, settings
 ):

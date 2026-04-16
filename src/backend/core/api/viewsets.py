@@ -9,12 +9,9 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch
 from django.http import HttpResponse
-from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
-import requests
 from django_filters import rest_framework as django_filters
-from lasuite.oidc_login.decorators import refresh_oidc_access_token
 from pydantic import ValidationError
 from rest_framework import (
     decorators,
@@ -38,9 +35,9 @@ from core.api.filters import ListFileFilter
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.tasks.file import (
     call_transcribe_service,
+    handle_transcript_received,
     process_file_deletion,
     store_summary,
-    store_transcript_and_call_summary,
 )
 
 from ..models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices
@@ -619,7 +616,6 @@ class AiJobViewSet(
             content_type="application/json",
         )
 
-    # @method_decorator(refresh_oidc_access_token)
     @decorators.action(detail=True, methods=["post"], url_path="open-in-docs")
     def open_in_docs(self, request, *args, **kwargs):
         """
@@ -676,7 +672,7 @@ class AiJobViewSet(
             )
 
         if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):
-            store_transcript_and_call_summary.apply_async(
+            handle_transcript_received.apply_async(
                 args=[payload.job_id, payload.transcription_data_url]
             )
         elif isinstance(payload, webhook_models.SummarizeWebhookSuccessPayload):

@@ -71,4 +71,6 @@ def test_api_ai_jobs_open_in_docs_returns_url_when_docs_id_exists(settings):
     response = client.post(f"/api/v1.0/ai-jobs/{ai_job.id}/open-in-docs/")
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {"doc_url": "https://docs.example.com/docs/existing-doc-id/"}
+    assert response.json() == {
+        "doc_url": "https://docs.example.com/docs/existing-doc-id/"
+    }

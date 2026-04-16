@@ -3,6 +3,7 @@ Tasks related to files.
 """
 
 import logging
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -91,7 +92,7 @@ def call_transcribe_service(file_id):
 
 
 @app.task
-def store_transcript_and_call_summary(remote_job_id, url):
+def handle_transcript_received(remote_job_id, url):
     """
     Store the transcript and call the summarize service for a given file.
     """
@@ -120,6 +121,8 @@ def store_transcript_and_call_summary(remote_job_id, url):
     logger.info("Transcript stored for file %s & url %s", file.id, url)
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
     ai_transcript_job.save()
+
+    create_document_in_docs.apply_async(args=[ai_transcript_job.id])
 
     ai_summary_job = AiFileJob.objects.create(
         remote_job_id=None,
@@ -183,3 +186,45 @@ def store_summary(remote_job_id, url):
     logger.info("Summary stored for file %s & url %s", file.id, url)
     ai_summary_job.status = AiJobStatusChoices.SUCCESS
     ai_summary_job.save()
+
+
+@app.task
+def create_document_in_docs(ai_job_id):
+    """
+    Create a document in Docs for a given file.
+    """
+    ai_job = AiFileJob.objects.prefetch_related("file", "file__creator").get(
+        pk=ai_job_id
+    )
+    if ai_job is None or ai_job.type != AiJobTypeChoices.TRANSCRIPT:
+        logger.warning("No AI file job found for job ID: %s", ai_job_id)
+        return
+
+    if ai_job.docs_app_id is not None:
+        logger.info("Document already exists in Docs for file %s", ai_job.file.id)
+        return
+
+    content = ai_job.to_markdown()
+
+    response = requests.post(
+        urljoin(settings.DOCS_BASE_URL, "/api/v1.0/documents/create-for-owner/"),
+        json={
+            "title": ai_job.file.title,
+            "content": content,
+            "email": ai_job.file.creator.email,
+            "sub": ai_job.file.creator.sub,
+        },
+        headers={
+            "Authorization": f"Bearer {settings.DOCS_SERVER_TO_SERVER_API_KEY}",
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    docs_app_id = response.json()["id"]
+    logger.info(
+        "Document created in Docs for file %s => %s (in docs)",
+        ai_job.file.id,
+        docs_app_id,
+    )
+    ai_job.docs_app_id = docs_app_id
+    ai_job.save()
