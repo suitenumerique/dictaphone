@@ -240,7 +240,7 @@ export const AudioRecorder = () => {
         { value: recordingStartDateTime.current! },
       )}`;
       addRecording({
-        created_at: new Date().toISOString(),
+        created_at: recordingStartDateTime.current!.toISOString(),
         duration_seconds: result.duration,
         filePath: result.path,
         title,

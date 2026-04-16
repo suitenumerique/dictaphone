@@ -102,6 +102,7 @@ const triggerUpload = async (): Promise<void> => {
   try {
     await createFile({
       durationSeconds: recordingToUpload.duration_seconds,
+      createdAt: recordingToUpload.created_at,
       file: {
         name: `${recordingToUpload.title}.m4a`,
         type: 'audio/mp4',
