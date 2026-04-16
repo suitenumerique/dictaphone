@@ -237,6 +237,7 @@ export const useUploadZone = () => {
               createFile.mutate(
                 {
                   file,
+                  createdAt: new Date().toISOString(),
                   durationSeconds: file.durationSeconds,
                   onProgress: (progress) => {
                     setUploadingState((prev) => {

@@ -59,14 +59,17 @@ export const createFile = async ({
   file,
   durationSeconds,
   onProgress,
+  createdAt,
 }: {
   file: File
   durationSeconds: number
   onProgress: (progress: number) => void
+  createdAt: string
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
     body: JSON.stringify({
+      created_at: createdAt,
       filename: file.name,
       type: 'audio_recording',
       duration_seconds: durationSeconds,

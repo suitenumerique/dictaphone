@@ -258,6 +258,7 @@ export default function RecordComponent() {
     createFileMutation
       .mutateAsync({
         file: recordedFile,
+        createdAt: recordingRealStartDateRef.current!.toISOString(),
         durationSeconds: Math.floor(recordingDurationMs / 1000),
         onProgress: (progress) => setUploadProgress(progress),
       })
