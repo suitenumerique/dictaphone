@@ -1,9 +1,8 @@
 // src/services/authService.ts
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import * as Keychain from 'react-native-keychain';
 import { API_URL } from '../api/constants';
-
 
 const SESSION_COOKIE_NAME = 'sessionid';
 const CSRF_COOKIE_NAME = 'csrftoken';
@@ -38,18 +37,18 @@ export async function storeCsrfToken(token: string): Promise<void> {
 export async function getSessionCookie(): Promise<string | null> {
   const data = await Keychain.getInternetCredentials(SESSION_COOKIE_NAME);
   if (data === false) {
-    return null
+    return null;
   } else {
-    return data.password
+    return data.password;
   }
 }
 
 export async function getCsrfToken(): Promise<string | null> {
   const data = await Keychain.getInternetCredentials(CSRF_COOKIE_NAME);
   if (data === false) {
-    return null
+    return null;
   } else {
-    return data.password
+    return data.password;
   }
 }
 
@@ -58,7 +57,7 @@ export async function login(): Promise<void> {
   const url = buildAuthUrl(false, API_REDIRECT_URL);
   const isAvailable = await InAppBrowser.isAvailable();
   if (isAvailable) {
-    await InAppBrowser.openAuth(url, REDIRECT_URL, {
+    const res = await InAppBrowser.openAuth(url, REDIRECT_URL, {
       // iOS Properties
       dismissButtonStyle: 'cancel',
       preferredBarTintColor: '#453AA4',
@@ -86,9 +85,14 @@ export async function login(): Promise<void> {
         endEnter: 'slide_in_left',
         endExit: 'slide_out_right',
       },
-      headers: {
-      },
+      headers: {},
     });
+    if (res.type === 'success') {
+      // For some reasons on iOS the redirect is not working
+      if (Platform.OS === 'ios') {
+        Linking.openURL(res.url);
+      }
+    }
   } else {
     Linking.openURL(url);
   }

@@ -1,4 +1,5 @@
 import Foundation
+import React
 
 @objc(FileUploadModule)
 class FileUploadModule: NSObject {

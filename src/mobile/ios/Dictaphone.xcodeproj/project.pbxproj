@@ -7,52 +7,59 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0AB1B9FF45BB4D2EA8849778 /* Marianne-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */; };
 		0C80B921A6F3F58F76C31292 /* libPods-Dictaphone.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-Dictaphone.a */; };
 		120AB1BFD2E12625D6736AD4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		175E473DAE77421CA346D274 /* Marianne-RegularItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */; };
+		21140A52DFCB427391FC2D8E /* Marianne-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */; };
+		2D7131C1D1994ACA86D3B442 /* Marianne-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */; };
+		3CA118432F90C97500888295 /* FileUploadModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118422F90C97500888295 /* FileUploadModule.swift */; };
+		3CA118442F90C97500888295 /* FileUploadModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118412F90C97500888295 /* FileUploadModule.m */; };
+		4519DF0B08B440398A18F497 /* Marianne-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */; };
+		5095DBADCC63462292CBD240 /* Marianne-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */; };
 		5AFF4A782CAA4D09AA51F853 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 9146F7905284416699041E5D /* BootSplash.storyboard */; };
+		69ECD3C4E4E946DAA7C19ADE /* Marianne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */; };
+		6E83603778424818A4D5EF11 /* Marianne-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */; };
+		6F6F97D2EC694FABBD5F9165 /* Marianne-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */; };
 		75E7D6C9B0C349F28AC1B9BA /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E7199233157A4D93BF1A98B0 /* Colors.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		6F6F97D2EC694FABBD5F9165 /* Marianne-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */; };
-		4519DF0B08B440398A18F497 /* Marianne-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */; };
-		2D7131C1D1994ACA86D3B442 /* Marianne-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */; };
-		D6C2676FDCA748F182094FF7 /* Marianne-ExtraBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */; };
-		0AB1B9FF45BB4D2EA8849778 /* Marianne-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */; };
 		97AC94B5B34C48A8A7102B00 /* Marianne-LightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FBFA236F165D42B491FE2F39 /* Marianne-LightItalic.ttf */; };
-		21140A52DFCB427391FC2D8E /* Marianne-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */; };
-		6E83603778424818A4D5EF11 /* Marianne-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */; };
-		69ECD3C4E4E946DAA7C19ADE /* Marianne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */; };
-		175E473DAE77421CA346D274 /* Marianne-RegularItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */; };
-		5095DBADCC63462292CBD240 /* Marianne-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */; };
 		C3C0224EBD03455E9961582F /* Marianne-ThinItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 732E8A7C309045C08FC156A6 /* Marianne-ThinItalic.ttf */; };
+		D6C2676FDCA748F182094FF7 /* Marianne-ExtraBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		13B07F961A680F5B00A75B9A /* Dictaphone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Dictaphone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Bold.ttf"; path = "../assets/fonts/Marianne-Bold.ttf"; sourceTree = "<group>"; };
+		13B07F961A680F5B00A75B9A /* Assistant Transcripts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Assistant Transcripts.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Dictaphone/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Dictaphone/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Dictaphone/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-RegularItalic.ttf"; path = "../assets/fonts/Marianne-RegularItalic.ttf"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-Dictaphone.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Dictaphone.debug.xcconfig"; path = "Target Support Files/Pods-Dictaphone/Pods-Dictaphone.debug.xcconfig"; sourceTree = "<group>"; };
+		3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-BoldItalic.ttf"; path = "../assets/fonts/Marianne-BoldItalic.ttf"; sourceTree = "<group>"; };
+		3CA1183F2F90C97500888295 /* Dictaphone-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Dictaphone-Bridging-Header.h"; sourceTree = "<group>"; };
+		3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "dictaphone-Briding-Header.h"; sourceTree = "<group>"; };
+		3CA118412F90C97500888295 /* FileUploadModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileUploadModule.m; sourceTree = "<group>"; };
+		3CA118422F90C97500888295 /* FileUploadModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUploadModule.swift; sourceTree = "<group>"; };
+		3CA118452F90C97800888295 /* Dictaphone-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Dictaphone-Bridging-Header.h"; sourceTree = "<group>"; };
+		446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Thin.ttf"; path = "../assets/fonts/Marianne-Thin.ttf"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-Dictaphone.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Dictaphone.release.xcconfig"; path = "Target Support Files/Pods-Dictaphone/Pods-Dictaphone.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-Dictaphone.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Dictaphone.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Medium.ttf"; path = "../assets/fonts/Marianne-Medium.ttf"; sourceTree = "<group>"; };
+		732E8A7C309045C08FC156A6 /* Marianne-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-ThinItalic.ttf"; path = "../assets/fonts/Marianne-ThinItalic.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Dictaphone/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Dictaphone/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		9146F7905284416699041E5D /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = Dictaphone/BootSplash.storyboard; sourceTree = "<group>"; };
+		9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-MediumItalic.ttf"; path = "../assets/fonts/Marianne-MediumItalic.ttf"; sourceTree = "<group>"; };
+		9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Regular.ttf"; path = "../assets/fonts/Marianne-Regular.ttf"; sourceTree = "<group>"; };
+		A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-ExtraBoldItalic.ttf"; path = "../assets/fonts/Marianne-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
+		B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Light.ttf"; path = "../assets/fonts/Marianne-Light.ttf"; sourceTree = "<group>"; };
 		E7199233157A4D93BF1A98B0 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = Dictaphone/Colors.xcassets; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */ = {isa = PBXFileReference; name = "Marianne-Bold.ttf"; path = "../assets/fonts/Marianne-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */ = {isa = PBXFileReference; name = "Marianne-BoldItalic.ttf"; path = "../assets/fonts/Marianne-BoldItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */ = {isa = PBXFileReference; name = "Marianne-ExtraBold.ttf"; path = "../assets/fonts/Marianne-ExtraBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; name = "Marianne-ExtraBoldItalic.ttf"; path = "../assets/fonts/Marianne-ExtraBoldItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */ = {isa = PBXFileReference; name = "Marianne-Light.ttf"; path = "../assets/fonts/Marianne-Light.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		FBFA236F165D42B491FE2F39 /* Marianne-LightItalic.ttf */ = {isa = PBXFileReference; name = "Marianne-LightItalic.ttf"; path = "../assets/fonts/Marianne-LightItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */ = {isa = PBXFileReference; name = "Marianne-Medium.ttf"; path = "../assets/fonts/Marianne-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */ = {isa = PBXFileReference; name = "Marianne-MediumItalic.ttf"; path = "../assets/fonts/Marianne-MediumItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */ = {isa = PBXFileReference; name = "Marianne-Regular.ttf"; path = "../assets/fonts/Marianne-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */ = {isa = PBXFileReference; name = "Marianne-RegularItalic.ttf"; path = "../assets/fonts/Marianne-RegularItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */ = {isa = PBXFileReference; name = "Marianne-Thin.ttf"; path = "../assets/fonts/Marianne-Thin.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		732E8A7C309045C08FC156A6 /* Marianne-ThinItalic.ttf */ = {isa = PBXFileReference; name = "Marianne-ThinItalic.ttf"; path = "../assets/fonts/Marianne-ThinItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-ExtraBold.ttf"; path = "../assets/fonts/Marianne-ExtraBold.ttf"; sourceTree = "<group>"; };
+		FBFA236F165D42B491FE2F39 /* Marianne-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-LightItalic.ttf"; path = "../assets/fonts/Marianne-LightItalic.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,9 +74,32 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		01B7C54588694FDF9C4C3730 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */,
+				3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */,
+				F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */,
+				A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */,
+				B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */,
+				FBFA236F165D42B491FE2F39 /* Marianne-LightItalic.ttf */,
+				70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */,
+				9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */,
+				9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */,
+				39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */,
+				446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */,
+				732E8A7C309045C08FC156A6 /* Marianne-ThinItalic.ttf */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* Dictaphone */ = {
 			isa = PBXGroup;
 			children = (
+				3CA1183F2F90C97500888295 /* Dictaphone-Bridging-Header.h */,
+				3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */,
+				3CA118412F90C97500888295 /* FileUploadModule.m */,
+				3CA118422F90C97500888295 /* FileUploadModule.swift */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -77,6 +107,7 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				9146F7905284416699041E5D /* BootSplash.storyboard */,
 				E7199233157A4D93BF1A98B0 /* Colors.xcassets */,
+				3CA118452F90C97800888295 /* Dictaphone-Bridging-Header.h */,
 			);
 			name = Dictaphone;
 			sourceTree = "<group>";
@@ -115,7 +146,7 @@
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				13B07F961A680F5B00A75B9A /* Dictaphone.app */,
+				13B07F961A680F5B00A75B9A /* Assistant Transcripts.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -128,26 +159,6 @@
 			);
 			path = Pods;
 			sourceTree = "<group>";
-		};
-		01B7C54588694FDF9C4C3730 /* Resources */ = {
-			isa = "PBXGroup";
-			children = (
-				039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */,
-				3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */,
-				F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */,
-				A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */,
-				B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */,
-				FBFA236F165D42B491FE2F39 /* Marianne-LightItalic.ttf */,
-				70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */,
-				9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */,
-				9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */,
-				39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */,
-				446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */,
-				732E8A7C309045C08FC156A6 /* Marianne-ThinItalic.ttf */,
-			);
-			name = Resources;
-			sourceTree = "<group>";
-			path = "";
 		};
 /* End PBXGroup section */
 
@@ -170,7 +181,7 @@
 			);
 			name = Dictaphone;
 			productName = Dictaphone;
-			productReference = 13B07F961A680F5B00A75B9A /* Dictaphone.app */;
+			productReference = 13B07F961A680F5B00A75B9A /* Assistant Transcripts.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -182,7 +193,7 @@
 				LastUpgradeCheck = 1210;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						LastSwiftMigration = 1120;
+						LastSwiftMigration = 2640;
 					};
 				};
 			};
@@ -256,9 +267,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -295,9 +310,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -311,6 +330,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3CA118432F90C97500888295 /* FileUploadModule.swift in Sources */,
+				3CA118442F90C97500888295 /* FileUploadModule.m in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -325,6 +346,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NVMQD635C6;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Dictaphone/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -332,15 +354,16 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = Assistant Transcripts;
+				PRODUCT_BUNDLE_IDENTIFIER = "fr.gouv.assistant-transcripts";
+				PRODUCT_NAME = "Assistant Transcripts";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OBJC_BRIDGING_HEADER = "Dictaphone-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -355,21 +378,23 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NVMQD635C6;
 				INFOPLIST_FILE = Dictaphone/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = Assistant Transcripts;
+				PRODUCT_BUNDLE_IDENTIFIER = "fr.gouv.assistant-transcripts";
+				PRODUCT_NAME = "Assistant Transcripts";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OBJC_BRIDGING_HEADER = "Dictaphone-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
