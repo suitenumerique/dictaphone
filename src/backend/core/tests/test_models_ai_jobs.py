@@ -36,18 +36,18 @@ def test_models_ai_job_to_markdown_transcript_formats_whisperx_response():
     )
 
     assert (
-        ai_job.to_markdown()
-        == """# Transcription 
+        ai_job.to_markdown("fr")
+        == """# Transcript
 
-## SPEAKER_00
+**00:00 · Participant 1**
 Hello.
 How are you?
 
-## SPEAKER_01
+**00:02 · Participant 2**
 Fine, thanks.
 And you?
 
-## SPEAKER_00
+**00:04 · Participant 1**
 Great.
 """
     )
@@ -61,4 +61,4 @@ def test_models_ai_job_to_markdown_summary_formats_content():
     )
     default_storage.save(ai_job.key, BytesIO(b"Summary content"))
 
-    assert ai_job.to_markdown() == "# Résumé \n \n Summary content"
+    assert ai_job.to_markdown("fr") == "# Résumé \n \n Summary content"

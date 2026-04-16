@@ -204,7 +204,7 @@ def create_document_in_docs(ai_job_id):
         logger.info("Document already exists in Docs for file %s", ai_job.file.id)
         return
 
-    content = ai_job.to_markdown()
+    content = ai_job.to_markdown(ai_job.file.creator.language)
 
     response = requests.post(
         urljoin(settings.DOCS_BASE_URL, "/api/v1.0/documents/create-for-owner/"),

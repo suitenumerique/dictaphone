@@ -211,3 +211,47 @@ def format_transcript(transcript: WhisperXResponse) -> str:
                 formatted_output += f" {text}"
 
     return formatted_output
+
+
+def format_duration(duration_seconds: float) -> str:
+    """
+    Format a duration in seconds to a human-readable string.
+    """
+    minutes, seconds = divmod(duration_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours > 0:
+        return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+    return f"{int(minutes):02d}:{int(seconds):02d}"
+
+
+def format_transcript_for_markdown(
+    transcript: WhisperXResponse, language: str = "en"
+) -> str:
+    """
+    Format a transcript from whisperX to markdown.
+    """
+    # A bit hacky i18n handling
+    is_french = language.lower().startswith("fr")
+    speaker_label = "Participant" if is_french else "Speaker"
+    out_str = f"# Transcript\n"
+
+    speaker_number_by_id = {}
+
+    last_speaker_number = None
+    for chunk in transcript.segments:
+        speaker = chunk.speaker
+        if speaker not in speaker_number_by_id:
+            speaker_number_by_id[speaker] = len(speaker_number_by_id) + 1
+
+        speaker_number = speaker_number_by_id[speaker]
+        if speaker_number != last_speaker_number:
+            out_str += "\n**"
+            if chunk.start is not None:
+                out_str += format_duration(chunk.start) + " · "
+                out_str += speaker_label + f" {speaker_number}**\n"
+            last_speaker_number = speaker_number
+
+        out_str += f"{chunk.text}\n"
+
+    return out_str

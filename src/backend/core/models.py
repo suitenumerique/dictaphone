@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 
 from timezone_field import TimeZoneField
 
+from core.utils import format_transcript_for_markdown
 from core.webhook_models import WhisperXResponse
 
 logger = getLogger(__name__)
@@ -473,7 +474,7 @@ class AiFileJob(BaseModel):
             return f"summaries/{self.id!s}.txt"
         raise ValueError(f"Unknown job type: {self.type}")
 
-    def to_markdown(self) -> str:
+    def to_markdown(self, language: str = "en") -> str:
         """Return the AI job result as a markdown string."""
         if self.status != AiJobStatusChoices.SUCCESS:
             raise ValueError(f"Job status is not success: {self.status}")
@@ -483,18 +484,7 @@ class AiFileJob(BaseModel):
 
         if self.type == AiJobTypeChoices.TRANSCRIPT:
             whisper_response = WhisperXResponse.model_validate_json(content)
-            # Should translate this
-            out_str = "# Transcription \n"
-
-            last_speaker = None
-            for chunk in whisper_response.segments:
-                speaker = chunk.speaker
-                if speaker != last_speaker:
-                    out_str += f"\n## {speaker}\n"
-                    last_speaker = speaker
-                out_str += f"{chunk.text}\n"
-
-            return out_str
+            return format_transcript_for_markdown(whisper_response, language)
         if self.type == AiJobTypeChoices.SUMMARIZE:
             # Should translate this
             return "# Résumé \n \n " + content.decode("utf-8")
