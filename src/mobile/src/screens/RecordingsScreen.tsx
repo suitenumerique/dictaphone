@@ -331,7 +331,6 @@ export default function RecordingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   topBar: {
     paddingHorizontal: 16,
@@ -485,9 +484,12 @@ const styles = StyleSheet.create({
   },
   startRecordingPositioner: {
     position: 'absolute',
-    width: '100%',
     display: 'flex',
+    flexDirection: "row",
     alignItems: 'center',
+    justifyContent: 'center',
+    left: 0,
+    right: 0,
     paddingHorizontal: 16,
   },
   startRecordingContainer: {
