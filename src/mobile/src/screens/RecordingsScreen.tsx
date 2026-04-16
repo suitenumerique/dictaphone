@@ -262,7 +262,7 @@ export default function RecordingsScreen() {
         )}
       </View>
 
-      {isOnline && isLoggedIn && filesQ.isPending && (
+      {isOnline && (isLoggedIn || isLoading) && filesQ.isPending && (
         <ActivityIndicator size={'large'} />
       )}
 
