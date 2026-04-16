@@ -55,7 +55,10 @@ function OpenInDocsButton({
       onClick={handleOpenInDocs}
       size="small"
       variant="primary"
-      disabled={lastAiJobTranscript?.status !== 'success'}
+      disabled={
+        lastAiJobTranscript?.status !== 'success' ||
+        !lastAiJobTranscript?.docs_app_id
+      }
       aria-label={t('transcript.openInDocsCta')}
       icon={
         <img

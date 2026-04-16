@@ -4,6 +4,7 @@ export type ApiAiJob = {
   status: 'pending' | 'success' | 'failed'
   created_at: string // ISO datetime string
   updated_at: string // ISO datetime string
+  docs_app_id: string | null
 }
 
 export type ApiOpenInDocsResponse = {
