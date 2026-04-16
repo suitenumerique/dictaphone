@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import {
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -13,7 +14,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useGetFile } from '@/features/files/api/getFile';
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
-import { useTranscript } from '@/features/ai-jobs/api/fetch';
+import {
+  useOpenInDocsMutation,
+  useTranscript,
+} from '@/features/ai-jobs/api/fetch';
 import {
   buildTranscriptViewSegments,
   formatTimestamp,
@@ -24,6 +28,7 @@ import Lucide from '@react-native-vector-icons/lucide'; // @ts-expect-error
 import DocsIcon from '@/assets/icons/docs.svg';
 import RecordingMenu from '@/components/RecordingMenu';
 import { intervalToDuration } from 'date-fns';
+import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 
 type RecordingDetailsRouteProp = RouteProp<
   RootStackParamList,
@@ -46,6 +51,39 @@ export default function RecordingDetailsScreen() {
     () => getMainAiJobs(recordingQ.data?.ai_jobs),
     [recordingQ.data?.ai_jobs],
   );
+
+  const openInDocs = useOpenInDocsMutation();
+  const handleOpenInDocs = useCallback(() => {
+    if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
+      openInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: async res => {
+          const isAvailable = await InAppBrowser.isAvailable();
+          if (isAvailable) {
+            await InAppBrowser.open(res.doc_url, {
+              // iOS Properties
+              preferredBarTintColor: '#453AA4',
+              preferredControlTintColor: 'white',
+              readerMode: false,
+              animated: true,
+              modalPresentationStyle: 'fullScreen',
+              modalTransitionStyle: 'coverVertical',
+              modalEnabled: true,
+              enableBarCollapsing: false,
+              // Android Properties
+              showTitle: false,
+              toolbarColor: '#6200EE',
+              secondaryToolbarColor: 'black',
+              navigationBarColor: 'black',
+              navigationBarDividerColor: 'white',
+              enableUrlBarHiding: true,
+            });
+          } else {
+            await Linking.openURL(res.doc_url);
+          }
+        },
+      });
+    }
+  }, [lastAiJobTranscript, openInDocs]);
 
   const transcriptQ = useTranscript(lastAiJobTranscript);
   const transcriptSegments = useMemo(
@@ -81,13 +119,13 @@ export default function RecordingDetailsScreen() {
     navigation.goBack();
   }, [navigation]);
 
-  const onOpenInDocs = async () => {
+  const handleShareMarkdown = useCallback(async () => {
     if (transcriptMarkdown) {
       await Share.share({
         message: transcriptMarkdown,
       });
     }
-  };
+  }, [transcriptMarkdown]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.paddingTop }]}>
@@ -184,30 +222,41 @@ export default function RecordingDetailsScreen() {
         </View>
       </ScrollView>
 
-      <View
-        style={[
-          styles.bottomBarContainer,
-          { bottom: 12 + insets.paddingBottom },
-        ]}
-      >
-        <View style={styles.bottomBar}>
-          <Pressable style={styles.openButton} onPress={onOpenInDocs}>
-            <DocsIcon />
-            <Text style={styles.openButtonText}>Open in Docs</Text>
-          </Pressable>
+      {transcriptSegments.length > 0 && (
+        <View
+          style={[
+            styles.bottomBarContainer,
+            { bottom: 12 + insets.paddingBottom },
+          ]}
+        >
+          <View style={styles.bottomBar}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.openInDocsButton,
+                pressed && styles.openInDocsButtonPressed,
+                !lastAiJobTranscript?.docs_app_id &&
+                  styles.openInDocsButtonDisabled,
+              ]}
+              disabled={!lastAiJobTranscript?.docs_app_id}
+              onPress={handleOpenInDocs}
+            >
+              <DocsIcon />
+              <Text style={styles.openInDocsButtonText}>Open in Docs</Text>
+            </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.shareButton,
-              pressed && styles.shareButtonPressed,
-            ]}
-            onPress={onOpenInDocs}
-            hitSlop={8}
-          >
-            <Lucide name="share" size={22} color="#304DDF" />
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.shareButton,
+                pressed && styles.shareButtonPressed,
+              ]}
+              onPress={handleShareMarkdown}
+              hitSlop={8}
+            >
+              <Lucide name="share" size={22} color="#304DDF" />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -335,7 +384,7 @@ const styles = StyleSheet.create({
       },
     ],
   },
-  openButton: {
+  openInDocsButton: {
     flex: 1,
     height: 48,
     borderRadius: 8,
@@ -350,7 +399,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  openButtonText: {
+  openInDocsButtonDisabled: {
+    backgroundColor: '#97989b',
+    shadowColor: '#97989b',
+  },
+  openInDocsButtonPressed: {
+    backgroundColor: '#304DDF',
+  },
+  openInDocsButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'medium',
