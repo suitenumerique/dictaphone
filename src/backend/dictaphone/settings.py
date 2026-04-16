@@ -241,6 +241,10 @@ class Base(Configuration):
         environ_name="DOCS_BASE_URL",
         environ_prefix=None,
     )
+    DOCS_SERVER_TO_SERVER_API_KEY = values.Value(
+        None,
+        environ_name="DOCS_SERVER_TO_SERVER_API_KEY",
+    )
 
     # Internationalization
     # https://docs.djangoproject.com/en/3.1/topics/i18n/

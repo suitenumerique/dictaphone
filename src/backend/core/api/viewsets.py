@@ -619,22 +619,12 @@ class AiJobViewSet(
             content_type="application/json",
         )
 
-    @method_decorator(refresh_oidc_access_token)
+    # @method_decorator(refresh_oidc_access_token)
     @decorators.action(detail=True, methods=["post"], url_path="open-in-docs")
     def open_in_docs(self, request, *args, **kwargs):
         """
         Tries to open the related document in the docs app.
-        If the document doesn't exist (anymore) it will be created.
-        Returns a link to the document in the docs app.
         """
-
-        access_token = request.session.get("oidc_access_token")
-        if not access_token:
-            raise drf_exceptions.NotAuthenticated(
-                {"status": "User is not authenticated."},
-                code="user_not_authenticated",
-            )
-
         ai_job = self.get_object()
         if ai_job.status != AiJobStatusChoices.SUCCESS:
             raise drf_exceptions.ValidationError(
@@ -642,53 +632,10 @@ class AiJobViewSet(
                 code="ai_job_not_completed",
             )
 
-        needs_create = not ai_job.docs_app_id
-        if ai_job.docs_app_id:
-            logger.info("Checking if %s still exists", ai_job.docs_app_id)
-            # Check if the document still exists
-            response = requests.get(
-                f"{settings.DOCS_BASE_URL}external_api/v1.0/documents/{ai_job.docs_app_id}/",
-                headers={"Authorization": f"Bearer {access_token}"},
-                timeout=10,
-            )
-            if response.status_code != 200:
-                logger.info(
-                    "Document %s not found (status: %s), creating new one",
-                    ai_job.docs_app_id,
-                    response.status_code,
-                )
-                needs_create = True
-
-        if needs_create:
-            logger.info("Creating new document for AI job %s", ai_job.id)
-
-            # Should translate this
-            label = (
-                "Transcription"
-                if ai_job.type == AiJobTypeChoices.TRANSCRIPT
-                else "Résumé"
-            )
-            response = requests.post(
-                urljoin(settings.DOCS_BASE_URL, "external_api/v1.0/documents/"),
-                {
-                    "file": (
-                        f"{ai_job.file.title[:200]} - {label}.md",
-                        ai_job.to_markdown().encode("utf-8"),
-                        "text/markdown",
-                    ),
-                },
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                },
-                timeout=10,
-            )
-
-            response.raise_for_status()
-            data = response.json()
-            ai_job.docs_app_id = data["id"]
-            ai_job.save()
-            logger.info(
-                "Created new document %s for AI job %s", ai_job.docs_app_id, ai_job.id
+        if not ai_job.docs_app_id:
+            raise drf_exceptions.NotFound(
+                {"status": "Document not available yet."},
+                code="document_not_available",
             )
 
         return drf_response.Response(
