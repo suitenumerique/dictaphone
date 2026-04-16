@@ -234,7 +234,7 @@ def format_transcript_for_markdown(
     # A bit hacky i18n handling
     is_french = language.lower().startswith("fr")
     speaker_label = "Participant" if is_french else "Speaker"
-    out_str = f"# Transcript\n"
+    out_str = "# Transcript\n"
 
     speaker_number_by_id = {}
 
