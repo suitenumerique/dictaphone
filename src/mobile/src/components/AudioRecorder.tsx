@@ -32,7 +32,7 @@ import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordin
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
   iosMode: 'default',
-  iosOptions: ['defaultToSpeaker', 'allowBluetoothA2DP'],
+  iosOptions: [],
 });
 
 const audioRecorder = new AudioRecorderApi();
