@@ -25,7 +25,8 @@
     "end": "Terminer",
     "permissionDenied": "Permission refusée",
     "recordingDisabled": "Veuillez autoriser l'utilisation du microphone pour enregistrer.",
-    "openSettings": "Ouvrir les paramètres"
+    "openSettings": "Ouvrir les paramètres",
+    "recordingPrefix": "Meeting"
   },
   "recordings": {
     "emptyTitle": "Aucun enregistrement",

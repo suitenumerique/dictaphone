@@ -47,6 +47,7 @@ export const AudioRecorder = () => {
     useState<PermissionStatus>('Undetermined');
   const { addRecording } = useLocalRecordings();
   const navigation = useNavigation();
+  const recordingStartDateTime = useRef<Date | null>(null);
 
   const recordTimeLabel = useMemo(
     () => formatDuration(recordingTimeMs),
@@ -180,6 +181,7 @@ export const AudioRecorder = () => {
       setRecordingTimeMs(0);
       setIsRecording(true);
       setIsPaused(false);
+      recordingStartDateTime.current = new Date();
     } catch (error) {
       console.error('Failed to start recording:', error);
     } finally {
@@ -233,15 +235,15 @@ export const AudioRecorder = () => {
       setIsPaused(false);
       await AudioManager.setAudioSessionActivity(false);
 
-      // TODO finish name
-      const name = t('home.recordingName', {
-        duration: formatDuration(result.duration * 1000),
-      });
+      const title = `${t('home.recordingPrefix')} ${t(
+        'shared.utils.formatDateTimeStatic',
+        { value: recordingStartDateTime.current! },
+      )}`;
       addRecording({
         created_at: new Date().toISOString(),
         duration_seconds: result.duration,
         filePath: result.path,
-        title: name,
+        title,
         id: uuid.v4(),
         uploadingStatus: 'to_upload',
       });
