@@ -1,4 +1,4 @@
-package com.dictaphone
+package fr.gouv.assistantTranscripts
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

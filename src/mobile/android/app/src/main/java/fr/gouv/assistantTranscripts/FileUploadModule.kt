@@ -1,4 +1,4 @@
-package com.dictaphone
+package fr.gouv.assistantTranscripts
 
 import com.facebook.react.bridge.*
 import java.io.File

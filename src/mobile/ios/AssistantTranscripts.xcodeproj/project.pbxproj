@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0AB1B9FF45BB4D2EA8849778 /* Marianne-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */; };
-		0C80B921A6F3F58F76C31292 /* libPods-Dictaphone.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-Dictaphone.a */; };
+		0C80B921A6F3F58F76C31292 /* libPods-AssistantTranscripts.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-AssistantTranscripts.a */; };
 		120AB1BFD2E12625D6736AD4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		175E473DAE77421CA346D274 /* Marianne-RegularItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */; };
@@ -33,30 +33,30 @@
 /* Begin PBXFileReference section */
 		039474ECCD3D43F3BBE44046 /* Marianne-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Bold.ttf"; path = "../assets/fonts/Marianne-Bold.ttf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Assistant Transcripts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Assistant Transcripts.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Dictaphone/Images.xcassets; sourceTree = "<group>"; };
-		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Dictaphone/Info.plist; sourceTree = "<group>"; };
-		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Dictaphone/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = "AssistantTranscripts/Images.xcassets"; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = "AssistantTranscripts/Info.plist"; sourceTree = "<group>"; };
+		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = AssistantTranscripts/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		39CE7553DF144AA88C663E9C /* Marianne-RegularItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-RegularItalic.ttf"; path = "../assets/fonts/Marianne-RegularItalic.ttf"; sourceTree = "<group>"; };
-		3B4392A12AC88292D35C810B /* Pods-Dictaphone.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Dictaphone.debug.xcconfig"; path = "Target Support Files/Pods-Dictaphone/Pods-Dictaphone.debug.xcconfig"; sourceTree = "<group>"; };
+		3B4392A12AC88292D35C810B /* Pods-AssistantTranscripts.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AssistantTranscripts.debug.xcconfig"; path = "Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts.debug.xcconfig"; sourceTree = "<group>"; };
 		3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-BoldItalic.ttf"; path = "../assets/fonts/Marianne-BoldItalic.ttf"; sourceTree = "<group>"; };
-		3CA1183F2F90C97500888295 /* Dictaphone-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Dictaphone-Bridging-Header.h"; sourceTree = "<group>"; };
+		3CA1183F2F90C97500888295 /* AssistantTranscripts-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AssistantTranscripts-Bridging-Header.h"; sourceTree = "<group>"; };
 		3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "dictaphone-Briding-Header.h"; sourceTree = "<group>"; };
 		3CA118412F90C97500888295 /* FileUploadModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileUploadModule.m; sourceTree = "<group>"; };
 		3CA118422F90C97500888295 /* FileUploadModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUploadModule.swift; sourceTree = "<group>"; };
-		3CA118452F90C97800888295 /* Dictaphone-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Dictaphone-Bridging-Header.h"; sourceTree = "<group>"; };
+		3CA118452F90C97800888295 /* AssistantTranscripts-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AssistantTranscripts-Bridging-Header.h"; sourceTree = "<group>"; };
 		446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Thin.ttf"; path = "../assets/fonts/Marianne-Thin.ttf"; sourceTree = "<group>"; };
-		5709B34CF0A7D63546082F79 /* Pods-Dictaphone.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Dictaphone.release.xcconfig"; path = "Target Support Files/Pods-Dictaphone/Pods-Dictaphone.release.xcconfig"; sourceTree = "<group>"; };
-		5DCACB8F33CDC322A6C60F78 /* libPods-Dictaphone.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Dictaphone.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5709B34CF0A7D63546082F79 /* Pods-AssistantTranscripts.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AssistantTranscripts.release.xcconfig"; path = "Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts.release.xcconfig"; sourceTree = "<group>"; };
+		5DCACB8F33CDC322A6C60F78 /* libPods-AssistantTranscripts.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AssistantTranscripts.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Medium.ttf"; path = "../assets/fonts/Marianne-Medium.ttf"; sourceTree = "<group>"; };
 		732E8A7C309045C08FC156A6 /* Marianne-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-ThinItalic.ttf"; path = "../assets/fonts/Marianne-ThinItalic.ttf"; sourceTree = "<group>"; };
-		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Dictaphone/AppDelegate.swift; sourceTree = "<group>"; };
-		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Dictaphone/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		9146F7905284416699041E5D /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = Dictaphone/BootSplash.storyboard; sourceTree = "<group>"; };
+		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = AssistantTranscripts/AppDelegate.swift; sourceTree = "<group>"; };
+		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = "AssistantTranscripts/LaunchScreen.storyboard"; sourceTree = "<group>"; };
+		9146F7905284416699041E5D /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = AssistantTranscripts/BootSplash.storyboard; sourceTree = "<group>"; };
 		9405F0CECC744B51998DB5FC /* Marianne-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-MediumItalic.ttf"; path = "../assets/fonts/Marianne-MediumItalic.ttf"; sourceTree = "<group>"; };
 		9809D5CCD33B48F9A03288BC /* Marianne-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Regular.ttf"; path = "../assets/fonts/Marianne-Regular.ttf"; sourceTree = "<group>"; };
 		A511364AD87C48D88FDB5C24 /* Marianne-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-ExtraBoldItalic.ttf"; path = "../assets/fonts/Marianne-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
 		B83BB6CF6AAD4292A6DD1693 /* Marianne-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Light.ttf"; path = "../assets/fonts/Marianne-Light.ttf"; sourceTree = "<group>"; };
-		E7199233157A4D93BF1A98B0 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = Dictaphone/Colors.xcassets; sourceTree = "<group>"; };
+		E7199233157A4D93BF1A98B0 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = AssistantTranscripts/Colors.xcassets; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-ExtraBold.ttf"; path = "../assets/fonts/Marianne-ExtraBold.ttf"; sourceTree = "<group>"; };
 		FBFA236F165D42B491FE2F39 /* Marianne-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-LightItalic.ttf"; path = "../assets/fonts/Marianne-LightItalic.ttf"; sourceTree = "<group>"; };
@@ -67,7 +67,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0C80B921A6F3F58F76C31292 /* libPods-Dictaphone.a in Frameworks */,
+				0C80B921A6F3F58F76C31292 /* libPods-AssistantTranscripts.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,10 +93,10 @@
 			name = Resources;
 			sourceTree = "<group>";
 		};
-		13B07FAE1A68108700A75B9A /* Dictaphone */ = {
+		13B07FAE1A68108700A75B9A /* AssistantTranscripts */ = {
 			isa = PBXGroup;
 			children = (
-				3CA1183F2F90C97500888295 /* Dictaphone-Bridging-Header.h */,
+				3CA1183F2F90C97500888295 /* AssistantTranscripts-Bridging-Header.h */,
 				3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */,
 				3CA118412F90C97500888295 /* FileUploadModule.m */,
 				3CA118422F90C97500888295 /* FileUploadModule.swift */,
@@ -107,16 +107,16 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				9146F7905284416699041E5D /* BootSplash.storyboard */,
 				E7199233157A4D93BF1A98B0 /* Colors.xcassets */,
-				3CA118452F90C97800888295 /* Dictaphone-Bridging-Header.h */,
+				3CA118452F90C97800888295 /* AssistantTranscripts-Bridging-Header.h */,
 			);
-			name = Dictaphone;
+			name = "AssistantTranscripts";
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				5DCACB8F33CDC322A6C60F78 /* libPods-Dictaphone.a */,
+				5DCACB8F33CDC322A6C60F78 /* libPods-AssistantTranscripts.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -131,7 +131,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				13B07FAE1A68108700A75B9A /* Dictaphone */,
+				13B07FAE1A68108700A75B9A /* AssistantTranscripts */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -154,8 +154,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				3B4392A12AC88292D35C810B /* Pods-Dictaphone.debug.xcconfig */,
-				5709B34CF0A7D63546082F79 /* Pods-Dictaphone.release.xcconfig */,
+				3B4392A12AC88292D35C810B /* Pods-AssistantTranscripts.debug.xcconfig */,
+				5709B34CF0A7D63546082F79 /* Pods-AssistantTranscripts.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -163,9 +163,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		13B07F861A680F5B00A75B9A /* Dictaphone */ = {
+		13B07F861A680F5B00A75B9A /* AssistantTranscripts */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Dictaphone" */;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AssistantTranscripts" */;
 			buildPhases = (
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
@@ -179,8 +179,8 @@
 			);
 			dependencies = (
 			);
-			name = Dictaphone;
-			productName = Dictaphone;
+			name = "AssistantTranscripts";
+			productName = "AssistantTranscripts";
 			productReference = 13B07F961A680F5B00A75B9A /* Assistant Transcripts.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -197,7 +197,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Dictaphone" */;
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "AssistantTranscripts" */;
 			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -210,7 +210,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				13B07F861A680F5B00A75B9A /* Dictaphone */,
+				13B07F861A680F5B00A75B9A /* AssistantTranscripts */,
 			);
 		};
 /* End PBXProject section */
@@ -265,19 +265,19 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			inputPaths = (
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
@@ -295,7 +295,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-Dictaphone-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-AssistantTranscripts-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -308,19 +308,19 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			inputPaths = (
 			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Dictaphone/Pods-Dictaphone-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -341,14 +341,15 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-Dictaphone.debug.xcconfig */;
+			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-AssistantTranscripts.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NVMQD635C6;
 				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = Dictaphone/Info.plist;
+				INFOPLIST_FILE = "AssistantTranscripts/Info.plist";
+             INFOPLIST_KEY_CFBundleDisplayName = "Assistant Transcripts";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -363,7 +364,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "fr.gouv.assistant-transcripts";
 				PRODUCT_NAME = "Assistant Transcripts";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_OBJC_BRIDGING_HEADER = "Dictaphone-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "AssistantTranscripts-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -373,13 +374,14 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-Dictaphone.release.xcconfig */;
+			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-AssistantTranscripts.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NVMQD635C6;
-				INFOPLIST_FILE = Dictaphone/Info.plist;
+				INFOPLIST_FILE = "AssistantTranscripts/Info.plist";
+             INFOPLIST_KEY_CFBundleDisplayName = "Assistant Transcripts";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -394,7 +396,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "fr.gouv.assistant-transcripts";
 				PRODUCT_NAME = "Assistant Transcripts";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_OBJC_BRIDGING_HEADER = "Dictaphone-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "AssistantTranscripts-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
@@ -560,7 +562,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Dictaphone" */ = {
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AssistantTranscripts" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
@@ -569,7 +571,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Dictaphone" */ = {
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "AssistantTranscripts" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,

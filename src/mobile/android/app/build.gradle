@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.dictaphone"
+    namespace "fr.gouv.assistantTranscripts"
     defaultConfig {
-        applicationId "com.dictaphone"
+        applicationId "fr.gouv.assistantTranscripts"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
