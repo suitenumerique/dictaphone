@@ -17,7 +17,7 @@
     "permissionOk": "OK",
     "recordingName": "Enregistrement {{duration}}",
     "newRecording": "Enregistrer",
-    "consentNotice": "⚠ L'enregistrement nécessite le consentement des participant⋅es.",
+    "consentNotice": "⚠ L'enregistrement nécessite le consentement des participants.",
     "recordingInProgress": "Enregistrement en cours",
     "recordingPaused": "Enregistrement en pause",
     "recordingSubtitle": "Vous pouvez mettre en pause l'enregistrement quand vous le souhaitez.",
@@ -66,7 +66,7 @@
     }
   },
   "transcript": {
-    "speaker": "Participant(e)",
+    "speaker": "Participant",
     "notAvailable": "Transcription non disponible"
   },
   "player": {

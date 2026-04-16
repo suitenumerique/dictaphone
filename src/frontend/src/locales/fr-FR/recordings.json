@@ -64,7 +64,7 @@
       "failed": "Erreur de transcription",
       "success": "Transcrit"
     },
-    "speaker": "Participant(e)"
+    "speaker": "Participant"
   },
   "summary": {
     "title": "Résumé (beta)",
