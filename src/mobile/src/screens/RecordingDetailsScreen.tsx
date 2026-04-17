@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import {
+  ActivityIndicator,
   Linking,
   Pressable,
   ScrollView,
@@ -222,7 +223,9 @@ export default function RecordingDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.transcriptContainer}>
-          {transcriptSegments.length === 0 ? (
+          {transcriptQ.isPending ? (
+            <ActivityIndicator />
+          ) : transcriptSegments.length === 0 ? (
             <AppText variant="muted" size="md" color={colors.neutralTertiary}>
               {t('transcript.notAvailable')}
             </AppText>
