@@ -6,7 +6,8 @@ type AppTextVariant =
   | 'heading'
   | 'subtitle'
   | 'body'
-  | 'bodyStrong'
+  | 'bodyMedium'
+  | "bodyBold"
   | 'muted'
   | 'button';
 
@@ -23,12 +24,12 @@ type AppTextProps = TextProps & {
 const typography = StyleSheet.create({
   base: {
     includeFontPadding: false,
-    fontFamily: 'Marianne',
+    fontFamily: 'Marianne-Regular',
   },
   heading: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '700',
+    fontFamily: 'Marianne-Bold',
     color: colors.textPrimary,
   },
   subtitle: {
@@ -43,10 +44,16 @@ const typography = StyleSheet.create({
     fontWeight: '400',
     color: colors.textSecondary,
   },
-  bodyStrong: {
+  bodyMedium: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
+    fontFamily: 'Marianne-Medium',
+    color: colors.textPrimary,
+  },
+  bodyBold: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'Marianne-Bold',
     color: colors.textPrimary,
   },
   muted: {
@@ -56,7 +63,9 @@ const typography = StyleSheet.create({
     color: colors.neutralSecondary,
   },
   button: {
+    marginTop: -3,
     fontSize: 18,
+    fontFamily: 'Marianne-Medium',
     color: colors.backgroundBase,
   },
   xs: {
@@ -95,7 +104,8 @@ const variantStyles: Record<AppTextVariant, TextStyle> = {
   heading: typography.heading,
   subtitle: typography.subtitle,
   body: typography.body,
-  bodyStrong: typography.bodyStrong,
+  bodyMedium: typography.bodyMedium,
+  bodyBold: typography.bodyBold,
   muted: typography.muted,
   button: typography.button,
 };

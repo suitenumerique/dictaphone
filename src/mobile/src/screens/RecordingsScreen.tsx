@@ -211,7 +211,7 @@ export default function RecordingsScreen() {
             {item.kind !== 'fake' ? (
               <>
                 <AppText
-                  variant="bodyStrong"
+                  variant="bodyMedium"
                   size="lg"
                   color={
                     item.kind !== 'remote'
@@ -324,16 +324,15 @@ export default function RecordingsScreen() {
             onPress={handleStartRecording}
           >
             <RecordIcon width={24} height={24} />
-            <AppText variant="button" size="lg" color={colors.errorSecondary}>
+            <AppText variant="button" color={colors.errorSecondary}>
               {t('home.newRecording')}
             </AppText>
           </Pressable>
 
           <View style={styles.consentRow}>
             <AppText
-              variant="subtitle"
-              size="sm"
-              weight="500"
+              variant="muted"
+              size="md"
               align="center"
               color={colors.neutralTertiary}
               style={styles.consentText}
@@ -413,7 +412,7 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   itemCardPressed: {
@@ -484,6 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundErrorSecondary,
     borderRadius: 4,
     minHeight: 40,
+    display: "flex",
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',

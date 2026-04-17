@@ -42,12 +42,8 @@ export default function MainMenu() {
       >
         <View style={styles.popoverContent}>
           <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Lucide name="log-out" size={15} color={colors.textOnInputStrong} />
-            <AppText
-              variant="body"
-              weight="600"
-              color={colors.textOnInputStrong}
-            >
+            <Lucide name="log-out" size={15} color={colors.textPrimary} />
+            <AppText variant="body" color={colors.textPrimary} style={styles.fixMarginBottom}>
               {t('login.logout')}
             </AppText>
           </Pressable>
@@ -72,6 +68,9 @@ const styles = StyleSheet.create({
   },
   iconButtonPressed: {
     backgroundColor: colors.backgroundSubtlePressed,
+  },
+  fixMarginBottom: {
+    marginTop: -3,
   },
   popover: { borderRadius: 12 },
   popoverContent: {

@@ -134,15 +134,12 @@ export default function RecordingMenu({
               onPress={openRenameModal}
               disabled={isBusy}
             >
-              <Lucide
-                name="pencil"
-                size={15}
-                color={colors.textOnInputStrong}
-              />
+              <Lucide name="pencil" size={15} color={colors.textPrimary} />
               <AppText
                 variant="body"
                 weight="600"
-                color={colors.textOnInputStrong}
+                color={colors.textPrimary}
+                style={styles.fixMarginBottom}
               >
                 {t('recordings.menu.rename')}
               </AppText>
@@ -153,7 +150,11 @@ export default function RecordingMenu({
               disabled={isBusy}
             >
               <Lucide name="trash-2" size={15} color={colors.errorSecondary} />
-              <AppText weight="600" color={colors.errorSecondary}>
+              <AppText
+                weight="600"
+                color={colors.errorSecondary}
+                style={styles.fixMarginBottom}
+              >
                 {t('recordings.delete')}
               </AppText>
             </Pressable>
@@ -236,6 +237,9 @@ const styles = StyleSheet.create({
   },
   iconButtonPressed: {
     backgroundColor: colors.backgroundSubtlePressed,
+  },
+  fixMarginBottom: {
+    marginTop: -3,
   },
   popover: { borderRadius: 12 },
   popoverContent: {

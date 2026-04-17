@@ -364,13 +364,14 @@ export const AudioRecorder = () => {
             />
           )}
           <AppText
+            variant="bodyMedium"
             style={[styles.statusTitle, isPaused && styles.statusTitlePaused]}
           >
             {t(isPaused ? 'home.recordingPaused' : 'home.recordingInProgress')}
           </AppText>
         </View>
 
-        <AppText variant="muted" align="center" style={styles.statusSubtitle}>
+        <AppText variant="muted" size="md" align="center" style={styles.statusSubtitle}>
           {t(
             isPaused
               ? 'home.recordingSubtitlePaused'
@@ -402,9 +403,7 @@ export const AudioRecorder = () => {
             color={colors.neutralSecondary}
           />
           <AppText
-            variant="body"
-            size="lg"
-            weight="600"
+            variant="button"
             color={colors.neutralSecondary}
           >
             {isPaused ? t('home.resume') : t('home.pause')}
@@ -451,6 +450,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusTitle: {
+    marginBottom: 3,
     color: colors.errorSecondary,
   },
   statusTitlePaused: {

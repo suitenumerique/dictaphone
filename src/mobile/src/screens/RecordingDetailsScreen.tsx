@@ -234,11 +234,11 @@ export default function RecordingDetailsScreen() {
                 key={`${segment.start ?? index}-${index}`}
                 style={styles.paragraph}
               >
-                <AppText variant="bodyStrong">
+                <AppText variant="bodyBold">
                   {formatTimestamp(segment.start ?? -1)}
                   {' · '}
                 </AppText>
-                <AppText variant="bodyStrong">
+                <AppText variant="bodyBold">
                   {t('transcript.speaker')} {segment.speaker}
                 </AppText>
                 <AppText variant="body">

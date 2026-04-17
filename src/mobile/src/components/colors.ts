@@ -16,7 +16,6 @@ export const colors = {
 
   textPrimary: '#111827',
   textSecondary: '#2B3448',
-  textOnInputStrong: '#222631',
 
   backgroundBase: '#FFFFFF',
   backgroundSubtle: '#F8FAFC',
