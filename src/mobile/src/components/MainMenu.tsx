@@ -1,9 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Popover from 'react-native-popover-view';
 import { Lucide } from '@react-native-vector-icons/lucide';
 import { useUser } from '@/features/auth/api/useUser';
 import { useTranslation } from 'react-i18next';
+import { AppText } from './AppText';
+import { colors } from './colors';
 
 export default function MainMenu() {
   const [isPopoverVisible, setIsPopoverVisible] = useState(false);
@@ -27,15 +29,27 @@ export default function MainMenu() {
         popoverStyle={styles.popover}
         onRequestClose={() => setIsPopoverVisible(false)}
         from={
-          <Pressable onPress={() => setIsPopoverVisible(true)}>
-            <Lucide size={24} name="ellipsis" color={'#3E5DE7'} />
+          <Pressable
+            onPress={() => setIsPopoverVisible(true)}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
+            ]}
+          >
+            <Lucide size={24} name="ellipsis" color={colors.primary} />
           </Pressable>
         }
       >
         <View style={styles.popoverContent}>
           <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Lucide name="log-out" size={15} color="#222631" />
-            <Text style={styles.logoutText}>{t("login.logout")}</Text>
+            <Lucide name="log-out" size={15} color={colors.textOnInputStrong} />
+            <AppText
+              variant="body"
+              weight="600"
+              color={colors.textOnInputStrong}
+            >
+              {t('login.logout')}
+            </AppText>
           </Pressable>
         </View>
       </Popover>
@@ -48,16 +62,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-end',
   },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+  iconButton: {
+    display: 'flex',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  iconButtonPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
   },
   popover: { borderRadius: 12 },
   popoverContent: {
@@ -72,9 +86,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     justifyContent: 'center',
-  },
-  logoutText: {
-    color: '#222631',
-    fontWeight: '600',
   },
 });

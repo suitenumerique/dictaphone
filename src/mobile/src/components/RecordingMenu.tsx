@@ -4,7 +4,6 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
@@ -13,6 +12,8 @@ import { Lucide } from '@react-native-vector-icons/lucide';
 import { useTranslation } from 'react-i18next';
 import { useDeleteFile } from '@/features/files/api/deleteFile';
 import { usePartialUpdateFile } from '@/features/files/api/partialUpdateFile';
+import { AppText } from './AppText';
+import { colors } from './colors';
 
 type RecordingMenuProps = {
   fileId: string;
@@ -116,11 +117,14 @@ export default function RecordingMenu({
           onCloseComplete={handlePopoverCloseComplete}
           from={
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [
+                pressed && styles.iconButtonPressed,
+                styles.iconButton,
+              ]}
               onPress={() => setIsPopoverVisible(true)}
               hitSlop={10}
             >
-              <Lucide size={26} name="ellipsis" color="#3E5DE7" />
+              <Lucide size={26} name="ellipsis" color={colors.primary} />
             </Pressable>
           }
         >
@@ -130,20 +134,28 @@ export default function RecordingMenu({
               onPress={openRenameModal}
               disabled={isBusy}
             >
-              <Lucide name="pencil" size={15} color="#222631" />
-              <Text style={styles.actionText}>
+              <Lucide
+                name="pencil"
+                size={15}
+                color={colors.textOnInputStrong}
+              />
+              <AppText
+                variant="body"
+                weight="600"
+                color={colors.textOnInputStrong}
+              >
                 {t('recordings.menu.rename')}
-              </Text>
+              </AppText>
             </Pressable>
             <Pressable
               style={styles.actionButton}
               onPress={onConfirmDelete}
               disabled={isBusy}
             >
-              <Lucide name="trash-2" size={15} color="#B42318" />
-              <Text style={[styles.actionText, styles.deleteText]}>
+              <Lucide name="trash-2" size={15} color={colors.errorSecondary} />
+              <AppText weight="600" color={colors.errorSecondary}>
                 {t('recordings.delete')}
-              </Text>
+              </AppText>
             </Pressable>
           </View>
         </Popover>
@@ -161,12 +173,12 @@ export default function RecordingMenu({
             onPress={closeRenameModal}
           />
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
+            <AppText variant="heading">
               {t('recordings.menu.renameTitle')}
-            </Text>
-            <Text style={styles.modalDescription}>
+            </AppText>
+            <AppText variant="subtitle" style={styles.modalDescription}>
               {t('recordings.menu.renameDescription')}
-            </Text>
+            </AppText>
 
             <TextInput
               autoFocus
@@ -187,9 +199,7 @@ export default function RecordingMenu({
                 ]}
                 disabled={renameMutation.isPending}
               >
-                <Text style={styles.secondaryButtonText}>
-                  {t('recordings.deleteCancel')}
-                </Text>
+                <AppText>{t('recordings.deleteCancel')}</AppText>
               </Pressable>
               <Pressable
                 onPress={onConfirmRename}
@@ -201,9 +211,7 @@ export default function RecordingMenu({
                 ]}
                 disabled={!sanitizedTitle || renameMutation.isPending}
               >
-                <Text style={styles.primaryButtonText}>
-                  {t('recordings.menu.save')}
-                </Text>
+                <AppText variant="button">{t('recordings.menu.save')}</AppText>
               </Pressable>
             </View>
           </View>
@@ -219,11 +227,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   iconButton: {
+    display: 'flex',
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconButtonPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
   },
   popover: { borderRadius: 12 },
   popoverContent: {
@@ -238,46 +250,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  actionText: {
-    color: '#222631',
-    fontWeight: '600',
-  },
-  deleteText: {
-    color: '#B42318',
-  },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: colors.overlayBackdrop,
     paddingHorizontal: 24,
     justifyContent: 'center',
   },
   modalCard: {
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundBase,
     padding: 18,
     gap: 10,
   },
-  modalTitle: {
-    color: '#0F172A',
-    fontSize: 18,
-    fontWeight: '700',
-  },
   modalDescription: {
-    color: '#475467',
-    fontSize: 13,
     lineHeight: 18,
   },
   input: {
     marginTop: 2,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: colors.surfacePrimary,
     borderRadius: 10,
     minHeight: 44,
     paddingHorizontal: 12,
-    color: '#0F172A',
     fontSize: 15,
     fontWeight: '500',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundSubtle,
   },
   modalActions: {
     marginTop: 4,
@@ -289,33 +286,25 @@ const styles = StyleSheet.create({
     minHeight: 40,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: colors.surfacePrimary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 14,
   },
   secondaryButtonPressed: {
-    backgroundColor: '#F2F4F7',
-  },
-  secondaryButtonText: {
-    color: '#344054',
-    fontWeight: '600',
+    backgroundColor: colors.backgroundSubtlePressed,
   },
   primaryButton: {
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: '#3E5DE7',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 14,
     minWidth: 84,
   },
   primaryButtonPressed: {
-    backgroundColor: '#304DDF',
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    backgroundColor: colors.primaryPressed,
   },
   buttonDisabled: {
     opacity: 0.5,

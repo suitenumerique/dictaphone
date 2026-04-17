@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { login } from '../../services/authService';
+import { login } from '@/services/authService';
+import { AppText } from './AppText';
+import { colors } from '@/components/colors';
 
 export function LoginButton() {
   const { t } = useTranslation();
@@ -22,7 +24,7 @@ export function LoginButton() {
       ]}
       onPress={handleLogin}
     >
-      <Text style={styles.loginButtonText}>{t('login.loginCta')}</Text>
+      <AppText variant="button">{t('login.loginCta')}</AppText>
     </Pressable>
   );
 }
@@ -30,7 +32,7 @@ export function LoginButton() {
 const styles = StyleSheet.create({
   loginButton: {
     width: '100%',
-    backgroundColor: '#3E5DE7',
+    backgroundColor: colors.primary,
     borderRadius: 4,
     height: 40,
     paddingVertical: 0,
@@ -40,12 +42,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginButtonPressed: {
-    backgroundColor: '#5771e7',
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 400,
-    textAlign: 'center',
+    backgroundColor: colors.primaryPressed,
   },
 });

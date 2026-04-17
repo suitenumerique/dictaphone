@@ -1,12 +1,14 @@
 // src/screens/LoginScreen.tsx
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/services/storage';
 // @ts-ignore
 import LogoWithName from '../assets/logo-single-line.svg';
-import { LoginButton } from '@/features/auth/LoginButton';
+import { LoginButton } from '@/components/LoginButton';
 import { useInsets } from '@/utils/useInsets';
+import { AppText } from '@/components/AppText';
+import { colors } from '@/components/colors';
 
 type LoginScreenProps = {
   navigation: {
@@ -35,7 +37,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       <View style={styles.container}>
         <View style={styles.infoContainer}>
           <LogoWithName />
-          <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
+          <AppText variant="subtitle" size="md" align="center">
+            {t('login.subtitle')}
+          </AppText>
         </View>
         <LoginButton />
       </View>
@@ -52,7 +56,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.backgroundBase,
   },
   infoContainer: {
     flexGrow: 1,
@@ -62,28 +66,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#626A80',
-  },
-  loginButton: {
-    width: '100%',
-    backgroundColor: '#3E5DE7',
-    borderRadius: 4,
-    height: 40,
-    paddingVertical: 0,
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    maxWidth: 300,
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 400,
-    textAlign: 'center',
   },
 });

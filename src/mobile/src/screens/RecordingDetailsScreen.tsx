@@ -5,7 +5,6 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { RouteProp } from '@react-navigation/native';
@@ -29,6 +28,8 @@ import DocsIcon from '@/assets/icons/docs.svg';
 import RecordingMenu from '@/components/RecordingMenu';
 import { intervalToDuration } from 'date-fns';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
+import { AppText } from '@/components/AppText';
+import { colors } from '@/components/colors';
 
 type RecordingDetailsRouteProp = RouteProp<
   RootStackParamList,
@@ -61,7 +62,7 @@ export default function RecordingDetailsScreen() {
           if (isAvailable) {
             await InAppBrowser.open(res.doc_url, {
               // iOS Properties
-              preferredBarTintColor: '#453AA4',
+              preferredBarTintColor: colors.secondary,
               preferredControlTintColor: 'white',
               readerMode: false,
               animated: true,
@@ -71,7 +72,7 @@ export default function RecordingDetailsScreen() {
               enableBarCollapsing: false,
               // Android Properties
               showTitle: false,
-              toolbarColor: '#6200EE',
+              toolbarColor: colors.secondary,
               secondaryToolbarColor: 'black',
               navigationBarColor: 'black',
               navigationBarDividerColor: 'white',
@@ -138,12 +139,17 @@ export default function RecordingDetailsScreen() {
           onPress={() => navigation.goBack()}
           hitSlop={10}
         >
-          <Lucide name="arrow-left" size={26} color="#3E5DE7" />
+          <Lucide name="arrow-left" size={26} color={colors.primary} />
         </Pressable>
 
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <AppText
+          variant="heading"
+          align="center"
+          numberOfLines={1}
+          style={styles.headerTitle}
+        >
           {recording ? recording.title : ''}
-        </Text>
+        </AppText>
 
         {recording ? (
           <RecordingMenu
@@ -159,18 +165,30 @@ export default function RecordingDetailsScreen() {
       {recording && (
         <View style={styles.metaRow}>
           <View style={[styles.metaChip, { flexGrow: 1 }]}>
-            <Lucide name="calendar-days" size={16} color="#6B7280" />
-            <Text style={styles.metaChipText}>
+            <Lucide
+              name="calendar-days"
+              size={16}
+              color={colors.neutralSecondary}
+            />
+            <AppText
+              variant="subtitle"
+              size="sm"
+              color={colors.neutralSecondary}
+            >
               {t('shared.utils.formatDateTime', {
                 value: recording.created_at,
               })}
               {/*{formatRelativeLabel(createdAt)}*/}
-            </Text>
+            </AppText>
           </View>
 
           <View style={styles.metaChip}>
-            <Lucide name="clock-3" size={16} color="#6B7280" />
-            <Text style={styles.metaChipText}>
+            <Lucide name="clock-3" size={16} color={colors.neutralSecondary} />
+            <AppText
+              variant="subtitle"
+              size="sm"
+              color={colors.neutralSecondary}
+            >
               {t('shared.utils.duration', {
                 duration: intervalToDuration({
                   start: 0,
@@ -178,14 +196,18 @@ export default function RecordingDetailsScreen() {
                 }),
               })}
               {/*{formatDurationLabel(durationSeconds || 0)}*/}
-            </Text>
+            </AppText>
           </View>
           {transcriptSegments.length > 0 && (
             <View style={styles.metaChip}>
-              <Lucide name="users" size={16} color="#6B7280" />
-              <Text style={styles.metaChipText}>
+              <Lucide name="users" size={16} color={colors.neutralSecondary} />
+              <AppText
+                variant="subtitle"
+                size="sm"
+                color={colors.neutralSecondary}
+              >
                 {numberOfParticipants ?? 0}
-              </Text>
+              </AppText>
             </View>
           )}
         </View>
@@ -201,22 +223,29 @@ export default function RecordingDetailsScreen() {
       >
         <View style={styles.transcriptContainer}>
           {transcriptSegments.length === 0 ? (
-            <Text style={styles.emptyText}>{t('transcript.notAvailable')}</Text>
+            <AppText variant="muted" size="md" color={colors.neutralTertiary}>
+              {t('transcript.notAvailable')}
+            </AppText>
           ) : (
             transcriptSegments.map((segment, index) => (
-              <Text
+              <AppText
+                variant="body"
+                size="sm"
                 key={`${segment.start ?? index}-${index}`}
                 style={styles.paragraph}
               >
-                <Text style={styles.timestamp}>
+                <AppText variant="bodyStrong">
                   {formatTimestamp(segment.start ?? -1)}
                   {' · '}
-                </Text>
-                <Text style={styles.speaker}>
+                </AppText>
+                <AppText variant="bodyStrong">
                   {t('transcript.speaker')} {segment.speaker}
-                </Text>
-                <Text style={styles.bodyText}> {segment.text}</Text>
-              </Text>
+                </AppText>
+                <AppText variant="body">
+                  {'  '}
+                  {segment.text}
+                </AppText>
+              </AppText>
             ))
           )}
         </View>
@@ -241,7 +270,9 @@ export default function RecordingDetailsScreen() {
               onPress={handleOpenInDocs}
             >
               <DocsIcon />
-              <Text style={styles.openInDocsButtonText}>Open in Docs</Text>
+              <AppText style={styles.openInDocsButtonText}>
+                Open in Docs
+              </AppText>
             </Pressable>
 
             <Pressable
@@ -264,7 +295,7 @@ export default function RecordingDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: colors.backgroundBase,
   },
   header: {
     height: 58,
@@ -282,16 +313,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButtonPressed: {
-    backgroundColor: '#E1E6EF',
+    backgroundColor: colors.backgroundSubtlePressed,
   },
   headerTitle: {
-    flex: 1,
+    flexShrink: 1,
     marginHorizontal: 8,
-    textAlign: 'center',
-    color: '#222631',
-    fontSize: 14,
-    lineHeight: 14,
-    fontWeight: '700',
   },
   scroll: {
     flex: 1,
@@ -308,9 +334,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 12,
     overflow: 'hidden',
-    backgroundColor: '#EEF1F6',
+    backgroundColor: colors.backgroundNeutralTertiary,
     borderWidth: 1,
-    borderColor: 'white',
+    borderColor: colors.backgroundBase,
   },
   metaChip: {
     minHeight: 40,
@@ -320,38 +346,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRightWidth: 1,
-    borderRightColor: 'white',
-  },
-  metaChipText: {
-    color: '#6B7280',
-    fontSize: 12,
-    fontWeight: '500',
+    borderRightColor: colors.backgroundBase,
   },
   transcriptContainer: {
     paddingTop: 2,
   },
   paragraph: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#2B3448',
     marginBottom: 18,
-  },
-  timestamp: {
-    color: '#0F172A',
-    fontWeight: '800',
-  },
-  speaker: {
-    color: '#0F172A',
-    fontWeight: '800',
-  },
-  bodyText: {
-    color: '#2B3448',
-    fontWeight: '400',
-  },
-  emptyText: {
-    color: '#6B7280',
-    fontSize: 15,
-    lineHeight: 22,
   },
   bottomBarContainer: {
     position: 'absolute',
@@ -371,14 +372,14 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundBase,
     borderWidth: 1,
-    borderColor: '#D9DCE3',
+    borderColor: colors.surfacePrimary,
     boxShadow: [
       {
         blurRadius: 15,
         spreadDistance: 5,
-        color: '#D9DCE3',
+        color: colors.shadowDefault,
         offsetX: 0,
         offsetY: 0,
       },
@@ -388,16 +389,11 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#4760E8',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: '#2F47D0',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
   openInDocsButtonDisabled: {
     backgroundColor: '#97989b',
@@ -415,12 +411,12 @@ const styles = StyleSheet.create({
     width: 52,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#DAE2FF',
+    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   shareButtonPressed: {
-    backgroundColor: '#e5ebfe',
+    backgroundColor: colors.secondaryPressed,
   },
 });

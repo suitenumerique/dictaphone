@@ -3,6 +3,7 @@ import { Linking, Platform } from 'react-native';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import * as Keychain from 'react-native-keychain';
 import { API_URL } from '../api/constants';
+import { colors } from '@/components/colors';
 
 const SESSION_COOKIE_NAME = 'sessionid';
 const CSRF_COOKIE_NAME = 'csrftoken';
@@ -60,7 +61,7 @@ export async function login(): Promise<void> {
     const res = await InAppBrowser.openAuth(url, REDIRECT_URL, {
       // iOS Properties
       dismissButtonStyle: 'cancel',
-      preferredBarTintColor: '#453AA4',
+      preferredBarTintColor: colors.secondary,
       preferredControlTintColor: 'white',
       readerMode: false,
       animated: true,
@@ -70,7 +71,7 @@ export async function login(): Promise<void> {
       enableBarCollapsing: false,
       // Android Properties
       showTitle: false,
-      toolbarColor: '#6200EE',
+      toolbarColor: colors.secondary,
       secondaryToolbarColor: 'black',
       navigationBarColor: 'black',
       navigationBarDividerColor: 'white',

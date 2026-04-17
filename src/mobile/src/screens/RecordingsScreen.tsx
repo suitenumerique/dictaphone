@@ -4,7 +4,6 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +19,7 @@ import FileIcon from '@/assets/icons/file.svg'; // @ts-expect-error
 import WarningIcon from '@/assets/icons/warning.svg'; // @ts-expect-error
 import PauseIcon from '@/assets/icons/pause.svg';
 import { useUser } from '@/features/auth/api/useUser';
-import { LoginButton } from '@/features/auth/LoginButton';
+import { LoginButton } from '@/components/LoginButton';
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles';
 import { ApiFileItem } from '@/features/files/api/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,6 +30,8 @@ import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
 import { intervalToDuration } from 'date-fns';
 import MainMenu from '@/components/MainMenu';
 import { useInsets } from '@/utils/useInsets';
+import { AppText } from '@/components/AppText';
+import { colors } from '@/components/colors';
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
@@ -209,17 +210,21 @@ export default function RecordingsScreen() {
           <View style={styles.cardHeaderRight}>
             {item.kind !== 'fake' ? (
               <>
-                <Text
-                  style={[
-                    styles.recordingTitle,
-                    item.kind !== 'remote' && styles.notAvailable,
-                  ]}
+                <AppText
+                  variant="bodyStrong"
+                  size="lg"
+                  color={
+                    item.kind !== 'remote'
+                      ? colors.neutralSecondary
+                      : colors.textPrimary
+                  }
+                  numberOfLines={1}
                 >
                   {item.title}
-                </Text>
-                <Text style={styles.meta}>
+                </AppText>
+                <AppText variant="muted" size="md" numberOfLines={1}>
                   {formatRecordMeta(item, t, isOnline, isLoggedIn)}
-                </Text>
+                </AppText>
               </>
             ) : (
               <>
@@ -242,22 +247,22 @@ export default function RecordingsScreen() {
         </View>
         {isOnline && !isLoading && !isLoggedIn && (
           <View style={styles.loginCard}>
-            <Text style={styles.loginHelperText}>
+            <AppText
+              variant="body"
+              align="center"
+              color={colors.neutralTertiary}
+            >
               {t('recordings.loginHelper')}
-            </Text>
+            </AppText>
             <LoginButton />
           </View>
         )}
         {!isOnline && (
           <View style={[styles.networkCard, styles.offlineCard]}>
-            <Lucide
-              name={'wifi-off'}
-              size={16}
-              color={styles.offlineText.color}
-            />
-            <Text style={[styles.networkText, styles.offlineText]}>
+            <Lucide name={'wifi-off'} size={16} color={colors.warning} />
+            <AppText variant="body" weight="500" color={colors.warning}>
               {t('recordings.offline')}
-            </Text>
+            </AppText>
           </View>
         )}
       </View>
@@ -291,9 +296,14 @@ export default function RecordingsScreen() {
             filesQ.hasNextPage ? (
               <ActivityIndicator />
             ) : (
-              <Text style={styles.listFooter}>
+              <AppText
+                variant="muted"
+                size="md"
+                align="center"
+                style={styles.listFooter}
+              >
                 {t('recordings.listFooter')}
-              </Text>
+              </AppText>
             )
           ) : undefined
         }
@@ -314,13 +324,22 @@ export default function RecordingsScreen() {
             onPress={handleStartRecording}
           >
             <RecordIcon width={24} height={24} />
-            <Text style={styles.startRecordingButtonText}>
+            <AppText variant="button" size="lg" color={colors.errorSecondary}>
               {t('home.newRecording')}
-            </Text>
+            </AppText>
           </Pressable>
 
           <View style={styles.consentRow}>
-            <Text style={styles.consentText}>{t('home.consentNotice')}</Text>
+            <AppText
+              variant="subtitle"
+              size="sm"
+              weight="500"
+              align="center"
+              color={colors.neutralTertiary}
+              style={styles.consentText}
+            >
+              {t('home.consentNotice')}
+            </AppText>
           </View>
         </View>
       </View>
@@ -350,22 +369,18 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundBase,
     borderWidth: 1,
-    borderColor: '#D9DCE3',
+    borderColor: colors.surfacePrimary,
     boxShadow: [
       {
         blurRadius: 15,
         spreadDistance: 5,
-        color: '#D9DCE3',
+        color: colors.shadowDefault,
         offsetX: 0,
         offsetY: 0,
       },
     ],
-  },
-  loginHelperText: {
-    fontSize: 14,
-    color: '#555E74',
   },
   title: {
     marginBottom: 2,
@@ -380,58 +395,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   offlineCard: {
-    backgroundColor: '#FFEEDF',
-    borderColor: '#FFCA9C',
-  },
-  networkText: {
-    fontSize: 14,
-    fontWeight: 500,
-  },
-  offlineText: {
-    color: '#984800',
-  },
-  uploadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  uploadingText: {
-    color: '#1F2937',
-    fontWeight: '600',
-    fontSize: 14,
+    backgroundColor: colors.warningSurface,
+    borderColor: colors.warningBorder,
   },
   listContent: {
     paddingVertical: 10,
   },
   recordingListSeparator: {
     height: 1,
-    backgroundColor: '#DFE2EA',
+    backgroundColor: colors.surfacePrimary,
     marginVertical: 4,
     marginHorizontal: 12,
   },
   listFooter: {
-    color: '#6B7280',
-    fontSize: 14,
-    textAlign: 'center',
     paddingVertical: 12,
     paddingBottom: 14,
   },
   itemCard: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 4,
     borderRadius: 8,
   },
   itemCardPressed: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.backgroundSubtlePressed,
   },
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: 4,
-  },
-  notAvailable: {
-    color: '#626A80',
   },
   cardHeaderLeft: {
     width: 50,
@@ -441,51 +433,24 @@ const styles = StyleSheet.create({
   },
   cardHeaderRight: {
     flex: 1,
-    gap: 6,
-  },
-  syncStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  syncDotPending: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#F59E0B',
-  },
-  syncLabel: {
-    color: '#92400E',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  recordingTitle: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 14,
-    lineHeight: 14,
+    gap: 2,
   },
   recordingTitleSkeleton: {
     width: 140,
     height: 14,
     borderRadius: 6,
-    backgroundColor: '#EEF1F4',
-  },
-  meta: {
-    color: '#6B7280',
-    fontSize: 12,
-    lineHeight: 12,
+    backgroundColor: colors.backgroundNeutralTertiary,
   },
   metaSkeleton: {
     width: 100,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#EEF1F4',
+    backgroundColor: colors.backgroundNeutralTertiary,
   },
   startRecordingPositioner: {
     position: 'absolute',
     display: 'flex',
-    flexDirection: "row",
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     left: 0,
@@ -502,21 +467,21 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundBase,
     borderWidth: 1,
-    borderColor: '#D9DCE3',
+    borderColor: colors.surfacePrimary,
     boxShadow: [
       {
         blurRadius: 20,
         spreadDistance: 15,
-        color: 'white',
+        color: colors.backgroundBase,
         offsetX: 0,
         offsetY: 5,
       },
     ],
   },
   startRecordingButton: {
-    backgroundColor: '#FFDAD7',
+    backgroundColor: colors.backgroundErrorSecondary,
     borderRadius: 4,
     minHeight: 40,
     alignItems: 'center',
@@ -526,23 +491,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   startRecordingButtonPressed: {
-    backgroundColor: '#ffd2cf',
-  },
-  startRecordingButtonText: {
-    color: '#BD0F23',
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Marianne',
+    backgroundColor: colors.backgroundErrorSecondaryPressed,
   },
   consentRow: {
     gap: 12,
   },
   consentText: {
     flexShrink: 1,
-    fontSize: 12,
-    fontFamily: 'Marianne',
-    fontWeight: '500',
-    color: '#626A80',
-    textAlign: 'center',
   },
 });

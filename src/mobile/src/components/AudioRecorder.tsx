@@ -11,7 +11,6 @@ import {
   Linking,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +27,8 @@ import { useNavigation, usePreventRemove } from '@react-navigation/core';
 import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types';
 import uuid from 'react-native-uuid';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
+import { AppText } from './AppText';
+import { colors } from './colors';
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
@@ -331,9 +332,11 @@ export const AudioRecorder = () => {
       <View style={styles.activeContainer}>
         <View style={styles.statusSection}>
           <View style={styles.statusBadge}>
-            <Lucide name="mic-off" size={18} color="#BD0F23" />
+            <Lucide name="mic-off" size={18} color={colors.errorSecondary} />
           </View>
-          <Text>{t('home.recordingDisabled')}</Text>
+          <AppText variant="body" align="center">
+            {t('home.recordingDisabled')}
+          </AppText>
           <Button
             onPress={() => Linking.openSettings()}
             title={t('home.openSettings')}
@@ -348,38 +351,47 @@ export const AudioRecorder = () => {
       <View style={styles.statusSection}>
         <View style={styles.statusBadge}>
           {isPaused ? (
-            <Lucide name="pause-circle" size={18} color="#555E74" />
+            <Lucide
+              name="pause-circle"
+              size={18}
+              color={colors.neutralTertiary}
+            />
           ) : (
-            <Lucide name="audio-lines" size={18} color="#BD0F23" />
+            <Lucide
+              name="audio-lines"
+              size={18}
+              color={colors.errorSecondary}
+            />
           )}
-          <Text
+          <AppText
             style={[styles.statusTitle, isPaused && styles.statusTitlePaused]}
           >
             {t(isPaused ? 'home.recordingPaused' : 'home.recordingInProgress')}
-          </Text>
+          </AppText>
         </View>
 
-        <Text style={styles.statusSubtitle}>
+        <AppText variant="muted" align="center" style={styles.statusSubtitle}>
           {t(
             isPaused
               ? 'home.recordingSubtitlePaused'
               : 'home.recordingSubtitle',
           )}
-        </Text>
+        </AppText>
       </View>
 
       <View style={styles.timerSection}>
-        <Text style={[styles.timer, isPaused && styles.timerPaused]}>
+        <AppText style={[styles.timer, isPaused && styles.timerPaused]}>
           {recordTimeLabel}
-        </Text>
+        </AppText>
       </View>
 
       <View style={styles.controlsRow}>
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.controlButton,
             styles.pauseButton,
             isLoading && styles.buttonDisabled,
+            pressed && styles.pauseButtonPressed,
           ]}
           onPress={isPaused ? onResumeRecord : onPauseRecord}
           disabled={isLoading}
@@ -387,24 +399,30 @@ export const AudioRecorder = () => {
           <Lucide
             name={isPaused ? 'play' : 'pause'}
             size={24}
-            color="#475467"
+            color={colors.neutralSecondary}
           />
-          <Text style={styles.pauseButtonText}>
+          <AppText
+            variant="body"
+            size="lg"
+            weight="600"
+            color={colors.neutralSecondary}
+          >
             {isPaused ? t('home.resume') : t('home.pause')}
-          </Text>
+          </AppText>
         </Pressable>
 
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.controlButton,
             styles.endButton,
             isLoading && styles.buttonDisabled,
+            pressed && styles.endButtonPressed,
           ]}
           onPress={onStopRecord}
           disabled={isLoading}
         >
-          <Lucide name="stop-circle" size={24} color="#FFFFFF" />
-          <Text style={styles.endButtonText}>{t('home.end')}</Text>
+          <Lucide name="stop-circle" size={24} color={colors.backgroundBase} />
+          <AppText variant="button">{t('home.end')}</AppText>
         </Pressable>
       </View>
     </View>
@@ -433,17 +451,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusTitle: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: '#BD0F23',
+    color: colors.errorSecondary,
   },
   statusTitlePaused: {
-    color: '#555E74',
+    color: colors.neutralTertiary,
   },
   statusSubtitle: {
-    color: '#667085',
-    fontSize: 12,
-    textAlign: 'center',
     maxWidth: 320,
     lineHeight: 22,
   },
@@ -454,13 +467,12 @@ const styles = StyleSheet.create({
   },
   timer: {
     fontSize: 44,
-    fontWeight: '800',
-    color: '#1D2433',
-    fontVariant: ['tabular-nums'],
     lineHeight: 80,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   timerPaused: {
-    color: '#626A80',
+    color: colors.neutralSecondary,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -478,20 +490,16 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pauseButton: {
-    backgroundColor: '#D9DEE7',
+    backgroundColor: colors.backgroundNeutralSecondary,
+  },
+  pauseButtonPressed: {
+    backgroundColor: colors.backgroundNeutralSecondaryPressed,
   },
   endButton: {
-    backgroundColor: '#D62839',
+    backgroundColor: colors.backgroundError,
   },
-  pauseButtonText: {
-    color: '#475467',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  endButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  endButtonPressed: {
+    backgroundColor: colors.backgroundErrorPressed,
   },
   buttonDisabled: {
     opacity: 0.7,
