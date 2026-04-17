@@ -292,7 +292,7 @@ export default function RecordingsScreen() {
             : undefined
         }
         ListFooterComponent={
-          isOnline && !filesQ.isPending ? (
+          isOnline && !filesQ.isPending && allRecordings.length > 0 ? (
             filesQ.hasNextPage ? (
               <ActivityIndicator />
             ) : (
