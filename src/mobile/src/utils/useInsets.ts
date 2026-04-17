@@ -14,8 +14,7 @@ export function useInsets(params?: {
     () => ({
       paddingTop:
         insets.top +
-        (params?.paddingTop ?? 0) +
-        (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0),
+        (params?.paddingTop ?? 0),
       paddingBottom: insets.bottom + (params?.paddingBottom ?? 0),
       paddingLeft: insets.left + (params?.paddingLeft ?? 8),
       paddingRight: insets.right + (params?.paddingRight ?? 8),
