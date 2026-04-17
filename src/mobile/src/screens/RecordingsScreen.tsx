@@ -356,7 +356,8 @@ const styles = StyleSheet.create({
   },
   topBar: {
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingTop: 4,
+    paddingBottom: 10,
     gap: 12,
   },
   topBarHeader: {
@@ -402,7 +403,6 @@ const styles = StyleSheet.create({
     borderColor: colors.warningBorder,
   },
   listContent: {
-    paddingVertical: 10,
   },
   recordingListSeparator: {
     height: 1,
