@@ -10,13 +10,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RecordingScreen from '@/screens/RecordingScreen';
 import RecordingsScreen from './src/screens/RecordingsScreen';
 import { storeCsrfToken, storeSessionCookie } from './src/services/authService';
-import { useNavigation } from '@react-navigation/core';
 import { queryClient } from '@/api/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BootSplash from 'react-native-bootsplash';
 import LoginScreen from '@/screens/LoginScreen';
 import RecordingDetailsScreen from '@/screens/RecordingDetailsScreen';
 import type { RootStackParamList } from '@/navigation/types';
+import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -24,7 +24,7 @@ type AuthCallbackRoute = RouteProp<RootStackParamList, 'AuthCallback'>;
 
 function AuthCallbackScreen() {
   const route = useRoute<AuthCallbackRoute>();
-  const navigation = useNavigation();
+  const resetNavigationHistory = useResetNavigationHistory();
 
   useEffect(() => {
     if (route.params.sessionId && route.params.csrfToken) {
@@ -39,8 +39,8 @@ function AuthCallbackScreen() {
           console.error('Failed to store session cookie and csrf token:', e),
         );
     }
-    navigation.navigate('Main' as never);
-  }, [navigation, route.params]);
+    resetNavigationHistory('Main');
+  }, [resetNavigationHistory, route.params]);
 
   return null;
 }

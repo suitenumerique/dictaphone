@@ -29,6 +29,7 @@ import uuid from 'react-native-uuid';
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
 import { AppText } from './AppText';
 import { colors } from './colors';
+import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory';
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
@@ -47,6 +48,7 @@ export const AudioRecorder = () => {
   const [permissionStatus, setPermissionStatus] =
     useState<PermissionStatus>('Undetermined');
   const { addRecording } = useLocalRecordings();
+  const resetNavigationHistory= useResetNavigationHistory()
   const navigation = useNavigation();
   const recordingStartDateTime = useRef<Date | null>(null);
 
@@ -125,6 +127,8 @@ export const AudioRecorder = () => {
         onPress: () => {
           clearRecording();
           navigation.dispatch(data.action);
+          // And we reset the navigation history to the main screen too
+          resetNavigationHistory('Main')
         },
       },
     ]);
@@ -248,7 +252,8 @@ export const AudioRecorder = () => {
         id: uuid.v4(),
         uploadingStatus: 'to_upload',
       });
-      navigation.navigate('Main' as never);
+
+      resetNavigationHistory('Main')
 
       setRecordingTimeMs(0);
     } catch (error) {
@@ -256,7 +261,7 @@ export const AudioRecorder = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [addRecording, navigation, t]);
+  }, [addRecording, resetNavigationHistory, t]);
 
   useEffect(() => {
     const pauseListener = RecordingNotificationManager.addEventListener(
@@ -314,7 +319,7 @@ export const AudioRecorder = () => {
         {
           text: t('home.permissionCancel'),
           onPress: () => {
-            navigation.navigate('Main' as never);
+            resetNavigationHistory('Main')
           },
         },
         {
@@ -325,7 +330,7 @@ export const AudioRecorder = () => {
         },
       ]);
     }
-  }, [navigation, permissionStatus, t]);
+  }, [resetNavigationHistory, permissionStatus, t]);
 
   if (permissionStatus === 'Denied') {
     return (

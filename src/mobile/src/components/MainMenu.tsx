@@ -6,16 +6,19 @@ import { useUser } from '@/features/auth/api/useUser';
 import { useTranslation } from 'react-i18next';
 import { AppText } from './AppText';
 import { colors } from './colors';
+import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory';
 
 export default function MainMenu() {
   const [isPopoverVisible, setIsPopoverVisible] = useState(false);
   const { logout, isLoggedIn } = useUser();
-  const {t} = useTranslation();
+  const { t } = useTranslation();
+  const resetNavigationHistory = useResetNavigationHistory();
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     setIsPopoverVisible(false);
-    logout();
-  }, [logout]);
+    await logout();
+    resetNavigationHistory('Main');
+  }, [logout, resetNavigationHistory]);
 
   if (!isLoggedIn) {
     return null;
@@ -43,7 +46,11 @@ export default function MainMenu() {
         <View style={styles.popoverContent}>
           <Pressable style={styles.logoutButton} onPress={handleLogout}>
             <Lucide name="log-out" size={15} color={colors.textPrimary} />
-            <AppText variant="body" color={colors.textPrimary} style={styles.fixMarginBottom}>
+            <AppText
+              variant="body"
+              color={colors.textPrimary}
+              style={styles.fixMarginBottom}
+            >
               {t('login.logout')}
             </AppText>
           </Pressable>
