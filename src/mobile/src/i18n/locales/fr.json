@@ -67,7 +67,7 @@
   },
   "transcript": {
     "speaker": "Participant",
-    "notAvailable": "Transcription non disponible."
+    "notAvailable": "Aucune transcription n'a pu être extraite de l'audio."
   },
   "player": {
     "play": "Lecture",
