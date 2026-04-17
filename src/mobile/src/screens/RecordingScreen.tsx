@@ -1,10 +1,10 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { AudioRecorder } from '@/components/AudioRecorder';
-import { useInsets } from '@/utils/useInsets';
+import React from 'react'
+import { StyleSheet, View } from 'react-native'
+import { AudioRecorder } from '@/components/AudioRecorder'
+import { useInsets } from '@/utils/useInsets'
 
 export default function RecordScreen() {
-  const insets = useInsets();
+  const insets = useInsets()
 
   return (
     <View style={[styles.container, insets]}>
@@ -12,7 +12,7 @@ export default function RecordScreen() {
         <AudioRecorder />
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -27,4 +27,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-});
+})

@@ -1,35 +1,35 @@
 // src/screens/LoginScreen.tsx
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useUserStore } from '@/services/storage';
-// @ts-ignore
-import LogoWithName from '../assets/logo-single-line.svg';
-import { LoginButton } from '@/components/LoginButton';
-import { useInsets } from '@/utils/useInsets';
-import { AppText } from '@/components/AppText';
-import { colors } from '@/components/colors';
+import React, { useEffect } from 'react'
+import { StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { useUserStore } from '@/services/storage'
+// @ts-expect-error  Logo SVG
+import LogoWithName from '../assets/logo-single-line.svg'
+import { LoginButton } from '@/components/LoginButton'
+import { useInsets } from '@/utils/useInsets'
+import { AppText } from '@/components/AppText'
+import { colors } from '@/components/colors'
 
 type LoginScreenProps = {
   navigation: {
-    replace: (routeName: string) => void;
-  };
-};
+    replace: (routeName: string) => void
+  }
+}
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
-  const { user } = useUserStore();
-  const insets = useInsets();
+  const { user } = useUserStore()
+  const insets = useInsets()
 
   useEffect(() => {
     if (user) {
-      navigation.replace('Main');
+      navigation.replace('Main')
     }
-  }, [user, navigation]);
+  }, [user, navigation])
 
   if (user) {
-    return null;
+    return null
   }
 
   return (
@@ -44,7 +44,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         <LoginButton />
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -67,4 +67,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-});
+})

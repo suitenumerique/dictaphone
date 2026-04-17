@@ -1,11 +1,11 @@
-import 'i18next';
-import type { TranslationSchema } from './resources';
+import 'i18next'
+import type { TranslationSchema } from './resources'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
-    defaultNS: 'translation';
+    defaultNS: 'translation'
     resources: {
-      translation: TranslationSchema;
-    };
+      translation: TranslationSchema
+    }
   }
 }

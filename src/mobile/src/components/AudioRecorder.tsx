@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Button,
@@ -12,58 +6,58 @@ import {
   Pressable,
   StyleSheet,
   View,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { Lucide } from '@react-native-vector-icons/lucide';
+} from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { Lucide } from '@react-native-vector-icons/lucide'
 import {
   AudioManager,
   AudioRecorder as AudioRecorderApi,
   FileFormat,
   FilePreset,
   RecordingNotificationManager,
-} from 'react-native-audio-api';
-import { formatDuration } from '@/features/recordings/utils/formatDuration';
-import { useNavigation, usePreventRemove } from '@react-navigation/core';
-import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types';
-import uuid from 'react-native-uuid';
-import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
-import { AppText } from './AppText';
-import { colors } from './colors';
-import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory';
+} from 'react-native-audio-api'
+import { formatDuration } from '@/features/recordings/utils/formatDuration'
+import { useNavigation, usePreventRemove } from '@react-navigation/core'
+import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types'
+import uuid from 'react-native-uuid'
+import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
+import { AppText } from './AppText'
+import { colors } from './colors'
+import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
   iosMode: 'default',
   iosOptions: [],
-});
+})
 
-const audioRecorder = new AudioRecorderApi();
+const audioRecorder = new AudioRecorderApi()
 
 export const AudioRecorder = () => {
-  const { t } = useTranslation();
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [recordingTimeMs, setRecordingTimeMs] = useState(0);
+  const { t } = useTranslation()
+  const [isRecording, setIsRecording] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [recordingTimeMs, setRecordingTimeMs] = useState(0)
   const [permissionStatus, setPermissionStatus] =
-    useState<PermissionStatus>('Undetermined');
-  const { addRecording } = useLocalRecordings();
-  const resetNavigationHistory= useResetNavigationHistory()
-  const navigation = useNavigation();
-  const recordingStartDateTime = useRef<Date | null>(null);
+    useState<PermissionStatus>('Undetermined')
+  const { addRecording } = useLocalRecordings()
+  const resetNavigationHistory = useResetNavigationHistory()
+  const navigation = useNavigation()
+  const recordingStartDateTime = useRef<Date | null>(null)
 
   const recordTimeLabel = useMemo(
     () => formatDuration(recordingTimeMs),
-    [recordingTimeMs],
-  );
+    [recordingTimeMs]
+  )
 
   const recordingDurationInterval = useRef<ReturnType<
     typeof setTimeout
-  > | null>(null);
+  > | null>(null)
 
   const updateNotification = async (paused: boolean) => {
-    await RecordingNotificationManager.show({ paused });
-  };
+    await RecordingNotificationManager.show({ paused })
+  }
 
   const setupNotification = async (paused: boolean) => {
     await RecordingNotificationManager.show({
@@ -74,32 +68,32 @@ export const AudioRecorder = () => {
       pauseIconResourceName: 'pause',
       resumeIconResourceName: 'resume',
       color: 0xff6200,
-    });
-  };
+    })
+  }
 
   const clearRecording = () => {
-    audioRecorder.stop();
-    audioRecorder.disableFileOutput();
-    AudioManager.setAudioSessionActivity(false);
-    RecordingNotificationManager.hide();
+    audioRecorder.stop()
+    audioRecorder.disableFileOutput()
+    AudioManager.setAudioSessionActivity(false)
+    RecordingNotificationManager.hide()
     // Todo delete file as option for when going back alert
-  };
+  }
 
   useEffect(() => {
-    AudioManager.requestRecordingPermissions().then(res => {
-      setPermissionStatus(res);
+    AudioManager.requestRecordingPermissions().then((res) => {
+      setPermissionStatus(res)
       if (res === 'Granted') {
         audioRecorder.enableFileOutput({
           format: FileFormat.M4A,
           preset: FilePreset.High,
-        });
+        })
       }
-    });
+    })
 
     return () => {
-      clearRecording();
-    };
-  }, []);
+      clearRecording()
+    }
+  }, [])
 
   useEffect(() => {
     if (permissionStatus === 'Denied') {
@@ -113,10 +107,10 @@ export const AudioRecorder = () => {
               // Handle the "OK" button press
             },
           },
-        ],
-      );
+        ]
+      )
     }
-  }, [permissionStatus]);
+  }, [permissionStatus])
 
   usePreventRemove(isRecording, ({ data }) => {
     Alert.alert('A recording is in progress.', 'Do you want to discard it?', [
@@ -125,125 +119,125 @@ export const AudioRecorder = () => {
         text: 'Discard',
         style: 'destructive',
         onPress: () => {
-          clearRecording();
-          navigation.dispatch(data.action);
+          clearRecording()
+          navigation.dispatch(data.action)
           // And we reset the navigation history to the main screen too
           resetNavigationHistory('Main')
         },
       },
-    ]);
-  });
+    ])
+  })
 
   useEffect(() => {
     if (!isRecording || isPaused) {
       if (recordingDurationInterval.current) {
-        clearInterval(recordingDurationInterval.current);
-        recordingDurationInterval.current = null;
+        clearInterval(recordingDurationInterval.current)
+        recordingDurationInterval.current = null
       }
-      return;
+      return
     }
 
     if (!recordingDurationInterval.current) {
       recordingDurationInterval.current = setInterval(() => {
         try {
-          const duration = audioRecorder.getCurrentDuration();
-          setRecordingTimeMs(duration * 1000);
+          const duration = audioRecorder.getCurrentDuration()
+          setRecordingTimeMs(duration * 1000)
         } catch (error) {
-          console.error('Failed to get current recording duration:', error);
+          console.error('Failed to get current recording duration:', error)
         }
-      }, 200);
+      }, 200)
     }
 
     return () => {
       if (recordingDurationInterval.current) {
-        clearInterval(recordingDurationInterval.current);
+        clearInterval(recordingDurationInterval.current)
       }
-    };
-  }, [isPaused, isRecording]);
+    }
+  }, [isPaused, isRecording])
 
   const handleStartRecording = useCallback(async () => {
-    const permissions = await AudioManager.requestRecordingPermissions();
+    const permissions = await AudioManager.requestRecordingPermissions()
     if (permissions !== 'Granted') {
-      console.warn('Permissions are not granted');
-      return;
+      console.warn('Permissions are not granted')
+      return
     }
 
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const success = await AudioManager.setAudioSessionActivity(true);
+      const success = await AudioManager.setAudioSessionActivity(true)
       if (!success) {
-        console.warn('Could not activate the audio session');
-        return;
+        console.warn('Could not activate the audio session')
+        return
       }
 
-      const result = audioRecorder.start();
+      const result = audioRecorder.start()
       if (result.status === 'error') {
-        console.warn(result.message);
-        return;
+        console.warn(result.message)
+        return
       }
 
-      setupNotification(false);
-      setRecordingTimeMs(0);
-      setIsRecording(true);
-      setIsPaused(false);
-      recordingStartDateTime.current = new Date();
+      setupNotification(false)
+      setRecordingTimeMs(0)
+      setIsRecording(true)
+      setIsPaused(false)
+      recordingStartDateTime.current = new Date()
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error('Failed to start recording:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (permissionStatus === 'Granted') {
-      handleStartRecording();
+      handleStartRecording()
     }
-  }, [permissionStatus, handleStartRecording]);
+  }, [permissionStatus, handleStartRecording])
 
   const onPauseRecord = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      audioRecorder.pause();
-      setIsPaused(true);
-      updateNotification(true);
+      audioRecorder.pause()
+      setIsPaused(true)
+      updateNotification(true)
     } catch (error) {
-      console.error('Failed to pause recording:', error);
+      console.error('Failed to pause recording:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   const onResumeRecord = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      audioRecorder.resume();
-      updateNotification(false);
-      setIsPaused(false);
+      audioRecorder.resume()
+      updateNotification(false)
+      setIsPaused(false)
     } catch (error) {
-      console.error('Failed to resume recording:', error);
+      console.error('Failed to resume recording:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   const onStopRecord = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const result = audioRecorder.stop();
-      await RecordingNotificationManager.hide();
+      const result = audioRecorder.stop()
+      await RecordingNotificationManager.hide()
       if (result.status === 'error') {
-        console.warn(result.message);
-        return;
+        console.warn(result.message)
+        return
       }
 
-      setIsRecording(false);
-      setIsPaused(false);
-      await AudioManager.setAudioSessionActivity(false);
+      setIsRecording(false)
+      setIsPaused(false)
+      await AudioManager.setAudioSessionActivity(false)
 
       const title = `${t('home.recordingPrefix')} ${t(
         'shared.utils.formatDateTimeStatic',
-        { value: recordingStartDateTime.current! },
-      )}`;
+        { value: recordingStartDateTime.current! }
+      )}`
       addRecording({
         created_at: recordingStartDateTime.current!.toISOString(),
         duration_seconds: result.duration,
@@ -251,49 +245,49 @@ export const AudioRecorder = () => {
         title,
         id: uuid.v4(),
         uploadingStatus: 'to_upload',
-      });
+      })
 
       resetNavigationHistory('Main')
 
-      setRecordingTimeMs(0);
+      setRecordingTimeMs(0)
     } catch (error) {
-      console.error('Failed to stop recording:', error);
+      console.error('Failed to stop recording:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [addRecording, resetNavigationHistory, t]);
+  }, [addRecording, resetNavigationHistory, t])
 
   useEffect(() => {
     const pauseListener = RecordingNotificationManager.addEventListener(
       'recordingNotificationPause',
       () => {
-        onPauseRecord();
-      },
-    );
+        onPauseRecord()
+      }
+    )
 
     const resumeListener = RecordingNotificationManager.addEventListener(
       'recordingNotificationResume',
       () => {
-        onResumeRecord();
-      },
-    );
+        onResumeRecord()
+      }
+    )
 
     return () => {
-      pauseListener.remove();
-      resumeListener.remove();
-      RecordingNotificationManager.hide();
-    };
-  }, [onPauseRecord, onResumeRecord]);
+      pauseListener.remove()
+      resumeListener.remove()
+      RecordingNotificationManager.hide()
+    }
+  }, [onPauseRecord, onResumeRecord])
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onClearRecord = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
       {
         style: 'cancel',
         text: t('recordings.deleteCancel'),
         onPress: () => {
-          setIsLoading(false);
+          setIsLoading(false)
         },
       },
       {
@@ -301,17 +295,17 @@ export const AudioRecorder = () => {
         text: t('recordings.deleteConfirm'),
         onPress: async () => {
           try {
-            audioRecorder.stop();
-            setIsRecording(false);
-            setIsPaused(false);
-            setRecordingTimeMs(0);
+            audioRecorder.stop()
+            setIsRecording(false)
+            setIsPaused(false)
+            setRecordingTimeMs(0)
           } finally {
-            setIsLoading(false);
+            setIsLoading(false)
           }
         },
       },
-    ]);
-  }, [t]);
+    ])
+  }, [t])
 
   useEffect(() => {
     if (permissionStatus === 'Denied') {
@@ -325,12 +319,12 @@ export const AudioRecorder = () => {
         {
           text: t('home.openSettings'),
           onPress: () => {
-            Linking.openSettings();
+            Linking.openSettings()
           },
         },
-      ]);
+      ])
     }
-  }, [resetNavigationHistory, permissionStatus, t]);
+  }, [resetNavigationHistory, permissionStatus, t])
 
   if (permissionStatus === 'Denied') {
     return (
@@ -348,7 +342,7 @@ export const AudioRecorder = () => {
           />
         </View>
       </View>
-    );
+    )
   }
 
   return (
@@ -376,11 +370,14 @@ export const AudioRecorder = () => {
           </AppText>
         </View>
 
-        <AppText variant="muted" size="md" align="center" style={styles.statusSubtitle}>
+        <AppText
+          variant="muted"
+          size="md"
+          align="center"
+          style={styles.statusSubtitle}
+        >
           {t(
-            isPaused
-              ? 'home.recordingSubtitlePaused'
-              : 'home.recordingSubtitle',
+            isPaused ? 'home.recordingSubtitlePaused' : 'home.recordingSubtitle'
           )}
         </AppText>
       </View>
@@ -407,10 +404,7 @@ export const AudioRecorder = () => {
             size={24}
             color={colors.neutralSecondary}
           />
-          <AppText
-            variant="button"
-            color={colors.neutralSecondary}
-          >
+          <AppText variant="button" color={colors.neutralSecondary}>
             {isPaused ? t('home.resume') : t('home.pause')}
           </AppText>
         </Pressable>
@@ -430,8 +424,8 @@ export const AudioRecorder = () => {
         </Pressable>
       </View>
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   activeContainer: {
@@ -509,4 +503,4 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-});
+})

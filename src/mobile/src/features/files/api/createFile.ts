@@ -1,14 +1,14 @@
-import { fetchApi } from '@/api/fetchApi';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiFileItem } from '@/features/files/api/types.ts';
-import { keys } from '@/api/queryKeys.ts';
-import { uploadFileToS3 } from '@/utils/fileUpload';
+import { fetchApi } from '@/api/fetchApi'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ApiFileItem } from '@/features/files/api/types.ts'
+import { keys } from '@/api/queryKeys.ts'
+import { uploadFileToS3 } from '@/utils/fileUpload'
 
 type FileSource = {
-  name: string;
-  type: string;
-  uri: string;
-};
+  name: string
+  type: string
+  uri: string
+}
 
 /**
  * Upload a file, using XHR so we can report on progress through a handler.
@@ -16,12 +16,9 @@ type FileSource = {
  * @param url The URL to PUT the file to.
  * @param file The file to upload.
  */
-export const uploadFile = async (
-  url: string,
-  file: FileSource,
-) => {
-  await uploadFileToS3(file.uri, url, file.type);
-};
+export const uploadFile = async (url: string, file: FileSource) => {
+  await uploadFileToS3(file.uri, url, file.type)
+}
 
 /**
  * Asynchronously creates a new file and uploads it to the server.
@@ -36,9 +33,9 @@ export const createFile = async ({
   durationSeconds,
   createdAt,
 }: {
-  file: FileSource;
-  durationSeconds: number;
-  createdAt: string;
+  file: FileSource
+  durationSeconds: number
+  createdAt: string
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -48,19 +45,19 @@ export const createFile = async ({
       duration_seconds: durationSeconds,
       created_at: createdAt,
     }),
-  });
+  })
   if (res.upload_state !== 'pending') {
-    throw new Error('State should be pending right after creation');
+    throw new Error('State should be pending right after creation')
   }
-  const policy = res.policy;
-  await uploadFile(policy, file);
+  const policy = res.policy
+  await uploadFile(policy, file)
   return await fetchApi<ApiFileItem>(`/files/${res.id}/upload-ended/`, {
     method: 'POST',
-  });
-};
+  })
+}
 
 export const useCreateFile = () => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: [keys.files, 'create'],
@@ -68,10 +65,10 @@ export const useCreateFile = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [keys.files],
-      });
+      })
     },
-    onError: error => {
-      console.error('Error creating file:', error);
+    onError: (error) => {
+      console.error('Error creating file:', error)
     },
-  });
-};
+  })
+}

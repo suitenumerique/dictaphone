@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { useRecordingsStore } from '@/services/storage';
+import { useMemo } from 'react'
+import { useRecordingsStore } from '@/services/storage'
 
 export const useLocalRecordings = () => {
-  const { recordings, addRecording, updateRecording } = useRecordingsStore();
+  const { recordings, addRecording, updateRecording } = useRecordingsStore()
 
   return useMemo(
     () => ({
@@ -10,6 +10,6 @@ export const useLocalRecordings = () => {
       addRecording,
       updateRecording,
     }),
-    [recordings, addRecording, updateRecording],
-  );
-};
+    [recordings, addRecording, updateRecording]
+  )
+}

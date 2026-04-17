@@ -1,27 +1,27 @@
-import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import Popover from 'react-native-popover-view';
-import { Lucide } from '@react-native-vector-icons/lucide';
-import { useUser } from '@/features/auth/api/useUser';
-import { useTranslation } from 'react-i18next';
-import { AppText } from './AppText';
-import { colors } from './colors';
-import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory';
+import React, { useCallback, useState } from 'react'
+import { Pressable, StyleSheet, View } from 'react-native'
+import Popover from 'react-native-popover-view'
+import { Lucide } from '@react-native-vector-icons/lucide'
+import { useUser } from '@/features/auth/api/useUser'
+import { useTranslation } from 'react-i18next'
+import { AppText } from './AppText'
+import { colors } from './colors'
+import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
 
 export default function MainMenu() {
-  const [isPopoverVisible, setIsPopoverVisible] = useState(false);
-  const { logout, isLoggedIn } = useUser();
-  const { t } = useTranslation();
-  const resetNavigationHistory = useResetNavigationHistory();
+  const [isPopoverVisible, setIsPopoverVisible] = useState(false)
+  const { logout, isLoggedIn } = useUser()
+  const { t } = useTranslation()
+  const resetNavigationHistory = useResetNavigationHistory()
 
   const handleLogout = useCallback(async () => {
-    setIsPopoverVisible(false);
-    await logout();
-    resetNavigationHistory('Main');
-  }, [logout, resetNavigationHistory]);
+    setIsPopoverVisible(false)
+    await logout()
+    resetNavigationHistory('Main')
+  }, [logout, resetNavigationHistory])
 
   if (!isLoggedIn) {
-    return null;
+    return null
   }
 
   return (
@@ -57,7 +57,7 @@ export default function MainMenu() {
         </View>
       </Popover>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -93,4 +93,4 @@ const styles = StyleSheet.create({
     gap: 4,
     justifyContent: 'center',
   },
-});
+})

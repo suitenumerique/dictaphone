@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Modal,
@@ -6,68 +6,69 @@ import {
   StyleSheet,
   TextInput,
   View,
-} from 'react-native';
-import Popover from 'react-native-popover-view';
-import { Lucide } from '@react-native-vector-icons/lucide';
-import { useTranslation } from 'react-i18next';
-import { useDeleteFile } from '@/features/files/api/deleteFile';
-import { usePartialUpdateFile } from '@/features/files/api/partialUpdateFile';
-import { AppText } from './AppText';
-import { colors } from './colors';
+} from 'react-native'
+import Popover from 'react-native-popover-view'
+import { Lucide } from '@react-native-vector-icons/lucide'
+import { useTranslation } from 'react-i18next'
+import { useDeleteFile } from '@/features/files/api/deleteFile'
+import { usePartialUpdateFile } from '@/features/files/api/partialUpdateFile'
+import { AppText } from './AppText'
+import { colors } from './colors'
 
 type RecordingMenuProps = {
-  fileId: string;
-  currentTitle: string;
-  onDeleted: () => void;
-};
+  fileId: string
+  currentTitle: string
+  onDeleted: () => void
+}
 
 export default function RecordingMenu({
   fileId,
   currentTitle,
   onDeleted,
 }: RecordingMenuProps) {
-  const { t } = useTranslation();
-  const [isPopoverVisible, setIsPopoverVisible] = useState(false);
-  const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
-  const [draftTitle, setDraftTitle] = useState(currentTitle);
-  const [pendingRename, setPendingRename] = useState(false);
+  const { t } = useTranslation()
+  const [isPopoverVisible, setIsPopoverVisible] = useState(false)
+  const [isRenameModalVisible, setIsRenameModalVisible] = useState(false)
+  const [draftTitle, setDraftTitle] = useState(currentTitle)
+  const [pendingRename, setPendingRename] = useState(false)
 
-  const deleteMutation = useDeleteFile();
-  const renameMutation = usePartialUpdateFile();
+  const deleteMutation = useDeleteFile()
+  const renameMutation = usePartialUpdateFile()
 
-  const isBusy = deleteMutation.isPending || renameMutation.isPending;
-  const sanitizedTitle = useMemo(() => draftTitle.trim(), [draftTitle]);
+  const isBusy = deleteMutation.isPending || renameMutation.isPending
+  const sanitizedTitle = useMemo(() => draftTitle.trim(), [draftTitle])
 
   useEffect(() => {
     if (isRenameModalVisible) {
-      setDraftTitle(currentTitle);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraftTitle(currentTitle)
     }
-  }, [currentTitle, isRenameModalVisible]);
+  }, [currentTitle, isRenameModalVisible])
 
   const openRenameModal = useCallback(() => {
-    setPendingRename(true);
-    setIsPopoverVisible(false);
-  }, []);
+    setPendingRename(true)
+    setIsPopoverVisible(false)
+  }, [])
 
   const handlePopoverCloseComplete = useCallback(() => {
     if (pendingRename) {
-      setPendingRename(false);
+      setPendingRename(false)
 
       // Hack for opening the rename modal to work on iOS
       setTimeout(() => {
-        setIsRenameModalVisible(true);
+        setIsRenameModalVisible(true)
       }, 50)
     }
-  }, [pendingRename]);
+  }, [pendingRename])
 
   const closeRenameModal = useCallback(() => {
     if (!renameMutation.isPending) {
-      setIsRenameModalVisible(false);
+      setIsRenameModalVisible(false)
     }
-  }, [renameMutation.isPending]);
+  }, [renameMutation.isPending])
 
   const onConfirmDelete = useCallback(() => {
-    setIsPopoverVisible(false);
+    setIsPopoverVisible(false)
     Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
       {
         style: 'cancel',
@@ -78,33 +79,33 @@ export default function RecordingMenu({
         text: t('recordings.deleteConfirm'),
         onPress: async () => {
           try {
-            await deleteMutation.mutateAsync({ fileId });
-            onDeleted();
+            await deleteMutation.mutateAsync({ fileId })
+            onDeleted()
           } catch {
             Alert.alert(
               t('recordings.menu.errorTitle'),
-              t('recordings.menu.deleteError'),
-            );
+              t('recordings.menu.deleteError')
+            )
           }
         },
       },
-    ]);
-  }, [deleteMutation, fileId, onDeleted, t]);
+    ])
+  }, [deleteMutation, fileId, onDeleted, t])
 
   const onConfirmRename = useCallback(async () => {
     if (!sanitizedTitle) {
-      return;
+      return
     }
     try {
-      await renameMutation.mutateAsync({ id: fileId, title: sanitizedTitle });
-      setIsRenameModalVisible(false);
+      await renameMutation.mutateAsync({ id: fileId, title: sanitizedTitle })
+      setIsRenameModalVisible(false)
     } catch {
       Alert.alert(
         t('recordings.menu.errorTitle'),
-        t('recordings.menu.renameError'),
-      );
+        t('recordings.menu.renameError')
+      )
     }
-  }, [fileId, renameMutation, sanitizedTitle, t]);
+  }, [fileId, renameMutation, sanitizedTitle, t])
 
   return (
     <>
@@ -219,7 +220,7 @@ export default function RecordingMenu({
         </View>
       </Modal>
     </>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -313,4 +314,4 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
-});
+})

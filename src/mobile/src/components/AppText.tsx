@@ -1,25 +1,25 @@
-import React from 'react';
-import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
-import { colors } from './colors';
+import React from 'react'
+import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native'
+import { colors } from './colors'
 
 type AppTextVariant =
   | 'heading'
   | 'subtitle'
   | 'body'
   | 'bodyMedium'
-  | "bodyBold"
+  | 'bodyBold'
   | 'muted'
-  | 'button';
+  | 'button'
 
-type AppTextSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+type AppTextSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
 type AppTextProps = TextProps & {
-  variant?: AppTextVariant;
-  size?: AppTextSize;
-  color?: string;
-  weight?: TextStyle['fontWeight'];
-  align?: 'left' | 'right' | 'center';
-};
+  variant?: AppTextVariant
+  size?: AppTextSize
+  color?: string
+  weight?: TextStyle['fontWeight']
+  align?: 'left' | 'right' | 'center'
+}
 
 const typography = StyleSheet.create({
   base: {
@@ -98,7 +98,7 @@ const typography = StyleSheet.create({
   right: {
     textAlign: 'right',
   },
-});
+})
 
 const variantStyles: Record<AppTextVariant, TextStyle> = {
   heading: typography.heading,
@@ -108,7 +108,7 @@ const variantStyles: Record<AppTextVariant, TextStyle> = {
   bodyBold: typography.bodyBold,
   muted: typography.muted,
   button: typography.button,
-};
+}
 
 const sizeStyles: Record<AppTextSize, TextStyle> = {
   xs: typography.xs,
@@ -116,13 +116,13 @@ const sizeStyles: Record<AppTextSize, TextStyle> = {
   md: typography.md,
   lg: typography.lg,
   xl: typography.xl,
-};
+}
 
 const alignStyles: Record<NonNullable<AppTextProps['align']>, TextStyle> = {
   left: typography.left,
   center: typography.center,
   right: typography.right,
-};
+}
 
 export function AppText({
   variant = 'body',
@@ -149,5 +149,5 @@ export function AppText({
     >
       {children}
     </Text>
-  );
+  )
 }

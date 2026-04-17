@@ -5,10 +5,13 @@
   "scripts": {
     "android": "react-native run-android --active-arch-only",
     "ios": "react-native run-ios",
-    "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --fix --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write ./src",
+    "check": "prettier --check ./src"
   },
   "dependencies": {
     "@react-native-community/netinfo": "12.0.1",
@@ -49,16 +52,21 @@
     "@react-native/eslint-config": "0.84.1",
     "@react-native/metro-config": "0.84.1",
     "@react-native/typescript-config": "0.84.1",
+    "@tanstack/eslint-plugin-query": "5.99.0",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19.1.0",
     "babel-plugin-module-resolver": "5.0.3",
-    "eslint": "^8.19.0",
+    "eslint": "9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-refresh": "0.5.2",
     "jest": "^29.6.3",
-    "prettier": "2.8.8",
+    "prettier": "3.8.3",
     "react-native-svg-transformer": "1.5.3",
     "react-test-renderer": "19.2.3",
     "typescript": "^6.0.2",
+    "typescript-eslint": "8.58.2",
     "vitest": "4.1.4"
   },
   "engines": {

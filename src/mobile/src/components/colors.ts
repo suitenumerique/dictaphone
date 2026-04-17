@@ -32,4 +32,4 @@ export const colors = {
   surfacePrimary: '#DFE2EA',
 
   overlayBackdrop: 'rgba(15, 23, 42, 0.45)',
-} as const satisfies Record<string, string>;
+} as const satisfies Record<string, string>

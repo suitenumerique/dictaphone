@@ -1,20 +1,20 @@
-import { Pressable, StyleSheet } from 'react-native';
-import React, { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { login } from '@/services/authService';
-import { AppText } from './AppText';
-import { colors } from '@/components/colors';
+import { Pressable, StyleSheet } from 'react-native'
+import React, { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import { login } from '@/services/authService'
+import { AppText } from './AppText'
+import { colors } from '@/components/colors'
 
 export function LoginButton() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   const handleLogin = useCallback(async () => {
     try {
-      await login();
+      await login()
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Login failed:', error)
     }
-  }, []);
+  }, [])
 
   return (
     <Pressable
@@ -26,7 +26,7 @@ export function LoginButton() {
     >
       <AppText variant="button">{t('login.loginCta')}</AppText>
     </Pressable>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -44,4 +44,4 @@ const styles = StyleSheet.create({
   loginButtonPressed: {
     backgroundColor: colors.primaryPressed,
   },
-});
+})

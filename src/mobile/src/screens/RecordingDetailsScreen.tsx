@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
   Linking,
@@ -7,59 +7,59 @@ import {
   Share,
   StyleSheet,
   View,
-} from 'react-native';
-import type { RouteProp } from '@react-navigation/native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '@/navigation/types';
-import { useGetFile } from '@/features/files/api/getFile';
-import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
+} from 'react-native'
+import type { RouteProp } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import type { RootStackParamList } from '@/navigation/types'
+import { useGetFile } from '@/features/files/api/getFile'
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
 import {
   useOpenInDocsMutation,
   useTranscript,
-} from '@/features/ai-jobs/api/fetch';
+} from '@/features/ai-jobs/api/fetch'
 import {
   buildTranscriptViewSegments,
   formatTimestamp,
-} from '@/features/ai-jobs/utils/transcript';
-import { useTranslation } from 'react-i18next';
-import { useInsets } from '@/utils/useInsets';
-import Lucide from '@react-native-vector-icons/lucide'; // @ts-expect-error
-import DocsIcon from '@/assets/icons/docs.svg';
-import RecordingMenu from '@/components/RecordingMenu';
-import { intervalToDuration } from 'date-fns';
-import { InAppBrowser } from 'react-native-inappbrowser-reborn';
-import { AppText } from '@/components/AppText';
-import { colors } from '@/components/colors';
+} from '@/features/ai-jobs/utils/transcript'
+import { useTranslation } from 'react-i18next'
+import { useInsets } from '@/utils/useInsets'
+import Lucide from '@react-native-vector-icons/lucide' // @ts-expect-error Icon
+import DocsIcon from '@/assets/icons/docs.svg'
+import RecordingMenu from '@/components/RecordingMenu'
+import { intervalToDuration } from 'date-fns'
+import { InAppBrowser } from 'react-native-inappbrowser-reborn'
+import { AppText } from '@/components/AppText'
+import { colors } from '@/components/colors'
 
 type RecordingDetailsRouteProp = RouteProp<
   RootStackParamList,
   'RecordingDetails'
->;
+>
 
-type StackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type StackNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export default function RecordingDetailsScreen() {
-  const route = useRoute<RecordingDetailsRouteProp>();
-  const navigation = useNavigation<StackNavigationProp>();
-  const { id } = route.params;
-  const { t } = useTranslation();
-  const insets = useInsets();
+  const route = useRoute<RecordingDetailsRouteProp>()
+  const navigation = useNavigation<StackNavigationProp>()
+  const { id } = route.params
+  const { t } = useTranslation()
+  const insets = useInsets()
 
-  const recordingQ = useGetFile(id);
-  const recording = recordingQ.data;
+  const recordingQ = useGetFile(id)
+  const recording = recordingQ.data
 
   const { lastAiJobTranscript } = useMemo(
     () => getMainAiJobs(recordingQ.data?.ai_jobs),
-    [recordingQ.data?.ai_jobs],
-  );
+    [recordingQ.data?.ai_jobs]
+  )
 
-  const openInDocs = useOpenInDocsMutation();
+  const openInDocs = useOpenInDocsMutation()
   const handleOpenInDocs = useCallback(() => {
     if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
       openInDocs.mutate(lastAiJobTranscript, {
-        onSuccess: async res => {
-          const isAvailable = await InAppBrowser.isAvailable();
+        onSuccess: async (res) => {
+          const isAvailable = await InAppBrowser.isAvailable()
           if (isAvailable) {
             await InAppBrowser.open(res.doc_url, {
               // iOS Properties
@@ -78,56 +78,56 @@ export default function RecordingDetailsScreen() {
               navigationBarColor: 'black',
               navigationBarDividerColor: 'white',
               enableUrlBarHiding: true,
-            });
+            })
           } else {
-            await Linking.openURL(res.doc_url);
+            await Linking.openURL(res.doc_url)
           }
         },
-      });
+      })
     }
-  }, [lastAiJobTranscript, openInDocs]);
+  }, [lastAiJobTranscript, openInDocs])
 
-  const transcriptQ = useTranscript(lastAiJobTranscript);
+  const transcriptQ = useTranscript(lastAiJobTranscript)
   const transcriptSegments = useMemo(
     () => buildTranscriptViewSegments(transcriptQ.data),
-    [transcriptQ.data],
-  );
+    [transcriptQ.data]
+  )
 
   const numberOfParticipants = useMemo(() => {
     if (transcriptSegments.length === 0) {
-      return null;
+      return null
     } else {
       const speakers = new Set<string>(
-        transcriptSegments.map(el => el.speaker).filter(Boolean) as string[],
-      );
-      return speakers.size;
+        transcriptSegments.map((el) => el.speaker).filter(Boolean) as string[]
+      )
+      return speakers.size
     }
-  }, [transcriptSegments]);
+  }, [transcriptSegments])
 
   const transcriptMarkdown = useMemo(() => {
     if (transcriptSegments.length === 0) {
-      return null;
+      return null
     }
-    let out = `# ${recording!.title}\n\n`;
-    transcriptSegments.forEach(segment => {
+    let out = `# ${recording!.title}\n\n`
+    transcriptSegments.forEach((segment) => {
       out += `**${formatTimestamp(segment.start ?? -1)} · ${t(
-        'transcript.speaker',
-      )} ${segment.speaker}** ${segment.text} \n\n`;
-    });
-    return out;
-  }, [recording, transcriptSegments, t]);
+        'transcript.speaker'
+      )} ${segment.speaker}** ${segment.text} \n\n`
+    })
+    return out
+  }, [recording, transcriptSegments, t])
 
   const onDeleted = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+    navigation.goBack()
+  }, [navigation])
 
   const handleShareMarkdown = useCallback(async () => {
     if (transcriptMarkdown) {
       await Share.share({
         message: transcriptMarkdown,
-      });
+      })
     }
-  }, [transcriptMarkdown]);
+  }, [transcriptMarkdown])
 
   return (
     <View style={[styles.container, { paddingTop: insets.paddingTop }]}>
@@ -292,7 +292,7 @@ export default function RecordingDetailsScreen() {
         </View>
       )}
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -422,4 +422,4 @@ const styles = StyleSheet.create({
   shareButtonPressed: {
     backgroundColor: colors.secondaryPressed,
   },
-});
+})

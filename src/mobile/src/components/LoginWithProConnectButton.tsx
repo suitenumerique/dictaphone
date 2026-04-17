@@ -1,25 +1,25 @@
-import { Pressable, StyleSheet, View } from 'react-native';
-// @ts-ignore
-import ProConnectContent from '../assets/proconnect-content.svg';
-import { login } from '../services/authService';
-import { colors } from './colors';
+import { Pressable, StyleSheet, View } from 'react-native'
+// @ts-expect-error SVG
+import ProConnectContent from '../assets/proconnect-content.svg'
+import { login } from '@/services/authService'
+import { colors } from './colors'
 
 export function LoginWithProConnectButton() {
   return (
     <View style={styles.container}>
       <Pressable onPress={() => login()} style={styles.button}>
-        <ProConnectContent/>
+        <ProConnectContent />
       </Pressable>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 8,
   },
   button: {
@@ -30,4 +30,4 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     borderRadius: 8,
   },
-});
+})

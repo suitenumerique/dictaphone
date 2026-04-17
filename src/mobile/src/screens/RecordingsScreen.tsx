@@ -1,141 +1,141 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   View,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import type { LocalRecording } from '@/types/localRecording';
-import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings';
-import { Lucide } from '@react-native-vector-icons/lucide';
-import { useNetInfo } from '@react-native-community/netinfo';
-import { useNavigation } from '@react-navigation/core'; // @ts-expect-error
-import LogoWithName from '../assets/logo-with-name.svg'; // @ts-expect-error
-import RecordIcon from '@/assets/icons/record.svg'; // @ts-expect-error
-import FileDisabledIcon from '@/assets/icons/file-disabled.svg'; // @ts-expect-error
-import FileIcon from '@/assets/icons/file.svg'; // @ts-expect-error
-import WarningIcon from '@/assets/icons/warning.svg'; // @ts-expect-error
-import PauseIcon from '@/assets/icons/pause.svg';
-import { useUser } from '@/features/auth/api/useUser';
-import { LoginButton } from '@/components/LoginButton';
-import { useListMyFilesInfinite } from '@/features/files/api/listFiles';
-import { ApiFileItem } from '@/features/files/api/types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '@/navigation/types';
-import { useQueryClient } from '@tanstack/react-query';
-import { keys } from '@/api/queryKeys';
-import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs';
-import { intervalToDuration } from 'date-fns';
-import MainMenu from '@/components/MainMenu';
-import { useInsets } from '@/utils/useInsets';
-import { AppText } from '@/components/AppText';
-import { colors } from '@/components/colors';
+} from 'react-native'
+import { useTranslation } from 'react-i18next'
+import type { LocalRecording } from '@/types/localRecording'
+import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
+import { Lucide } from '@react-native-vector-icons/lucide'
+import { useNetInfo } from '@react-native-community/netinfo'
+import { useNavigation } from '@react-navigation/core' // @ts-expect-error Icon
+import LogoWithName from '../assets/logo-with-name.svg' // @ts-expect-error Icon
+import RecordIcon from '@/assets/icons/record.svg' // @ts-expect-error Icon
+import FileDisabledIcon from '@/assets/icons/file-disabled.svg' // @ts-expect-error Icon
+import FileIcon from '@/assets/icons/file.svg' // @ts-expect-error Icon
+import WarningIcon from '@/assets/icons/warning.svg' // @ts-expect-error Icon
+import PauseIcon from '@/assets/icons/pause.svg'
+import { useUser } from '@/features/auth/api/useUser'
+import { LoginButton } from '@/components/LoginButton'
+import { useListMyFilesInfinite } from '@/features/files/api/listFiles'
+import { ApiFileItem } from '@/features/files/api/types'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import type { RootStackParamList } from '@/navigation/types'
+import { useQueryClient } from '@tanstack/react-query'
+import { keys } from '@/api/queryKeys'
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
+import { intervalToDuration } from 'date-fns'
+import MainMenu from '@/components/MainMenu'
+import { useInsets } from '@/utils/useInsets'
+import { AppText } from '@/components/AppText'
+import { colors } from '@/components/colors'
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
   | (LocalRecording & { kind: 'local' })
-  | { kind: 'fake'; id: string };
+  | { kind: 'fake'; id: string }
 
 function StatusIndicator({
   item,
   canUpload,
 }: {
-  item: LocalOrRemoteRecording;
-  canUpload: boolean;
+  item: LocalOrRemoteRecording
+  canUpload: boolean
 }) {
   if (item.kind === 'fake') {
-    return <FileDisabledIcon />;
+    return <FileDisabledIcon />
   }
   if (item.kind === 'local') {
     if (!canUpload) {
-      return <PauseIcon />;
+      return <PauseIcon />
     }
     if (item.uploadingStatus === 'uploading') {
-      return <ActivityIndicator size="small" />;
+      return <ActivityIndicator size="small" />
     } else {
-      return <WarningIcon />;
+      return <WarningIcon />
     }
   }
 
   if (item.kind === 'remote') {
-    const { lastAiJobTranscript } = getMainAiJobs(item.ai_jobs);
+    const { lastAiJobTranscript } = getMainAiJobs(item.ai_jobs)
     if (lastAiJobTranscript?.status === 'failed') {
-      return <WarningIcon />;
+      return <WarningIcon />
     } else if (lastAiJobTranscript?.status === 'success') {
-      return <FileIcon />;
+      return <FileIcon />
     } else {
-      return <ActivityIndicator size="small" />;
+      return <ActivityIndicator size="small" />
     }
   }
 
-  return <FileIcon />;
+  return <FileIcon />
 }
 
 function formatRecordMeta(
   recording: LocalOrRemoteRecording,
   t: ReturnType<typeof useTranslation>['t'],
   isOnline: boolean,
-  isLoggedIn: boolean,
+  isLoggedIn: boolean
 ): string {
   if (recording.kind === 'fake') {
-    return '';
+    return ''
   }
 
   const dateLabel = t('shared.utils.formatDateTime', {
     value: recording.created_at,
-  });
+  })
   const durationLabel = t('shared.utils.duration', {
     duration: intervalToDuration({
       start: 0,
       end: recording.duration_seconds * 1000,
     }),
-  });
+  })
 
   if (recording.kind === 'local') {
     if (!isLoggedIn) {
-      return `${durationLabel} • ${t('recordings.meta.loginToSync')}`;
+      return `${durationLabel} • ${t('recordings.meta.loginToSync')}`
     } else if (!isOnline) {
-      return `${durationLabel} • ${t('recordings.meta.offline')}`;
+      return `${durationLabel} • ${t('recordings.meta.offline')}`
     } else if (recording.uploadingStatus === 'uploading') {
-      return `${durationLabel} • ${t('recordings.meta.uploading')}`;
+      return `${durationLabel} • ${t('recordings.meta.uploading')}`
     } else if (recording.uploadingStatus === 'failed') {
-      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`;
+      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`
     } else if (recording.uploadingStatus === 'to_upload') {
-      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`;
+      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`
     }
     {
-      return `${durationLabel} • ${dateLabel}`;
+      return `${durationLabel} • ${dateLabel}`
     }
   }
 
   if (recording.kind === 'remote') {
-    const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs);
+    const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
     if (lastAiJobTranscript?.status === 'failed') {
       return `${durationLabel} • ${dateLabel} • ${t(
-        'recordings.meta.processingFailed',
-      )}`;
+        'recordings.meta.processingFailed'
+      )}`
     } else if (lastAiJobTranscript?.status === 'success') {
-      return `${durationLabel} • ${dateLabel}`;
+      return `${durationLabel} • ${dateLabel}`
     } else {
       return `${durationLabel} • ${dateLabel} • ${t(
-        'recordings.meta.processing',
-      )}`;
+        'recordings.meta.processing'
+      )}`
     }
   }
 
-  return '';
+  return ''
 }
 
 export default function RecordingsScreen() {
-  const { t } = useTranslation();
-  const netInfo = useNetInfo();
+  const { t } = useTranslation()
+  const netInfo = useNetInfo()
   const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useInsets();
-  const { recordings } = useLocalRecordings();
-  const { isLoggedIn, isLoading } = useUser();
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>()
+  const insets = useInsets()
+  const { recordings } = useLocalRecordings()
+  const { isLoggedIn, isLoading } = useUser()
   const filesQ = useListMyFilesInfinite({
     pageSize: 20,
     filters: {
@@ -144,18 +144,18 @@ export default function RecordingsScreen() {
       is_deleted: false,
       upload_state: 'ready',
     },
-  });
-  const queryClient = useQueryClient();
+  })
+  const queryClient = useQueryClient()
   const isOnline =
-    netInfo.isConnected === true && netInfo.isInternetReachable !== false;
+    netInfo.isConnected === true && netInfo.isInternetReachable !== false
 
   const allRecordings = useMemo<LocalOrRemoteRecording[]>(() => {
-    const out: LocalOrRemoteRecording[] = [];
+    const out: LocalOrRemoteRecording[] = []
     for (const recording of recordings) {
       out.push({
         ...recording,
         kind: 'local',
-      });
+      })
     }
     if (isOnline) {
       for (const page of filesQ.data?.pages ?? []) {
@@ -163,7 +163,7 @@ export default function RecordingsScreen() {
           out.push({
             ...recording,
             kind: 'remote',
-          });
+          })
         }
       }
     } else {
@@ -171,27 +171,27 @@ export default function RecordingsScreen() {
         out.push({
           id: `fake-${i}`,
           kind: 'fake',
-        });
+        })
       }
     }
-    return out;
-  }, [filesQ.data?.pages, recordings, isOnline]);
+    return out
+  }, [filesQ.data?.pages, recordings, isOnline])
 
   const handleStartRecording = useCallback(() => {
-    navigation.navigate('RecordingInProgress');
-  }, [navigation]);
+    navigation.navigate('RecordingInProgress')
+  }, [navigation])
 
   const handleOpenRecording = useCallback(
     (item: LocalOrRemoteRecording) => {
       if (item.kind === 'fake') {
-        return;
+        return
       }
       navigation.navigate('RecordingDetails', {
         id: item.id,
-      });
+      })
     },
-    [navigation],
-  );
+    [navigation]
+  )
 
   const renderItem = ({ item }: { item: LocalOrRemoteRecording }) => {
     return (
@@ -235,8 +235,8 @@ export default function RecordingsScreen() {
           </View>
         </View>
       </Pressable>
-    );
-  };
+    )
+  }
 
   return (
     <View style={[styles.container, insets]}>
@@ -273,7 +273,7 @@ export default function RecordingsScreen() {
 
       <FlatList
         data={allRecordings}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.paddingBottom + 120 },
@@ -282,7 +282,7 @@ export default function RecordingsScreen() {
         ItemSeparatorComponent={<View style={styles.recordingListSeparator} />}
         onEndReached={() => {
           if (isOnline && filesQ.hasNextPage && !filesQ.isFetchingNextPage) {
-            filesQ.fetchNextPage();
+            filesQ.fetchNextPage()
           }
         }}
         refreshing={
@@ -347,7 +347,7 @@ export default function RecordingsScreen() {
         </View>
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundErrorSecondary,
     borderRadius: 4,
     minHeight: 40,
-    display: "flex",
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -503,4 +503,4 @@ const styles = StyleSheet.create({
   consentText: {
     flexShrink: 1,
   },
-});
+})
