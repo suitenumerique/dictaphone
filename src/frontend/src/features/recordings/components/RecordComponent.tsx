@@ -432,6 +432,7 @@ export default function RecordComponent() {
           <div className="record-component__controls">
             <Button
               color="neutral"
+              variant="secondary"
               className="record-component__button"
               onClick={togglePauseResume}
               disabled={!isRecordingInProgress || isStoppingRecording}
