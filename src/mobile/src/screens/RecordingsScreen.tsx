@@ -285,9 +285,13 @@ export default function RecordingsScreen() {
             filesQ.fetchNextPage();
           }
         }}
-        refreshing={isOnline ? filesQ.isRefetching : undefined}
+        refreshing={
+          isOnline && (isLoggedIn || allRecordings.length > 0)
+            ? filesQ.isRefetching
+            : undefined
+        }
         onRefresh={
-          isOnline
+          isOnline && (isLoggedIn || allRecordings.length > 0)
             ? () => queryClient.invalidateQueries({ queryKey: [keys.files] })
             : undefined
         }
