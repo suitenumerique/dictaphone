@@ -56,6 +56,7 @@ dependencies = [
     "whitenoise==6.11.0",
     "mozilla-django-oidc==5.0.2",
     "aiohttp==3.13.3",
+    "posthog>=7.12.0",
 ]
 
 [project.urls]

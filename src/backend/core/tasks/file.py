@@ -7,9 +7,11 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.utils import timezone
 
 import requests
 
+from core import analytics
 from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
 from core.utils import format_transcript, generate_download_file_url
 from core.webhook_models import WhisperXResponse
@@ -121,6 +123,20 @@ def handle_transcript_received(remote_job_id, url):
     logger.info("Transcript stored for file %s & url %s", file.id, url)
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
     ai_transcript_job.save()
+
+    analytics.capture_event(
+        analytics.EventName.TRANSCRIPT_GENERATION_SUCCESS,
+        user=ai_transcript_job.file.creator,
+        properties={
+            "generation_time_seconds": (
+                timezone.now() - ai_transcript_job.created_at
+            ).total_seconds(),
+            "ai_file_job_id": ai_transcript_job.id,
+            "file_id": ai_transcript_job.file.id,
+            "transcript_size": len(response.content),
+            "file_duration_seconds": ai_transcript_job.file.duration_seconds,
+        },
+    )
 
     create_document_in_docs.apply_async(args=[ai_transcript_job.id])
 

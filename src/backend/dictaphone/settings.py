@@ -19,11 +19,11 @@ from socket import gethostbyname, gethostname
 from django.utils.translation import gettext_lazy as _
 
 import dj_database_url
+import posthog
 import sentry_sdk
 from configurations import Configuration, values
 from lasuite.configuration.values import SecretFileValue
 from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.logging import ignore_logger
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = path.dirname(path.dirname(path.abspath(__file__)))
@@ -408,14 +408,8 @@ class Base(Configuration):
 
     # Frontend
     FRONTEND_CONFIGURATION = {
-        "support": values.DictValue(
-            {}, environ_name="FRONTEND_SUPPORT", environ_prefix=None
-        ),
-        "feedback": values.DictValue(
-            {}, environ_name="FRONTEND_FEEDBACK", environ_prefix=None
-        ),
-        "use_proconnect_button": values.BooleanValue(
-            False, environ_name="FRONTEND_USE_PROCONNECT_BUTTON", environ_prefix=None
+        "analytics": values.DictValue(
+            {}, environ_name="FRONTEND_ANALYTICS", environ_prefix=None
         ),
     }
 
@@ -449,7 +443,13 @@ class Base(Configuration):
     CELERY_TASK_ALWAYS_EAGER = values.BooleanValue(False, environ_prefix=None)
     CELERY_TASK_DEFAULT_QUEUE = values.Value("dictaphone-backend", environ_prefix=None)
     CELERY_BROKER_URL = values.Value("redis://redis:6379/0", environ_prefix=None)
+    CELERY_RESULT_BACKEND = values.Value("redis://redis:6379/0", environ_prefix=None)
     CELERY_BROKER_TRANSPORT_OPTIONS = values.DictValue({}, environ_prefix=None)
+
+    # Analytics
+    POSTHOG_ENABLED = values.BooleanValue(False, environ_prefix=None)
+    POSTHOG_API_KEY = values.Value(None, environ_prefix=None)
+    POSTHOG_API_HOST = values.Value(None, environ_prefix=None)
 
     # Session
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -677,8 +677,14 @@ class Base(Configuration):
             )
             sentry_sdk.set_tag("application", "backend")
 
-            # Ignore the logs added by the DockerflowMiddleware
-            ignore_logger("request.summary")
+        if cls.POSTHOG_ENABLED is True:
+            if cls.POSTHOG_API_KEY and cls.POSTHOG_API_HOST:
+                posthog.api_key = cls.POSTHOG_API_KEY
+                posthog.host = cls.POSTHOG_API_HOST
+            else:
+                raise ValueError(
+                    "POSTHOG_API_KEY and POSTHOG_API_HOST must be set when POSTHOG_ENABLED is True"
+                )
 
 
 class Build(Base):

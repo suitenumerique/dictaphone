@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch
 from django.http import HttpResponse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from django_filters import rest_framework as django_filters
@@ -30,7 +31,7 @@ from rest_framework import (
     status as drf_status,
 )
 
-from core import models, utils, webhook_models
+from core import analytics, models, utils, webhook_models
 from core.api.filters import ListFileFilter
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.tasks.file import (
@@ -46,7 +47,6 @@ from . import permissions, serializers
 # pylint: disable=too-many-ancestors
 
 logger = getLogger(__name__)
-
 
 FILE_FOLDER = settings.FILE_UPLOAD_PATH
 UUID_REGEX = (
@@ -304,6 +304,19 @@ class FileViewSet(
     def perform_destroy(self, instance):
         """Override to implement a soft delete instead of dumping the record in database."""
         instance.soft_delete()
+        analytics.capture_event(
+            analytics.EventName.FILE_SOFT_DELETED,
+            user=self.request.user,
+            properties={
+                "duration_seconds": instance.duration_seconds,
+                "mimetype": instance.mimetype,
+                "size": instance.size,
+                "id": instance.id,
+                "lifespan_seconds": (
+                    instance.deleted_at - instance.created_on
+                ).total_seconds(),
+            },
+        )
 
     @decorators.action(detail=True, methods=["post"], url_path="upload-ended")
     def upload_ended(self, request, *args, **kwargs):
@@ -418,6 +431,17 @@ class FileViewSet(
         serializer = self.get_serializer(file)
 
         call_transcribe_service.delay(file.id)
+
+        analytics.capture_event(
+            analytics.EventName.FILE_UPLOADED,
+            user=request.user,
+            properties={
+                "duration_seconds": file.duration_seconds,
+                "mimetype": file.mimetype,
+                "size": file.size,
+                "id": file.id,
+            },
+        )
 
         return drf_response.Response(serializer.data, status=drf_status.HTTP_200_OK)
 
@@ -686,6 +710,19 @@ class AiJobViewSet(
         ):
             ai_file_job.status = AiJobStatusChoices.FAILED
             ai_file_job.save()
+            if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):
+                analytics.capture_event(
+                    analytics.EventName.TRANSCRIPT_GENERATION_FAILURE,
+                    user=ai_file_job.file.creator,
+                    properties={
+                        "generation_time_seconds": (
+                            timezone.now() - ai_file_job.created_at
+                        ).total_seconds(),
+                        "ai_file_job_id": ai_file_job.id,
+                        "file_id": ai_file_job.file.id,
+                    },
+                )
+
         else:
             raise NotImplementedError()
 
