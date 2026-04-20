@@ -18,7 +18,7 @@
     "title": "Arrêter l'enregistrement ?",
     "description": "Votre enregistrement sera arrêté et transféré.",
     "cancel": "Continuer l'enregistrement",
-    "confirm": "Arrêter et transférer"
+    "confirm": "Arrêter l'enregistrement"
   },
   "warnings": {
     "stayOnPage": "Vous ne pouvez pas quitter ou recharger cette page pendant l'enregistrement.",
