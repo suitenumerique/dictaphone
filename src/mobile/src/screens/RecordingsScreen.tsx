@@ -343,7 +343,10 @@ export default function RecordingsScreen() {
           styles.itemCard,
           pressed && item.kind === 'remote' && styles.itemCardPressed,
         ]}
-        disabled={item.kind !== 'remote'}
+        disabled={
+          item.kind !== 'remote' ||
+          getMainAiJobs(item.ai_jobs).lastAiJobTranscript?.status !== 'success'
+        }
         onPress={() => handleOpenRecording(item)}
       >
         <View style={styles.itemHeader}>
