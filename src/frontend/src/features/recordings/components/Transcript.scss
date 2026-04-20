@@ -24,6 +24,8 @@
   flex-direction: row;
   gap: 0.15rem;
 
+  font-family: inherit;
+
   &:hover {
     background: color-mix(
       in srgb,
