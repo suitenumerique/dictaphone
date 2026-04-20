@@ -138,7 +138,6 @@ export default function RecordingMenu({
               <Lucide name="pencil" size={15} color={colors.textPrimary} />
               <AppText
                 variant="body"
-                weight="600"
                 color={colors.textPrimary}
                 style={styles.fixMarginBottom}
               >
@@ -152,7 +151,6 @@ export default function RecordingMenu({
             >
               <Lucide name="trash-2" size={15} color={colors.errorSecondary} />
               <AppText
-                weight="600"
                 color={colors.errorSecondary}
                 style={styles.fixMarginBottom}
               >
@@ -278,7 +276,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 12,
     fontSize: 15,
-    fontWeight: '500',
     backgroundColor: colors.backgroundSubtle,
   },
   modalActions: {

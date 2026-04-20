@@ -35,23 +35,22 @@ const typography = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '500',
     color: colors.neutralSecondary,
   },
   body: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '400',
+    fontFamily: 'Marianne-Regular',
     color: colors.textSecondary,
   },
   bodyMedium: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
     fontFamily: 'Marianne-Medium',
     color: colors.textPrimary,
   },
   bodyBold: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
     fontFamily: 'Marianne-Bold',
     color: colors.textPrimary,
@@ -59,7 +58,6 @@ const typography = StyleSheet.create({
   muted: {
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '400',
     color: colors.neutralSecondary,
   },
   button: {
@@ -77,7 +75,7 @@ const typography = StyleSheet.create({
     lineHeight: 16,
   },
   md: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
   },
   lg: {
@@ -128,7 +126,6 @@ export function AppText({
   variant = 'body',
   size,
   color,
-  weight,
   align,
   style,
   children,
@@ -143,7 +140,6 @@ export function AppText({
         size ? sizeStyles[size] : null,
         align ? alignStyles[align] : null,
         color ? { color } : null,
-        weight ? { fontWeight: weight } : null,
         style,
       ]}
     >

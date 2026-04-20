@@ -421,7 +421,7 @@ export default function RecordingsScreen() {
         {!isOnline && (
           <View style={[styles.networkCard, styles.offlineCard]}>
             <Lucide name={'wifi-off'} size={16} color={colors.warning} />
-            <AppText variant="body" weight="500" color={colors.warning}>
+            <AppText variant="body" color={colors.warning}>
               {t('recordings.offline')}
             </AppText>
           </View>

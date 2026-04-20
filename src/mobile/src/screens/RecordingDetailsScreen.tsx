@@ -233,7 +233,6 @@ export default function RecordingDetailsScreen() {
             transcriptSegments.map((segment, index) => (
               <AppText
                 variant="body"
-                size="sm"
                 key={`${segment.start ?? index}-${index}`}
                 style={styles.paragraph}
               >
@@ -408,7 +407,6 @@ const styles = StyleSheet.create({
   openInDocsButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'medium',
   },
   shareButton: {
     width: 52,
