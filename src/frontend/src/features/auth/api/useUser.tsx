@@ -3,14 +3,14 @@ import { keys } from '@/api/queryKeys'
 import { fetchUser } from './fetchUser'
 import { type ApiUser } from './ApiUser'
 import { useCallback, useEffect, useMemo } from 'react'
-import {
-  initializeSupportSession,
-  terminateSupportSession,
-} from '@/features/support/hooks/useSupport'
 import { logoutUrl } from '../utils/logoutUrl'
 import { useConfig } from '@/api/useConfig'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
 import { queryClient } from '@/api/queryClient'
+import {
+  startAnalyticsSession,
+  terminateAnalyticsSession,
+} from '@/features/analytics/hooks/useAnalytics'
 
 type TUserInfo = {
   refetch: () => void
@@ -77,12 +77,14 @@ export const useUser = (
 
   useEffect(() => {
     if (query?.data) {
-      initializeSupportSession(query.data)
+      startAnalyticsSession(query.data)
+      // initializeSupportSession(query.data)
     }
   }, [query.data])
 
   const logout = useCallback(() => {
-    terminateSupportSession()
+    // terminateSupportSession()
+    terminateAnalyticsSession()
     window.location.href = logoutUrl()
   }, [])
 

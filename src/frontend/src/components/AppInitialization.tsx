@@ -1,12 +1,10 @@
 import { useConfig } from '@/api/useConfig'
-import { useSupport } from '@/features/support/hooks/useSupport'
+import { useAnalytics } from '@/features/analytics/hooks/useAnalytics'
 
 export const AppInitialization = () => {
   const { data } = useConfig()
 
-  const { support = {} } = data ?? {}
-
-  useSupport(support)
+  useAnalytics(data?.analytics ?? {})
 
   return null
 }
