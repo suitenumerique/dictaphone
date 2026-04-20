@@ -1,11 +1,20 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native'
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable'
+import Animated, {
+  interpolate,
+  interpolateColor,
+  SharedValue,
+  useAnimatedStyle,
+  useDerivedValue,
+} from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { LocalRecording } from '@/types/localRecording'
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
@@ -21,7 +30,7 @@ import PauseIcon from '@/assets/icons/pause.svg'
 import { useUser } from '@/features/auth/api/useUser'
 import { LoginButton } from '@/components/LoginButton'
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles'
-import { ApiFileItem } from '@/features/files/api/types'
+import type { ApiFileItem } from '@/features/files/api/types'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '@/navigation/types'
 import { useQueryClient } from '@tanstack/react-query'
@@ -32,11 +41,16 @@ import MainMenu from '@/components/MainMenu'
 import { useInsets } from '@/utils/useInsets'
 import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
+import { useDeleteFile } from '@/features/files/api/deleteFile'
+import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
+import { runOnJS } from 'react-native-worklets'
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
   | (LocalRecording & { kind: 'local' })
   | { kind: 'fake'; id: string }
+
+type RemoteRecording = ApiFileItem & { kind: 'remote' }
 
 function StatusIndicator({
   item,
@@ -105,9 +119,7 @@ function formatRecordMeta(
     } else if (recording.uploadingStatus === 'to_upload') {
       return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`
     }
-    {
-      return `${durationLabel} • ${dateLabel}`
-    }
+    return `${durationLabel} • ${dateLabel}`
   }
 
   if (recording.kind === 'remote') {
@@ -128,6 +140,89 @@ function formatRecordMeta(
   return ''
 }
 
+const OPEN_STATE_THRESHOLD = 60
+const RIGHT_ACTIONS_PANEL_WIDTH = 100
+const PROGRESS_THRESHOLD = OPEN_STATE_THRESHOLD / RIGHT_ACTIONS_PANEL_WIDTH
+
+function DeleteRightAction({ progress }: { progress: SharedValue<number> }) {
+  const didFireHapticRef = useRef(false)
+
+  const handleValueChanged = useCallback((value: number) => {
+    if (value > PROGRESS_THRESHOLD && !didFireHapticRef.current) {
+      didFireHapticRef.current = true
+      triggerHaptic('impactMedium', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: true,
+      })
+    }
+    if (value < PROGRESS_THRESHOLD && didFireHapticRef.current) {
+      triggerHaptic('impactLight', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: true,
+      })
+      didFireHapticRef.current = false
+    }
+  }, [])
+
+  useDerivedValue(() => {
+    runOnJS(handleValueChanged)(progress.value)
+  })
+
+  const animatedButtonStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(
+          progress.value,
+          [0, 1],
+          [1.5 * OPEN_STATE_THRESHOLD, 0]
+        ),
+      },
+    ],
+    opacity: interpolate(progress.value, [0, 0.1], [0, 1]),
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, PROGRESS_THRESHOLD],
+      [colors.backgroundErrorSecondary, colors.backgroundErrorSecondaryPressed]
+    ),
+  }))
+
+  return (
+    <Animated.View style={[styles.deleteAction, animatedButtonStyle]}>
+      <Lucide name="trash-2" size={20} color={colors.errorSecondary} />
+    </Animated.View>
+  )
+}
+
+function SwipeableRemoteRow({
+  item,
+  onDelete,
+  children,
+}: {
+  item: RemoteRecording
+  onDelete: (fileId: string, durationSeconds: number) => void
+  children: React.ReactNode
+}) {
+  const renderRightActions = useCallback(
+    (progress: SharedValue<number>) => (
+      <DeleteRightAction progress={progress} />
+    ),
+    []
+  )
+
+  return (
+    <Swipeable
+      friction={1.5}
+      overshootRight={false}
+      rightThreshold={OPEN_STATE_THRESHOLD}
+      enableTrackpadTwoFingerGesture
+      onSwipeableOpen={() => onDelete(item.id, item.duration_seconds)}
+      renderRightActions={renderRightActions}
+    >
+      {children}
+    </Swipeable>
+  )
+}
+
 export default function RecordingsScreen() {
   const { t } = useTranslation()
   const netInfo = useNetInfo()
@@ -146,8 +241,13 @@ export default function RecordingsScreen() {
     },
   })
   const queryClient = useQueryClient()
+  const deleteMutation = useDeleteFile()
+
   const isOnline =
     netInfo.isConnected === true && netInfo.isInternetReachable !== false
+  const [fileIdBeingDeleted, setfileIdBeingDeleted] = useState<string | null>(
+    null
+  )
 
   const allRecordings = useMemo<LocalOrRemoteRecording[]>(() => {
     const out: LocalOrRemoteRecording[] = []
@@ -160,10 +260,12 @@ export default function RecordingsScreen() {
     if (isOnline) {
       for (const page of filesQ.data?.pages ?? []) {
         for (const recording of page.results) {
-          out.push({
-            ...recording,
-            kind: 'remote',
-          })
+          if (recording.id !== fileIdBeingDeleted) {
+            out.push({
+              ...recording,
+              kind: 'remote',
+            })
+          }
         }
       }
     } else {
@@ -175,7 +277,7 @@ export default function RecordingsScreen() {
       }
     }
     return out
-  }, [filesQ.data?.pages, recordings, isOnline])
+  }, [isOnline, recordings, filesQ.data?.pages, fileIdBeingDeleted])
 
   const handleStartRecording = useCallback(() => {
     navigation.navigate('RecordingInProgress')
@@ -193,8 +295,49 @@ export default function RecordingsScreen() {
     [navigation]
   )
 
-  const renderItem = ({ item }: { item: LocalOrRemoteRecording }) => {
-    return (
+  const executeDeleteRecording = useCallback(
+    async (fileId: string) => {
+      try {
+        setfileIdBeingDeleted(fileId)
+        await deleteMutation.mutateAsync({ fileId })
+      } catch {
+        Alert.alert(
+          t('recordings.menu.errorTitle'),
+          t('recordings.menu.deleteError')
+        )
+      } finally {
+        setfileIdBeingDeleted(null)
+      }
+    },
+    [deleteMutation, t]
+  )
+
+  const handleDeleteRecording = useCallback(
+    (fileId: string, durationSeconds: number) => {
+      if (durationSeconds < 20) {
+        void executeDeleteRecording(fileId)
+        return
+      }
+
+      Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
+        {
+          style: 'cancel',
+          text: t('recordings.deleteCancel'),
+        },
+        {
+          style: 'destructive',
+          text: t('recordings.deleteConfirm'),
+          onPress: () => {
+            void executeDeleteRecording(fileId)
+          },
+        },
+      ])
+    },
+    [executeDeleteRecording, t]
+  )
+
+  const renderItemCard = useCallback(
+    (item: LocalOrRemoteRecording) => (
       <Pressable
         style={({ pressed }) => [
           styles.itemCard,
@@ -235,8 +378,26 @@ export default function RecordingsScreen() {
           </View>
         </View>
       </Pressable>
-    )
-  }
+    ),
+    [handleOpenRecording, isLoggedIn, isOnline, t]
+  )
+
+  const renderItem = useCallback(
+    ({ item }: { item: LocalOrRemoteRecording }) => {
+      const card = renderItemCard(item)
+
+      if (item.kind !== 'remote') {
+        return card
+      }
+
+      return (
+        <SwipeableRemoteRow item={item} onDelete={handleDeleteRecording}>
+          {card}
+        </SwipeableRemoteRow>
+      )
+    },
+    [handleDeleteRecording, renderItemCard]
+  )
 
   return (
     <View style={[styles.container, insets]}>
@@ -402,8 +563,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningSurface,
     borderColor: colors.warningBorder,
   },
-  listContent: {
-  },
+  listContent: {},
   recordingListSeparator: {
     height: 1,
     backgroundColor: colors.surfacePrimary,
@@ -421,6 +581,16 @@ const styles = StyleSheet.create({
   },
   itemCardPressed: {
     backgroundColor: colors.backgroundSubtlePressed,
+  },
+  deleteAction: {
+    width: RIGHT_ACTIONS_PANEL_WIDTH,
+    paddingHorizontal: 4,
+    marginVertical: 2,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    overflow: 'hidden',
   },
   itemHeader: {
     flexDirection: 'row',
