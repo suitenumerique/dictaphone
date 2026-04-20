@@ -6,8 +6,14 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
 .home-page {
   &__header {
+    margin: 0 auto;
+    max-width: 1400px;
+    padding: 0 var(--c--globals--spacings--md);
+    @media (min-width: $tablet) {
+      padding: 0 var(--c--globals--spacings--xxl);
+    }
+
     height: 91.5px;
-    padding: var(--c--globals--spacings--base);
 
     display: flex;
     flex-direction: row;
