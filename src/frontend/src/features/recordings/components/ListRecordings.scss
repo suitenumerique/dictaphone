@@ -68,6 +68,7 @@
   .clickable {
     cursor: pointer;
 
+    border-radius: var(--c--globals--spacings--xxs);
     &:hover {
       background: var(--c--globals--colors--gray-025);
     }
