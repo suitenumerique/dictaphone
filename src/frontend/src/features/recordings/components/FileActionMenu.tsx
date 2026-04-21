@@ -223,7 +223,7 @@ export function FileActionMenu({
         <p>{t('actions.deleteModal.description')}</p>
       </Modal>
       <Modal
-        size={ModalSize.MEDIUM}
+        size={ModalSize.SMALL}
         isOpen={openRenameModal}
         onClose={() => setOpenRenameModal(false)}
         preventClose={partialUpdateFileMutation.isPending}
