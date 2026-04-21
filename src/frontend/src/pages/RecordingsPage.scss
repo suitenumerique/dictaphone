@@ -65,7 +65,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     }
 
     &__record-button {
-      width: 100%;
+      flex-grow: 1;
       display: flex;
       align-items: center;
       justify-content: center;
