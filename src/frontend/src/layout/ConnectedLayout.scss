@@ -12,15 +12,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
   .dictaphone__connected_layout_content {
     width: 100%;
     max-width: 800px;
-    padding-top: 8rem;
-
-    @media (max-width: $tablet) {
-      padding-top: 2rem;
-    }
-
-    @media (max-width: $mobile) {
-      padding-top: 1rem;
-    }
+    padding-top: 1rem;
   }
 }
 

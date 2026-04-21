@@ -18,7 +18,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
   padding: 0.5rem;
 
   @media (min-width: $tablet) {
-    margin-top: 2rem;
+    margin-top: 1rem;
     padding: 2rem;
   }
 
