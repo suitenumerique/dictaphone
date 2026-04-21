@@ -50,9 +50,13 @@ export function ListRecordings({
   return (
     <>
       {queryData.isPending && !queryData.data && <Spinner />}
-      {queryData.error && <div>{t('errorFetching')}</div>}
+      {queryData.error && (
+        <div className="subtle-info">{t('errorFetching')}</div>
+      )}
       {queryData.data && totalFilesCount === 0 && (
-        <div>{t(isTrashPage ? 'noRecordingsTrash' : 'noRecordings')}</div>
+        <div className="subtle-info">
+          {t(isTrashPage ? 'noRecordingsTrash' : 'noRecordings')}
+        </div>
       )}
       {allFiles.length > 0 && (
         <div
