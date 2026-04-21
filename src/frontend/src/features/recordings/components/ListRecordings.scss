@@ -9,6 +9,17 @@
   flex-direction: column;
   gap: var(--c--globals--spacings--xs);
 
+  &__document-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    img {
+      // a bit hacky bit didn't find another quick way for now
+      border-radius: 3.56px;
+      box-shadow: 0px 2px 4px 0px var(--c--globals--colors--black-050);
+    }
+  }
+
   &__trash-info {
     font-size: 0.875rem;
     color: var(--c--globals--colors--gray-600);

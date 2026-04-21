@@ -18,7 +18,11 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   )
 
   if (lastAiJobTranscript?.status === 'success') {
-    return <img src="/assets/files/icons/doc.svg" alt="Document logo" />
+    return (
+      <div className="recordings-list__document-icon">
+        <img src="/assets/files/icons/doc.svg" alt="Document logo" />
+      </div>
+    )
   }
 
   if (lastAiJobTranscript?.status === 'failed') {
