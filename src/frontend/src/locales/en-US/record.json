@@ -9,7 +9,7 @@
   "stopRecording": "Stop",
   "discardRecording": "Discard recording",
   "uploadCta": "Upload",
-  "recordingPrefix": "Meeting",
+  "recordingPrefix": "Recording",
   "status": {
     "recordingInProgress": "Recording in progress",
     "recordingPaused": "Recording paused"

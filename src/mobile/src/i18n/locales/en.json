@@ -26,7 +26,7 @@
     "permissionDenied": "Permission denied",
     "recordingDisabled": "Please enable microphone permission to record audio.",
     "openSettings": "Open Settings",
-    "recordingPrefix": "Meeting"
+    "recordingPrefix": "Recording"
   },
   "recordings": {
     "emptyTitle": "No recordings yet",
