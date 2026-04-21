@@ -370,17 +370,25 @@ class FileViewSet(
             )["Body"].read()
 
         # Use improved MIME type detection combining magic bytes and file extension
-        logger.info("upload_ended: detecting mimetype for file: %s", file.file_key)
+        logger.info("upload_ended: detected mimetype for file: %s", file.file_key)
         mimetype = utils.detect_mimetype(file_head, filename=file.filename)
 
-        if mimetype == "video/mp4" and head_response["ContentType"] in {
-            "audio/mp4",
-            "audio/x-m4a",
-        }:
+        if (
+            mimetype == "video/mp4"
+            and head_response["ContentType"]
+            in {
+                "audio/mp4",
+                "audio/x-m4a",
+            }
+        ) or (
+            mimetype == "video/webm" and "audio/webm" in head_response["ContentType"]
+        ):
             logger.info(
-                "upload_ended: detected mimetype for file %s is video/mp4 "
-                "but it was declared as audio/mp4, leaving it that way.",
+                "upload_ended: detected mimetype for file %s is %s "
+                "but it was declared as %s, leaving it that way.",
                 file.file_key,
+                mimetype,
+                head_response["ContentType"],
             )
             mimetype = head_response["ContentType"]
 

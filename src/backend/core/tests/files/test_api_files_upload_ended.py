@@ -341,7 +341,8 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     assert mock_detect_mimetype.call_count == 1
     assert (
         f"upload_ended: detected mimetype for file {file.file_key} is video/mp4 "
-        "but it was declared as audio/mp4, leaving it that way." in caplog.text
+        f"but it was declared as {declared_content_type}, leaving it that way."
+        in caplog.text
     )
     assert (
         "upload_ended: content type mismatch between object storage and file"
