@@ -230,7 +230,7 @@ class FileViewSet(
     - Implements soft delete logic to retain file
     """
 
-    ordering = ["-updated_at"]
+    ordering = ["-created_at"]
     ordering_fields = ["created_at", "updated_at", "title"]
     pagination_class = Pagination
     permission_classes = [
