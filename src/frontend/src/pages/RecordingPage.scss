@@ -29,7 +29,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
     &__right {
       display: flex;
-      gap: 1rem;
+      gap: var(--c--globals--spacings--xxs);
       align-items: center;
     }
   }
