@@ -183,7 +183,7 @@ export function FileActionMenu({
           </Button>
         ) : (
           <Button
-            size="nano"
+            size="small"
             variant="tertiary"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="more_actions"
