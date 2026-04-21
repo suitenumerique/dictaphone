@@ -134,7 +134,7 @@ class SerializerPerActionMixin:
 class Pagination(pagination.PageNumberPagination):
     """Pagination to display no more than 100 objects per page sorted by creation date."""
 
-    ordering = "-created_on"
+    ordering = "-created_at"
     max_page_size = 100
     page_size_query_param = "page_size"
 
@@ -313,7 +313,7 @@ class FileViewSet(
                 "size": instance.size,
                 "id": instance.id,
                 "lifespan_seconds": (
-                    instance.deleted_at - instance.created_on
+                    instance.deleted_at - instance.created_at
                 ).total_seconds(),
             },
         )
