@@ -46,7 +46,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     border-collapse: collapse;
     border-spacing: 1px;
     background: white; // border color between cells
-    border-radius: var(--c--globals--spacings--xxxs);
+    border-radius: var(--c--globals--spacings--xxs);
     overflow: hidden;
 
     @media (max-width: $mobile) {
@@ -58,7 +58,9 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
     &__item {
       background: #f3f4f6;
-      padding: 4px;
+      padding: var(--c--globals--spacings--xs);
+      padding-top: var(--c--globals--spacings--xxs);
+      padding-bottom: var(--c--globals--spacings--xxs);
       white-space: nowrap;
       text-align: center;
       color: #4b5563;
@@ -67,7 +69,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
       justify-content: center;
       gap: 0.5rem;
       line-height: 100%;
-      font-size: 12px;
+      font-size: 13px;
 
       &__icon {
         width: 16px;
