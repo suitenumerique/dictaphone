@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "fr.gouv.assistantTranscripts"
+    namespace "fr.gouv.assistant_transcripts"
     defaultConfig {
-        applicationId "fr.gouv.assistantTranscripts"
+        applicationId "fr.gouv.assistant_transcripts"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

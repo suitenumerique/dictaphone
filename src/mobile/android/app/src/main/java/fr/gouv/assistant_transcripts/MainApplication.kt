@@ -1,4 +1,4 @@
-package fr.gouv.assistantTranscripts
+package fr.gouv.assistant_transcripts
 
 import android.app.Application
 import com.facebook.react.PackageList

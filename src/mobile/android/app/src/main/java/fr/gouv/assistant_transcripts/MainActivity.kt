@@ -1,4 +1,4 @@
-package fr.gouv.assistantTranscripts
+package fr.gouv.assistant_transcripts
 
 import android.os.Bundle
 import com.swmansion.rnscreens.fragment.restoration.RNScreensFragmentFactory

@@ -1,4 +1,4 @@
-package fr.gouv.assistantTranscripts
+package fr.gouv.assistant_transcripts
 
 import com.facebook.react.bridge.*
 import java.io.File
