@@ -469,7 +469,7 @@ export default function RecordingsScreen() {
             ) : (
               <AppText
                 variant="muted"
-                size="md"
+                size="sm"
                 align="center"
                 style={styles.listFooter}
               >
@@ -570,8 +570,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
   listFooter: {
-    paddingVertical: 12,
-    paddingBottom: 14,
+    paddingTop: 36,
+    paddingBottom: 22,
   },
   itemCard: {
     paddingHorizontal: 12,
