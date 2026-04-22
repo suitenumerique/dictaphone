@@ -109,6 +109,6 @@ yarn react-native-bootsplash generate src/assets/logo.svg \
   --assets-output=assets/bootsplash \
   --flavor=main
 
-npx rn-app-icons --input src/assets/logo.svg
+npx rn-app-icons --input src/assets/icon.svg
 find ios -name "*.png" -exec convert {} -background "#F5FCFF" -flatten -alpha off {} \;
 ```
