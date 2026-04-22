@@ -440,7 +440,10 @@ export default function RecordingsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: insets.paddingBottom + 120 },
+          {
+            marginBottom: insets.paddingBottom + 40,
+          },
+          { paddingBottom: 13 },
         ]}
         renderItem={renderItem}
         ItemSeparatorComponent={<View style={styles.recordingListSeparator} />}
@@ -477,37 +480,30 @@ export default function RecordingsScreen() {
         }
       />
 
-      <View
-        style={[
-          styles.startRecordingPositioner,
-          { bottom: insets.paddingBottom + 16 },
-        ]}
-      >
-        <View style={styles.startRecordingContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.startRecordingButton,
-              pressed && styles.startRecordingButtonPressed,
-            ]}
-            onPress={handleStartRecording}
-          >
-            <RecordIcon width={24} height={24} />
-            <AppText variant="button" color={colors.errorSecondary}>
-              {t('home.newRecording')}
-            </AppText>
-          </Pressable>
+      <View style={styles.startRecordingContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.startRecordingButton,
+            pressed && styles.startRecordingButtonPressed,
+          ]}
+          onPress={handleStartRecording}
+        >
+          <RecordIcon width={24} height={24} />
+          <AppText variant="button" color={colors.errorSecondary}>
+            {t('home.newRecording')}
+          </AppText>
+        </Pressable>
 
-          <View style={styles.consentRow}>
-            <AppText
-              variant="muted"
-              size="md"
-              align="center"
-              color={colors.neutralTertiary}
-              style={styles.consentText}
-            >
-              {t('home.consentNotice')}
-            </AppText>
-          </View>
+        <View style={styles.consentRow}>
+          <AppText
+            variant="muted"
+            size="md"
+            align="center"
+            color={colors.neutralTertiary}
+            style={styles.consentText}
+          >
+            {t('home.consentNotice')}
+          </AppText>
         </View>
       </View>
     </View>
@@ -623,36 +619,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: colors.backgroundNeutralTertiary,
   },
-  startRecordingPositioner: {
-    position: 'absolute',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-  },
   startRecordingContainer: {
     width: '100%',
-    maxWidth: 400,
-    paddingHorizontal: 20,
-    padding: 14,
+    marginBottom: 8,
+    padding: 8,
     gap: 8,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.backgroundBase,
     borderWidth: 1,
     borderColor: colors.surfacePrimary,
     boxShadow: [
       {
-        blurRadius: 20,
-        spreadDistance: 15,
-        color: colors.backgroundBase,
+        blurRadius: 12,
+        spreadDistance: 4,
+        color: colors.backgroundNeutralTertiary,
         offsetX: 0,
-        offsetY: 5,
+        offsetY: 0,
       },
     ],
   },

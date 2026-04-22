@@ -257,7 +257,7 @@ export default function RecordingDetailsScreen() {
         <View
           style={[
             styles.bottomBarContainer,
-            { bottom: 12 + insets.paddingBottom },
+            { bottom: 8 + insets.paddingBottom },
           ]}
         >
           <View style={styles.bottomBar}>
@@ -369,19 +369,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    maxWidth: 400,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingVertical: 12,
-    borderRadius: 8,
+    width: '100%',
+    paddingHorizontal: 8,
+    padding: 8,
+    display: 'flex',
+    borderRadius: 12,
     backgroundColor: colors.backgroundBase,
     borderWidth: 1,
     borderColor: colors.surfacePrimary,
     boxShadow: [
       {
-        blurRadius: 15,
-        spreadDistance: 5,
-        color: colors.shadowDefault,
+        blurRadius: 12,
+        spreadDistance: 4,
+        color: colors.backgroundNeutralTertiary,
         offsetX: 0,
         offsetY: 0,
       },
