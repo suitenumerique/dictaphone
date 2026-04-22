@@ -31,10 +31,11 @@ export const useDeleteFile = () => {
         queryKey: [keys.files, 'infinite'],
       })
 
-      const previousInfiniteQueries =
-        queryClient.getQueriesData<InfiniteData<ListFilesResponse>>({
-          queryKey: [keys.files, 'infinite'],
-        })
+      const previousInfiniteQueries = queryClient.getQueriesData<
+        InfiniteData<ListFilesResponse>
+      >({
+        queryKey: [keys.files, 'infinite'],
+      })
 
       for (const [queryKey, currentData] of previousInfiniteQueries) {
         if (!currentData) {
@@ -48,7 +49,10 @@ export const useDeleteFile = () => {
 
           return {
             ...page,
-            count: Math.max(0, page.count - (page.results.length - nextResults.length)),
+            count: Math.max(
+              0,
+              page.count - (page.results.length - nextResults.length)
+            ),
             results: nextResults,
           }
         })
@@ -66,7 +70,8 @@ export const useDeleteFile = () => {
       return { previousInfiniteQueries }
     },
     onError: async (_error, _variables, context) => {
-      for (const [queryKey, previousData] of context?.previousInfiniteQueries ?? []) {
+      for (const [queryKey, previousData] of context?.previousInfiniteQueries ??
+        []) {
         queryClient.setQueryData(queryKey, previousData)
       }
 
