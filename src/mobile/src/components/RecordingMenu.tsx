@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -172,49 +174,57 @@ export default function RecordingMenu({
             style={StyleSheet.absoluteFill}
             onPress={closeRenameModal}
           />
-          <View style={styles.modalCard}>
-            <AppText variant="heading">
-              {t('recordings.menu.renameTitle')}
-            </AppText>
-            <AppText variant="subtitle" style={styles.modalDescription}>
-              {t('recordings.menu.renameDescription')}
-            </AppText>
+          <KeyboardAvoidingView
+            style={styles.keyboardAvoidingView}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={24}
+          >
+            <View style={styles.modalCard}>
+              <AppText variant="heading">
+                {t('recordings.menu.renameTitle')}
+              </AppText>
+              <AppText variant="subtitle" style={styles.modalDescription}>
+                {t('recordings.menu.renameDescription')}
+              </AppText>
 
-            <TextInput
-              autoFocus
-              value={draftTitle}
-              onChangeText={setDraftTitle}
-              placeholder={t('recordings.menu.renamePlaceholder')}
-              style={styles.input}
-              editable={!renameMutation.isPending}
-              maxLength={120}
-            />
+              <TextInput
+                autoFocus
+                value={draftTitle}
+                onChangeText={setDraftTitle}
+                placeholder={t('recordings.menu.renamePlaceholder')}
+                style={styles.input}
+                editable={!renameMutation.isPending}
+                maxLength={120}
+              />
 
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={closeRenameModal}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  pressed && styles.secondaryButtonPressed,
-                ]}
-                disabled={renameMutation.isPending}
-              >
-                <AppText>{t('recordings.deleteCancel')}</AppText>
-              </Pressable>
-              <Pressable
-                onPress={onConfirmRename}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.primaryButtonPressed,
-                  (!sanitizedTitle || renameMutation.isPending) &&
-                    styles.buttonDisabled,
-                ]}
-                disabled={!sanitizedTitle || renameMutation.isPending}
-              >
-                <AppText variant="button">{t('recordings.menu.save')}</AppText>
-              </Pressable>
+              <View style={styles.modalActions}>
+                <Pressable
+                  onPress={closeRenameModal}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    pressed && styles.secondaryButtonPressed,
+                  ]}
+                  disabled={renameMutation.isPending}
+                >
+                  <AppText>{t('recordings.deleteCancel')}</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={onConfirmRename}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.primaryButtonPressed,
+                    (!sanitizedTitle || renameMutation.isPending) &&
+                      styles.buttonDisabled,
+                  ]}
+                  disabled={!sanitizedTitle || renameMutation.isPending}
+                >
+                  <AppText variant="button">
+                    {t('recordings.menu.save')}
+                  </AppText>
+                </Pressable>
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </>
@@ -310,5 +320,8 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  keyboardAvoidingView: {
+    width: '100%',
   },
 })
