@@ -17,7 +17,7 @@
     "permissionOk": "OK",
     "recordingName": "Recording {{duration}}",
     "newRecording": "New recording",
-    "consentNotice": "⚠ Recording requires participants consent",
+    "consentNotice": "Recording requires participants consent",
     "recordingInProgress": "Recording in progress",
     "recordingPaused": "Recording paused",
     "recordingSubtitle": "You can pause the recording at any time.",

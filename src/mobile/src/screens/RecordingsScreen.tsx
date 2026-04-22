@@ -502,6 +502,11 @@ export default function RecordingsScreen() {
             color={colors.neutralTertiary}
             style={styles.consentText}
           >
+            <Lucide
+              name="triangle-alert"
+              color={colors.neutralTertiary}
+              size={12}
+            />{' '}
             {t('home.consentNotice')}
           </AppText>
         </View>
@@ -655,9 +660,7 @@ const styles = StyleSheet.create({
   startRecordingButtonPressed: {
     backgroundColor: colors.backgroundErrorSecondaryPressed,
   },
-  consentRow: {
-    gap: 12,
-  },
+  consentRow: {},
   consentText: {
     flexShrink: 1,
   },
