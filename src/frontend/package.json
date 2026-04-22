@@ -30,6 +30,7 @@
     "i18next-browser-languagedetector": "8.2.1",
     "i18next-parser": "9.3.0",
     "i18next-resources-to-backend": "1.2.1",
+    "marked": "18.0.2",
     "posthog-js": "1.342.1",
     "pretty-bytes": "7.1.0",
     "react": "19.2.4",

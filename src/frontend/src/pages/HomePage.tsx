@@ -4,7 +4,7 @@ import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { Redirect } from 'wouter'
 import { BaseLayout } from '@/layout/BaseLayout'
 
-export function HomePage() {
+export default function HomePage() {
   const { t } = useTranslation('home')
 
   const { isLoggedIn, isLoading } = useUser()

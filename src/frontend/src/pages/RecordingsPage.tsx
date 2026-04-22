@@ -11,7 +11,7 @@ import { useLocation } from 'wouter'
 
 const PAGE_SIZE = 10
 
-export function RecordingsPage() {
+export default function RecordingsPage() {
   const { t } = useTranslation(['recordings', 'record'])
   const [, navigate] = useLocation()
 

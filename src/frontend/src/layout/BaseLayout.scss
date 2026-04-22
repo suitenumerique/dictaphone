@@ -66,6 +66,15 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     }
   }
 
+  &__title {
+    color: var(--c--contextuals--content--semantic--neutral--primary);
+    text-align: center;
+    background-color: var(--c--globals--colors--brand-050);
+    padding-top: var(--c--globals--spacings--xl);
+    padding-bottom: var(--c--globals--spacings--xl);
+    margin: 0 auto var(--c--globals--spacings--xl);
+  }
+
   &__content {
     margin: 0 auto;
     max-width: 1400px;

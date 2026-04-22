@@ -73,7 +73,11 @@ function OpenInDocsButton({
   )
 }
 
-export function RecordingPage({ recordingId }: { recordingId: string }) {
+export default function RecordingPage({
+  recordingId,
+}: {
+  recordingId: string
+}) {
   const { t } = useTranslation(['recordings', 'shared'])
   const [, navigate] = useLocation()
   const playerRef = useRef<AudioPlayerHandle>(null)

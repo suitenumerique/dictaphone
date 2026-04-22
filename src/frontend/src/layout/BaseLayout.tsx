@@ -9,8 +9,13 @@ export function BaseLayout({
   children,
   className,
   showShowcaseAssistant,
-}: PropsWithChildren & { className?: string; showShowcaseAssistant: boolean }) {
-  const { t, i18n } = useTranslation('home')
+  title,
+}: PropsWithChildren & {
+  className?: string
+  showShowcaseAssistant: boolean
+  title?: string
+}) {
+  const { t, i18n } = useTranslation(['home', 'layout'])
   const [selectedLanguage, setSelectedLanguage] = useState<string>(
     i18n.language
   )
@@ -35,11 +40,13 @@ export function BaseLayout({
       <div className="base-layout__header">
         <div className="base-layout__header__left">
           <img alt="Logo gouvernement" src="/assets/gouv-logo.svg" />
-          <img
-            className="base-layout__header__app-logo"
-            alt="L'assistant transcript logo"
-            src="/assets/logo-single-line.svg"
-          />
+          <a href="/">
+            <img
+              className="base-layout__header__app-logo"
+              alt="L'assistant transcript logo"
+              src="/assets/logo-single-line.svg"
+            />
+          </a>
         </div>
         <div className="base-layout__header__right">
           <div className="base-layout__header__right__shortcuts">
@@ -57,7 +64,9 @@ export function BaseLayout({
           </div>
           <div className="base-layout__header__right__separator" />
           <Button
-            onClick={() => window.location.replace(authUrl())}
+            onClick={() =>
+              window.location.replace(authUrl({ returnTo: '/recordings' }))
+            }
             size="small"
           >
             {t('login')}
@@ -65,6 +74,7 @@ export function BaseLayout({
         </div>
       </div>
 
+      {title && <h1 className="base-layout__title">{title}</h1>}
       <section className="base-layout__content">{children}</section>
       {showShowcaseAssistant && (
         <div className="base-layout__showcase-assistant">
@@ -109,16 +119,20 @@ export function BaseLayout({
         ]}
         legalLinks={[
           {
-            href: '/legal-notice',
-            label: 'Legal Mentions',
+            href: t('layout:legal.legalTermsUrl'),
+            label: t('layout:legal.legalTerms'),
           },
           {
-            href: '/personal-data-cookies',
-            label: 'Personal Data and cookies',
+            href: t('layout:legal.personalDataUrl'),
+            label: t('layout:legal.personalData'),
           },
           {
-            href: '/accessibility',
-            label: 'Accessibility: non-compliant',
+            href: t('layout:legal.accessibilityUrl'),
+            label: t('layout:legal.accessibility'),
+          },
+          {
+            href: t('layout:legal.termsOfServiceUrl'),
+            label: t('layout:legal.termsOfService'),
           },
         ]}
         license={{

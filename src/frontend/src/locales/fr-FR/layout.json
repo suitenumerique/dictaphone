@@ -5,5 +5,15 @@
   "breadcrumbs": {
     "myRecordings": "Mes enregistrements",
     "trash": "Corbeille"
+  },
+  "legal": {
+    "legalTerms": "Mentions légales",
+    "legalTermsUrl": "/mentions-legales",
+    "termsOfService": "Modalités d'utilisation",
+    "termsOfServiceUrl": "/modalites-utilisation",
+    "personalData": "Données personnelles",
+    "personalDataUrl": "/donnees-personnelles",
+    "accessibility": "Accessibilité : non conforme",
+    "accessibilityUrl": "/accessibilite"
   }
 }

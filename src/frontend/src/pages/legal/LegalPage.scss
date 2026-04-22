@@ -1,0 +1,22 @@
+.legal-page {
+  p {
+    text-align: justify;
+  }
+
+  section {
+    max-width: 650px;
+    margin: 0 auto;
+  }
+
+  ul {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  li {
+    p {
+      margin-bottom: var(--c--globals--spacings--2xs);
+      margin-top: var(--c--globals--spacings--2xs);
+    }
+  }
+}
