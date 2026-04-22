@@ -1,0 +1,124 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
+
+.base-layout {
+  overflow-y: scroll;
+  height: 100vh;
+
+  &__header {
+    margin: 0 auto;
+    max-width: 1400px;
+    padding: 0 var(--c--globals--spacings--md);
+    @media (min-width: $tablet) {
+      padding: 0 var(--c--globals--spacings--xxl);
+    }
+
+    height: 91.5px;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+
+    &__left {
+      display: flex;
+      flex-direction: row;
+      gap: var(--c--globals--spacings--md);
+      align-items: center;
+
+      img {
+        height: 47.5px;
+      }
+    }
+
+    &__app-logo {
+      @media (max-width: $tablet) {
+        display: none;
+      }
+    }
+
+    &__right {
+      display: flex;
+      flex-direction: row;
+      gap: var(--c--globals--spacings--sm);
+      align-items: center;
+
+      &__shortcuts {
+        display: flex;
+        flex-direction: row;
+        gap: var(--c--globals--spacings--xxs);
+
+        .c__button--with-icon--right {
+          // Fix UI kit missing icon
+          padding-right: 0;
+          padding-left: var(--c--globals--spacings--xxxs);
+        }
+      }
+
+      &__separator {
+        height: 24px;
+        width: 1px;
+        background-color: var(--c--globals--colors--gray-200);
+      }
+    }
+  }
+
+  &__content {
+    margin: 0 auto;
+    max-width: 1400px;
+    display: flex;
+    flex-direction: column;
+
+    padding: 0 var(--c--globals--spacings--md);
+    @media (min-width: $tablet) {
+      padding: 0 var(--c--globals--spacings--xxl);
+    }
+  }
+
+  &__showcase-assistant {
+    background-color: var(--c--contextuals--background--surface--tertiary);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--c--globals--spacings--xl);
+
+    padding: var(--c--globals--spacings--7xl) var(--c--globals--spacings--xxl);
+    @media (max-width: $tablet) {
+      padding: var(--c--globals--spacings--2xl) var(--c--globals--spacings--xl);
+    }
+
+    img {
+      height: 96px;
+
+      @media (max-width: $tablet) {
+        height: 66px;
+      }
+    }
+
+    p {
+      margin: 0;
+      font-size: 20px;
+      line-height: 28px;
+      color: #555e74;
+      text-align: center;
+    }
+
+    &__buttons {
+      display: flex;
+      gap: var(--c--globals--spacings--sm);
+
+      @media (max-width: $mobile) {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  }
+
+  .c__footer__stripe {
+    display: none;
+  }
+}
