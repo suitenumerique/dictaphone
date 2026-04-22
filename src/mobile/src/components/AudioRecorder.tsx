@@ -24,6 +24,12 @@ import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordin
 import { AppText } from './AppText'
 import { colors } from './colors'
 import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
+// @ts-expect-error SVG
+import PauseIcon from '@/assets/icons/pause-recording.svg'
+// @ts-expect-error SVG
+import StopIcon from '@/assets/icons/stop-recording.svg'
+// @ts-expect-error SVG
+import PlayIcon from '@/assets/icons/resume-recording.svg'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
@@ -399,11 +405,7 @@ export const AudioRecorder = () => {
           onPress={isPaused ? onResumeRecord : onPauseRecord}
           disabled={isLoading}
         >
-          <Lucide
-            name={isPaused ? 'play' : 'pause'}
-            size={24}
-            color={colors.neutralSecondary}
-          />
+          {isPaused ? <PlayIcon /> : <PauseIcon />}
           <AppText variant="button" color={colors.neutralSecondary}>
             {isPaused ? t('home.resume') : t('home.pause')}
           </AppText>
@@ -419,7 +421,7 @@ export const AudioRecorder = () => {
           onPress={onStopRecord}
           disabled={isLoading}
         >
-          <Lucide name="stop-circle" size={24} color={colors.backgroundBase} />
+          <StopIcon />
           <AppText variant="button">{t('home.end')}</AppText>
         </Pressable>
       </View>
