@@ -448,7 +448,7 @@ wheels = [
 
 [[package]]
 name = "dictaphone"
-version = "0.1.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
