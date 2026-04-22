@@ -10,7 +10,6 @@ import {
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable'
 import Animated, {
   interpolate,
-  interpolateColor,
   SharedValue,
   useAnimatedStyle,
   useDerivedValue,
@@ -144,7 +143,15 @@ const OPEN_STATE_THRESHOLD = 60
 const RIGHT_ACTIONS_PANEL_WIDTH = 100
 const PROGRESS_THRESHOLD = OPEN_STATE_THRESHOLD / RIGHT_ACTIONS_PANEL_WIDTH
 
-function DeleteRightAction({ progress }: { progress: SharedValue<number> }) {
+type SwipeableRowRef = React.ElementRef<typeof Swipeable>
+
+function DeleteRightAction({
+  progress,
+  onPress,
+}: {
+  progress: SharedValue<number>
+  onPress: () => void
+}) {
   const didFireHapticRef = useRef(false)
 
   const handleValueChanged = useCallback((value: number) => {
@@ -179,16 +186,19 @@ function DeleteRightAction({ progress }: { progress: SharedValue<number> }) {
       },
     ],
     opacity: interpolate(progress.value, [0, 0.1], [0, 1]),
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, PROGRESS_THRESHOLD],
-      [colors.backgroundErrorSecondary, colors.backgroundErrorSecondaryPressed]
-    ),
   }))
 
   return (
-    <Animated.View style={[styles.deleteAction, animatedButtonStyle]}>
-      <Lucide name="trash-2" size={20} color={colors.errorSecondary} />
+    <Animated.View style={[styles.rightActionContainer, animatedButtonStyle]}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.deleteAction,
+          pressed && styles.deleteActionPressed,
+        ]}
+      >
+        <Lucide name="trash-2" size={20} color={colors.errorSecondary} />
+      </Pressable>
     </Animated.View>
   )
 }
@@ -196,26 +206,56 @@ function DeleteRightAction({ progress }: { progress: SharedValue<number> }) {
 function SwipeableRemoteRow({
   item,
   onDelete,
+  onWillOpen,
+  onClose,
   children,
 }: {
   item: RemoteRecording
-  onDelete: (fileId: string, durationSeconds: number) => void
+  onDelete: (fileId: string) => void
+  onWillOpen: (row: SwipeableRowRef) => void
+  onClose: (row: SwipeableRowRef) => void
   children: React.ReactNode
 }) {
+  const swipeableRef = useRef<SwipeableRowRef | null>(null)
+
+  const handleDeletePress = useCallback(() => {
+    if (!swipeableRef.current) {
+      return
+    }
+    swipeableRef.current.close()
+    onDelete(item.id)
+  }, [item.id, onDelete])
+
+  const handleSwipeableWillOpen = useCallback(() => {
+    if (!swipeableRef.current) {
+      return
+    }
+    onWillOpen(swipeableRef.current)
+  }, [onWillOpen])
+
+  const handleSwipeableClose = useCallback(() => {
+    if (!swipeableRef.current) {
+      return
+    }
+    onClose(swipeableRef.current)
+  }, [onClose])
+
   const renderRightActions = useCallback(
     (progress: SharedValue<number>) => (
-      <DeleteRightAction progress={progress} />
+      <DeleteRightAction progress={progress} onPress={handleDeletePress} />
     ),
-    []
+    [handleDeletePress]
   )
 
   return (
     <Swipeable
+      ref={swipeableRef}
       friction={1.5}
       overshootRight={false}
       rightThreshold={OPEN_STATE_THRESHOLD}
       enableTrackpadTwoFingerGesture
-      onSwipeableOpen={() => onDelete(item.id, item.duration_seconds)}
+      onSwipeableWillOpen={handleSwipeableWillOpen}
+      onSwipeableClose={handleSwipeableClose}
       renderRightActions={renderRightActions}
     >
       {children}
@@ -248,6 +288,7 @@ export default function RecordingsScreen() {
   const [fileIdBeingDeleted, setfileIdBeingDeleted] = useState<string | null>(
     null
   )
+  const openedSwipeableRef = useRef<SwipeableRowRef | null>(null)
 
   const allRecordings = useMemo<LocalOrRemoteRecording[]>(() => {
     const out: LocalOrRemoteRecording[] = []
@@ -313,27 +354,34 @@ export default function RecordingsScreen() {
   )
 
   const handleDeleteRecording = useCallback(
-    (fileId: string, durationSeconds: number) => {
-      if (durationSeconds < 20) {
-        void executeDeleteRecording(fileId)
-        return
-      }
-
-      Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
-        {
-          style: 'cancel',
-          text: t('recordings.deleteCancel'),
-        },
-        {
-          style: 'destructive',
-          text: t('recordings.deleteConfirm'),
-          onPress: () => {
-            void executeDeleteRecording(fileId)
-          },
-        },
-      ])
+    (fileId: string) => {
+      void executeDeleteRecording(fileId)
     },
-    [executeDeleteRecording, t]
+    [executeDeleteRecording]
+  )
+
+  const handleRowWillOpen = useCallback((row: SwipeableRowRef) => {
+    if (openedSwipeableRef.current && openedSwipeableRef.current !== row) {
+      openedSwipeableRef.current.close()
+    }
+    openedSwipeableRef.current = row
+  }, [])
+
+  const handleRowClose = useCallback((row: SwipeableRowRef) => {
+    if (openedSwipeableRef.current === row) {
+      openedSwipeableRef.current = null
+    }
+  }, [])
+
+  const handleOpenRecordingWithSwipeClose = useCallback(
+    (item: LocalOrRemoteRecording) => {
+      if (openedSwipeableRef.current) {
+        openedSwipeableRef.current.close()
+        openedSwipeableRef.current = null
+      }
+      handleOpenRecording(item)
+    },
+    [handleOpenRecording]
   )
 
   const renderItemCard = useCallback(
@@ -347,7 +395,7 @@ export default function RecordingsScreen() {
           item.kind !== 'remote' ||
           getMainAiJobs(item.ai_jobs).lastAiJobTranscript?.status !== 'success'
         }
-        onPress={() => handleOpenRecording(item)}
+        onPress={() => handleOpenRecordingWithSwipeClose(item)}
       >
         <View style={styles.itemHeader}>
           <View style={styles.cardHeaderLeft}>
@@ -382,7 +430,7 @@ export default function RecordingsScreen() {
         </View>
       </Pressable>
     ),
-    [handleOpenRecording, isLoggedIn, isOnline, t]
+    [handleOpenRecordingWithSwipeClose, isLoggedIn, isOnline, t]
   )
 
   const renderItem = useCallback(
@@ -394,12 +442,17 @@ export default function RecordingsScreen() {
       }
 
       return (
-        <SwipeableRemoteRow item={item} onDelete={handleDeleteRecording}>
+        <SwipeableRemoteRow
+          item={item}
+          onDelete={handleDeleteRecording}
+          onWillOpen={handleRowWillOpen}
+          onClose={handleRowClose}
+        >
           {card}
         </SwipeableRemoteRow>
       )
     },
-    [handleDeleteRecording, renderItemCard]
+    [handleDeleteRecording, handleRowClose, handleRowWillOpen, renderItemCard]
   )
 
   return (
@@ -586,15 +639,25 @@ const styles = StyleSheet.create({
   itemCardPressed: {
     backgroundColor: colors.backgroundSubtlePressed,
   },
+  rightActionContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   deleteAction: {
     width: RIGHT_ACTIONS_PANEL_WIDTH,
     paddingHorizontal: 4,
     marginVertical: 2,
     borderRadius: 8,
     alignItems: 'center',
+    height: 40,
     justifyContent: 'center',
     flexDirection: 'row',
     overflow: 'hidden',
+    backgroundColor: colors.backgroundErrorSecondary,
+  },
+  deleteActionPressed: {
+    backgroundColor: colors.backgroundErrorSecondaryPressed,
   },
   itemHeader: {
     flexDirection: 'row',
