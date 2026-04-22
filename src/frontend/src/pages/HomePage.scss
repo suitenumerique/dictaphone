@@ -5,6 +5,9 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
 .home-page {
+  overflow-y: scroll;
+  height: 100vh;
+
   &__header {
     margin: 0 auto;
     max-width: 1400px;
