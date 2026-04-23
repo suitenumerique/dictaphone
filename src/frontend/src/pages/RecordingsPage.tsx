@@ -55,8 +55,8 @@ export default function RecordingsPage() {
                 color="error"
                 variant="secondary"
               >
-                <span className="material-icons">radio_button_checked</span> New
-                recording
+                <span className="material-icons">radio_button_checked</span>
+                {t('record:newRecording')}
               </Button>
 
               <Button
