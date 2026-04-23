@@ -28,6 +28,7 @@ class UserFactory(factory.django.DjangoModelFactory):
     short_name = factory.Faker("first_name")
     language = factory.fuzzy.FuzzyChoice([lang[0] for lang in settings.LANGUAGES])
     password = make_password("password")
+    flag_show_mobile_app_popup = True
 
 
 class FileFactory(factory.django.DjangoModelFactory):

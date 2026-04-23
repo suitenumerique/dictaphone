@@ -22,7 +22,15 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.User
-        fields = ["id", "email", "full_name", "short_name", "timezone", "language"]
+        fields = [
+            "id",
+            "email",
+            "full_name",
+            "short_name",
+            "timezone",
+            "language",
+            "flag_show_mobile_app_popup",
+        ]
         read_only_fields = ["id", "email", "full_name", "short_name"]
 
 

@@ -57,6 +57,7 @@ class UserAdmin(auth_admin.UserAdmin):
                     "short_name",
                     "language",
                     "timezone",
+                    "flag_show_mobile_app_popup",
                 )
             },
         ),
@@ -97,6 +98,7 @@ class UserAdmin(auth_admin.UserAdmin):
         "is_device",
         "created_at",
         "updated_at",
+        "flag_show_mobile_app_popup",
     )
     list_filter = ("is_staff", "is_superuser", "is_device", "is_active")
     ordering = (

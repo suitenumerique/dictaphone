@@ -144,6 +144,11 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
             "Unselect this instead of deleting accounts."
         ),
     )
+    flag_show_mobile_app_popup = models.BooleanField(
+        _("show mobile app popup"),
+        default=True,
+        help_text=_("Whether to show the mobile app popup to the user."),
+    )
 
     objects = auth_models.UserManager()
 

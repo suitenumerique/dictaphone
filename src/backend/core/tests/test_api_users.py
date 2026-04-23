@@ -126,6 +126,7 @@ def test_api_users_retrieve_me_authenticated(settings):
         "short_name": user.short_name,
         "language": user.language,
         "timezone": "UTC",
+        "flag_show_mobile_app_popup": True,
     }
 
 
