@@ -269,7 +269,7 @@ export default function RecordingsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>()
   const insets = useInsets()
-  const { recordings } = useLocalRecordings()
+  const { recordings, updateRecording } = useLocalRecordings()
   const { isLoggedIn, isLoading } = useUser()
   const filesQ = useListMyFilesInfinite({
     pageSize: 20,
@@ -281,6 +281,19 @@ export default function RecordingsScreen() {
     },
   })
   const queryClient = useQueryClient()
+  const handleRefresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: [keys.files] })
+
+    // We try to reupload failed upload recordings
+    for (const recording of recordings) {
+      if (recording.uploadingStatus === 'failed') {
+        updateRecording(recording.id, {
+          uploadingStatus: 'to_upload',
+        })
+      }
+    }
+  }, [recordings, queryClient, updateRecording])
+
   const deleteMutation = useDeleteFile()
 
   const isOnline =
@@ -512,7 +525,7 @@ export default function RecordingsScreen() {
         }
         onRefresh={
           isOnline && (isLoggedIn || allRecordings.length > 0)
-            ? () => queryClient.invalidateQueries({ queryKey: [keys.files] })
+            ? handleRefresh
             : undefined
         }
         ListFooterComponent={

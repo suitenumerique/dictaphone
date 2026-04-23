@@ -167,7 +167,13 @@ export const useRecordingsStore = create<RecordingsStore>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
-          state.recordings = parsed.success ? parsed.data : []
+          state.recordings = parsed.success
+            ? parsed.data.map((el) =>
+                el.uploadingStatus === 'failed'
+                  ? { ...el, uploadingStatus: 'to_upload' }
+                  : el
+              )
+            : []
           state.hasHydrated = true
         }
       },
