@@ -21,6 +21,8 @@ import RecordingDetailsScreen from '@/screens/RecordingDetailsScreen'
 import type { RootStackParamList } from '@/navigation/types'
 import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { AppInitialization } from '@/components/AppInitialization'
+import { logPosthogScreenChange } from '@/features/analytics/hooks/useAnalytics'
 
 const RootStack = createNativeStackNavigator<RootStackParamList>()
 
@@ -66,42 +68,50 @@ function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <StatusBar barStyle="dark-content" />
-        <NavigationContainer
-          onReady={() => {
-            BootSplash.hide()
-          }}
-          linking={{
-            prefixes: ['assistant-transcripts://'],
-            config: {
-              screens: {
-                Login: 'login',
-                Main: 'record',
-                RecordingInProgress: 'recording',
-                AuthCallback: 'auth/callback',
+        <AppInitialization>
+          <StatusBar barStyle="dark-content" />
+          <NavigationContainer
+            onReady={() => {
+              BootSplash.hide()
+            }}
+            linking={{
+              prefixes: ['assistant-transcripts://'],
+              config: {
+                screens: {
+                  Login: 'login',
+                  Main: 'record',
+                  RecordingInProgress: 'recording',
+                  AuthCallback: 'auth/callback',
+                },
               },
-            },
-          }}
-          fallback={<></>}
-        >
-          <RootStack.Navigator screenOptions={{ headerShown: false }}>
-            <RootStack.Screen name="Login" component={LoginScreen} />
-            <RootStack.Screen name="Main" component={RecordingsScreen} />
-            <RootStack.Screen
-              name="RecordingInProgress"
-              component={RecordingScreen}
-              options={{ gestureEnabled: false }}
-            />
-            <RootStack.Screen
-              name="RecordingDetails"
-              component={RecordingDetailsScreen}
-            />
-            <RootStack.Screen
-              name="AuthCallback"
-              component={AuthCallbackScreen}
-            />
-          </RootStack.Navigator>
-        </NavigationContainer>
+            }}
+            fallback={<></>}
+            onStateChange={(state) => {
+              const route = state?.routes[state.index]?.name
+              if (route) {
+                logPosthogScreenChange(route)
+              }
+            }}
+          >
+            <RootStack.Navigator screenOptions={{ headerShown: false }}>
+              <RootStack.Screen name="Login" component={LoginScreen} />
+              <RootStack.Screen name="Main" component={RecordingsScreen} />
+              <RootStack.Screen
+                name="RecordingInProgress"
+                component={RecordingScreen}
+                options={{ gestureEnabled: false }}
+              />
+              <RootStack.Screen
+                name="RecordingDetails"
+                component={RecordingDetailsScreen}
+              />
+              <RootStack.Screen
+                name="AuthCallback"
+                component={AuthCallbackScreen}
+              />
+            </RootStack.Navigator>
+          </NavigationContainer>
+        </AppInitialization>
       </QueryClientProvider>
     </GestureHandlerRootView>
   )

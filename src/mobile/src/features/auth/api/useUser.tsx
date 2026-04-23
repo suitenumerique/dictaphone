@@ -2,12 +2,16 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
 import { fetchUser } from './fetchUser'
 import { type ApiUser } from './ApiUser'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
 import { queryClient } from '@/api/queryClient'
 import { fetchApi } from '@/api/fetchApi'
 import { clearAuthState } from '@/services/authService'
 import { useUserStore } from '@/services/storage'
+import {
+  startAnalyticsSession,
+  terminateAnalyticsSession,
+} from '@/features/analytics/hooks/useAnalytics'
 
 type TUserInfo = {
   refetch: () => void
@@ -104,7 +108,15 @@ export const useUser = () => {
     })
   }
 
+  useEffect(() => {
+    if (query?.data) {
+      startAnalyticsSession(query.data)
+      // initializeSupportSession(query.data)
+    }
+  }, [query.data])
+
   const logout = useCallback(async () => {
+    terminateAnalyticsSession()
     await logoutQuery.mutateAsync()
     // eslint-disable-next-line @tanstack/query/no-unstable-deps
   }, [logoutQuery])

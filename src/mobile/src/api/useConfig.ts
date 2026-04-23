@@ -3,22 +3,20 @@ import { keys } from './queryKeys'
 import { useQuery } from '@tanstack/react-query'
 
 export interface ApiConfig {
-  support?: {
+  analytics?: {
     id: string
-    help_article_transcript: string
-    help_article_recording: string
-    help_article_more_tools: string
+    host: string
   }
-  feedback: {
-    url: string
-  }
-  use_proconnect_button?: boolean
   audio_recording: {
     upload_is_enabled: boolean
     max_size: number
     max_count_by_user: number
     allowed_extensions: string[]
     allowed_mimetypes: string[]
+  }
+  mobile_app: {
+    ios_download_link: string
+    android_download_link: string
   }
 }
 

@@ -1652,6 +1652,25 @@
   resolved "https://registry.yarnpkg.com/@oxc-project/types/-/types-0.124.0.tgz#1dfd7b3fbb98febc2f91b505f48c940db73c8701"
   integrity sha512-VBFWMTBvHxS11Z5Lvlr3IWgrwhMTXV+Md+EQF0Xf60+wAdsGFTBx7X7K/hP4pi8N7dcm1RvcHwDxZ16Qx8keUg==
 
+"@posthog/core@1.27.1":
+  version "1.27.1"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.27.1.tgz#236c6ca2e2b5303ced90ec2a8b4bb94a3081b3ed"
+  integrity sha512-130F5zAmGoY0KAqdT2FYfU79mk54z0wTWfCMkyzXmkKz2eg23694O2ofaAf4NuIdI8e6LFNHyaZ7aWbatUeW5A==
+  dependencies:
+    "@posthog/types" "1.371.2"
+
+"@posthog/types@1.371.2":
+  version "1.371.2"
+  resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.371.2.tgz#6c76481f81b1d54a45c1d9743dabfaba12363194"
+  integrity sha512-Ak3kuGMPBTjuoK6Ki0kQbq9eROk7LRJ3GBkbQINCZBT9FPlHvlXRwQr0/OVsi4xYPSMSGxWjRDMPFsR9Px66Cg==
+
+"@react-native-async-storage/async-storage@3.0.2":
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/@react-native-async-storage/async-storage/-/async-storage-3.0.2.tgz#caf2d0d7038dc2b8a2a48971bdbd047db0a2ac86"
+  integrity sha512-XP0zDIl+1XoeuQ7f878qXKdl77zLwzLALPpxvNRc7ZtDh9ew36WSvOdQOhFkexMySapFAWxEbZxS8K8J2DU4eg==
+  dependencies:
+    idb "8.0.3"
+
 "@react-native-community/cli-clean@20.1.0":
   version "20.1.0"
   resolved "https://registry.yarnpkg.com/@react-native-community/cli-clean/-/cli-clean-20.1.0.tgz#c60a8f909c4269cabb785b47e43af4f8cd3fef3b"
@@ -4653,6 +4672,11 @@ iconv-lite@~0.4.24:
   dependencies:
     safer-buffer ">= 2.1.2 < 3"
 
+idb@8.0.3:
+  version "8.0.3"
+  resolved "https://registry.yarnpkg.com/idb/-/idb-8.0.3.tgz#c91e558f15a8d53f1d7f53a094d226fc3ad71fd9"
+  integrity sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==
+
 ieee754@^1.1.13, ieee754@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/ieee754/-/ieee754-1.2.1.tgz#8eb7a10a63fff25d15a57b001586d177d1b0d352"
@@ -6562,6 +6586,14 @@ postcss@^8.5.8:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
+posthog-react-native@4.43.1:
+  version "4.43.1"
+  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.43.1.tgz#adb8faf0bec4daab1f2a689ecd2a04d485c5d3b9"
+  integrity sha512-XGBoPLErLzqQ5ohc87HMeQO/0RJl76ZN+lLBiyeFEnpqbVte46b+lWuf6E/gsmYuW99OgMYZGpq8hBfmCeWMuw==
+  dependencies:
+    "@posthog/core" "1.27.1"
+    "@posthog/types" "1.371.2"
+
 prelude-ls@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.2.1.tgz#debc6489d7a6e6b0e7611888cec880337d316396"
@@ -6724,6 +6756,11 @@ react-native-bootsplash@7.3.1:
     sharp "^0.34.5"
     ts-dedent "^2.2.0"
     xml-formatter "^3.7.0"
+
+react-native-device-info@15.0.2:
+  version "15.0.2"
+  resolved "https://registry.yarnpkg.com/react-native-device-info/-/react-native-device-info-15.0.2.tgz#c7de1bb6baeb07e1bab70159ad540c5705cb8dc0"
+  integrity sha512-dd71eXG2l3Cwp66IvKNadMTB8fhU3PEjyVddI97sYan+D4bgIAUmgGDhbSOFvHcGavksb2U17kiQYaDiK2WK2g==
 
 react-native-gesture-handler@2.31.1:
   version "2.31.1"
