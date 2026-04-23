@@ -84,30 +84,31 @@ export function BaseLayout({
         </div>
       </div>
 
-      {title && <h1 className="base-layout__title">{title}</h1>}
-      <section className="base-layout__content">{children}</section>
-      {showShowcaseAssistant && (
-        <div className="base-layout__showcase-assistant">
-          <img
-            alt="Logo LaSuite Assistant"
-            src="/assets/logo-lasuite-assistant.svg"
-          />
-          <p>{t('introLasuiteAssistant')}</p>
-          <div className="base-layout__showcase-assistant__buttons">
-            <Button
-              variant="bordered"
-              href="https://assistant.numerique.gouv.fr/"
-              target="_blank"
-            >
-              {t('discoverAssistant')}
-            </Button>
-            <Button href="https://lasuite.numerique.gouv.fr/" target="_blank">
-              {t('discoverLaSuite')}
-            </Button>
+      <div className="base-layout__inner-container">
+        {title && <h1 className="base-layout__title">{title}</h1>}
+        <section className="base-layout__content">{children}</section>
+        {showShowcaseAssistant && (
+          <div className="base-layout__showcase-assistant">
+            <img
+              alt="Logo LaSuite Assistant"
+              src="/assets/logo-lasuite-assistant.svg"
+            />
+            <p>{t('introLasuiteAssistant')}</p>
+            <div className="base-layout__showcase-assistant__buttons">
+              <Button
+                variant="bordered"
+                href="https://assistant.numerique.gouv.fr/"
+                target="_blank"
+              >
+                {t('discoverAssistant')}
+              </Button>
+              <Button href="https://lasuite.numerique.gouv.fr/" target="_blank">
+                {t('discoverLaSuite')}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
-
+        )}
+      </div>
       <Footer
         externalLinks={[
           {

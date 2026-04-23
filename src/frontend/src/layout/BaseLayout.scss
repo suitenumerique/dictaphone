@@ -7,8 +7,11 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 .base-layout {
   overflow-y: scroll;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
 
   &__header {
+    width: 100%;
     margin: 0 auto;
     max-width: 1400px;
     padding: 0 var(--c--globals--spacings--md);
@@ -16,6 +19,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
       padding: 0 var(--c--globals--spacings--xxl);
     }
 
+    min-height: 91.5px;
     height: 91.5px;
 
     display: flex;
@@ -80,12 +84,18 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     padding-bottom: var(--c--globals--spacings--xl);
     margin: 0 auto var(--c--globals--spacings--xl);
   }
+  &__inner-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+  }
 
   &__content {
     margin: 0 auto;
     max-width: 1400px;
     display: flex;
     flex-direction: column;
+    flex-grow: 1;
 
     padding: 0 var(--c--globals--spacings--md);
     @media (min-width: $tablet) {
