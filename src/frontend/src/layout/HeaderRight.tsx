@@ -7,10 +7,12 @@ import { useUser } from '@/features/auth'
 export const LANGUAGES = [
   {
     label: 'Français',
+    shortLabel: 'FR',
     value: 'fr-fr',
   },
   {
     label: 'English',
+    shortLabel: 'EN',
     value: 'en-us',
   },
 ] as const
@@ -29,6 +31,7 @@ export const LanguagePickerSyncedBackend = () => {
   const languages = useMemo(() => {
     return LANGUAGES.map((language) => ({
       ...language,
+      shortLabel: language.label,
       isChecked:
         language.value.toLowerCase() === selectedLanguage.toLowerCase(),
     }))
@@ -48,12 +51,7 @@ export const LanguagePickerSyncedBackend = () => {
   )
 
   return (
-    <LanguagePicker
-      compact
-      size="small"
-      languages={languages}
-      onChange={onChange}
-    />
+    <LanguagePicker size="small" languages={languages} onChange={onChange} />
   )
 }
 

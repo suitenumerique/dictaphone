@@ -1,4 +1,9 @@
-import { Footer, LaGaufreV2, LanguagePicker } from '@gouvfr-lasuite/ui-kit'
+import {
+  Footer,
+  LaGaufreV2,
+  LanguagePicker,
+  useResponsive,
+} from '@gouvfr-lasuite/ui-kit'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { authUrl } from '@/features/auth'
 import { useTranslation } from 'react-i18next'
@@ -19,14 +24,16 @@ export function BaseLayout({
   const [selectedLanguage, setSelectedLanguage] = useState<string>(
     i18n.language
   )
+  const { isMobile } = useResponsive()
 
   const languages = useMemo(() => {
     return LANGUAGES.map((language) => ({
       ...language,
+      shortLabel: isMobile ? language.shortLabel : language.label,
       isChecked:
         language.value.toLowerCase() === selectedLanguage.toLowerCase(),
     }))
-  }, [selectedLanguage])
+  }, [selectedLanguage, isMobile])
   const onChange = useCallback(
     (lang: string) => {
       i18n.changeLanguage(lang)
@@ -39,7 +46,11 @@ export function BaseLayout({
     <div className={`base-layout ${className ?? ''}`}>
       <div className="base-layout__header">
         <div className="base-layout__header__left">
-          <img alt="Logo gouvernement" src="/assets/gouv-logo.svg" />
+          <img
+            alt="Logo gouvernement"
+            className="base-layout__header__gouv-logo"
+            src="/assets/gouv-logo.svg"
+          />
           <a href="/">
             <img
               className="base-layout__header__app-logo"
@@ -56,8 +67,7 @@ export function BaseLayout({
               showMoreLimit={9}
             />
             <LanguagePicker
-              compact
-              size="nano"
+              size="medium"
               languages={languages}
               onChange={onChange}
             />

@@ -23,6 +23,12 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     justify-content: space-between;
     align-items: center;
 
+    &__gouv-logo {
+      @media (max-width: $mobile) {
+        display: none;
+      }
+    }
+
     &__left {
       display: flex;
       flex-direction: row;
