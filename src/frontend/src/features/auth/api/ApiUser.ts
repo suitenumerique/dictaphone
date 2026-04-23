@@ -5,4 +5,5 @@ export type ApiUser = {
   last_name: string
   language: 'fr-fr' | 'en-us'
   timezone: string
+  flag_show_mobile_app_popup: boolean
 }

@@ -25,7 +25,11 @@ type TUserInfo = {
   | {
       isLoggedIn: true
       user: ApiUser
-      updateUser: (userInfo: Pick<ApiUser, 'language'>) => void
+      updateUser: (
+        userInfo: Partial<
+          Pick<ApiUser, 'language' | 'flag_show_mobile_app_popup'>
+        >
+      ) => void
     }
 )
 
@@ -62,7 +66,9 @@ export const useUser = (
   })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const updateUser = (newData: Pick<ApiUser, 'language'>) => {
+  const updateUser = (
+    newData: Partial<Pick<ApiUser, 'language' | 'flag_show_mobile_app_popup'>>
+  ) => {
     if (!query.data) return
 
     const currentUser = query.data as ApiUser

@@ -13,11 +13,25 @@ export function HelpMenu() {
   const user = useUser()
 
   useEffect(() => {
+    if (user.user?.flag_show_mobile_app_popup) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpenDownloadMobileAppPopUp(true)
+    }
+  }, [user.user?.flag_show_mobile_app_popup])
+
+  useEffect(() => {
     if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpenDownloadMobileAppPopUp(false)
     }
   }, [isOpen])
+
+  const handleCloseMobileAppPopup = useCallback(() => {
+    if (user && user.updateUser && user.user?.flag_show_mobile_app_popup) {
+      user.updateUser({ flag_show_mobile_app_popup: false })
+    }
+    setOpenDownloadMobileAppPopUp(false)
+  }, [user])
 
   const handleSupportClick = useCallback(() => {
     const to = 'support-transcripts@numerique.gouv.fr'
@@ -44,7 +58,7 @@ export function HelpMenu() {
     <>
       <DownloadMobileAppPopUp
         open={openDownloadMobileAppPopUp}
-        setOpen={setOpenDownloadMobileAppPopUp}
+        setOpen={handleCloseMobileAppPopup}
       />
       <DropdownMenu
         options={[
