@@ -64,19 +64,19 @@ export function HelpMenu() {
         options={[
           {
             icon: <span className="material-icons">devices</span>,
-            label: 'Mobile app',
+            label: t("info.help.mobileApp"),
             callback: () => setOpenDownloadMobileAppPopUp(true),
           },
           {
             icon: <span className="material-icons">article</span>,
-            label: 'Documentation',
+            label: t("info.help.documentation"),
             callback: () => {
               window.open(t('info.documentationUrl'), '_blank')
             },
           },
           {
             icon: <Info />,
-            label: 'Support',
+            label: t("info.help.support"),
             callback: handleSupportClick,
           },
         ]}
