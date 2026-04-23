@@ -46,12 +46,12 @@ export function BaseLayout({
     <div className={`base-layout ${className ?? ''}`}>
       <div className="base-layout__header">
         <div className="base-layout__header__left">
-          <img
-            alt="Logo gouvernement"
-            className="base-layout__header__gouv-logo"
-            src="/assets/gouv-logo.svg"
-          />
           <a href="/">
+            <img
+              alt="Logo gouvernement"
+              className="base-layout__header__gouv-logo"
+              src="/assets/gouv-logo.svg"
+            />
             <img
               className="base-layout__header__app-logo"
               alt="L'assistant transcript logo"

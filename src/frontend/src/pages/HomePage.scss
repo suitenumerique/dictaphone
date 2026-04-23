@@ -13,6 +13,9 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     @media (min-width: $tablet) {
       display: none;
     }
+    @media (max-width: $mobile) {
+      height: 36px;
+    }
   }
 
   .home-page__hero {
@@ -75,16 +78,25 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     width: 100%;
     padding: var(--c--globals--spacings--4xl) var(--c--globals--spacings--lg);
     display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--c--globals--spacings--lg);
 
-    img {
-      height: 730px;
+    &__images {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: var(--c--globals--spacings--lg);
+      @media (max-width: $mobile) {
+        gap: var(--c--globals--spacings--md);
+      }
 
-      @media (max-width: 1300px) {
-        height: 500px;
+      img {
+        height: 730px;
+
+        @media (max-width: 1300px) {
+          height: 500px;
+        }
       }
     }
   }

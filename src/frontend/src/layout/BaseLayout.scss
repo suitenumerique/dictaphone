@@ -34,10 +34,12 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     }
 
     &__left {
-      display: flex;
-      flex-direction: row;
-      gap: var(--c--globals--spacings--md);
-      align-items: center;
+      a {
+        display: flex;
+        flex-direction: row;
+        gap: var(--c--globals--spacings--md);
+        align-items: center;
+      }
 
       img {
         height: 47.5px;

@@ -1,0 +1,9 @@
+.download-apps-buttons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--c--globals--spacings--xs);
+  margin-top: var(--c--globals--spacings--xs);
+}

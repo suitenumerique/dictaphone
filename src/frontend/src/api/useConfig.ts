@@ -14,6 +14,10 @@ export interface ApiConfig {
     allowed_extensions: string[]
     allowed_mimetypes: string[]
   }
+  mobile_app: {
+    ios_download_link: string
+    android_download_link: string
+  }
 }
 
 const fetchConfig = (): Promise<ApiConfig> => {

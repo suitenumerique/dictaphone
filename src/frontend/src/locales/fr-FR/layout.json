@@ -6,6 +6,16 @@
     "myRecordings": "Mes enregistrements",
     "trash": "Corbeille"
   },
+  "info": {
+    "supportEmailStart": "Bonjour, ...",
+    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "mobileApp": {
+      "title": "Enregistrer, n'importe où",
+      "description": "Avec l'application mobile, votre enregistrement continue même lorsque votre écran est verrouillé.",
+      "scanToInstall": "Scanner pour installer",
+      "catchPhrase": "Enregistrez vos réunions en présentiel et générez automatiquement un rapport structuré dans Docs."
+    }
+  },
   "legal": {
     "legalTerms": "Mentions légales",
     "legalTermsUrl": "/mentions-legales",

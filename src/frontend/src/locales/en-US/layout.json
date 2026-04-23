@@ -6,6 +6,16 @@
     "myRecordings": "My recordings",
     "trash": "Trash"
   },
+  "info": {
+    "supportEmailStart": "Hello, ...",
+    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "mobileApp": {
+      "title": "Keep recording, anywhere",
+      "description": "With the mobile app, your recording continues even when your screen is locked.",
+      "scanToInstall": "Scan to install",
+      "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs."
+    }
+  },
   "legal": {
     "legalTerms": "Legal terms",
     "legalTermsUrl": "/legal-terms",

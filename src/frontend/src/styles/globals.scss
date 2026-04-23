@@ -5,9 +5,11 @@
 @use './../layout/LogoApp';
 @use './../layout/ConnectedLayout';
 @use './../layout/BaseLayout';
+@use './../layout/DownloadMobileAppPopUp';
 @use './../layout/HeaderRight';
 @use './../components/Card';
 @use './../components/Pagination';
+@use './../components/DownloadAppsButtons';
 @use './../features/ui/preview/preview';
 @use './../features/recordings/components/RecordComponent';
 @use './../components/ProgressBar';
@@ -15,6 +17,7 @@
 @use './../features/recordings/components/Transcript';
 @use './../features/files/components/FileUploadToast';
 @use './../features/ui/components/toaster';
+@use './../pages/DownloadMobileAppPage';
 @use './../pages/RecordingPage';
 @use './../pages/RecordingsPage';
 @use './../pages/HomePage';
@@ -23,6 +26,10 @@
 // Buggy otherwise for some reason
 .c__avatar__initials {
   width: 24px;
+}
+
+.c__dropdown-menu {
+  border-radius: 8px;
 }
 
 body {

@@ -14,6 +14,9 @@ import { AppInitialization } from '@/components/AppInitialization'
 import { Toaster } from '@/features/ui/components/toaster/Toaster.tsx'
 
 const HomePage = React.lazy(() => import('@/pages/HomePage.tsx'))
+const DownloadMobileAppPage = React.lazy(
+  () => import('@/pages/DownloadMobileAppPage.tsx')
+)
 const RecordingPage = React.lazy(() => import('@/pages/RecordingPage.tsx'))
 const RecordingsPage = React.lazy(() => import('@/pages/RecordingsPage.tsx'))
 const RecordPage = React.lazy(() => import('@/pages/RecordPage.tsx'))
@@ -91,6 +94,11 @@ function App() {
                 path={'/new-recording'}
                 component={RecordPage}
               />
+              <Route
+                key={'download-mobile-app'}
+                path={'/download-mobile-app'}
+                component={DownloadMobileAppPage}
+              />
               {/*<Route*/}
               {/*  key={'trash'}*/}
               {/*  path={'/trash'}*/}
@@ -105,7 +113,7 @@ function App() {
           </Layout>
           <ReactQueryDevtools
             initialIsOpen={false}
-            buttonPosition="bottom-left"
+            buttonPosition="bottom-right"
           />
         </I18nProvider>
       </Suspense>

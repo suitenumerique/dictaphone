@@ -5,6 +5,7 @@ import { useUser } from '@/features/auth'
 import { Link, Redirect } from 'wouter'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { HelpMenu } from '@/layout/HelpMenu'
 
 export default function ConnectedLayout({
   children,
@@ -47,6 +48,9 @@ export default function ConnectedLayout({
         )}
       >
         <main className="dictaphone__connected_layout_content">{children}</main>
+      </div>
+      <div className="dictaphone__connected_layout_help_menu">
+        <HelpMenu />
       </div>
     </MainLayout>
   )

@@ -5,6 +5,7 @@ $tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
 $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
 
 .dictaphone__connected_layout_container {
+  height: 100%;
   display: flex;
   justify-content: center;
   padding-bottom: 2rem;
@@ -24,4 +25,15 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
       display: none;
     }
   }
+}
+
+.dictaphone__connected_layout_help_menu {
+  position: fixed;
+  bottom: 8px;
+  left: 8px;
+  z-index: 9999999999;
+  display: flex;
+  align-items: start;
+  flex-direction: column;
+  gap: var(--c--globals--spacings--2xs);
 }
