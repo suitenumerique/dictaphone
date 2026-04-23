@@ -658,6 +658,14 @@ class Base(Configuration):
         "ROTATE_REFRESH_TOKENS": True,
         "BLACKLIST_AFTER_ROTATION": True,
     }
+    MOBILE_APP_IOS_DOWNLOAD_LINK = values.Value(
+        "https://example.com/ios-app-download-link",
+        environ_name="MOBILE_APP_IOS_DOWNLOAD_LINK",
+    )
+    MOBILE_APP_ANDROID_DOWNLOAD_LINK = values.Value(
+        "https://example.com/android-app-download-link",
+        environ_name="MOBILE_APP_ANDROID_DOWNLOAD_LINK",
+    )
 
     # pylint: disable=invalid-name
     @property

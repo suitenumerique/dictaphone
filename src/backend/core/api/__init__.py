@@ -1,9 +1,11 @@
 """Dictaphone core API endpoints"""
 
+from urllib.parse import urljoin
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from rest_framework import exceptions as drf_exceptions
 from rest_framework import views as drf_views
@@ -55,6 +57,10 @@ def get_frontend_configuration(request):
             ],
         },
         "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
+        "mobile_app": {
+            "ios_download_link": settings.MOBILE_APP_IOS_DOWNLOAD_LINK,
+            "android_download_link": settings.MOBILE_APP_ANDROID_DOWNLOAD_LINK,
+        },
     }
     frontend_configuration.update(settings.FRONTEND_CONFIGURATION)
     return Response(frontend_configuration)
@@ -79,3 +85,17 @@ def get_mobile_redirect(request):
     }
 
     return render(request, "mobile_redirect.html", context)
+
+
+@api_view(["GET"])
+def get_mobile_app_download_page(request):
+    """Redirect to the mobile app download page based on user agent."""
+    user_agent = request.META.get("HTTP_USER_AGENT", "").lower()
+
+    if "iphone" in user_agent or "ipad" in user_agent or "ios" in user_agent:
+        return redirect(settings.MOBILE_APP_IOS_DOWNLOAD_LINK)
+
+    if "android" in user_agent:
+        return redirect(settings.MOBILE_APP_ANDROID_DOWNLOAD_LINK)
+
+    return redirect(urljoin(settings.LOGIN_REDIRECT_URL, "/download-mobile-app"))
