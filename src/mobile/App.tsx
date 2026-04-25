@@ -9,7 +9,10 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import RecordingScreen from '@/screens/RecordingScreen'
 import RecordingsScreen from './src/screens/RecordingsScreen'
-import { storeCsrfToken, storeSessionCookie } from './src/services/authService'
+import {
+  clearAuthState,
+  exchangeCodeForTokens,
+} from './src/services/authService'
 import { queryClient } from '@/api/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import BootSplash from 'react-native-bootsplash'
@@ -26,21 +29,34 @@ type AuthCallbackRoute = RouteProp<RootStackParamList, 'AuthCallback'>
 function AuthCallbackScreen() {
   const route = useRoute<AuthCallbackRoute>()
   const resetNavigationHistory = useResetNavigationHistory()
+  const codeRef = React.useRef<string|null>(null)
 
   useEffect(() => {
-    if (route.params.sessionId && route.params.csrfToken) {
-      Promise.all([
-        storeSessionCookie(route.params.sessionId),
-        storeCsrfToken(route.params.csrfToken),
-      ])
-        .then(() => {
-          queryClient.invalidateQueries()
-        })
-        .catch((e) =>
-          console.error('Failed to store session cookie and csrf token:', e)
-        )
+    const params = route.params ?? {}
+
+    if (!params.code || !params.state) {
+      console.error('OAuth callback is missing authorization code or state')
+      void clearAuthState()
+      resetNavigationHistory('Login')
+      return
     }
-    resetNavigationHistory('Main')
+
+    if (codeRef.current === params.code) {
+      return
+    }
+    codeRef.current = params.code
+
+    exchangeCodeForTokens(codeRef.current, params.state)
+      .then(() => queryClient.invalidateQueries())
+      .then(() => resetNavigationHistory('Main'))
+      .catch((e) => {
+        console.error('Failed to exchange authorization code for tokens:', e)
+        clearAuthState()
+          .catch((clearError) =>
+            console.error('Failed to clear auth state:', clearError)
+          )
+          .finally(() => resetNavigationHistory('Login'))
+      })
   }, [resetNavigationHistory, route.params])
 
   return null

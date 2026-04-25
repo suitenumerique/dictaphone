@@ -3,8 +3,10 @@ export type RootStackParamList = {
   Main: undefined
   RecordingInProgress: undefined
   RecordingDetails: { id: string }
-  AuthCallback: {
-    sessionId?: string
-    csrfToken?: string
-  }
+  AuthCallback:
+    | {
+        code?: string
+        state?: string
+      }
+    | undefined
 }
