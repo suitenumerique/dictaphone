@@ -656,6 +656,7 @@ const styles = StyleSheet.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 16,
   },
   deleteAction: {
     width: RIGHT_ACTIONS_PANEL_WIDTH,
