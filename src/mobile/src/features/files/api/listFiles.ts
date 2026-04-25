@@ -62,7 +62,7 @@ export const listMyFiles = async ({
     query.append('is_deleted', filters.is_deleted ? 'true' : 'false')
   }
 
-  return fetchApi<ListFilesResponse>(`/files?${query.toString()}`, {
+  return fetchApi<ListFilesResponse>(`/files/?${query.toString()}`, {
     method: 'GET',
   })
 }
