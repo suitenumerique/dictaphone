@@ -24,7 +24,6 @@ const dateFnsLocaleBySupportedLocale = {
 } as const
 
 i18n.on('languageChanged', (lng) => {
-  console.log(lng)
   setDefaultOptions({
     locale:
       dateFnsLocaleBySupportedLocale[

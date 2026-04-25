@@ -22,8 +22,11 @@ import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory
 import { AppText } from '@/components/AppText'
 import { BASE_URL } from '@/api/constants'
 import { colors } from '@/components/colors'
+import { useUserStore } from '@/services/storage'
 // @ts-expect-error Icon
 import LogoWithName from '../assets/logo-with-name.svg'
+import { AppLanguage } from '@/types/settings'
+import { ApiUser } from '@/features/auth/api/ApiUser'
 
 type InfoTranslationKey =
   | 'legalTerms'
@@ -40,7 +43,6 @@ type LegalDocument = {
   urlKey: InfoTranslationKey
 }
 
-type AppLanguage = 'en' | 'fr'
 type ApiLanguage = 'en-us' | 'fr-fr'
 
 type LanguageOption = {
@@ -69,6 +71,7 @@ export default function InfoScreen() {
   const insets = useInsets()
   const { t, i18n } = useTranslation()
   const { isLoggedIn, user, logout, updateUser } = useUser()
+  const { setCachedUser } = useUserStore()
   const resetNavigationHistory = useResetNavigationHistory()
   const [isLanguagePopoverVisible, setIsLanguagePopoverVisible] =
     useState(false)
@@ -91,16 +94,14 @@ export default function InfoScreen() {
   const handleChangeLanguage = useCallback(
     async (option: LanguageOption) => {
       setIsLanguagePopoverVisible(false)
-
-      if (currentLanguage !== option.appLanguage) {
-        await i18n.changeLanguage(option.appLanguage)
-      }
+      // We set the cached user to trigger the language change
+      setCachedUser({ ...user, language: option.apiLanguage } as ApiUser)
 
       if (isLoggedIn && updateUser && user?.language !== option.apiLanguage) {
         updateUser({ language: option.apiLanguage })
       }
     },
-    [currentLanguage, i18n, isLoggedIn, updateUser, user?.language]
+    [isLoggedIn, setCachedUser, updateUser, user]
   )
 
   const openLegalPath = useCallback(async (path: string) => {

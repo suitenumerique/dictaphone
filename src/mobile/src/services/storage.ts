@@ -13,6 +13,7 @@ import NetInfo from '@react-native-community/netinfo'
 import { createFile } from '@/features/files/api/createFile'
 import { queryClient } from '@/api/queryClient'
 import { keys } from '@/api/queryKeys'
+import i18n from '@/i18n'
 
 const storage = createMMKV({
   id: 'transcript-storage',
@@ -228,5 +229,13 @@ export const useUserStore = create<UserStore>()(
     }
   )
 )
+
+useUserStore.subscribe((state, prevState) => {
+  const prevLang = (prevState.user?.language ?? 'fr').split('-')[0]
+  const newLang = (state.user?.language ?? 'fr').split('-')[0]
+  if (prevLang !== newLang || newLang !== i18n.language) {
+    i18n.changeLanguage(newLang)
+  }
+})
 
 startRecordingsUploadManager()
