@@ -18,6 +18,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import BootSplash from 'react-native-bootsplash'
 import LoginScreen from '@/screens/LoginScreen'
 import RecordingDetailsScreen from '@/screens/RecordingDetailsScreen'
+import InfoScreen from '@/screens/InfoScreen'
 import type { RootStackParamList } from '@/navigation/types'
 import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -81,6 +82,7 @@ function App() {
                 screens: {
                   Login: 'login',
                   Main: 'record',
+                  Info: 'info',
                   RecordingInProgress: 'recording',
                   AuthCallback: 'auth/callback',
                 },
@@ -97,6 +99,7 @@ function App() {
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
               <RootStack.Screen name="Login" component={LoginScreen} />
               <RootStack.Screen name="Main" component={RecordingsScreen} />
+              <RootStack.Screen name="Info" component={InfoScreen} />
               <RootStack.Screen
                 name="RecordingInProgress"
                 component={RecordingScreen}

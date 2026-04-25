@@ -7,12 +7,17 @@ import { useTranslation } from 'react-i18next'
 import { AppText } from './AppText'
 import { colors } from './colors'
 import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
+import { useNavigation } from '@react-navigation/core'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import type { RootStackParamList } from '@/navigation/types'
 
 export default function MainMenu() {
   const [isPopoverVisible, setIsPopoverVisible] = useState(false)
   const { logout, isLoggedIn } = useUser()
   const { t } = useTranslation()
   const resetNavigationHistory = useResetNavigationHistory()
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>()
 
   const handleLogout = useCallback(async () => {
     setIsPopoverVisible(false)
@@ -20,9 +25,10 @@ export default function MainMenu() {
     resetNavigationHistory('Main')
   }, [logout, resetNavigationHistory])
 
-  if (!isLoggedIn) {
-    return null
-  }
+  const handleOpenInfo = useCallback(() => {
+    setIsPopoverVisible(false)
+    navigation.navigate('Info')
+  }, [navigation])
 
   return (
     <View style={styles.container}>
@@ -44,16 +50,28 @@ export default function MainMenu() {
         }
       >
         <View style={styles.popoverContent}>
-          <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Lucide name="log-out" size={15} color={colors.textPrimary} />
+          <Pressable style={styles.actionButton} onPress={handleOpenInfo}>
+            <Lucide name="info" size={15} color={colors.textPrimary} />
             <AppText
               variant="body"
               color={colors.textPrimary}
               style={styles.fixMarginBottom}
             >
-              {t('login.logout')}
+              {t('info.title')}
             </AppText>
           </Pressable>
+          {isLoggedIn && (
+            <Pressable style={styles.actionButton} onPress={handleLogout}>
+              <Lucide name="log-out" size={15} color={colors.textPrimary} />
+              <AppText
+                variant="body"
+                color={colors.textPrimary}
+                style={styles.fixMarginBottom}
+              >
+                {t('login.logout')}
+              </AppText>
+            </Pressable>
+          )}
         </View>
       </Popover>
     </View>
@@ -82,15 +100,16 @@ const styles = StyleSheet.create({
   popover: { borderRadius: 12 },
   popoverContent: {
     padding: 4,
+    alignItems: 'flex-start',
   },
-  logoutButton: {
+  actionButton: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
     display: 'flex',
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    alignItems: 'flex-start',
+    gap: 8,
     justifyContent: 'center',
   },
 })

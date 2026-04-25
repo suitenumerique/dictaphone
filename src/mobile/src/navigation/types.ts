@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Login: undefined
   Main: undefined
+  Info: undefined
   RecordingInProgress: undefined
   RecordingDetails: { id: string }
   AuthCallback:

@@ -81,6 +81,18 @@
     "english": "Anglais",
     "french": "Français"
   },
+  "info": {
+    "title": "Infos & Aide",
+    "connectedAs": "Connecté en tant que",
+    "legalTerms": "Mentions légales",
+    "legalTermsUrl": "/mentions-legales",
+    "termsOfService": "Modalités d'utilisation",
+    "termsOfServiceUrl": "/modalites-utilisation",
+    "personalData": "Données personnelles",
+    "personalDataUrl": "/donnees-personnelles",
+    "accessibility": "Accessibilité : non conforme",
+    "accessibilityUrl": "/accessibilite"
+  },
   "update": {
     "title": "Mise à jour disponible",
     "descriptionMandatory": "Une nouvelle version est requise pour continuer. Merci de mettre l'application à jour maintenant.",

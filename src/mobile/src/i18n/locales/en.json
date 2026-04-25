@@ -81,6 +81,18 @@
     "english": "English",
     "french": "French"
   },
+  "info": {
+    "title": "Info & Help",
+    "connectedAs": "Connected as",
+    "legalTerms": "Legal terms",
+    "legalTermsUrl": "/legal-terms",
+    "termsOfService": "Terms of service",
+    "termsOfServiceUrl": "/terms-of-service",
+    "personalData": "Personal data",
+    "personalDataUrl": "/personal-data",
+    "accessibility": "Accessibility : not compliant",
+    "accessibilityUrl": "/accessibility"
+  },
   "update": {
     "title": "Update available",
     "descriptionMandatory": "A new app version is required to continue. Please update now.",
