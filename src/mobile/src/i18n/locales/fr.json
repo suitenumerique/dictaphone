@@ -84,6 +84,8 @@
   "info": {
     "title": "Infos & Aide",
     "connectedAs": "Connecté en tant que",
+    "getHelp": "Obtenir de l'aide",
+    "supportEmailStart": "Bonjour, j'ai besoin d'aide avec Assistant Transcripts.",
     "legalTerms": "Mentions légales",
     "legalTermsUrl": "/mentions-legales",
     "termsOfService": "Modalités d'utilisation",

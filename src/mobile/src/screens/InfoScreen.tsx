@@ -1,11 +1,20 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import {
+  Dimensions,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native'
 import { useNavigation } from '@react-navigation/core'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useTranslation } from 'react-i18next'
 import { Lucide } from '@react-native-vector-icons/lucide'
 import { InAppBrowser } from 'react-native-inappbrowser-reborn'
 import Popover from 'react-native-popover-view'
+import DeviceInfo from 'react-native-device-info'
 import type { RootStackParamList } from '@/navigation/types'
 import { useInsets } from '@/utils/useInsets'
 import { useUser } from '@/features/auth/api/useUser'
@@ -50,6 +59,8 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
   { appLanguage: 'fr', apiLanguage: 'fr-fr' },
   { appLanguage: 'en', apiLanguage: 'en-us' },
 ]
+const SUPPORT_EMAIL = 'support-transcripts@numerique.gouv.fr'
+const SUPPORT_SUBJECT = 'Assistant Transcripts - Support'
 
 type StackNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
@@ -59,7 +70,8 @@ export default function InfoScreen() {
   const { t, i18n } = useTranslation()
   const { isLoggedIn, user, logout, updateUser } = useUser()
   const resetNavigationHistory = useResetNavigationHistory()
-  const [isLanguagePopoverVisible, setIsLanguagePopoverVisible] = useState(false)
+  const [isLanguagePopoverVisible, setIsLanguagePopoverVisible] =
+    useState(false)
 
   const currentLanguage = useMemo<AppLanguage>(() => {
     return i18n.language.startsWith('fr') ? 'fr' : 'en'
@@ -118,6 +130,43 @@ export default function InfoScreen() {
 
     await Linking.openURL(url)
   }, [])
+
+  const handleSupportPress = useCallback(async () => {
+    const screen = Dimensions.get('screen')
+    const viewport = Dimensions.get('window')
+    let userAgent = 'unknown'
+
+    try {
+      userAgent = await DeviceInfo.getUserAgent()
+    } catch (error) {
+      console.warn('Unable to read user agent for support email.', error)
+    }
+
+    const info = [
+      'Info:',
+      `User: ${user?.id ?? 'anonymous'}`,
+      `User agent: ${userAgent}`,
+      `Language: ${i18n.language}`,
+      `Platform: ${Platform.OS} ${String(Platform.Version)}`,
+      `Screen: ${Math.round(screen.width)}x${Math.round(screen.height)}`,
+      `Viewport: ${Math.round(viewport.width)}x${Math.round(viewport.height)}`,
+      `Version: ${DeviceInfo.getVersion()}`,
+      `Build number: ${DeviceInfo.getBuildNumber()}`,
+      `Bundle identifier: ${DeviceInfo.getBundleId()}`,
+      `Device name: ${DeviceInfo.getDeviceName()}`,
+      `Device model: ${DeviceInfo.getModel()}`,
+      `System name: ${DeviceInfo.getSystemName()}`,
+      `System version: ${DeviceInfo.getSystemVersion()}`,
+      `Bundle ID: ${DeviceInfo.getBundleId()}`,
+    ].join('\n')
+
+    const query = new URLSearchParams({
+      subject: SUPPORT_SUBJECT,
+      body: `${t('info.supportEmailStart')}\n\n${info}`,
+    }).toString()
+
+    await Linking.openURL(`mailto:${SUPPORT_EMAIL}?${query}`)
+  }, [i18n.language, t, user?.id])
 
   return (
     <View
@@ -193,10 +242,18 @@ export default function InfoScreen() {
               >
                 <Lucide name="languages" size={18} color={colors.textPrimary} />
                 <View style={styles.grow}>
-                  <AppText variant="bodyMedium">{t('settings.language')}</AppText>
-                  <AppText variant="muted">{getLanguageLabel(currentLanguage)}</AppText>
+                  <AppText variant="bodyMedium">
+                    {t('settings.language')}
+                  </AppText>
+                  <AppText variant="muted">
+                    {getLanguageLabel(currentLanguage)}
+                  </AppText>
                 </View>
-                <Lucide name="chevrons-up-down" size={16} color={colors.neutralTertiary} />
+                <Lucide
+                  name="chevrons-up-down"
+                  size={16}
+                  color={colors.neutralTertiary}
+                />
               </Pressable>
             }
           >
@@ -224,6 +281,25 @@ export default function InfoScreen() {
               })}
             </View>
           </Popover>
+
+          <View style={styles.separator} />
+          <Pressable
+            style={({ pressed }) => [
+              styles.rowButton,
+              pressed && styles.rowButtonPressed,
+            ]}
+            onPress={() => void handleSupportPress()}
+          >
+            <Lucide name="life-buoy" size={18} color={colors.textPrimary} />
+            <AppText variant="bodyMedium" style={styles.grow}>
+              {t('info.getHelp')}
+            </AppText>
+            <Lucide
+              name="chevron-right"
+              size={16}
+              color={colors.neutralTertiary}
+            />
+          </Pressable>
         </View>
 
         <View style={styles.card}>
