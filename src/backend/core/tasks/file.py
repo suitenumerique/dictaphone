@@ -235,7 +235,14 @@ def create_document_in_docs(ai_job_id):
         },
         timeout=20,
     )
-    response.raise_for_status()
+    if response.status != 201:
+        logger.error(
+            "Failed to create document in Docs for file %s: %s",
+            ai_job.file.id,
+            response.text,
+        )
+        response.raise_for_status()
+
     docs_app_id = response.json()["id"]
     logger.info(
         "Document created in Docs for file %s => %s (in docs)",
