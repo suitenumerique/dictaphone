@@ -23,6 +23,7 @@ import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { AppInitialization } from '@/components/AppInitialization'
 import { logPosthogScreenChange } from '@/features/analytics/hooks/useAnalytics'
+import { UpdateModal } from '@/features/config/UpdateModal'
 
 const RootStack = createNativeStackNavigator<RootStackParamList>()
 
@@ -31,7 +32,7 @@ type AuthCallbackRoute = RouteProp<RootStackParamList, 'AuthCallback'>
 function AuthCallbackScreen() {
   const route = useRoute<AuthCallbackRoute>()
   const resetNavigationHistory = useResetNavigationHistory()
-  const codeRef = React.useRef<string|null>(null)
+  const codeRef = React.useRef<string | null>(null)
 
   useEffect(() => {
     const params = route.params ?? {}
@@ -111,6 +112,7 @@ function App() {
               />
             </RootStack.Navigator>
           </NavigationContainer>
+          <UpdateModal />
         </AppInitialization>
       </QueryClientProvider>
     </GestureHandlerRootView>

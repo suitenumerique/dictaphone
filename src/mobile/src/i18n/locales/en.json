@@ -81,6 +81,13 @@
     "english": "English",
     "french": "French"
   },
+  "update": {
+    "title": "Update available",
+    "descriptionMandatory": "A new app version is required to continue. Please update now.",
+    "descriptionOptional": "A new app version is available. You can update now or later.",
+    "later": "Later",
+    "now": "Update now"
+  },
   "common": {
     "loading": "Loading..."
   },

@@ -17,6 +17,10 @@ export interface ApiConfig {
   mobile_app: {
     ios_download_link: string
     android_download_link: string
+    ios_version: string
+    ios_min_version: string
+    android_version: string
+    android_min_version: string
   }
 }
 

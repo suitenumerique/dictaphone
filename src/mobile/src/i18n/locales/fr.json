@@ -81,6 +81,13 @@
     "english": "Anglais",
     "french": "Français"
   },
+  "update": {
+    "title": "Mise à jour disponible",
+    "descriptionMandatory": "Une nouvelle version est requise pour continuer. Merci de mettre l'application à jour maintenant.",
+    "descriptionOptional": "Une nouvelle version de l'application est disponible. Vous pouvez la mettre à jour maintenant ou plus tard.",
+    "later": "Plus tard",
+    "now": "Mettre à jour"
+  },
   "common": {
     "loading": "Chargement..."
   },
