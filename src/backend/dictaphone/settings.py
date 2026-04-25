@@ -640,6 +640,34 @@ class Base(Configuration):
         environ_name="MOBILE_DEEP_LINK_SCHEME",
         environ_prefix=None,
     )
+    MOBILE_APP_IOS_VERSION = values.Value(
+        default="",
+        environ_name="MOBILE_APP_IOS_VERSION",
+        environ_prefix=None,
+    )
+    MOBILE_APP_IOS_MIN_VERSION = values.Value(
+        default="",
+        environ_name="MOBILE_APP_IOS_MIN_VERSION",
+        environ_prefix=None,
+    )
+    MOBILE_APP_ANDROID_VERSION = values.Value(
+        default="",
+        environ_name="MOBILE_APP_ANDROID_VERSION",
+        environ_prefix=None,
+    )
+    MOBILE_APP_ANDROID_MIN_VERSION = values.Value(
+        default="",
+        environ_name="MOBILE_APP_ANDROID_MIN_VERSION",
+        environ_prefix=None,
+    )
+    MOBILE_APP_IOS_DOWNLOAD_LINK = values.Value(
+        "https://example.com/ios-app-download-link",
+        environ_name="MOBILE_APP_IOS_DOWNLOAD_LINK",
+    )
+    MOBILE_APP_ANDROID_DOWNLOAD_LINK = values.Value(
+        "https://example.com/android-app-download-link",
+        environ_name="MOBILE_APP_ANDROID_DOWNLOAD_LINK",
+    )
     SIMPLE_JWT = {
         "ACCESS_TOKEN_LIFETIME": timedelta(
             seconds=values.IntegerValue(
@@ -658,14 +686,6 @@ class Base(Configuration):
         "ROTATE_REFRESH_TOKENS": True,
         "BLACKLIST_AFTER_ROTATION": True,
     }
-    MOBILE_APP_IOS_DOWNLOAD_LINK = values.Value(
-        "https://example.com/ios-app-download-link",
-        environ_name="MOBILE_APP_IOS_DOWNLOAD_LINK",
-    )
-    MOBILE_APP_ANDROID_DOWNLOAD_LINK = values.Value(
-        "https://example.com/android-app-download-link",
-        environ_name="MOBILE_APP_ANDROID_DOWNLOAD_LINK",
-    )
 
     # pylint: disable=invalid-name
     @property

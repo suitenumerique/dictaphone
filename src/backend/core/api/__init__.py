@@ -38,9 +38,9 @@ def exception_handler(exc, context):
 
 # pylint: disable=unused-argument
 @api_view(["GET"])
-def get_frontend_configuration(request):
-    """Returns the frontend configuration dict as configured in settings."""
-    frontend_configuration = {
+def get_app_configuration(request):
+    """Returns the configuration dict as configured in settings."""
+    config = {
         "LANGUAGE_CODE": settings.LANGUAGE_CODE,
         "audio_recording": {
             "max_count_by_user": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
@@ -60,10 +60,14 @@ def get_frontend_configuration(request):
         "mobile_app": {
             "ios_download_link": settings.MOBILE_APP_IOS_DOWNLOAD_LINK,
             "android_download_link": settings.MOBILE_APP_ANDROID_DOWNLOAD_LINK,
+            "ios_version": settings.MOBILE_APP_IOS_VERSION,
+            "ios_min_version": settings.MOBILE_APP_IOS_MIN_VERSION,
+            "android_version": settings.MOBILE_APP_ANDROID_VERSION,
+            "android_min_version": settings.MOBILE_APP_ANDROID_MIN_VERSION,
         },
     }
-    frontend_configuration.update(settings.FRONTEND_CONFIGURATION)
-    return Response(frontend_configuration)
+    config.update(settings.FRONTEND_CONFIGURATION)
+    return Response(config)
 
 
 @api_view(["GET"])
