@@ -663,10 +663,12 @@ class Base(Configuration):
     MOBILE_APP_IOS_DOWNLOAD_LINK = values.Value(
         "https://example.com/ios-app-download-link",
         environ_name="MOBILE_APP_IOS_DOWNLOAD_LINK",
+        environ_prefix=None,
     )
     MOBILE_APP_ANDROID_DOWNLOAD_LINK = values.Value(
         "https://example.com/android-app-download-link",
         environ_name="MOBILE_APP_ANDROID_DOWNLOAD_LINK",
+        environ_prefix=None,
     )
     SIMPLE_JWT = {
         "ACCESS_TOKEN_LIFETIME": timedelta(
