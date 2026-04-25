@@ -443,3 +443,37 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
     )
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.docs_app_id == "new-doc-id"
+
+
+@patch("core.tasks.file.logger.error")
+@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
+def test_task_create_document_in_docs_logs_and_raises_on_http_error(
+    mock_to_markdown, mock_post, mock_logger_error, settings
+):
+    """Non-201 Docs responses should be logged and raised."""
+    settings.DOCS_BASE_URL = "https://docs.example.com"
+    settings.DOCS_SERVER_TO_SERVER_API_KEY = "docs-api-key"
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+    )
+
+    mock_to_markdown.return_value = "# Transcript"
+    response = Mock()
+    response.status_code = 500
+    response.text = "docs failure body"
+    response.raise_for_status.side_effect = RuntimeError("docs failure")
+    mock_post.return_value = response
+
+    with pytest.raises(RuntimeError, match="docs failure"):
+        create_document_in_docs(ai_transcript_job.id)
+
+    mock_logger_error.assert_called_once_with(
+        "Failed to create document in Docs for file %s: %s",
+        ai_transcript_job.file.id,
+        "docs failure body",
+    )
+    response.raise_for_status.assert_called_once_with()
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.docs_app_id is None
