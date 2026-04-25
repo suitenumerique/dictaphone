@@ -4,6 +4,7 @@ Test users API endpoints in the Dictaphone core app.
 
 import pytest
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from core import factories, models
 from core.api import serializers
@@ -113,6 +114,32 @@ def test_api_users_retrieve_me_authenticated(settings):
     client.force_login(user)
 
     factories.UserFactory.create_batch(2)
+    response = client.get(
+        "/api/v1.0/users/me/",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(user.id),
+        "email": user.email,
+        "full_name": user.full_name,
+        "short_name": user.short_name,
+        "language": user.language,
+        "timezone": "UTC",
+    }
+
+
+def test_api_users_retrieve_me_authenticated_jwt(settings):
+    """Authenticated users with JWT should be able
+    to retrieve their own user via the "/users/me" path."""
+
+    settings.TIME_ZONE = "UTC"
+    user = factories.UserFactory()
+
+    access = RefreshToken.for_user(user).access_token
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
     response = client.get(
         "/api/v1.0/users/me/",
     )

@@ -5,8 +5,10 @@ from django.urls import include, path
 
 from lasuite.oidc_login.urls import urlpatterns as oidc_urls
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from core.api import get_frontend_configuration, get_mobile_redirect, viewsets
+from core.authentication.views import PKCEOAuthTokenExchangeView
 
 # - Main endpoints
 router = DefaultRouter()
@@ -22,6 +24,16 @@ urlpatterns = [
             [
                 *router.urls,
                 *oidc_urls,
+                path(
+                    "oauth/token/",
+                    PKCEOAuthTokenExchangeView.as_view(),
+                    name="token_obtain_pair",
+                ),
+                path(
+                    "oauth/token/refresh/",
+                    TokenRefreshView.as_view(),
+                    name="token_refresh",
+                ),
                 path("config/", get_frontend_configuration, name="config"),
                 path("mobile-redirect/", get_mobile_redirect, name="mobile-redirect"),
             ]
