@@ -11,6 +11,13 @@ export function DownloadAppsButtons() {
     [i18n.language]
   )
 
+  // we should remove this once the store are live to avoid moving elements
+  if (
+    !data?.mobile_app?.ios_download_link ||
+    !data?.mobile_app?.android_download_link
+  )
+    return null
+
   return (
     <div className="download-apps-buttons">
       <a href={data?.mobile_app?.ios_download_link}>

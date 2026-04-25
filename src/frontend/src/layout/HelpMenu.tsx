@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth'
 import { DownloadMobileAppPopUp } from '@/layout/DownloadMobileAppPopUp'
+import { useConfig } from '@/api/useConfig'
 
 export function HelpMenu() {
   const [isOpen, setIsOpen] = useState(false)
@@ -11,6 +12,13 @@ export function HelpMenu() {
     useState(false)
   const { t, i18n } = useTranslation('layout')
   const user = useUser()
+
+  const { data } = useConfig()
+
+  // we should remove this once the store are live to avoid moving elements
+  const forceHideMobileStuff =
+    !data?.mobile_app?.ios_download_link ||
+    !data?.mobile_app?.android_download_link
 
   useEffect(() => {
     if (user.user?.flag_show_mobile_app_popup) {
@@ -57,26 +65,30 @@ export function HelpMenu() {
   return (
     <>
       <DownloadMobileAppPopUp
-        open={openDownloadMobileAppPopUp}
+        open={openDownloadMobileAppPopUp && !forceHideMobileStuff}
         setOpen={handleCloseMobileAppPopup}
       />
       <DropdownMenu
         options={[
-          {
-            icon: <span className="material-icons">devices</span>,
-            label: t("info.help.mobileApp"),
-            callback: () => setOpenDownloadMobileAppPopUp(true),
-          },
+          ...(forceHideMobileStuff
+            ? []
+            : [
+                {
+                  icon: <span className="material-icons">devices</span>,
+                  label: t('info.help.mobileApp'),
+                  callback: () => setOpenDownloadMobileAppPopUp(true),
+                },
+              ]),
           {
             icon: <span className="material-icons">article</span>,
-            label: t("info.help.documentation"),
+            label: t('info.help.documentation'),
             callback: () => {
               window.open(t('info.documentationUrl'), '_blank')
             },
           },
           {
             icon: <Info />,
-            label: t("info.help.support"),
+            label: t('info.help.support'),
             callback: handleSupportClick,
           },
         ]}
