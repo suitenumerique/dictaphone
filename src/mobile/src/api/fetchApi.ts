@@ -1,39 +1,22 @@
 import { ApiError } from './ApiError'
-import { getCsrfToken, getSessionCookie } from '@/services/authService'
+import { getAccessToken, refreshAccessToken } from '@/services/authService'
 import { API_URL, BASE_URL } from '@/api/constants'
 
-function isModifierMethod(method?: string) {
-  return ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method ?? '')
+function buildHeaders(
+  accessToken: string | null,
+  options?: RequestInit
+): RequestInit['headers'] {
+  return {
+    'Content-Type': 'application/json',
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    Referer: BASE_URL,
+    ...options?.headers,
+  }
 }
 
-export const fetchApi = async <T = Record<string, unknown>>(
-  url: string,
-  options?: RequestInit
-): Promise<T> => {
-  const sessionId = await getSessionCookie()
-  const csrfToken = await getCsrfToken()
-
-  if (!url.startsWith('/')) {
-    url = `/${url}`
-  }
-  let cookie = `sessionid=${sessionId}`
-  if (isModifierMethod(options?.method)) {
-    cookie += `; csrftoken=${csrfToken ?? 'not_set'};`
-  }
-
-  const response = await fetch(`${API_URL}${url}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Cookie: cookie,
-      ...(isModifierMethod(options?.method)
-        ? { 'X-CSRFToken': csrfToken ?? 'not_set' }
-        : {}),
-      Referer: BASE_URL,
-      ...options?.headers,
-    },
-  })
-
+async function parseResponse<T>(
+  response: Response
+): Promise<{ response: Response; result: T }> {
   let result: T
   if (response.status === 204) {
     result = undefined as T
@@ -48,8 +31,42 @@ export const fetchApi = async <T = Record<string, unknown>>(
     }
   }
 
-  if (!response.ok) {
-    throw new ApiError(response.status, result)
+  return { response, result }
+}
+
+export const fetchApi = async <T = Record<string, unknown>>(
+  url: string,
+  options?: RequestInit
+): Promise<T> => {
+  if (!url.startsWith('/')) {
+    url = `/${url}`
   }
-  return result
+
+  const token = await getAccessToken()
+  const firstResponse = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers: buildHeaders(token, options),
+  })
+  const first = await parseResponse<T>(firstResponse)
+
+  if (first.response.status === 401) {
+    const refreshedToken = await refreshAccessToken()
+    if (refreshedToken) {
+      const retryResponse = await fetch(`${API_URL}${url}`, {
+        ...options,
+        headers: buildHeaders(refreshedToken, options),
+      })
+      const retry = await parseResponse<T>(retryResponse)
+
+      if (!retry.response.ok) {
+        throw new ApiError(retry.response.status, retry.result)
+      }
+      return retry.result
+    }
+  }
+
+  if (!first.response.ok) {
+    throw new ApiError(first.response.status, first.result)
+  }
+  return first.result
 }

@@ -7,6 +7,9 @@ module.exports = {
         root: ['./src'],
         alias: {
           '@': './src',
+          crypto: 'react-native-quick-crypto',
+          stream: 'readable-stream',
+          buffer: 'react-native-quick-crypto',
         },
       },
     ],

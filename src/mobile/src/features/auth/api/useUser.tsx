@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
 import { queryClient } from '@/api/queryClient'
 import { fetchApi } from '@/api/fetchApi'
-import { clearAuthCookies } from '@/services/authService'
+import { clearAuthState } from '@/services/authService'
 import { useUserStore } from '@/services/storage'
 
 type TUserInfo = {
@@ -83,7 +83,7 @@ export const useUser = () => {
           error
         )
       } finally {
-        await clearAuthCookies()
+        await clearAuthState()
         clearCachedUser()
         queryClient.resetQueries()
       }
