@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 # pylint: disable=too-many-lines
 
 import json
+from datetime import timedelta
 from os import path
 from socket import gethostbyname, gethostname
 
@@ -339,6 +340,7 @@ class Base(Configuration):
         "django.contrib.staticfiles",
         # OIDC third party
         "mozilla_django_oidc",
+        "rest_framework_simplejwt.token_blacklist",
     ]
 
     # Cache
@@ -358,6 +360,7 @@ class Base(Configuration):
 
     REST_FRAMEWORK = {
         "DEFAULT_AUTHENTICATION_CLASSES": (
+            "rest_framework_simplejwt.authentication.JWTAuthentication",
             "mozilla_django_oidc.contrib.drf.OIDCAuthentication",
             "rest_framework.authentication.SessionAuthentication",
         ),
@@ -459,8 +462,12 @@ class Base(Configuration):
     )
 
     # OIDC - Authorization Code Flow
-    OIDC_AUTHENTICATE_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationRequestView"
-    OIDC_CALLBACK_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationCallbackView"
+    OIDC_AUTHENTICATE_CLASS = (
+        "core.authentication.views.PKCEOIDCAuthenticationRequestView"
+    )
+    OIDC_CALLBACK_CLASS = (
+        "core.authentication.views.OIDCAuthenticationCallbackWithPkceView"
+    )
     OIDC_CREATE_USER = values.BooleanValue(
         default=True, environ_name="OIDC_CREATE_USER", environ_prefix=None
     )
@@ -622,12 +629,35 @@ class Base(Configuration):
         default=None, environ_name="OIDC_RS_SCOPES_PREFIX", environ_prefix=None
     )
 
-    # Mobile App Handling
+    # Mobile App Handling & JWT
+    AUTH_PKCE_CACHE_TTL_SECONDS = values.IntegerValue(
+        default=120,
+        environ_name="AUTH_PKCE_CACHE_TTL_SECONDS",
+        environ_prefix=None,
+    )
     MOBILE_DEEP_LINK_SCHEME = values.Value(
         default="assistant-transcripts://auth/callback",
         environ_name="MOBILE_DEEP_LINK_SCHEME",
         environ_prefix=None,
     )
+    SIMPLE_JWT = {
+        "ACCESS_TOKEN_LIFETIME": timedelta(
+            seconds=values.IntegerValue(
+                default=10 * 60,
+                environ_name="JWT_ACCESS_TOKEN_LIFETIME_SECONDS",
+                environ_prefix=None,
+            )
+        ),
+        "REFRESH_TOKEN_LIFETIME": timedelta(
+            seconds=values.IntegerValue(
+                default=7 * 24 * 60 * 60,
+                environ_name="JWT_REFRESH_TOKEN_LIFETIME_SECONDS",
+                environ_prefix=None,
+            )
+        ),
+        "ROTATE_REFRESH_TOKENS": True,
+        "BLACKLIST_AFTER_ROTATION": True,
+    }
 
     # pylint: disable=invalid-name
     @property

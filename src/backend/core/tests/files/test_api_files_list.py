@@ -10,6 +10,7 @@ import pytest
 from faker import Faker
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from core import factories, models
 
@@ -32,6 +33,19 @@ def test_api_files_list_authentificated_user_allowed():
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
+
+    response = client.get("/api/v1.0/files/")
+    assert response.status_code == 200
+    assert response.data == {"count": 0, "next": None, "previous": None, "results": []}
+
+
+def test_api_files_list_authentificated_user_allowed_with_jwt():
+    """Authenticated users should be allowed to list files with JWT auth."""
+    user = factories.UserFactory()
+    access = RefreshToken.for_user(user).access_token
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
 
     response = client.get("/api/v1.0/files/")
     assert response.status_code == 200
