@@ -6,7 +6,7 @@ import { API_URL } from '../api/constants'
 import { colors } from '@/components/colors'
 import QuickCrypto from 'react-native-quick-crypto'
 
-const REDIRECT_URL = 'assistant-transcripts://auth/callback'
+const REDIRECT_URL = 'fr-gouv-assistant-transcripts://auth/callback'
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 const PKCE_VERIFIER_KEY = 'pkce_code_verifier'

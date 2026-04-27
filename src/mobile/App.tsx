@@ -77,7 +77,7 @@ function App() {
               BootSplash.hide()
             }}
             linking={{
-              prefixes: ['assistant-transcripts://'],
+              prefixes: ['fr-gouv-assistant-transcripts://'],
               config: {
                 screens: {
                   Login: 'login',
