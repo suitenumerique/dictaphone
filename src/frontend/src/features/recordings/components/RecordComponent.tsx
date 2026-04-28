@@ -1,4 +1,5 @@
 import { ProgressBar } from '@/components/ProgressBar.tsx'
+import { captureAnalyticsEvent } from '@/features/analytics/hooks/useAnalytics.ts'
 import { useCreateFile } from '@/features/files/api/createFile.ts'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
 import { Button, Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react'
@@ -17,6 +18,8 @@ const preferredMimeType =
   Object.keys(extensionByMimeType).find((mimeType) =>
     MediaRecorder.isTypeSupported(mimeType)
   ) ?? 'audio/webm'
+
+const maxUploadAttempts = 2
 
 const formatDuration = (durationMs: number) => {
   const totalSeconds = Math.floor(durationMs / 1000)
@@ -45,6 +48,30 @@ const getExtensionForMimeType = (mimeType: string) => {
     return 'mp4'
   }
   return 'webm'
+}
+
+const downloadFile = (file: File) => {
+  const objectUrl = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = file.name
+  link.style.display = 'none'
+
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000)
+}
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return undefined
 }
 
 type RecorderState =
@@ -78,6 +105,7 @@ export default function RecordComponent() {
   const accumulatedDurationMsRef = useRef(0)
   const recordingFailedRef = useRef(false)
   const uploadAfterStopRef = useRef(false)
+  const uploadAttemptsRef = useRef(0)
 
   const isRecordingInProgress =
     recorderState === 'recording' || recorderState === 'paused'
@@ -85,6 +113,7 @@ export default function RecordComponent() {
   const isStoppingRecording = recorderState === 'stopping'
   const isUploading = recorderState === 'uploading'
   const recordingError = recorderState === 'error'
+  const canRetryUpload = recorderState === 'recorded' && uploadError
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -137,6 +166,7 @@ export default function RecordComponent() {
     setRecordedMimeType(preferredMimeType)
     setUploadProgress(0)
     setUploadError(false)
+    uploadAttemptsRef.current = 0
   }, [cleanupMediaResources, stopTimer])
 
   const startRecording = useCallback(async () => {
@@ -155,6 +185,7 @@ export default function RecordComponent() {
     chunksRef.current = []
     recordingFailedRef.current = false
     uploadAfterStopRef.current = false
+    uploadAttemptsRef.current = 0
     recordingStartedAtRef.current = null
     accumulatedDurationMsRef.current = 0
     setRecordingDurationMs(0)
@@ -246,11 +277,17 @@ export default function RecordComponent() {
     }
 
     const extension = getExtensionForMimeType(recordedMimeType)
+    const recordingCreatedAtDate =
+      recordingRealStartDateRef.current ?? new Date()
+    const recordingCreatedAt = recordingCreatedAtDate.toISOString()
+    const durationSeconds = Math.floor(recordingDurationMs / 1000)
     const recordedFile = new File(
       [blob],
-      `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: recordingRealStartDateRef.current! })}.${extension}`,
+      `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: recordingCreatedAtDate })}.${extension}`,
       { type: recordedMimeType }
     )
+    const uploadAttempt = uploadAttemptsRef.current + 1
+    uploadAttemptsRef.current = uploadAttempt
 
     setUploadError(false)
     setUploadProgress(0)
@@ -258,8 +295,8 @@ export default function RecordComponent() {
     createFileMutation
       .mutateAsync({
         file: recordedFile,
-        createdAt: recordingRealStartDateRef.current!.toISOString(),
-        durationSeconds: Math.floor(recordingDurationMs / 1000),
+        createdAt: recordingCreatedAt,
+        durationSeconds,
         onProgress: (progress) => setUploadProgress(progress),
       })
       .then((file) => {
@@ -267,9 +304,32 @@ export default function RecordComponent() {
         resetRecordingState()
         navigate(`/recordings/${file.id}`)
       })
-      .catch(() => {
-        setUploadError(true)
-        setRecorderState('recorded')
+      .catch((error: unknown) => {
+        if (uploadAttempt < maxUploadAttempts) {
+          setUploadError(true)
+          setRecorderState('recorded')
+          return
+        }
+
+        downloadFile(recordedFile)
+        captureAnalyticsEvent('recording_upload_failed_downloaded', {
+          file_name: recordedFile.name,
+          file_size: recordedFile.size,
+          file_type: recordedFile.type,
+          file_extension: extension,
+          file_last_modified: new Date(recordedFile.lastModified).toISOString(),
+          recording_created_at: recordingCreatedAt,
+          recording_duration_seconds: durationSeconds,
+          upload_attempts: uploadAttempt,
+          upload_error: getErrorMessage(error),
+        })
+        resetRecordingState()
+        window.alert(
+          t('record:alerts.uploadFailedDownloaded', {
+            fileName: recordedFile.name,
+          })
+        )
+        navigate('/recordings')
       })
   }, [recorderState]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -404,24 +464,46 @@ export default function RecordComponent() {
     setIsStopDialogOpen(false)
   }
 
+  const retryUpload = () => {
+    if (
+      recorderState !== 'recorded' ||
+      !recordedBlobRef.current ||
+      uploadAttemptsRef.current >= maxUploadAttempts
+    ) {
+      return
+    }
+
+    setRecorderState('uploading')
+  }
+
   return (
     <>
       <div className="record-component">
-        <div className="record-component__content">
+        <div
+          className={`record-component__content ${
+            canRetryUpload ? 'record-component__content--recovery' : ''
+          }`}
+        >
           <p
             className={`record-component__status ${
               isPausedRecording ? 'record-component__status--paused' : ''
-            }`}
+            } ${canRetryUpload ? 'record-component__status--error' : ''}`}
           >
             <span className="material-icons">
-              {isPausedRecording ? 'pause' : 'fiber_manual_record'}
+              {canRetryUpload
+                ? 'cloud_off'
+                : isPausedRecording
+                  ? 'pause'
+                  : 'fiber_manual_record'}
             </span>
             <span>
-              {t(
-                isPausedRecording
-                  ? 'record:status.recordingPaused'
-                  : 'record:status.recordingInProgress'
-              )}
+              {canRetryUpload
+                ? t('record:status.uploadFailed')
+                : t(
+                    isPausedRecording
+                      ? 'record:status.recordingPaused'
+                      : 'record:status.recordingInProgress'
+                  )}
             </span>
           </p>
 
@@ -429,41 +511,74 @@ export default function RecordComponent() {
             {formatDuration(recordingDurationMs)}
           </p>
 
-          <div className="record-component__controls">
-            <Button
-              color="neutral"
-              variant="secondary"
-              className="record-component__button"
-              onClick={togglePauseResume}
-              disabled={!isRecordingInProgress || isStoppingRecording}
-              aria-label={t(
-                isPausedRecording
-                  ? 'record:resumeRecording'
-                  : 'record:pauseRecording'
-              )}
-            >
-              <span className="material-icons">
-                {isPausedRecording ? 'play_arrow' : 'pause'}
-              </span>
-              <span>
-                {t(
-                  isPausedRecording
-                    ? 'record:resumeRecording'
-                    : 'record:pauseRecording'
-                )}
-              </span>
-            </Button>
+          {canRetryUpload && (
+            <div className="record-component__recovery" role="alert">
+              <div className="record-component__recovery-icon">
+                <span className="material-icons">priority_high</span>
+              </div>
+              <div className="record-component__recovery-content">
+                <p className="record-component__recovery-title">
+                  {t('record:uploadRecovery.title')}
+                </p>
+                <p className="record-component__recovery-description">
+                  {t('record:uploadRecovery.description')}
+                </p>
+              </div>
+            </div>
+          )}
 
-            <Button
-              className={`record-component__button`}
-              color="error"
-              onClick={handleStopRequest}
-              disabled={!isRecordingInProgress || isStoppingRecording}
-              aria-label={t('record:stopRecording')}
-            >
-              <span className="material-icons">stop_circle</span>
-              <span>{t('record:stopRecording')}</span>
-            </Button>
+          <div
+            className={`record-component__controls ${
+              canRetryUpload ? 'record-component__controls--single' : ''
+            }`}
+          >
+            {canRetryUpload ? (
+              <Button
+                className="record-component__button record-component__retry-button"
+                onClick={retryUpload}
+                aria-label={t('record:retryUpload')}
+              >
+                <span className="material-icons">refresh</span>
+                <span>{t('record:retryUpload')}</span>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  color="neutral"
+                  variant="secondary"
+                  className="record-component__button"
+                  onClick={togglePauseResume}
+                  disabled={!isRecordingInProgress || isStoppingRecording}
+                  aria-label={t(
+                    isPausedRecording
+                      ? 'record:resumeRecording'
+                      : 'record:pauseRecording'
+                  )}
+                >
+                  <span className="material-icons">
+                    {isPausedRecording ? 'play_arrow' : 'pause'}
+                  </span>
+                  <span>
+                    {t(
+                      isPausedRecording
+                        ? 'record:resumeRecording'
+                        : 'record:pauseRecording'
+                    )}
+                  </span>
+                </Button>
+
+                <Button
+                  className={`record-component__button`}
+                  color="error"
+                  onClick={handleStopRequest}
+                  disabled={!isRecordingInProgress || isStoppingRecording}
+                  aria-label={t('record:stopRecording')}
+                >
+                  <span className="material-icons">stop_circle</span>
+                  <span>{t('record:stopRecording')}</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -471,7 +586,7 @@ export default function RecordComponent() {
           <ProgressBar value={uploadProgress} minValue={0} maxValue={100} />
         )}
 
-        {uploadError && (
+        {uploadError && !canRetryUpload && (
           <div className="record-component__error">
             {t('record:errors.uploadFailed')}
           </div>

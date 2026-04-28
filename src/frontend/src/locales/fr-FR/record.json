@@ -10,10 +10,16 @@
   "stopRecording": "Arrêter",
   "discardRecording": "Supprimer l'enregistrement",
   "uploadCta": "Transférer",
+  "retryUpload": "Réessayer le transfert sur nos serveurs",
   "recordingPrefix": "Enregistrement",
   "status": {
     "recordingInProgress": "Enregistrement en cours",
-    "recordingPaused": "Enregistrement en pause"
+    "recordingPaused": "Enregistrement en pause",
+    "uploadFailed": "Transfert interrompu"
+  },
+  "uploadRecovery": {
+    "title": "Votre enregistrement est toujours disponible",
+    "description": "Le transfert vers nos serveurs a échoué. Réessayez une fois maintenant. Si cela échoue encore, le fichier audio sera téléchargé automatiquement pour que vous puissiez le transférer plus tard."
   },
   "confirmStop": {
     "title": "Arrêter l'enregistrement ?",
@@ -25,8 +31,11 @@
     "stayOnPage": "Vous ne pouvez pas quitter ou recharger cette page pendant l'enregistrement.",
     "keepPhoneAwake": "Si vous enregistrez sur un téléphone, gardez l'écran allumé pour limiter les interruptions."
   },
+  "alerts": {
+    "uploadFailedDownloaded": "L'enregistrement n'a pas pu être transféré sur nos serveurs après un nouvel essai. Le fichier « {{fileName}} » a été téléchargé et enregistré sur votre ordinateur. Vous pouvez le transférer plus tard ou prévenir l'équipe support."
+  },
   "errors": {
     "recordingFailed": "L'enregistrement a échoué. Vérifiez les permissions du micro puis réessayez.",
-    "uploadFailed": "Le transfert a échoué"
+    "uploadFailed": "Le transfert sur nos serveurs a échoué. Veuillez réessayer une fois."
   }
 }

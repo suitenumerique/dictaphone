@@ -3,6 +3,13 @@ import { useLocation } from 'wouter'
 import posthog from 'posthog-js'
 import { ApiUser } from '@/features/auth/api/ApiUser'
 
+export const captureAnalyticsEvent = (
+  eventName: string,
+  properties?: Record<string, unknown>
+) => {
+  posthog.capture(eventName, properties)
+}
+
 export const startAnalyticsSession = (data: ApiUser) => {
   if (posthog._isIdentified()) return
   const { id, email } = data

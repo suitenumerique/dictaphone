@@ -10,10 +10,16 @@
   "stopRecording": "Stop",
   "discardRecording": "Discard recording",
   "uploadCta": "Upload",
+  "retryUpload": "Retry upload",
   "recordingPrefix": "Recording",
   "status": {
     "recordingInProgress": "Recording in progress",
-    "recordingPaused": "Recording paused"
+    "recordingPaused": "Recording paused",
+    "uploadFailed": "Upload interrupted"
+  },
+  "uploadRecovery": {
+    "title": "Your recording is still available",
+    "description": "The upload to our servers failed. Retry once now. If it fails again, the audio file will be downloaded automatically so you can upload it later."
   },
   "confirmStop": {
     "title": "Stop recording?",
@@ -25,8 +31,11 @@
     "stayOnPage": "You cannot quit or refresh this page while recording.",
     "keepPhoneAwake": "If you are recording on a phone, keep the screen on to reduce recording interruptions."
   },
+  "alerts": {
+    "uploadFailedDownloaded": "The recording could not be uploaded after a retry. The file \"{{fileName}}\" has been downloaded and saved on your computer. You can reupload it later or notify the support team."
+  },
   "errors": {
     "recordingFailed": "Recording failed. Check your microphone permissions and try again.",
-    "uploadFailed": "Upload failed"
+    "uploadFailed": "Upload failed. Please retry once."
   }
 }

@@ -12,6 +12,10 @@
     min-height: 250px;
   }
 
+  .record-component__content--recovery {
+    gap: 1.25rem;
+  }
+
   .record-component__status {
     margin: 0;
     display: inline-flex;
@@ -32,6 +36,10 @@
     color: var(--c--globals--colors--gray-600);
   }
 
+  .record-component__status--error {
+    color: var(--c--globals--colors--orange-500);
+  }
+
   .record-component__timer {
     margin: 0;
     font-size: 3.25rem;
@@ -47,6 +55,57 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
     width: min(100%, 320px);
+  }
+
+  .record-component__controls--single {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 380px);
+  }
+
+  .record-component__recovery {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+    width: min(100%, 460px);
+    padding: 1rem;
+    border: 1px solid var(--c--globals--colors--orange-300);
+    border-radius: 8px;
+    background: var(--c--globals--colors--orange-050);
+    color: var(--c--globals--colors--gray-900);
+    text-align: left;
+    box-shadow: 0 10px 24px rgb(0 0 0 / 6%);
+  }
+
+  .record-component__recovery-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--c--globals--colors--orange-100);
+    color: var(--c--globals--colors--orange-600);
+
+    .material-icons {
+      font-size: 1.25rem;
+      line-height: 1;
+      color: currentcolor;
+    }
+  }
+
+  .record-component__recovery-title {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    font-weight: 600;
+  }
+
+  .record-component__recovery-description {
+    margin: 0.25rem 0 0;
+    color: var(--c--globals--colors--gray-600);
+    font-size: 0.875rem;
+    line-height: 1.45;
   }
 
   .record-component__button {
@@ -85,5 +144,9 @@
   .record-component__button--slate {
     background-color: var(--c--globals--colors--gray-600);
     color: var(--c--globals--colors--white);
+  }
+
+  .record-component__retry-button {
+    min-height: 3rem;
   }
 }
