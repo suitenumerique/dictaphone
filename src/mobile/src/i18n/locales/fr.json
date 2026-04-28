@@ -63,7 +63,8 @@
       "errorTitle": "Une erreur est survenue",
       "deleteError": "Impossible de supprimer cet enregistrement pour le moment.",
       "renameError": "Impossible de renommer cet enregistrement pour le moment."
-    }
+    },
+    "openInDocs": "Ouvrir dans Docs"
   },
   "transcript": {
     "speaker": "Participant",

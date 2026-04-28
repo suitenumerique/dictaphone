@@ -273,7 +273,7 @@ export default function RecordingDetailsScreen() {
             >
               <DocsIcon />
               <AppText style={styles.openInDocsButtonText}>
-                Open in Docs
+                {t('recordings.openInDocs')}
               </AppText>
             </Pressable>
 
