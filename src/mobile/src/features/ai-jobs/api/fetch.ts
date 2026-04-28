@@ -6,10 +6,15 @@ import {
   ApiOpenInDocsResponse,
   WhisperXResponse,
 } from '@/features/ai-jobs/api/types.ts'
+import { MOCK_DATA } from '@/api/constants'
+import { mockedTranscript } from '@/features/ai-jobs/api/mockData'
 
 export const getTranscript = async (
   aiJob: ApiAiJob | null
 ): Promise<WhisperXResponse> => {
+  if (MOCK_DATA) {
+    return mockedTranscript
+  }
   if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }

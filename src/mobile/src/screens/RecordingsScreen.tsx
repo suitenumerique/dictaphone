@@ -43,6 +43,8 @@ import { colors } from '@/components/colors'
 import { useDeleteFile } from '@/features/files/api/deleteFile'
 import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { runOnJS } from 'react-native-worklets'
+import { MOCK_DATA } from '@/api/constants'
+import { mockedFiles } from '@/features/files/api/mockData'
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
@@ -311,25 +313,35 @@ export default function RecordingsScreen() {
         kind: 'local',
       })
     }
-    if (isOnline) {
-      for (const page of filesQ.data?.pages ?? []) {
-        for (const recording of page.results) {
-          if (recording.id !== fileIdBeingDeleted) {
-            out.push({
-              ...recording,
-              kind: 'remote',
-            })
+    if (MOCK_DATA) {
+      mockedFiles.forEach((file) => {
+        out.push({
+          ...file,
+          kind: 'remote',
+        })
+      })
+    } else {
+      if (isOnline) {
+        for (const page of filesQ.data?.pages ?? []) {
+          for (const recording of page.results) {
+            if (recording.id !== fileIdBeingDeleted) {
+              out.push({
+                ...recording,
+                kind: 'remote',
+              })
+            }
           }
         }
-      }
-    } else {
-      for (let i = 0; i < 5; i++) {
-        out.push({
-          id: `fake-${i}`,
-          kind: 'fake',
-        })
+      } else {
+        for (let i = 0; i < 5; i++) {
+          out.push({
+            id: `fake-${i}`,
+            kind: 'fake',
+          })
+        }
       }
     }
+
     return out
   }, [isOnline, recordings, filesQ.data?.pages, fileIdBeingDeleted])
 

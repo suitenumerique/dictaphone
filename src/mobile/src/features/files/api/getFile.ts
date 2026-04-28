@@ -4,10 +4,16 @@ import { keys } from '@/api/queryKeys'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { ApiError } from '@/api/ApiError.ts'
 import { shouldRefetchMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { MOCK_DATA } from '@/api/constants'
+import { mockedFiles } from '@/features/files/api/mockData'
 
 const REFRESH_AI_JOBS_INTERVAL_MS = 10_000
 
 export const getFile = async (fileId: string): Promise<ApiFileItem | null> => {
+  if (MOCK_DATA) {
+    return mockedFiles.find((file) => file.id === fileId) ?? null
+  }
+
   try {
     return await fetchApi<ApiFileItem>(`/files/${fileId}/`, {
       method: 'GET',
