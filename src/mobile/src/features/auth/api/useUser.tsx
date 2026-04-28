@@ -5,13 +5,15 @@ import { type ApiUser } from './ApiUser'
 import { useCallback, useEffect, useMemo } from 'react'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
 import { queryClient } from '@/api/queryClient'
-import { fetchApi } from '@/api/fetchApi'
 import { clearAuthState } from '@/services/authService'
 import { useUserStore } from '@/services/storage'
 import {
   startAnalyticsSession,
   terminateAnalyticsSession,
 } from '@/features/analytics/hooks/useAnalytics'
+import { colors } from '@/components/colors'
+import { InAppBrowser } from 'react-native-inappbrowser-reborn'
+import { API_URL, BASE_URL } from '@/api/constants'
 
 type TUserInfo = {
   refetch: () => void
@@ -52,48 +54,6 @@ export const useUser = () => {
     },
   })
 
-  const logoutQuery = useMutation({
-    mutationFn: async () => {
-      try {
-        const response = await fetchApi<string>('/logout/')
-
-        const html = String(response ?? '')
-
-        const actionMatch = html.match(/<form[^>]*action="([^"]+)"/i)
-        const xsrfMatch = html.match(/name="xsrf"\s+value="([^"]+)"/i)
-        const logoutMatch = html.match(/name="logout"\s+value="([^"]+)"/i)
-
-        const action = actionMatch?.[1]
-        const xsrf = xsrfMatch?.[1]
-        const logout = logoutMatch?.[1]
-
-        if (action && xsrf && logout) {
-          const body = new URLSearchParams({
-            xsrf,
-            logout,
-          })
-
-          await fetch(action, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: body.toString(),
-          })
-        }
-      } catch (error) {
-        console.warn(
-          'Logout endpoint failed, clearing local auth state.',
-          error
-        )
-      } finally {
-        await clearAuthState()
-        clearCachedUser()
-        queryClient.resetQueries()
-      }
-    },
-  })
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const updateUser = (newData: Pick<ApiUser, 'language'>) => {
     if (!query.data) return
@@ -117,9 +77,48 @@ export const useUser = () => {
 
   const logout = useCallback(async () => {
     terminateAnalyticsSession()
-    await logoutQuery.mutateAsync()
-    // eslint-disable-next-line @tanstack/query/no-unstable-deps
-  }, [logoutQuery])
+
+    try {
+      await InAppBrowser.openAuth(
+        API_URL + '/logout/?source=mobile',
+        BASE_URL,
+        {
+          // iOS Properties
+          dismissButtonStyle: 'cancel',
+          preferredBarTintColor: colors.secondary,
+          preferredControlTintColor: 'white',
+          readerMode: false,
+          animated: true,
+          modalPresentationStyle: 'fullScreen',
+          modalTransitionStyle: 'coverVertical',
+          modalEnabled: true,
+          enableBarCollapsing: false,
+          // Android Properties
+          showTitle: false,
+          toolbarColor: colors.secondary,
+          secondaryToolbarColor: 'black',
+          navigationBarColor: 'black',
+          navigationBarDividerColor: 'white',
+          enableUrlBarHiding: true,
+          enableDefaultShare: false,
+          forceCloseOnRedirection: true,
+          // Specify full animation resource identifier(package:anim/name)
+          // or only resource name(in case of animation bundled with app).
+          animations: {
+            startEnter: 'slide_in_right',
+            startExit: 'slide_out_left',
+            endEnter: 'slide_in_left',
+            endExit: 'slide_out_right',
+          },
+          headers: {},
+        }
+      )
+    } finally {
+      await clearAuthState()
+      clearCachedUser()
+      queryClient.resetQueries()
+    }
+  }, [clearCachedUser])
 
   const isLoggedIn = query.status === 'success' && query.data !== false
 
