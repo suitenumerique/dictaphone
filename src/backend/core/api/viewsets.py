@@ -395,7 +395,7 @@ class FileViewSet(
         if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
             config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
             allowed_file_mimetypes = config_for_file_type["allowed_mimetypes"]
-            if mimetype not in allowed_file_mimetypes:
+            if mimetype.replace(" ", "") not in allowed_file_mimetypes:
                 self._complete_file_deletion(file)
                 logger.warning(
                     "upload_ended: mimetype not allowed %s for file %s",

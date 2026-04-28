@@ -230,6 +230,53 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     assert response.json()["mimetype"] == "text/plain"
 
 
+@patch(
+    "core.api.viewsets.utils.detect_mimetype", return_value="audio/webm; codecs=opus"
+)
+@patch("core.tasks.file.requests.post")
+def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
+    mock_post, mock_detect_mimetype, settings
+):
+    """
+    MIME type parameters may contain spaces even when the allow list does not.
+    """
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    settings.FILE_UPLOAD_RESTRICTIONS = {
+        "audio_recording": {
+            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
+            "allowed_mimetypes": ["audio/webm;codecs=opus"],
+        }
+    }
+
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    file = factories.FileFactory(
+        type=FileTypeChoices.AUDIO_RECORDING,
+        filename="my_file.webm",
+        creator=user,
+    )
+
+    default_storage.save(
+        file.file_key,
+        BytesIO(b"fake webm content"),
+    )
+
+    response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
+
+    assert response.status_code == 200
+    assert mock_post.call_count == 1
+    assert mock_detect_mimetype.call_count == 1
+
+    file.refresh_from_db()
+    assert file.upload_state == FileUploadStateChoices.READY
+    assert file.mimetype == "audio/webm; codecs=opus"
+    assert file.size == 17
+
+    assert response.json()["mimetype"] == "audio/webm; codecs=opus"
+
+
 @patch("core.tasks.file.requests.post")
 def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     mock_post, settings, caplog
