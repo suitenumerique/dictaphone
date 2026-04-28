@@ -94,7 +94,9 @@
     "personalData": "Personal data",
     "personalDataUrl": "/personal-data",
     "accessibility": "Accessibility : not compliant",
-    "accessibilityUrl": "/accessibility"
+    "accessibilityUrl": "/accessibility",
+    "documentation": "Documentation",
+    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/"
   },
   "update": {
     "title": "Update available",

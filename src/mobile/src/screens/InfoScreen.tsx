@@ -37,6 +37,8 @@ type InfoTranslationKey =
   | 'personalDataUrl'
   | 'accessibility'
   | 'accessibilityUrl'
+  | 'documentation'
+  | 'documentationUrl'
 
 type LegalDocument = {
   labelKey: InfoTranslationKey
@@ -51,6 +53,7 @@ type LanguageOption = {
 }
 
 const LEGAL_DOCUMENTS: LegalDocument[] = [
+  { labelKey: 'documentation', urlKey: 'documentationUrl' },
   { labelKey: 'legalTerms', urlKey: 'legalTermsUrl' },
   { labelKey: 'termsOfService', urlKey: 'termsOfServiceUrl' },
   { labelKey: 'personalData', urlKey: 'personalDataUrl' },
@@ -105,7 +108,7 @@ export default function InfoScreen() {
   )
 
   const openLegalPath = useCallback(async (path: string) => {
-    const url = `${BASE_URL}${path}`
+    const url = path.startsWith('http') ? path : `${BASE_URL}${path}`
     const isAvailable = await InAppBrowser.isAvailable()
     if (isAvailable) {
       await InAppBrowser.open(url, {
@@ -406,6 +409,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 10,
     paddingHorizontal: 10,
+    marginVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
