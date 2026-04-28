@@ -154,19 +154,19 @@ export default function InfoScreen() {
       `Version: ${DeviceInfo.getVersion()}`,
       `Build number: ${DeviceInfo.getBuildNumber()}`,
       `Bundle identifier: ${DeviceInfo.getBundleId()}`,
-      `Device name: ${DeviceInfo.getDeviceName()}`,
+      `Device name: ${await DeviceInfo.getDeviceName()}`,
       `Device model: ${DeviceInfo.getModel()}`,
       `System name: ${DeviceInfo.getSystemName()}`,
       `System version: ${DeviceInfo.getSystemVersion()}`,
       `Bundle ID: ${DeviceInfo.getBundleId()}`,
     ].join('\n')
 
-    const query = new URLSearchParams({
-      subject: SUPPORT_SUBJECT,
-      body: `${t('info.supportEmailStart')}\n\n${info}`,
-    }).toString()
+    const subject = encodeURIComponent(SUPPORT_SUBJECT)
+    const body = encodeURIComponent(`${t('info.supportEmailStart')}\n\n${info}`)
 
-    await Linking.openURL(`mailto:${SUPPORT_EMAIL}?${query}`)
+    await Linking.openURL(
+      `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`
+    )
   }, [i18n.language, t, user?.id])
 
   return (
