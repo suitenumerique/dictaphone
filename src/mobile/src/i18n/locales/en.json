@@ -26,7 +26,14 @@
     "permissionDenied": "Permission denied",
     "recordingDisabled": "Please enable microphone permission to record audio.",
     "openSettings": "Open Settings",
-    "recordingPrefix": "Recording"
+    "recordingPrefix": "Recording",
+    "recordingNotificationTitle": "Recording",
+    "recordingNotificationRecording": "Recording...",
+    "recordingNotificationPaused": "Recording paused",
+    "discardRecordingTitle": "A recording is in progress.",
+    "discardRecordingMessage": "Do you want to discard it?",
+    "discardRecordingCancel": "Don't leave",
+    "discardRecordingConfirm": "Discard"
   },
   "recordings": {
     "emptyTitle": "No recordings yet",

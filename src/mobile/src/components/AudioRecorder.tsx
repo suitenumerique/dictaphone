@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ActivityIndicator,
   Alert,
   Button,
   Linking,
@@ -39,11 +40,20 @@ AudioManager.setAudioSessionOptions({
 
 const audioRecorder = new AudioRecorderApi()
 
+const waitForNextFrame = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      resolve()
+    })
+  })
+
 export const AudioRecorder = () => {
   const { t } = useTranslation()
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isStopping, setIsStopping] = useState(false)
+  const [shouldResetNavigation, setShouldResetNavigation] = useState(false)
   const [recordingTimeMs, setRecordingTimeMs] = useState(0)
   const [permissionStatus, setPermissionStatus] =
     useState<PermissionStatus>('Undetermined')
@@ -61,29 +71,32 @@ export const AudioRecorder = () => {
     typeof setTimeout
   > | null>(null)
 
-  const updateNotification = async (paused: boolean) => {
-    await RecordingNotificationManager.show({ paused })
-  }
+  const showRecordingNotification = useCallback(
+    async (paused: boolean) => {
+      await RecordingNotificationManager.show({
+        title: t('home.recordingNotificationTitle'),
+        contentText: t(
+          paused
+            ? 'home.recordingNotificationPaused'
+            : 'home.recordingNotificationRecording'
+        ),
+        paused,
+        smallIconResourceName: 'logo',
+        pauseIconResourceName: 'pause',
+        resumeIconResourceName: 'resume',
+        color: 0xff6200,
+      })
+    },
+    [t]
+  )
 
-  const setupNotification = async (paused: boolean) => {
-    await RecordingNotificationManager.show({
-      title: 'Recording Demo',
-      contentText: paused ? 'Paused recording' : 'Recording...',
-      paused,
-      smallIconResourceName: 'logo',
-      pauseIconResourceName: 'pause',
-      resumeIconResourceName: 'resume',
-      color: 0xff6200,
-    })
-  }
-
-  const clearRecording = () => {
+  const clearRecording = useCallback(() => {
     audioRecorder.stop()
     audioRecorder.disableFileOutput()
     AudioManager.setAudioSessionActivity(false)
     RecordingNotificationManager.hide()
     // Todo delete file as option for when going back alert
-  }
+  }, [])
 
   useEffect(() => {
     AudioManager.requestRecordingPermissions().then((res) => {
@@ -99,40 +112,43 @@ export const AudioRecorder = () => {
     return () => {
       clearRecording()
     }
-  }, [])
-
-  useEffect(() => {
-    if (permissionStatus === 'Denied') {
-      Alert.alert(
-        'Permission Denied',
-        'Recording permission is required to use this feature.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Handle the "OK" button press
-            },
-          },
-        ]
-      )
-    }
-  }, [permissionStatus])
+  }, [clearRecording])
 
   usePreventRemove(isRecording, ({ data }) => {
-    Alert.alert('A recording is in progress.', 'Do you want to discard it?', [
-      { text: "Don't leave", style: 'cancel', onPress: () => {} },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => {
-          clearRecording()
-          navigation.dispatch(data.action)
-          // And we reset the navigation history to the main screen too
-          resetNavigationHistory('Main')
+    Alert.alert(
+      t('home.discardRecordingTitle'),
+      t('home.discardRecordingMessage'),
+      [
+        {
+          text: t('home.discardRecordingCancel'),
+          style: 'cancel',
+          onPress: () => {},
         },
-      },
-    ])
+        {
+          text: t('home.discardRecordingConfirm'),
+          style: 'destructive',
+          onPress: () => {
+            clearRecording()
+            setIsRecording(false)
+            setIsPaused(false)
+            setRecordingTimeMs(0)
+            navigation.dispatch(data.action)
+            // And we reset the navigation history to the main screen too
+            resetNavigationHistory('Main')
+          },
+        },
+      ]
+    )
   })
+
+  useEffect(() => {
+    if (!shouldResetNavigation || isRecording) {
+      return
+    }
+
+    setShouldResetNavigation(false)
+    resetNavigationHistory('Main')
+  }, [isRecording, resetNavigationHistory, shouldResetNavigation])
 
   useEffect(() => {
     if (!isRecording || isPaused) {
@@ -182,7 +198,7 @@ export const AudioRecorder = () => {
         return
       }
 
-      setupNotification(false)
+      await showRecordingNotification(false)
       setRecordingTimeMs(0)
       setIsRecording(true)
       setIsPaused(false)
@@ -192,7 +208,7 @@ export const AudioRecorder = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [showRecordingNotification])
 
   useEffect(() => {
     if (permissionStatus === 'Granted') {
@@ -205,39 +221,40 @@ export const AudioRecorder = () => {
     try {
       audioRecorder.pause()
       setIsPaused(true)
-      updateNotification(true)
+      await showRecordingNotification(true)
     } catch (error) {
       console.error('Failed to pause recording:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [showRecordingNotification])
 
   const onResumeRecord = useCallback(async () => {
     setIsLoading(true)
     try {
       audioRecorder.resume()
-      updateNotification(false)
+      await showRecordingNotification(false)
       setIsPaused(false)
     } catch (error) {
       console.error('Failed to resume recording:', error)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [showRecordingNotification])
 
   const onStopRecord = useCallback(async () => {
     setIsLoading(true)
+    setIsStopping(true)
     try {
+      await waitForNextFrame()
       const result = audioRecorder.stop()
       await RecordingNotificationManager.hide()
       if (result.status === 'error') {
         console.warn(result.message)
+        setIsStopping(false)
         return
       }
 
-      setIsRecording(false)
-      setIsPaused(false)
       await AudioManager.setAudioSessionActivity(false)
 
       const title = `${t('home.recordingPrefix')} ${t(
@@ -253,15 +270,17 @@ export const AudioRecorder = () => {
         uploadingStatus: 'to_upload',
       })
 
-      resetNavigationHistory('Main')
-
       setRecordingTimeMs(0)
+      setIsRecording(false)
+      setIsPaused(false)
+      setShouldResetNavigation(true)
     } catch (error) {
       console.error('Failed to stop recording:', error)
+      setIsStopping(false)
     } finally {
       setIsLoading(false)
     }
-  }, [addRecording, resetNavigationHistory, t])
+  }, [addRecording, t])
 
   useEffect(() => {
     const pauseListener = RecordingNotificationManager.addEventListener(
@@ -389,9 +408,13 @@ export const AudioRecorder = () => {
       </View>
 
       <View style={styles.timerSection}>
-        <AppText style={[styles.timer, isPaused && styles.timerPaused]}>
-          {recordTimeLabel}
-        </AppText>
+        {isStopping ? (
+          <ActivityIndicator size="large" color={colors.errorSecondary} />
+        ) : (
+          <AppText style={[styles.timer, isPaused && styles.timerPaused]}>
+            {recordTimeLabel}
+          </AppText>
+        )}
       </View>
 
       <View style={styles.controlsRow}>

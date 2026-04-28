@@ -26,7 +26,14 @@
     "permissionDenied": "Permission refusée",
     "recordingDisabled": "Veuillez autoriser l'utilisation du microphone pour enregistrer.",
     "openSettings": "Ouvrir les paramètres",
-    "recordingPrefix": "Enregistrement"
+    "recordingPrefix": "Enregistrement",
+    "recordingNotificationTitle": "Enregistrement",
+    "recordingNotificationRecording": "Enregistrement en cours...",
+    "recordingNotificationPaused": "Enregistrement en pause",
+    "discardRecordingTitle": "Un enregistrement est en cours.",
+    "discardRecordingMessage": "Voulez-vous l'abandonner ?",
+    "discardRecordingCancel": "Ne pas quitter",
+    "discardRecordingConfirm": "Abandonner"
   },
   "recordings": {
     "emptyTitle": "Aucun enregistrement",
