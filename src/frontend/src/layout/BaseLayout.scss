@@ -84,7 +84,6 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     background-color: var(--c--globals--colors--brand-050);
     padding-top: var(--c--globals--spacings--xl);
     padding-bottom: var(--c--globals--spacings--xl);
-    margin: 0 auto var(--c--globals--spacings--xl);
   }
   &__inner-container {
     flex-grow: 1;
