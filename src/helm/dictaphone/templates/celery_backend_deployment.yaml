@@ -6,9 +6,9 @@ kind: Deployment
 metadata:
   name: {{ $fullName }}
   annotations:
-   {{- with .Values.celeryBackend.dpAnnotations }}
-   {{- toYaml . | nindent 4 }}
-   {{- end }}
+     {{- with .Values.celeryBackend.dpAnnotations }}
+     {{- toYaml . | nindent 4 }}
+     {{- end }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "dictaphone.common.labels" (list . $component) | nindent 4 }}
