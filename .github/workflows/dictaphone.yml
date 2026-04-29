@@ -225,3 +225,33 @@ jobs:
 
       - name: Check format
         run: cd src/frontend/ && npm run check
+
+  lint-mobile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: src/mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: src/mobile/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check linting
+        run: yarn run lint
+
+      - name: Check format
+        run: yarn run check
+
+      - name: Check types
+        run: yarn run tsc
