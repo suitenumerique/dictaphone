@@ -71,27 +71,6 @@ def get_app_configuration(request):
 
 
 @api_view(["GET"])
-def get_mobile_redirect(request):
-    """Redirect to the mobile app with deeplink for auth.
-
-    It sets a session key and CSRF token for authentication.
-
-    Note: this is a bit nasty hack for authentification but working for now.
-    """
-    session_key = request.session.session_key
-    if session_key is None:
-        raise NotAuthenticated()
-
-    context = {
-        "deep_link": settings.MOBILE_DEEP_LINK_SCHEME,
-        "session_key": session_key,
-        "csrf_token": get_token(request),
-    }
-
-    return render(request, "mobile_redirect.html", context)
-
-
-@api_view(["GET"])
 def get_mobile_app_download_page(request):
     """Redirect to the mobile app download page based on user agent."""
     user_agent = request.META.get("HTTP_USER_AGENT", "").lower()

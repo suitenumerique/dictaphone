@@ -10,7 +10,6 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from core.api import (
     get_app_configuration,
     get_mobile_app_download_page,
-    get_mobile_redirect,
     viewsets,
 )
 from core.authentication.views import PKCEOAuthTokenExchangeView
@@ -39,7 +38,6 @@ urlpatterns = [
                     name="token_refresh",
                 ),
                 path("config/", get_app_configuration, name="config"),
-                path("mobile-redirect/", get_mobile_redirect, name="mobile-redirect"),
                 path(
                     "download-mobile-app/",
                     get_mobile_app_download_page,
