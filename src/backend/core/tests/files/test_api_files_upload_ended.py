@@ -128,7 +128,9 @@ def test_api_file_upload_ended_success(mock_requests, settings):
     cloud_storage_parsed = urlparse(cloud_storage_url)
 
     assert cloud_storage_parsed.scheme == "http"
-    assert cloud_storage_parsed.netloc == "minio:9000"
+    assert cloud_storage_parsed.netloc == settings.AWS_S3_ENDPOINT_URL.removeprefix(
+        "http://"
+    )
     assert (
         cloud_storage_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.txt"
     )
