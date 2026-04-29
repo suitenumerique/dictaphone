@@ -96,7 +96,6 @@ jobs:
 
   test-back:
     runs-on: ubuntu-latest
-    needs: build-mails
     permissions:
       contents: read
     defaults:
