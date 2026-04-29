@@ -103,7 +103,9 @@
     "accessibility": "Accessibility : not compliant",
     "accessibilityUrl": "/accessibility",
     "documentation": "Documentation",
-    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/"
+    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "deleteAccount": "Delete my account",
+    "deleteAccountUrl": "https://proconnect.crisp.help/fr/article/comment-supprimer-mon-compte-nlsvh2/"
   },
   "update": {
     "title": "Update available",

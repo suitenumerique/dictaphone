@@ -94,6 +94,10 @@ export default function InfoScreen() {
     resetNavigationHistory('Main')
   }, [logout, resetNavigationHistory])
 
+  const handleDeleteAccountPress = useCallback(async () => {
+    await Linking.openURL(t('info.deleteAccountUrl'))
+  }, [t])
+
   const handleChangeLanguage = useCallback(
     async (option: LanguageOption) => {
       setIsLanguagePopoverVisible(false)
@@ -225,6 +229,19 @@ export default function InfoScreen() {
               <Lucide name="log-out" size={18} color={colors.errorSecondary} />
               <AppText variant="bodyMedium" color={colors.errorSecondary}>
                 {t('login.logout')}
+              </AppText>
+            </Pressable>
+            <View style={styles.separator} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.rowButton,
+                pressed && styles.rowButtonPressed,
+              ]}
+              onPress={() => void handleDeleteAccountPress()}
+            >
+              <Lucide name="trash-2" size={18} color={colors.errorSecondary} />
+              <AppText variant="bodyMedium" color={colors.errorSecondary}>
+                {t('info.deleteAccount')}
               </AppText>
             </Pressable>
           </View>
