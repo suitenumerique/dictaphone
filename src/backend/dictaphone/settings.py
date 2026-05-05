@@ -189,8 +189,8 @@ class Base(Configuration):
     FILE_UPLOAD_RESTRICTIONS = values.DictValue(
         {
             "audio_recording": {
-                "max_size": 100 * MB,
-                "max_count_by_user": 100,
+                "max_size": 1 * GB,
+                "max_count_by_user": 200,
                 "allowed_extensions": [
                     ".mp4",
                     ".m4a",
