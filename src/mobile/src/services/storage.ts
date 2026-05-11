@@ -169,8 +169,8 @@ export const useRecordingsStore = create<RecordingsStore>()(
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
           state.recordings = parsed.success
-            // we force all files back to "to_upload" status
-            ? parsed.data.map((el) => ({ ...el, uploadingStatus: 'to_upload' }))
+            ? // we force all files back to "to_upload" status
+              parsed.data.map((el) => ({ ...el, uploadingStatus: 'to_upload' }))
             : []
           state.hasHydrated = true
         }
