@@ -109,6 +109,11 @@ const triggerUpload = async (): Promise<void> => {
         type: 'audio/mp4',
         uri: recordingToUpload.filePath,
       },
+      onProgress: (progress) => {
+        updateRecording(recordingToUpload.id, {
+          uploadProgress: progress,
+        })
+      },
     })
     deleteRecording(recordingToUpload.id)
     await queryClient.invalidateQueries({ queryKey: [keys.files] })
@@ -170,7 +175,11 @@ export const useRecordingsStore = create<RecordingsStore>()(
           const parsed = recordingListSchema.safeParse(state.recordings)
           state.recordings = parsed.success
             ? // we force all files back to "to_upload" status
-              parsed.data.map((el) => ({ ...el, uploadingStatus: 'to_upload' }))
+              parsed.data.map((el) => ({
+                ...el,
+                uploadingStatus: 'to_upload',
+                uploadPercentage: undefined,
+              }))
             : []
           state.hasHydrated = true
         }

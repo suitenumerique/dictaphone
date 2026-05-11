@@ -13,6 +13,14 @@ export const recordingSchema = z.object({
   id: z.string(),
   title: z.string(),
   uploadingStatus: uploadingStatusSchema,
+  uploadProgress: z
+    .object({
+      uploadedBytes: z.number().nonnegative(),
+      totalBytes: z.number().nonnegative(),
+      progress: z.number().min(0).max(1),
+      percentage: z.number().min(0).max(100),
+    })
+    .optional(),
 })
 
 export type LocalRecording = z.infer<typeof recordingSchema>

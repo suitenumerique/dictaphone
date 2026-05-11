@@ -125,7 +125,8 @@
       "duration": "{{duration, formatDuration}}",
       "durationMinsSeconds": "{{mins}} min {{secs}}",
       "durationMins": "{{mins}} min",
-      "durationSeconds": "{{secs}} sec"
+      "durationSeconds": "{{secs}} sec",
+      "fileSizeMb": "{{size, number(maximumFractionDigits: 2)}} Mo"
     },
     "dates": {
       "today": "Aujourd'hui",
