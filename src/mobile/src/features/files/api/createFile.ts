@@ -2,7 +2,7 @@ import { fetchApi } from '@/api/fetchApi'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { keys } from '@/api/queryKeys.ts'
-import { uploadFileToS3 } from '@/utils/fileUpload'
+import { type UploadProgressCallback, uploadFileToS3 } from '@/utils/fileUpload'
 
 type FileSource = {
   name: string
@@ -11,13 +11,17 @@ type FileSource = {
 }
 
 /**
- * Upload a file, using XHR so we can report on progress through a handler.
+ * Upload a file while reporting native upload progress through a handler.
  *
  * @param url The URL to PUT the file to.
  * @param file The file to upload.
  */
-export const uploadFile = async (url: string, file: FileSource) => {
-  await uploadFileToS3(file.uri, url, file.type)
+export const uploadFile = async (
+  url: string,
+  file: FileSource,
+  onProgress?: UploadProgressCallback
+) => {
+  await uploadFileToS3(file.uri, url, file.type, onProgress)
 }
 
 /**
@@ -32,10 +36,12 @@ export const createFile = async ({
   file,
   durationSeconds,
   createdAt,
+  onProgress,
 }: {
   file: FileSource
   durationSeconds: number
   createdAt: string
+  onProgress?: UploadProgressCallback
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -50,7 +56,7 @@ export const createFile = async ({
     throw new Error('State should be pending right after creation')
   }
   const policy = res.policy
-  await uploadFile(policy, file)
+  await uploadFile(policy, file, onProgress)
   return await fetchApi<ApiFileItem>(`/files/${res.id}/upload-ended/`, {
     method: 'POST',
   })
