@@ -230,25 +230,28 @@ export default function RecordingDetailsScreen() {
               {t('transcript.notAvailable')}
             </AppText>
           ) : (
-            transcriptSegments.map((segment, index) => (
-              <AppText
-                variant="body"
-                key={`${segment.start ?? index}-${index}`}
-                style={styles.paragraph}
-              >
-                <AppText variant="bodyBold">
-                  {formatTimestamp(segment.start ?? -1)}
-                  {' · '}
+            <AppText selectable>
+              {transcriptSegments.map((segment, index) => (
+                <AppText
+                  variant="body"
+                  key={`${segment.start ?? index}-${index}`}
+                  style={styles.paragraph}
+                >
+                  <AppText variant="bodyBold">
+                    {formatTimestamp(segment.start ?? -1)}
+                    {' · '}
+                  </AppText>
+                  <AppText variant="bodyBold">
+                    {t('transcript.speaker')} {segment.speaker}
+                  </AppText>
+                  <AppText variant="body">
+                    {'  '}
+                    {segment.text.trimEnd()}
+                  </AppText>
+                  {'\n\n'}
                 </AppText>
-                <AppText variant="bodyBold">
-                  {t('transcript.speaker')} {segment.speaker}
-                </AppText>
-                <AppText variant="body">
-                  {'  '}
-                  {segment.text}
-                </AppText>
-              </AppText>
-            ))
+              ))}
+            </AppText>
           )}
         </View>
       </ScrollView>
