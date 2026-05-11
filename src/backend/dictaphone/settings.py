@@ -202,7 +202,9 @@ class Base(Configuration):
                 ],
                 "allowed_mimetypes": [
                     "audio/webm",
+                    "video/webm",
                     "audio/mp4",
+                    "video/mp4",
                     "audio/x-m4a",
                     "audio/webm;codecs=opus",
                     "audio/mp4",
@@ -859,7 +861,7 @@ class Production(Base):
     SECURE_HSTS_SECONDS = 60
     SECURE_HSTS_PRELOAD = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False
     SECURE_REDIRECT_EXEMPT = [
         "^__lbheartbeat__",
         "^__heartbeat__",
