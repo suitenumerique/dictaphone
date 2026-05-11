@@ -16,6 +16,39 @@ export type TranscriptViewSegment = {
   words: TranscriptWord[]
 }
 
+const MAX_SEGMENT_DURATION = 60
+function groupTranscriptSegments(
+  segments: TranscriptViewSegment[]
+): TranscriptViewSegment[] {
+  if (segments.length === 0) return []
+
+  const result: TranscriptViewSegment[] = []
+  let current = { ...segments[0], words: [...segments[0].words] }
+
+  for (let i = 1; i < segments.length; i++) {
+    const seg = segments[i]
+    const sameSpeaker = seg.speaker === current.speaker
+    const currentStart = current.start ?? 0
+    const segEnd = seg.end ?? seg.start ?? 0
+    const withinDuration = segEnd - currentStart <= MAX_SEGMENT_DURATION
+
+    if (sameSpeaker && withinDuration) {
+      current = {
+        ...current,
+        text: current.text.trim() + ' ' + seg.text.trim(),
+        end: seg.end,
+        words: [...current.words, ...seg.words],
+      }
+    } else {
+      result.push(current)
+      current = { ...seg, words: [...seg.words] }
+    }
+  }
+
+  result.push(current)
+  return result
+}
+
 /**
  * Transforms a WhisperXResponse object into an array of TranscriptViewSegment objects.
  *
@@ -40,7 +73,7 @@ export function buildTranscriptViewSegments(
   }
 
   if (transcript.segments.length > 0) {
-    return transcript.segments.map((segment, index) => {
+    const segments = transcript.segments.map((segment, index) => {
       const words =
         segment.words?.map((word) => ({
           text: word.word,
@@ -58,10 +91,12 @@ export function buildTranscriptViewSegments(
         words,
       }
     })
+
+    return groupTranscriptSegments(segments)
   }
 
   if (transcript.word_segments.length > 0) {
-    return transcript.word_segments.map((word, index) => ({
+    const segments = transcript.word_segments.map((word, index) => ({
       id: `word-${index}`,
       text: word.word,
       start: word.start,
@@ -76,6 +111,7 @@ export function buildTranscriptViewSegments(
         },
       ],
     }))
+    return groupTranscriptSegments(segments)
   }
 
   return []
