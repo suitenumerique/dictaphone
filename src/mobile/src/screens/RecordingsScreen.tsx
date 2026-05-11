@@ -45,6 +45,7 @@ import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { runOnJS } from 'react-native-worklets'
 import { MOCK_DATA } from '@/api/constants'
 import { mockedFiles } from '@/features/files/api/mockData'
+import UploadProgress from '@/components/UploadProgress'
 
 type LocalOrRemoteRecording =
   | (ApiFileItem & { kind: 'remote' })
@@ -444,6 +445,13 @@ export default function RecordingsScreen() {
                 <AppText variant="muted" size="md" numberOfLines={1}>
                   {formatRecordMeta(item, t, isOnline, isLoggedIn)}
                 </AppText>
+                {item.kind === 'local' &&
+                  item.uploadingStatus === 'uploading' && (
+                    <UploadProgress
+                      uploadedBytes={item.uploadProgress?.uploadedBytes ?? 0}
+                      totalBytes={item.uploadProgress?.totalBytes ?? 0}
+                    />
+                  )}
               </>
             ) : (
               <>
