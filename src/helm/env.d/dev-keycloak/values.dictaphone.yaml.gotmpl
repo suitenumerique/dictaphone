@@ -59,7 +59,7 @@ backend:
     CELERY_BROKER_URL: redis://default:pass@redis-master:6379/1
     CELERY_RESULT_BACKEND: redis://default:pass@redis-master:6379/1
     # For meet communication this is needed in dev
-    DJANGO_SECURE_SSL_REDIRECT: "False"
+    SECURE_SSL_REDIRECT: "False"
     DOCS_INTEGRATION_ENABLED: "True"
     DOCS_BASE_URL: "True"
     DOCS_BASE_URL: https://impress-staging.beta.numerique.gouv.fr/

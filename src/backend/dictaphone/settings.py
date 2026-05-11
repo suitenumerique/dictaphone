@@ -861,7 +861,9 @@ class Production(Base):
     SECURE_HSTS_SECONDS = 60
     SECURE_HSTS_PRELOAD = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = values.BooleanValue(
+        False, environ_name="SECURE_SSL_REDIRECT", environ_prefix=None
+    )
     SECURE_REDIRECT_EXEMPT = [
         "^__lbheartbeat__",
         "^__heartbeat__",
