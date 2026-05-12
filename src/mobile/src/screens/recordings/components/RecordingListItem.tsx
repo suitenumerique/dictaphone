@@ -6,6 +6,7 @@ import Animated, {
   type SharedValue,
   useAnimatedStyle,
   useDerivedValue,
+  useSharedValue,
 } from 'react-native-reanimated'
 import type { TFunction } from 'i18next'
 import { Lucide } from '@react-native-vector-icons/lucide'
@@ -122,27 +123,29 @@ function DeleteRightAction({
   onPress: () => void
 }) {
   const { t } = useTranslation()
-  const didFireHapticRef = useRef(false)
+  const didFireHaptic = useSharedValue(false)
 
   const handleValueChanged = useCallback((value: number) => {
-    if (value > PROGRESS_THRESHOLD && !didFireHapticRef.current) {
-      didFireHapticRef.current = true
+    if (value > PROGRESS_THRESHOLD) {
       triggerHaptic('impactMedium', {
         enableVibrateFallback: true,
         ignoreAndroidSystemSettings: true,
       })
     }
-    if (value < PROGRESS_THRESHOLD && didFireHapticRef.current) {
+    if (value < PROGRESS_THRESHOLD) {
       triggerHaptic('impactLight', {
         enableVibrateFallback: true,
         ignoreAndroidSystemSettings: true,
       })
-      didFireHapticRef.current = false
     }
   }, [])
 
   useDerivedValue(() => {
-    runOnJS(handleValueChanged)(progress.value)
+    const isAboveThreshold = progress.value > PROGRESS_THRESHOLD
+    if (isAboveThreshold !== didFireHaptic.value) {
+      didFireHaptic.value = isAboveThreshold
+      runOnJS(handleValueChanged)(progress.value)
+    }
   })
 
   const animatedButtonStyle = useAnimatedStyle(() => ({
