@@ -22,11 +22,11 @@ import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory
 import { AppText } from '@/components/AppText'
 import { BASE_URL } from '@/api/constants'
 import { colors } from '@/components/colors'
-import { useUserStore } from '@/services/storage'
 // @ts-expect-error Icon
 import LogoWithName from '../assets/logo-with-name.svg'
 import { AppLanguage } from '@/types/settings'
 import { ApiUser } from '@/features/auth/api/ApiUser'
+import { useUserStore } from '@/services/userStore'
 
 type InfoTranslationKey =
   | 'legalTerms'

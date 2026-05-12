@@ -2,13 +2,13 @@
 import React, { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useUserStore } from '@/services/storage'
 // @ts-expect-error  Logo SVG
 import LogoWithName from '../assets/logo-single-line.svg'
 import { LoginButton } from '@/components/LoginButton'
 import { useInsets } from '@/utils/useInsets'
 import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
+import { useUserStore } from '@/services/userStore'
 
 type LoginScreenProps = {
   navigation: {

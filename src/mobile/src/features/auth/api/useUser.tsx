@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
 import { queryClient } from '@/api/queryClient'
 import { clearAuthState } from '@/services/authService'
-import { useUserStore } from '@/services/storage'
 import {
   startAnalyticsSession,
   terminateAnalyticsSession,
@@ -14,6 +13,7 @@ import {
 import { colors } from '@/components/colors'
 import { InAppBrowser } from 'react-native-inappbrowser-reborn'
 import { API_URL, BASE_URL } from '@/api/constants'
+import { useUserStore } from '@/services/userStore'
 
 type TUserInfo = {
   refetch: () => void

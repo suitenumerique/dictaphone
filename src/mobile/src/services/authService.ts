@@ -5,6 +5,7 @@ import * as Keychain from 'react-native-keychain'
 import { API_URL } from '../api/constants'
 import { colors } from '@/components/colors'
 import QuickCrypto from 'react-native-quick-crypto'
+import { queryClient } from '@/api/queryClient'
 
 const REDIRECT_URL = 'fr-gouv-assistant-transcripts://auth/callback'
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -100,6 +101,7 @@ export async function getRefreshToken(): Promise<string | null> {
   return getSecret(REFRESH_TOKEN_KEY)
 }
 
+let lastQueryResetMs: null | number = null
 export async function clearAuthState(): Promise<void> {
   await Promise.all([
     clearSecret(ACCESS_TOKEN_KEY),
@@ -107,6 +109,13 @@ export async function clearAuthState(): Promise<void> {
     clearSecret(PKCE_VERIFIER_KEY),
     clearSecret(PKCE_STATE_KEY),
   ])
+
+  // We reset all queries on clearAuthState to ensure fresh data
+  // But we do it at most once every 30 seconds to avoid excessive network traffic
+  if (lastQueryResetMs === null || Date.now() - lastQueryResetMs > 30 * 1000) {
+    queryClient.resetQueries()
+    lastQueryResetMs = Date.now()
+  }
 }
 
 export async function exchangeCodeForTokens(

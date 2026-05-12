@@ -1,50 +1,20 @@
-import { createMMKV } from 'react-native-mmkv'
-import {
-  createJSONStorage,
-  persist,
-  type StateStorage,
-} from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { create } from 'zustand'
 import { type LocalRecording, recordingSchema } from '../types/localRecording'
 import { type AppSettings, appSettingsSchema } from '../types/settings'
-import type { ApiUser } from '@/features/auth/api/ApiUser'
 import { z } from 'zod/v4'
 import NetInfo from '@react-native-community/netinfo'
 import { createFile } from '@/features/files/api/createFile'
 import { queryClient } from '@/api/queryClient'
 import { keys } from '@/api/queryKeys'
-import i18n from '@/i18n'
-
-const storage = createMMKV({
-  id: 'transcript-storage',
-})
+import { mmkvStorage } from '@/services/index'
 
 const defaultSettings: AppSettings = {
   language: 'en',
   wifiOnlyUpload: true,
 }
 
-const apiUserSchema = z.object({
-  id: z.string(),
-  email: z.string(),
-  full_name: z.string(),
-  language: z.enum(['fr-fr', 'en-us']),
-  timezone: z.string(),
-})
-
 const recordingListSchema = z.array(recordingSchema)
-
-const mmkvStorage: StateStorage = {
-  setItem: (name, value) => {
-    storage.set(name, value)
-  },
-  getItem: (name) => {
-    return storage.getString(name) ?? null
-  },
-  removeItem: (name) => {
-    storage.remove(name)
-  },
-}
 
 export interface RecordingsStore {
   hasHydrated: boolean
@@ -62,15 +32,6 @@ export interface SettingsStore {
   settings: AppSettings
   setSettings: (settings: AppSettings) => void
   resetSettings: () => void
-}
-
-export interface UserStore {
-  hasHydrated: boolean
-  user: ApiUser | null
-  authExpired: boolean
-  setAuthExpired: (expired: boolean) => void
-  setCachedUser: (user: ApiUser) => void
-  clearCachedUser: () => void
 }
 
 export interface UploadStore {
@@ -240,42 +201,9 @@ export const useSettingsStore = create<SettingsStore>()(
   )
 )
 
-export const useUserStore = create<UserStore>()(
-  persist(
-    (set) => ({
-      hasHydrated: false,
-      user: null,
-      authExpired: false,
-      setAuthExpired: (expired) => set({ authExpired: expired }),
-      setCachedUser: (user) => set({ user }),
-      clearCachedUser: () => set({ user: null }),
-    }),
-    {
-      name: 'user-info',
-      storage: createJSONStorage(() => mmkvStorage),
-      version: 1,
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          const parsed = apiUserSchema.safeParse(state.user)
-          state.user = parsed.success ? parsed.data : null
-          state.hasHydrated = true
-        }
-      },
-    }
-  )
-)
-
 export const useUploadStore = create<UploadStore>()((set) => ({
   bypassWifiOnly: false,
   setBypassWifiOnly: (value) => set({ bypassWifiOnly: value }),
 }))
-
-useUserStore.subscribe((state, prevState) => {
-  const prevLang = (prevState.user?.language ?? 'fr').split('-')[0]
-  const newLang = (state.user?.language ?? 'fr').split('-')[0]
-  if (prevLang !== newLang || newLang !== i18n.language) {
-    i18n.changeLanguage(newLang)
-  }
-})
 
 startRecordingsUploadManager()

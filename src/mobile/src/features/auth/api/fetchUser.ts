@@ -1,7 +1,8 @@
 import { ApiError } from '../../../api/ApiError'
 import { fetchApi } from '../../../api/fetchApi'
 import { type ApiUser } from './ApiUser'
-import { useUserStore } from '@/services/storage'
+
+import { useUserStore } from '@/services/userStore'
 
 /**
  * fetch the logged-in user from the api.
