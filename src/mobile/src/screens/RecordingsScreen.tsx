@@ -3,269 +3,37 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Pressable,
   StyleSheet,
   View,
 } from 'react-native'
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable'
-import Animated, {
-  interpolate,
-  SharedValue,
-  useAnimatedStyle,
-  useDerivedValue,
-} from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import type { LocalRecording } from '@/types/localRecording'
-import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
-import { Lucide } from '@react-native-vector-icons/lucide'
 import { useNetInfo } from '@react-native-community/netinfo'
-import { setBypassWifiOnly, useSettingsStore } from '@/services/storage'
-import { useNavigation } from '@react-navigation/core' // @ts-expect-error Icon
-import LogoWithName from '../assets/logo-with-name.svg' // @ts-expect-error Icon
-import RecordIcon from '@/assets/icons/record.svg' // @ts-expect-error Icon
-import FileDisabledIcon from '@/assets/icons/file-disabled.svg' // @ts-expect-error Icon
-import FileIcon from '@/assets/icons/file.svg' // @ts-expect-error Icon
-import WarningIcon from '@/assets/icons/warning.svg' // @ts-expect-error Icon
-import PauseIcon from '@/assets/icons/pause.svg'
-import { useUser } from '@/features/auth/api/useUser'
-import { LoginButton } from '@/components/LoginButton'
-import { useListMyFilesInfinite } from '@/features/files/api/listFiles'
-import type { ApiFileItem } from '@/features/files/api/types'
+import { useNavigation } from '@react-navigation/core'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import type { RootStackParamList } from '@/navigation/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
-import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
-import { intervalToDuration } from 'date-fns'
-import MainMenu from '@/components/MainMenu'
+import { MOCK_DATA } from '@/api/constants'
+import { mockedFiles } from '@/features/files/api/mockData'
+import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
+import {
+  setBypassWifiOnly,
+  useSettingsStore,
+  useUploadStore,
+} from '@/services/storage'
+import { useUser } from '@/features/auth/api/useUser'
+import { useListMyFilesInfinite } from '@/features/files/api/listFiles'
+import { useDeleteFile } from '@/features/files/api/deleteFile'
+import type { RootStackParamList } from '@/navigation/types'
 import { useInsets } from '@/utils/useInsets'
 import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
-import { useDeleteFile } from '@/features/files/api/deleteFile'
-import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
-import { runOnJS } from 'react-native-worklets'
-import { MOCK_DATA } from '@/api/constants'
-import { mockedFiles } from '@/features/files/api/mockData'
-import UploadProgress from '@/components/UploadProgress'
-
-type LocalOrRemoteRecording =
-  | (ApiFileItem & { kind: 'remote' })
-  | (LocalRecording & { kind: 'local' })
-  | { kind: 'fake'; id: string }
-
-type RemoteRecording = ApiFileItem & { kind: 'remote' }
-
-function StatusIndicator({
-  item,
-  canUpload,
-}: {
-  item: LocalOrRemoteRecording
-  canUpload: boolean
-}) {
-  if (item.kind === 'fake') {
-    return <FileDisabledIcon />
-  }
-  if (item.kind === 'local') {
-    if (!canUpload) {
-      return <PauseIcon />
-    }
-    if (item.uploadingStatus === 'uploading') {
-      return <ActivityIndicator size="small" />
-    } else {
-      return <WarningIcon />
-    }
-  }
-
-  if (item.kind === 'remote') {
-    const { lastAiJobTranscript } = getMainAiJobs(item.ai_jobs)
-    if (lastAiJobTranscript?.status === 'failed') {
-      return <WarningIcon />
-    } else if (lastAiJobTranscript?.status === 'success') {
-      return <FileIcon />
-    } else {
-      return <ActivityIndicator size="small" />
-    }
-  }
-
-  return <FileIcon />
-}
-
-function formatRecordMeta(
-  recording: LocalOrRemoteRecording,
-  t: ReturnType<typeof useTranslation>['t'],
-  isOnline: boolean,
-  isLoggedIn: boolean
-): string {
-  if (recording.kind === 'fake') {
-    return ''
-  }
-
-  const dateLabel = t('shared.utils.formatDateTime', {
-    value: recording.created_at,
-  })
-  const durationLabel = t('shared.utils.duration', {
-    duration: intervalToDuration({
-      start: 0,
-      end: recording.duration_seconds * 1000,
-    }),
-  })
-
-  if (recording.kind === 'local') {
-    if (!isOnline) {
-      return `${durationLabel} • ${t('recordings.meta.offline')}`
-    } else if (!isLoggedIn) {
-      return `${durationLabel} • ${t('recordings.meta.loginToSync')}`
-    } else if (recording.uploadingStatus === 'uploading') {
-      return `${durationLabel} • ${t('recordings.meta.uploading')}`
-    } else if (recording.uploadingStatus === 'failed') {
-      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`
-    } else if (recording.uploadingStatus === 'to_upload') {
-      return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`
-    }
-    return `${durationLabel} • ${dateLabel}`
-  }
-
-  if (recording.kind === 'remote') {
-    const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
-    if (lastAiJobTranscript?.status === 'failed') {
-      return `${durationLabel} • ${dateLabel} • ${t(
-        'recordings.meta.processingFailed'
-      )}`
-    } else if (lastAiJobTranscript?.status === 'success') {
-      return `${durationLabel} • ${dateLabel}`
-    } else {
-      return `${durationLabel} • ${dateLabel} • ${t(
-        'recordings.meta.processing'
-      )}`
-    }
-  }
-
-  return ''
-}
-
-const OPEN_STATE_THRESHOLD = 60
-const RIGHT_ACTIONS_PANEL_WIDTH = 100
-const PROGRESS_THRESHOLD = OPEN_STATE_THRESHOLD / RIGHT_ACTIONS_PANEL_WIDTH
-
-type SwipeableRowRef = React.ElementRef<typeof Swipeable>
-
-function DeleteRightAction({
-  progress,
-  onPress,
-}: {
-  progress: SharedValue<number>
-  onPress: () => void
-}) {
-  const didFireHapticRef = useRef(false)
-
-  const handleValueChanged = useCallback((value: number) => {
-    if (value > PROGRESS_THRESHOLD && !didFireHapticRef.current) {
-      didFireHapticRef.current = true
-      triggerHaptic('impactMedium', {
-        enableVibrateFallback: true,
-        ignoreAndroidSystemSettings: true,
-      })
-    }
-    if (value < PROGRESS_THRESHOLD && didFireHapticRef.current) {
-      triggerHaptic('impactLight', {
-        enableVibrateFallback: true,
-        ignoreAndroidSystemSettings: true,
-      })
-      didFireHapticRef.current = false
-    }
-  }, [])
-
-  useDerivedValue(() => {
-    runOnJS(handleValueChanged)(progress.value)
-  })
-
-  const animatedButtonStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: interpolate(
-          progress.value,
-          [0, 1],
-          [1.5 * OPEN_STATE_THRESHOLD, 0]
-        ),
-      },
-    ],
-    opacity: interpolate(progress.value, [0, 0.1], [0, 1]),
-  }))
-
-  return (
-    <Animated.View style={[styles.rightActionContainer, animatedButtonStyle]}>
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.deleteAction,
-          pressed && styles.deleteActionPressed,
-        ]}
-      >
-        <Lucide name="trash-2" size={20} color={colors.errorSecondary} />
-      </Pressable>
-    </Animated.View>
-  )
-}
-
-function SwipeableRemoteRow({
-  item,
-  onDelete,
-  onWillOpen,
-  onClose,
-  children,
-}: {
-  item: RemoteRecording
-  onDelete: (fileId: string) => void
-  onWillOpen: (row: SwipeableRowRef) => void
-  onClose: (row: SwipeableRowRef) => void
-  children: React.ReactNode
-}) {
-  const swipeableRef = useRef<SwipeableRowRef | null>(null)
-
-  const handleDeletePress = useCallback(() => {
-    if (!swipeableRef.current) {
-      return
-    }
-    swipeableRef.current.close()
-    onDelete(item.id)
-  }, [item.id, onDelete])
-
-  const handleSwipeableWillOpen = useCallback(() => {
-    if (!swipeableRef.current) {
-      return
-    }
-    onWillOpen(swipeableRef.current)
-  }, [onWillOpen])
-
-  const handleSwipeableClose = useCallback(() => {
-    if (!swipeableRef.current) {
-      return
-    }
-    onClose(swipeableRef.current)
-  }, [onClose])
-
-  const renderRightActions = useCallback(
-    (progress: SharedValue<number>) => (
-      <DeleteRightAction progress={progress} onPress={handleDeletePress} />
-    ),
-    [handleDeletePress]
-  )
-
-  return (
-    <Swipeable
-      ref={swipeableRef}
-      friction={1.5}
-      overshootRight={false}
-      rightThreshold={OPEN_STATE_THRESHOLD}
-      enableTrackpadTwoFingerGesture
-      onSwipeableWillOpen={handleSwipeableWillOpen}
-      onSwipeableClose={handleSwipeableClose}
-      renderRightActions={renderRightActions}
-    >
-      {children}
-    </Swipeable>
-  )
-}
+import type { LocalOrRemoteRecording } from '@/screens/recordings/types'
+import { RecordingsTopBar } from '@/screens/recordings/components/RecordingsTopBar'
+import {
+  RecordingListItem,
+  type SwipeableRowRef,
+} from '@/screens/recordings/components/RecordingListItem'
+import { StartRecordingSection } from '@/screens/recordings/components/StartRecordingSection'
 
 export default function RecordingsScreen() {
   const { t } = useTranslation()
@@ -275,6 +43,10 @@ export default function RecordingsScreen() {
   const insets = useInsets()
   const { recordings, updateRecording } = useLocalRecordings()
   const { isLoggedIn, isLoading } = useUser()
+  const { settings } = useSettingsStore()
+  const queryClient = useQueryClient()
+  const deleteMutation = useDeleteFile()
+
   const filesQ = useListMyFilesInfinite({
     pageSize: 20,
     filters: {
@@ -284,31 +56,24 @@ export default function RecordingsScreen() {
       upload_state: 'ready',
     },
   })
-  const queryClient = useQueryClient()
-  const handleRefresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: [keys.files] })
 
-    // We try to reupload failed upload recordings
-    for (const recording of recordings) {
-      if (recording.uploadingStatus === 'failed') {
-        updateRecording(recording.id, {
-          uploadingStatus: 'to_upload',
-        })
-      }
-    }
-  }, [recordings, queryClient, updateRecording])
-
-  const deleteMutation = useDeleteFile()
-
-  const { settings } = useSettingsStore()
   const isOnline =
     netInfo.isConnected === true && netInfo.isInternetReachable !== false
   const isOnWifi = netInfo.type === 'wifi'
   const hasPendingUploads = recordings.some(
-    (r) =>
-      r.uploadingStatus === 'to_upload' || r.uploadingStatus === 'uploading'
+    (recording) =>
+      recording.uploadingStatus === 'to_upload' ||
+      recording.uploadingStatus === 'uploading'
   )
-  const [wifiBypassActivated, setWifiBypassActivated] = useState(false)
+
+  const wifiBypassActivated = useUploadStore((state) => state.bypassWifiOnly)
+  const [fileIdBeingDeleted, setFileIdBeingDeleted] = useState<string | null>(
+    null
+  )
+  const openedSwipeableRef = useRef<SwipeableRowRef | null>(null)
+
+  const canUpload =
+    isOnline && (!settings.wifiOnlyUpload || isOnWifi || wifiBypassActivated)
   const showWifiOnlyCard =
     isLoggedIn &&
     isOnline &&
@@ -317,55 +82,49 @@ export default function RecordingsScreen() {
     hasPendingUploads &&
     !wifiBypassActivated
 
-  const handleSyncNow = useCallback(() => {
-    setBypassWifiOnly(true)
-    setWifiBypassActivated(true)
-  }, [])
-
-  const [fileIdBeingDeleted, setfileIdBeingDeleted] = useState<string | null>(
-    null
-  )
-  const openedSwipeableRef = useRef<SwipeableRowRef | null>(null)
-
   const allRecordings = useMemo<LocalOrRemoteRecording[]>(() => {
-    const out: LocalOrRemoteRecording[] = []
-    for (const recording of recordings) {
-      out.push({
-        ...recording,
-        kind: 'local',
-      })
-    }
+    const out: LocalOrRemoteRecording[] = recordings.map((recording) => ({
+      ...recording,
+      kind: 'local',
+    }))
+
     if (MOCK_DATA) {
       mockedFiles.forEach((file) => {
-        out.push({
-          ...file,
-          kind: 'remote',
-        })
+        out.push({ ...file, kind: 'remote' })
       })
-    } else {
-      if (isOnline) {
-        for (const page of filesQ.data?.pages ?? []) {
-          for (const recording of page.results) {
-            if (recording.id !== fileIdBeingDeleted) {
-              out.push({
-                ...recording,
-                kind: 'remote',
-              })
-            }
+      return out
+    }
+
+    if (isOnline) {
+      for (const page of filesQ.data?.pages ?? []) {
+        for (const recording of page.results) {
+          if (recording.id !== fileIdBeingDeleted) {
+            out.push({ ...recording, kind: 'remote' })
           }
         }
-      } else {
-        for (let i = 0; i < 5; i++) {
-          out.push({
-            id: `fake-${i}`,
-            kind: 'fake',
-          })
-        }
+      }
+    } else {
+      for (let i = 0; i < 5; i++) {
+        out.push({ id: `fake-${i}`, kind: 'fake' })
       }
     }
 
     return out
-  }, [isOnline, recordings, filesQ.data?.pages, fileIdBeingDeleted])
+  }, [filesQ.data?.pages, fileIdBeingDeleted, isOnline, recordings])
+
+  const handleRefresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: [keys.files] })
+
+    for (const recording of recordings) {
+      if (recording.uploadingStatus === 'failed') {
+        updateRecording(recording.id, { uploadingStatus: 'to_upload' })
+      }
+    }
+  }, [queryClient, recordings, updateRecording])
+
+  const handleSyncNow = useCallback(() => {
+    setBypassWifiOnly(true)
+  }, [])
 
   const handleStartRecording = useCallback(() => {
     navigation.navigate('RecordingInProgress')
@@ -373,12 +132,14 @@ export default function RecordingsScreen() {
 
   const handleOpenRecording = useCallback(
     (item: LocalOrRemoteRecording) => {
+      if (openedSwipeableRef.current) {
+        openedSwipeableRef.current.close()
+        openedSwipeableRef.current = null
+      }
       if (item.kind === 'fake') {
         return
       }
-      navigation.navigate('RecordingDetails', {
-        id: item.id,
-      })
+      navigation.navigate('RecordingDetails', { id: item.id })
     },
     [navigation]
   )
@@ -386,7 +147,7 @@ export default function RecordingsScreen() {
   const executeDeleteRecording = useCallback(
     async (fileId: string) => {
       try {
-        setfileIdBeingDeleted(fileId)
+        setFileIdBeingDeleted(fileId)
         await deleteMutation.mutateAsync({ fileId })
       } catch {
         Alert.alert(
@@ -394,7 +155,7 @@ export default function RecordingsScreen() {
           t('recordings.menu.deleteError')
         )
       } finally {
-        setfileIdBeingDeleted(null)
+        setFileIdBeingDeleted(null)
       }
     },
     [deleteMutation, t]
@@ -420,173 +181,43 @@ export default function RecordingsScreen() {
     }
   }, [])
 
-  const handleOpenRecordingWithSwipeClose = useCallback(
-    (item: LocalOrRemoteRecording) => {
-      if (openedSwipeableRef.current) {
-        openedSwipeableRef.current.close()
-        openedSwipeableRef.current = null
-      }
-      handleOpenRecording(item)
-    },
-    [handleOpenRecording]
-  )
-
-  const renderItemCard = useCallback(
-    (item: LocalOrRemoteRecording) => (
-      <Pressable
-        style={({ pressed }) => [
-          styles.itemCard,
-          pressed && item.kind === 'remote' && styles.itemCardPressed,
-        ]}
-        disabled={
-          item.kind !== 'remote' ||
-          getMainAiJobs(item.ai_jobs).lastAiJobTranscript?.status !== 'success'
-        }
-        onPress={() => handleOpenRecordingWithSwipeClose(item)}
-      >
-        <View style={styles.itemHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <StatusIndicator
-              item={item}
-              canUpload={
-                isOnline &&
-                (!settings.wifiOnlyUpload || isOnWifi || wifiBypassActivated)
-              }
-            />
-          </View>
-          <View style={styles.cardHeaderRight}>
-            {item.kind !== 'fake' ? (
-              <>
-                <AppText
-                  variant="bodyMedium"
-                  size="lg"
-                  color={
-                    item.kind !== 'remote'
-                      ? colors.neutralSecondary
-                      : colors.textPrimary
-                  }
-                  numberOfLines={1}
-                >
-                  {item.title}
-                </AppText>
-                <AppText variant="muted" size="md" numberOfLines={1}>
-                  {formatRecordMeta(
-                    item,
-                    t,
-                    isOnline &&
-                      (!settings.wifiOnlyUpload ||
-                        isOnWifi ||
-                        wifiBypassActivated),
-                    isLoggedIn
-                  )}
-                </AppText>
-                {item.kind === 'local' &&
-                  item.uploadingStatus === 'uploading' && (
-                    <UploadProgress
-                      uploadedBytes={item.uploadProgress?.uploadedBytes ?? 0}
-                      totalBytes={item.uploadProgress?.totalBytes ?? 0}
-                    />
-                  )}
-              </>
-            ) : (
-              <>
-                <View style={styles.recordingTitleSkeleton} />
-                <View style={styles.metaSkeleton} />
-              </>
-            )}
-          </View>
-        </View>
-      </Pressable>
+  const renderItem = useCallback(
+    ({ item }: { item: LocalOrRemoteRecording }) => (
+      <RecordingListItem
+        item={item}
+        canUpload={canUpload}
+        isLoggedIn={isLoggedIn}
+        t={t}
+        onOpen={handleOpenRecording}
+        onDelete={handleDeleteRecording}
+        onWillOpenRow={handleRowWillOpen}
+        onCloseRow={handleRowClose}
+      />
     ),
     [
-      handleOpenRecordingWithSwipeClose,
+      canUpload,
+      handleDeleteRecording,
+      handleOpenRecording,
+      handleRowClose,
+      handleRowWillOpen,
       isLoggedIn,
-      isOnline,
-      isOnWifi,
-      settings.wifiOnlyUpload,
-      wifiBypassActivated,
       t,
     ]
   )
 
-  const renderItem = useCallback(
-    ({ item }: { item: LocalOrRemoteRecording }) => {
-      const card = renderItemCard(item)
-
-      if (item.kind !== 'remote') {
-        return card
-      }
-
-      return (
-        <SwipeableRemoteRow
-          item={item}
-          onDelete={handleDeleteRecording}
-          onWillOpen={handleRowWillOpen}
-          onClose={handleRowClose}
-        >
-          {card}
-        </SwipeableRemoteRow>
-      )
-    },
-    [handleDeleteRecording, handleRowClose, handleRowWillOpen, renderItemCard]
-  )
-
   return (
     <View style={[styles.container, insets]}>
-      <View style={styles.topBar}>
-        <View style={styles.topBarHeader}>
-          <LogoWithName style={styles.title} />
-          <MainMenu />
-        </View>
-        {isOnline && !isLoading && !isLoggedIn && (
-          <View style={styles.loginCard}>
-            <AppText
-              variant="body"
-              align="center"
-              color={colors.neutralTertiary}
-            >
-              {t('recordings.loginHelper')}
-            </AppText>
-            <LoginButton />
-          </View>
-        )}
-        {!isOnline && (
-          <View style={[styles.networkCard, styles.offlineCard]}>
-            <Lucide name={'wifi-off'} size={16} color={colors.warning} />
-            <AppText variant="body" color={colors.warning}>
-              {t('recordings.offline')}
-            </AppText>
-          </View>
-        )}
-        {showWifiOnlyCard && (
-          <View style={[styles.networkCard, styles.wifiOnlyCard]}>
-            <Lucide name={'wifi-off'} size={16} color={colors.warning} />
-            <AppText
-              variant="body"
-              color={colors.warning}
-              style={styles.wifiOnlyCardText}
-            >
-              {t('recordings.wifiOnlySync')}
-            </AppText>
-            <Pressable
-              onPress={handleSyncNow}
-              style={({ pressed }) => [
-                styles.wifiOnlySyncButton,
-                pressed && styles.wifiOnlySyncButtonPressed,
-              ]}
-            >
-              <Lucide
-                name="cloud-upload"
-                size={22}
-                color={colors.neutralSecondary}
-              />
-            </Pressable>
-          </View>
-        )}
-      </View>
+      <RecordingsTopBar
+        isOnline={isOnline}
+        isLoading={isLoading}
+        isLoggedIn={isLoggedIn}
+        showWifiOnlyCard={showWifiOnlyCard}
+        onSyncNow={handleSyncNow}
+        t={t}
+      />
 
       {isOnline && (isLoggedIn || isLoading) && filesQ.isPending && (
-        <ActivityIndicator size={'large'} />
+        <ActivityIndicator size="large" />
       )}
 
       <FlatList
@@ -634,37 +265,7 @@ export default function RecordingsScreen() {
         }
       />
 
-      <View style={styles.startRecordingContainer}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.startRecordingButton,
-            pressed && styles.startRecordingButtonPressed,
-          ]}
-          onPress={handleStartRecording}
-        >
-          <RecordIcon width={24} height={24} />
-          <AppText variant="button" color={colors.errorSecondary}>
-            {t('home.newRecording')}
-          </AppText>
-        </Pressable>
-
-        <View style={styles.consentRow}>
-          <AppText
-            variant="muted"
-            size="md"
-            align="center"
-            color={colors.neutralTertiary}
-            style={styles.consentText}
-          >
-            <Lucide
-              name="triangle-alert"
-              color={colors.neutralTertiary}
-              size={12}
-            />{' '}
-            {t('home.consentNotice')}
-          </AppText>
-        </View>
-      </View>
+      <StartRecordingSection onStartRecording={handleStartRecording} t={t} />
     </View>
   )
 }
@@ -672,76 +273,6 @@ export default function RecordingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 10,
-    gap: 12,
-  },
-  topBarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingRight: 8,
-  },
-  loginCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: colors.backgroundBase,
-    borderWidth: 1,
-    borderColor: colors.surfacePrimary,
-    boxShadow: [
-      {
-        blurRadius: 15,
-        spreadDistance: 5,
-        color: colors.shadowDefault,
-        offsetX: 0,
-        offsetY: 0,
-      },
-    ],
-  },
-  title: {
-    marginBottom: 2,
-  },
-  networkCard: {
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-  },
-  offlineCard: {
-    backgroundColor: colors.warningSurface,
-    borderColor: colors.warningBorder,
-  },
-  wifiOnlyCard: {
-    backgroundColor: colors.warningSurface,
-    borderColor: colors.warningBorder,
-    paddingVertical: 8,
-  },
-  wifiOnlyCardText: {
-    flex: 1,
-  },
-  wifiOnlySyncButton: {
-    display: 'flex',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderColor: colors.warningBorder,
-    borderWidth: 1,
-    backgroundColor: colors.backgroundSubtle,
-  },
-  wifiOnlySyncButtonPressed: {
-    backgroundColor: colors.backgroundSubtlePressed,
   },
   listContent: {},
   recordingListSeparator: {
@@ -753,102 +284,5 @@ const styles = StyleSheet.create({
   listFooter: {
     paddingTop: 36,
     paddingBottom: 22,
-  },
-  itemCard: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  itemCardPressed: {
-    backgroundColor: colors.backgroundSubtlePressed,
-  },
-  rightActionContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  deleteAction: {
-    width: RIGHT_ACTIONS_PANEL_WIDTH,
-    paddingHorizontal: 4,
-    marginVertical: 2,
-    borderRadius: 8,
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    overflow: 'hidden',
-    backgroundColor: colors.backgroundErrorSecondary,
-  },
-  deleteActionPressed: {
-    backgroundColor: colors.backgroundErrorSecondaryPressed,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 4,
-  },
-  cardHeaderLeft: {
-    width: 50,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardHeaderRight: {
-    flex: 1,
-    gap: 2,
-  },
-  recordingTitleSkeleton: {
-    width: 140,
-    height: 14,
-    borderRadius: 6,
-    backgroundColor: colors.backgroundNeutralTertiary,
-  },
-  metaSkeleton: {
-    width: 100,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.backgroundNeutralTertiary,
-  },
-  startRecordingContainer: {
-    width: '100%',
-    marginBottom: 8,
-    padding: 8,
-    gap: 8,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    borderRadius: 12,
-    backgroundColor: colors.backgroundBase,
-    borderWidth: 1,
-    borderColor: colors.surfacePrimary,
-    boxShadow: [
-      {
-        blurRadius: 12,
-        spreadDistance: 4,
-        color: colors.backgroundNeutralTertiary,
-        offsetX: 0,
-        offsetY: 0,
-      },
-    ],
-  },
-  startRecordingButton: {
-    backgroundColor: colors.backgroundErrorSecondary,
-    borderRadius: 4,
-    minHeight: 40,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  startRecordingButtonPressed: {
-    backgroundColor: colors.backgroundErrorSecondaryPressed,
-  },
-  consentRow: {},
-  consentText: {
-    flexShrink: 1,
   },
 })

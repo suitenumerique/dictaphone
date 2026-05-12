@@ -73,7 +73,10 @@ export interface UserStore {
   clearCachedUser: () => void
 }
 
-let bypassWifiOnly = false
+export interface UploadStore {
+  bypassWifiOnly: boolean
+  setBypassWifiOnly: (value: boolean) => void
+}
 
 const checkCanUpload = async (): Promise<boolean> => {
   const state = await NetInfo.fetch()
@@ -81,6 +84,7 @@ const checkCanUpload = async (): Promise<boolean> => {
     return false
   }
   const { settings } = useSettingsStore.getState()
+  const { bypassWifiOnly } = useUploadStore.getState()
   if (settings.wifiOnlyUpload && !bypassWifiOnly) {
     return state.type === 'wifi'
   }
@@ -139,7 +143,7 @@ const triggerUpload = async (): Promise<void> => {
 }
 
 export const setBypassWifiOnly = (value: boolean) => {
-  bypassWifiOnly = value
+  useUploadStore.getState().setBypassWifiOnly(value)
   if (value) {
     triggerUpload().catch(console.error)
   }
@@ -254,6 +258,11 @@ export const useUserStore = create<UserStore>()(
     }
   )
 )
+
+export const useUploadStore = create<UploadStore>()((set) => ({
+  bypassWifiOnly: false,
+  setBypassWifiOnly: (value) => set({ bypassWifiOnly: value }),
+}))
 
 useUserStore.subscribe((state, prevState) => {
   const prevLang = (prevState.user?.language ?? 'fr').split('-')[0]
