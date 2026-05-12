@@ -64,6 +64,9 @@ export function RecordingsTopBar({
               styles.wifiOnlySyncButton,
               pressed && styles.wifiOnlySyncButtonPressed,
             ]}
+            accessibilityLabel={t('recordings.syncNow')}
+            accessibilityHint={t('recordings.syncNowHint')}
+            accessibilityRole="button"
           >
             <Lucide
               name="cloud-upload"

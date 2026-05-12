@@ -53,6 +53,8 @@
     "online": "Online",
     "offline": "Offline",
     "wifiOnlySync": "Waiting for WiFi to sync",
+    "syncNow": "Sync now",
+    "syncNowHint": "Transfer pending recordings using current network connection",
     "listFooter": "No other recordings",
     "meta": {
       "loginToSync": "Login to sync",

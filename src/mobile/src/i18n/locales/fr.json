@@ -53,6 +53,8 @@
     "online": "En ligne",
     "offline": "Hors ligne",
     "wifiOnlySync": "En attente de WiFi pour synchroniser",
+    "syncNow": "Synchroniser maintenant",
+    "syncNowHint": "Transférer les enregistrements en attente avec le réseau actuel",
     "listFooter": "Pas d'autres enregistrements",
     "meta": {
       "loginToSync": "Se connecter pour synchroniser",

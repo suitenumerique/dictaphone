@@ -24,6 +24,8 @@ export function StartRecordingSection({
           pressed && styles.startRecordingButtonPressed,
         ]}
         onPress={onStartRecording}
+        accessibilityLabel={t('home.newRecording')}
+        accessibilityRole="button"
       >
         <RecordIcon width={24} height={24} />
         <AppText variant="button" color={colors.errorSecondary}>

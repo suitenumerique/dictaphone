@@ -13,8 +13,8 @@ import { intervalToDuration } from 'date-fns'
 import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { runOnJS } from 'react-native-worklets'
 import type {
-  RemoteRecording,
   LocalOrRemoteRecording,
+  RemoteRecording,
 } from '@/screens/recordings/types'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
 // @ts-expect-error Icon
@@ -28,6 +28,7 @@ import PauseIcon from '@/assets/icons/pause.svg'
 import UploadProgress from '@/components/UploadProgress'
 import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
+import { useTranslation } from 'react-i18next'
 
 const OPEN_STATE_THRESHOLD = 60
 const RIGHT_ACTIONS_PANEL_WIDTH = 100
@@ -120,6 +121,7 @@ function DeleteRightAction({
   progress: SharedValue<number>
   onPress: () => void
 }) {
+  const { t } = useTranslation()
   const didFireHapticRef = useRef(false)
 
   const handleValueChanged = useCallback((value: number) => {
@@ -164,6 +166,8 @@ function DeleteRightAction({
           styles.deleteAction,
           pressed && styles.deleteActionPressed,
         ]}
+        accessibilityLabel={t('recordings.delete')}
+        accessibilityRole="button"
       >
         <Lucide name="trash-2" size={20} color={colors.errorSecondary} />
       </Pressable>
