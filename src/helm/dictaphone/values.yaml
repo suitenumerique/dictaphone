@@ -208,6 +208,22 @@ backend:
         python manage.py createsuperuser --email $DJANGO_SUPERUSER_EMAIL --password $DJANGO_SUPERUSER_PASSWORD
     restartPolicy: Never
 
+  # List of cronjob to add
+  ## @param backend.cronjobs Cronjob name, schedule, command
+  cronjobs:
+    - name: clean-pending-files
+      schedule: "30 0 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - python manage.py clean_pending_files
+    - name: purge-deleted-files
+      schedule: "45 0 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - python manage.py purge_deleted_files
+
   ## @param backend.probes.liveness.path [nullable] Configure path for backend HTTP liveness probe
   ## @param backend.probes.liveness.targetPort [nullable] Configure port for backend HTTP liveness probe
   ## @param backend.probes.liveness.initialDelaySeconds [nullable] Configure initial delay for backend liveness probe
