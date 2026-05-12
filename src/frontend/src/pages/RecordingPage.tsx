@@ -155,13 +155,6 @@ export default function RecordingPage({
     )
   }
 
-  console.log(
-    intervalToDuration({
-      start: 0,
-      end: (recording.duration_seconds || 1) * 1000,
-    })
-  )
-
   return (
     <ConnectedLayout>
       <div className="recording-page">
