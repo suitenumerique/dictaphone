@@ -21,6 +21,7 @@ const storage = createMMKV({
 
 const defaultSettings: AppSettings = {
   language: 'en',
+  wifiOnlyUpload: true,
 }
 
 const apiUserSchema = z.object({
@@ -72,9 +73,18 @@ export interface UserStore {
   clearCachedUser: () => void
 }
 
-const checkIsOnline = async (): Promise<boolean> => {
+let bypassWifiOnly = false
+
+const checkCanUpload = async (): Promise<boolean> => {
   const state = await NetInfo.fetch()
-  return state.isConnected === true && state.isInternetReachable !== false
+  if (state.isConnected !== true || state.isInternetReachable === false) {
+    return false
+  }
+  const { settings } = useSettingsStore.getState()
+  if (settings.wifiOnlyUpload && !bypassWifiOnly) {
+    return state.type === 'wifi'
+  }
+  return true
 }
 
 let isUploadInProgress = false
@@ -83,8 +93,8 @@ const triggerUpload = async (): Promise<void> => {
     return
   }
 
-  const online = await checkIsOnline()
-  if (!online) {
+  const canUpload = await checkCanUpload()
+  if (!canUpload) {
     return
   }
 
@@ -94,6 +104,8 @@ const triggerUpload = async (): Promise<void> => {
     recordings.find((r) => r.uploadingStatus === 'to_upload') ?? null
 
   if (!recordingToUpload) {
+    // reset bypass wifiOnly
+    setBypassWifiOnly(false)
     return
   }
 
@@ -122,6 +134,13 @@ const triggerUpload = async (): Promise<void> => {
     updateRecording(recordingToUpload.id, { uploadingStatus: 'failed' })
   } finally {
     isUploadInProgress = false
+    triggerUpload().catch(console.error)
+  }
+}
+
+export const setBypassWifiOnly = (value: boolean) => {
+  bypassWifiOnly = value
+  if (value) {
     triggerUpload().catch(console.error)
   }
 }

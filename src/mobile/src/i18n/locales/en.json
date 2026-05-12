@@ -52,6 +52,7 @@
     "notSynced": "Not synced",
     "online": "Online",
     "offline": "Offline",
+    "wifiOnlySync": "Waiting for WiFi to sync",
     "listFooter": "No other recordings",
     "meta": {
       "loginToSync": "Login to sync",

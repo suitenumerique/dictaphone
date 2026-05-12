@@ -19,6 +19,7 @@ import type { LocalRecording } from '@/types/localRecording'
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
 import { Lucide } from '@react-native-vector-icons/lucide'
 import { useNetInfo } from '@react-native-community/netinfo'
+import { setBypassWifiOnly, useSettingsStore } from '@/services/storage'
 import { useNavigation } from '@react-navigation/core' // @ts-expect-error Icon
 import LogoWithName from '../assets/logo-with-name.svg' // @ts-expect-error Icon
 import RecordIcon from '@/assets/icons/record.svg' // @ts-expect-error Icon
@@ -110,10 +111,10 @@ function formatRecordMeta(
   })
 
   if (recording.kind === 'local') {
-    if (!isLoggedIn) {
-      return `${durationLabel} • ${t('recordings.meta.loginToSync')}`
-    } else if (!isOnline) {
+    if (!isOnline) {
       return `${durationLabel} • ${t('recordings.meta.offline')}`
+    } else if (!isLoggedIn) {
+      return `${durationLabel} • ${t('recordings.meta.loginToSync')}`
     } else if (recording.uploadingStatus === 'uploading') {
       return `${durationLabel} • ${t('recordings.meta.uploading')}`
     } else if (recording.uploadingStatus === 'failed') {
@@ -299,8 +300,28 @@ export default function RecordingsScreen() {
 
   const deleteMutation = useDeleteFile()
 
+  const { settings } = useSettingsStore()
   const isOnline =
     netInfo.isConnected === true && netInfo.isInternetReachable !== false
+  const isOnWifi = netInfo.type === 'wifi'
+  const hasPendingUploads = recordings.some(
+    (r) =>
+      r.uploadingStatus === 'to_upload' || r.uploadingStatus === 'uploading'
+  )
+  const [wifiBypassActivated, setWifiBypassActivated] = useState(false)
+  const showWifiOnlyCard =
+    isLoggedIn &&
+    isOnline &&
+    !isOnWifi &&
+    settings.wifiOnlyUpload &&
+    hasPendingUploads &&
+    !wifiBypassActivated
+
+  const handleSyncNow = useCallback(() => {
+    setBypassWifiOnly(true)
+    setWifiBypassActivated(true)
+  }, [])
+
   const [fileIdBeingDeleted, setfileIdBeingDeleted] = useState<string | null>(
     null
   )
@@ -425,7 +446,13 @@ export default function RecordingsScreen() {
       >
         <View style={styles.itemHeader}>
           <View style={styles.cardHeaderLeft}>
-            <StatusIndicator item={item} canUpload={isOnline} />
+            <StatusIndicator
+              item={item}
+              canUpload={
+                isOnline &&
+                (!settings.wifiOnlyUpload || isOnWifi || wifiBypassActivated)
+              }
+            />
           </View>
           <View style={styles.cardHeaderRight}>
             {item.kind !== 'fake' ? (
@@ -443,7 +470,15 @@ export default function RecordingsScreen() {
                   {item.title}
                 </AppText>
                 <AppText variant="muted" size="md" numberOfLines={1}>
-                  {formatRecordMeta(item, t, isOnline, isLoggedIn)}
+                  {formatRecordMeta(
+                    item,
+                    t,
+                    isOnline &&
+                      (!settings.wifiOnlyUpload ||
+                        isOnWifi ||
+                        wifiBypassActivated),
+                    isLoggedIn
+                  )}
                 </AppText>
                 {item.kind === 'local' &&
                   item.uploadingStatus === 'uploading' && (
@@ -463,7 +498,15 @@ export default function RecordingsScreen() {
         </View>
       </Pressable>
     ),
-    [handleOpenRecordingWithSwipeClose, isLoggedIn, isOnline, t]
+    [
+      handleOpenRecordingWithSwipeClose,
+      isLoggedIn,
+      isOnline,
+      isOnWifi,
+      settings.wifiOnlyUpload,
+      wifiBypassActivated,
+      t,
+    ]
   )
 
   const renderItem = useCallback(
@@ -513,6 +556,31 @@ export default function RecordingsScreen() {
             <AppText variant="body" color={colors.warning}>
               {t('recordings.offline')}
             </AppText>
+          </View>
+        )}
+        {showWifiOnlyCard && (
+          <View style={[styles.networkCard, styles.wifiOnlyCard]}>
+            <Lucide name={'wifi-off'} size={16} color={colors.warning} />
+            <AppText
+              variant="body"
+              color={colors.warning}
+              style={styles.wifiOnlyCardText}
+            >
+              {t('recordings.wifiOnlySync')}
+            </AppText>
+            <Pressable
+              onPress={handleSyncNow}
+              style={({ pressed }) => [
+                styles.wifiOnlySyncButton,
+                pressed && styles.wifiOnlySyncButtonPressed,
+              ]}
+            >
+              <Lucide
+                name="cloud-upload"
+                size={22}
+                color={colors.neutralSecondary}
+              />
+            </Pressable>
           </View>
         )}
       </View>
@@ -652,6 +720,28 @@ const styles = StyleSheet.create({
   offlineCard: {
     backgroundColor: colors.warningSurface,
     borderColor: colors.warningBorder,
+  },
+  wifiOnlyCard: {
+    backgroundColor: colors.warningSurface,
+    borderColor: colors.warningBorder,
+    paddingVertical: 8,
+  },
+  wifiOnlyCardText: {
+    flex: 1,
+  },
+  wifiOnlySyncButton: {
+    display: 'flex',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: colors.warningBorder,
+    borderWidth: 1,
+    backgroundColor: colors.backgroundSubtle,
+  },
+  wifiOnlySyncButtonPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
   },
   listContent: {},
   recordingListSeparator: {

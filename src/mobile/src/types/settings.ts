@@ -4,6 +4,7 @@ export const appLanguageSchema = z.enum(['en', 'fr'])
 
 export const appSettingsSchema = z.object({
   language: appLanguageSchema,
+  wifiOnlyUpload: z.boolean().default(true),
 })
 
 export type AppLanguage = z.infer<typeof appLanguageSchema>
