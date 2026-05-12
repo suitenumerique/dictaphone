@@ -98,7 +98,7 @@ export function ListRecordings({
                       {t('shared:utils.duration', {
                         duration: intervalToDuration({
                           start: 0,
-                          end: file.duration_seconds * 1000,
+                          end: (file.duration_seconds || 1) * 1000,
                         }),
                       })}
                     </span>
