@@ -71,6 +71,7 @@ class Base(Configuration):
     * DB_HOST
     * DB_PASSWORD
     * DB_USER
+    * SIMPLE_JWT_SIGNING_KEY
     """
 
     DEBUG = False
@@ -229,12 +230,12 @@ class Base(Configuration):
         environ_name="AI_SERVICE_URL",
         environ_prefix=None,
     )
-    AI_SERVICE_API_KEY = values.Value(
+    AI_SERVICE_API_KEY = SecretFileValue(
         "dictaphone_token",
         environ_name="AI_SERVICE_API_KEY",
         environ_prefix=None,
     )
-    AI_WEBHOOK_API_KEY = values.Value(
+    AI_WEBHOOK_API_KEY = SecretFileValue(
         "token_summary", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
     )
 
@@ -247,7 +248,7 @@ class Base(Configuration):
         environ_name="DOCS_BASE_URL",
         environ_prefix=None,
     )
-    DOCS_SERVER_TO_SERVER_API_KEY = values.Value(
+    DOCS_SERVER_TO_SERVER_API_KEY = SecretFileValue(
         None,
         environ_name="DOCS_SERVER_TO_SERVER_API_KEY",
         environ_prefix=None,
@@ -676,6 +677,12 @@ class Base(Configuration):
         environ_prefix=None,
     )
     SIMPLE_JWT = {
+        "ALGORITHM": "HS256",
+        "SIGNING_KEY": SecretFileValue(
+            None,
+            environ_name="SIMPLE_JWT_SIGNING_KEY",
+            environ_prefix=None,
+        ),
         "ACCESS_TOKEN_LIFETIME": timedelta(
             seconds=values.IntegerValue(
                 default=10 * 60,

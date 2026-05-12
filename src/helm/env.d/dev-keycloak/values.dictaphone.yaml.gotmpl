@@ -10,6 +10,7 @@ backend:
     DJANGO_CONFIGURATION: Production
     DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io,dictaphone-backend.dictaphone.svc.cluster.local
     DJANGO_SECRET_KEY: {{ .Values.djangoSecretKey }}
+    SIMPLE_JWT_SIGNING_KEY: {{ .Values.simpleJwtSigningKey }}
     DJANGO_SETTINGS_MODULE: dictaphone.settings
     DJANGO_SILENCED_SYSTEM_CHECKS: security.W004, security.W008
     DJANGO_SUPERUSER_PASSWORD: admin

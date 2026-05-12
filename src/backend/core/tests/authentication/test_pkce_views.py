@@ -82,6 +82,75 @@ def test_pkce_oidc_authentication_request_view_invalid_parameters():
     assert response.data["detail"] == "Invalid pkce request parameters."
 
 
+@pytest.mark.parametrize(
+    ("length", "expected_status"),
+    [(43, status.HTTP_302_FOUND), (128, status.HTTP_302_FOUND)],
+)
+def test_pkce_oidc_authentication_request_view_pkce_length_boundaries_are_valid(
+    length, expected_status
+):
+    """Should accept PKCE request fields at min/max allowed lengths."""
+    code_challenge = "a" * length
+    state = "b" * length
+    request = RequestFactory().get(
+        "/api/v1.0/authenticate/",
+        {
+            "response_type": "code",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "state": state,
+        },
+    )
+    _attach_session(request)
+
+    with mock.patch(
+        "core.authentication.views.OIDCAuthenticationRequestView.get",
+        return_value=HttpResponseRedirect("https://sso.example/authorize"),
+    ):
+        response = PKCEOIDCAuthenticationRequestView().get(request)
+
+    assert response.status_code == expected_status
+    assert request.session["pkce_oidc_data"] == {
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+        "state": state,
+    }
+
+
+@pytest.mark.parametrize(
+    ("field_name", "length"),
+    [
+        ("code_challenge", 42),
+        ("code_challenge", 129),
+        ("state", 42),
+        ("state", 129),
+    ],
+)
+def test_pkce_oidc_authentication_request_view_rejects_out_of_bounds_lengths(
+    field_name, length
+):
+    """Should reject PKCE request fields shorter/longer than allowed."""
+    params = {
+        "response_type": "code",
+        "code_challenge": "a" * 43,
+        "code_challenge_method": "S256",
+        "state": "b" * 43,
+    }
+    params[field_name] = "c" * length
+    request = RequestFactory().get("/api/v1.0/authenticate/", params)
+    _attach_session(request)
+
+    with mock.patch(
+        "core.authentication.views.OIDCAuthenticationRequestView.get",
+        return_value=HttpResponseRedirect("https://sso.example/authorize"),
+    ):
+        response = PKCEOIDCAuthenticationRequestView().get(request)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["detail"] == "Invalid pkce request parameters."
+    assert any(error["loc"] == (field_name,) for error in response.data["errors"])
+
+
 def test_pkce_oidc_authentication_request_view_non_code_response_type():
     """Should leave session untouched when response_type is not code."""
     request = RequestFactory().get(
@@ -216,7 +285,7 @@ def test_oauth_token_exchange_success_and_single_use():
     """Should exchange a valid auth code once for JWT tokens."""
     user = UserFactory()
     verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-    code = "my-auth-code"
+    code = "my-auth-code-at-least-43-characters-like-really"
     cache.set(
         get_pkce_authorization_code_cache_key(code),
         {
@@ -249,7 +318,7 @@ def test_oauth_token_exchange_success_and_single_use():
 def test_oauth_token_exchange_invalid_code_verifier_consumes_code():
     """Should reject invalid verifier and consume the auth code."""
     user = UserFactory()
-    code = "my-auth-code-2"
+    code = "my-auth-code-at-least-43-characters-like-really-2"
     cache.set(
         get_pkce_authorization_code_cache_key(code),
         {
@@ -275,6 +344,32 @@ def test_oauth_token_exchange_invalid_code_verifier_consumes_code():
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {"detail": "Invalid code_verifier."}
     assert cache.get(get_pkce_authorization_code_cache_key(code)) is None
+
+
+@pytest.mark.parametrize(
+    ("field_name", "length"),
+    [
+        ("code", 42),
+        ("code", 129),
+        ("code_verifier", 42),
+        ("code_verifier", 129),
+    ],
+)
+def test_oauth_token_exchange_rejects_out_of_bounds_lengths(field_name, length):
+    """Should reject PKCE token exchange fields shorter/longer than allowed."""
+    payload = {
+        "code": "a" * 43,
+        "code_verifier": "b" * 43,
+    }
+    payload[field_name] = "c" * length
+
+    client = APIClient()
+    response = client.post("/api/v1.0/oauth/token/", payload, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert data["detail"] == "Invalid pkce request parameters."
+    assert any(error["loc"] == [field_name] for error in data["errors"])
 
 
 def test_oauth_token_refresh_endpoint_returns_access_token():

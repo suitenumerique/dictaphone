@@ -1,6 +1,7 @@
 # Django
 DJANGO_ALLOWED_HOSTS=${DICTAPHONE_HOST}
 DJANGO_SECRET_KEY=<generate a secret key>
+SIMPLE_JWT_SIGNING_KEY=<generate a secret key>
 DJANGO_SETTINGS_MODULE=dictaphone.settings
 DJANGO_CONFIGURATION=Production
 

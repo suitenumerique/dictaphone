@@ -128,6 +128,7 @@ jobs:
       DJANGO_CONFIGURATION: Test
       DJANGO_SETTINGS_MODULE: dictaphone.settings
       DJANGO_SECRET_KEY: ThisIsAnExampleKeyForTestPurposeOnly
+      SIMPLE_JWT_SIGNING_KEY: ThisIsAnExampleKeyForTestPurposeOnly
       OIDC_OP_JWKS_ENDPOINT: /endpoint-for-test-purpose-only
       DB_HOST: localhost
       DB_NAME: dictaphone

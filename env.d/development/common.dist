@@ -1,6 +1,7 @@
 # Django
 DJANGO_ALLOWED_HOSTS=*
 DJANGO_SECRET_KEY=ThisIsAnExampleKeyForDevPurposeOnly
+SIMPLE_JWT_SIGNING_KEY=ThisIsAnExampleKeyForTestPurposeOnly
 DJANGO_SETTINGS_MODULE=dictaphone.settings
 DJANGO_SUPERUSER_PASSWORD=admin
 
