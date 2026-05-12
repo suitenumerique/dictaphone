@@ -18,7 +18,8 @@ export default function UploadProgress({ totalBytes, uploadedBytes }: Props) {
   const { t } = useTranslation()
   const width = useSharedValue(0)
 
-  const progressPercentage = totalBytes > 0 ? (uploadedBytes / totalBytes) * 100 : 0
+  const progressPercentage =
+    totalBytes > 0 ? (uploadedBytes / totalBytes) * 100 : 0
 
   useEffect(() => {
     width.value = withTiming(progressPercentage, {
