@@ -178,6 +178,9 @@ class Base(Configuration):
     TRASHBIN_CUTOFF_DAYS = values.IntegerValue(
         default=30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
     )
+    PURGE_GRACE_DAYS = values.IntegerValue(
+        default=7, environ_name="PURGE_GRACE_DAYS", environ_prefix=None
+    )
     FILE_UPLOAD_PATH = values.Value(
         "files", environ_name="FILE_UPLOAD_PATH", environ_prefix=None
     )
