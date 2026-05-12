@@ -39,15 +39,20 @@ export type SwipeableRowRef = React.ElementRef<typeof Swipeable>
 
 type StatusIndicatorProps = {
   item: LocalOrRemoteRecording
-  canUpload: boolean
+  uploadBlockReason: UploadBlockReason
 }
 
-function StatusIndicator({ item, canUpload }: StatusIndicatorProps) {
+export type UploadBlockReason = 'ok' | 'offline' | 'wifiOnly' | 'other'
+
+function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
   if (item.kind === 'fake') {
     return <FileDisabledIcon />
   }
   if (item.kind === 'local') {
-    if (!canUpload) {
+    if (uploadBlockReason === 'wifiOnly') {
+      return <Lucide name="wifi-off" size={16} color={colors.warning} />
+    }
+    if (uploadBlockReason === 'offline' || uploadBlockReason === 'other') {
       return <PauseIcon />
     }
     if (item.uploadingStatus === 'uploading') {
@@ -69,7 +74,7 @@ function StatusIndicator({ item, canUpload }: StatusIndicatorProps) {
 function formatRecordMeta(
   recording: LocalOrRemoteRecording,
   t: TFunction,
-  canUpload: boolean,
+  uploadBlockReason: UploadBlockReason,
   isLoggedIn: boolean
 ): string {
   if (recording.kind === 'fake') {
@@ -87,7 +92,10 @@ function formatRecordMeta(
   })
 
   if (recording.kind === 'local') {
-    if (!canUpload) {
+    if (uploadBlockReason === 'wifiOnly') {
+      return `${durationLabel} • ${t('recordings.wifiOnlySync')}`
+    }
+    if (uploadBlockReason === 'offline' || uploadBlockReason === 'other') {
       return `${durationLabel} • ${t('recordings.meta.offline')}`
     }
     if (!isLoggedIn) {
@@ -238,7 +246,7 @@ function SwipeableRemoteRow({
 
 type RecordingListItemProps = {
   item: LocalOrRemoteRecording
-  canUpload: boolean
+  uploadBlockReason: UploadBlockReason
   isLoggedIn: boolean
   t: TFunction
   onOpen: (item: LocalOrRemoteRecording) => void
@@ -249,7 +257,7 @@ type RecordingListItemProps = {
 
 export function RecordingListItem({
   item,
-  canUpload,
+  uploadBlockReason,
   isLoggedIn,
   t,
   onOpen,
@@ -272,7 +280,7 @@ export function RecordingListItem({
     >
       <View style={styles.itemHeader}>
         <View style={styles.cardHeaderLeft}>
-          <StatusIndicator item={item} canUpload={canUpload} />
+          <StatusIndicator item={item} uploadBlockReason={uploadBlockReason} />
         </View>
         <View style={styles.cardHeaderRight}>
           {item.kind !== 'fake' ? (
@@ -290,7 +298,7 @@ export function RecordingListItem({
                 {item.title}
               </AppText>
               <AppText variant="muted" size="md" numberOfLines={1}>
-                {formatRecordMeta(item, t, canUpload, isLoggedIn)}
+                {formatRecordMeta(item, t, uploadBlockReason, isLoggedIn)}
               </AppText>
               {item.kind === 'local' &&
                 item.uploadingStatus === 'uploading' && (
