@@ -79,7 +79,13 @@ export interface UploadStore {
 }
 
 const checkCanUpload = async (): Promise<boolean> => {
-  const state = await NetInfo.fetch()
+  let state
+  try {
+    state = await NetInfo.fetch()
+  } catch (error) {
+    console.error('Failed to fetch network state:', error)
+    return false
+  }
   if (state.isConnected !== true || state.isInternetReachable === false) {
     return false
   }
