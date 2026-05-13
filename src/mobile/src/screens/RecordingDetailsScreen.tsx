@@ -156,6 +156,7 @@ export default function RecordingDetailsScreen() {
           <RecordingMenu
             fileId={recording.id}
             currentTitle={recording.title}
+            aiJobs={recording.ai_jobs}
             onDeleted={onDeleted}
           />
         ) : (

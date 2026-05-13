@@ -70,13 +70,28 @@
     },
     "menu": {
       "rename": "Rename",
+      "retry": "Retry",
+      "retryPending": "Retry (in progress)",
       "renameTitle": "Rename recording",
       "renameDescription": "Choose a clear title so you can find this recording quickly.",
       "renamePlaceholder": "Recording title",
       "save": "Save",
       "errorTitle": "Something went wrong",
       "deleteError": "Unable to delete this recording right now.",
-      "renameError": "Unable to rename this recording right now."
+      "renameError": "Unable to rename this recording right now.",
+      "retryError": "Unable to restart generation right now.",
+      "retrySuccess": "Generation restarted",
+      "retryModal": {
+        "title": "Regenerate transcript",
+        "description": "Pick a language for the new generation.",
+        "languageLabel": "Language",
+        "languageOptions": {
+          "en": "English",
+          "fr": "French",
+          "de": "German",
+          "nl": "Dutch"
+        }
+      }
     },
     "openInDocs": "Open in Docs"
   },

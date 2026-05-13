@@ -1,3 +1,5 @@
+export type TTranscriptionLanguage = 'en' | 'fr' | 'de' | 'nl'
+
 export type ApiAiJob = {
   id: string | null // UUID
   type: 'transcript' | 'summary'
@@ -5,6 +7,7 @@ export type ApiAiJob = {
   created_at: string // ISO datetime string
   updated_at: string // ISO datetime string
   docs_app_id: string | null
+  language: TTranscriptionLanguage
 }
 
 export type ApiOpenInDocsResponse = {

@@ -70,13 +70,28 @@
     },
     "menu": {
       "rename": "Renommer",
+      "retry": "Régénérer",
+      "retryPending": "Régénérer (en cours)",
       "renameTitle": "Renommer l'enregistrement",
       "renameDescription": "Choisissez un titre clair pour retrouver rapidement cet enregistrement.",
       "renamePlaceholder": "Titre de l'enregistrement",
       "save": "Enregistrer",
       "errorTitle": "Une erreur est survenue",
       "deleteError": "Impossible de supprimer cet enregistrement pour le moment.",
-      "renameError": "Impossible de renommer cet enregistrement pour le moment."
+      "renameError": "Impossible de renommer cet enregistrement pour le moment.",
+      "retryError": "Impossible de relancer la génération pour le moment.",
+      "retrySuccess": "Génération relancée",
+      "retryModal": {
+        "title": "Régénérer la transcription",
+        "description": "Choisissez la langue pour la nouvelle génération.",
+        "languageLabel": "Langue",
+        "languageOptions": {
+          "en": "Anglais",
+          "fr": "Français",
+          "de": "Allemand",
+          "nl": "Néerlandais"
+        }
+      }
     },
     "openInDocs": "Ouvrir dans Docs"
   },

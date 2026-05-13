@@ -1,5 +1,11 @@
-import React, { useCallback, useRef } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native'
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable'
 import Animated, {
   interpolate,
@@ -13,11 +19,13 @@ import { Lucide } from '@react-native-vector-icons/lucide'
 import { intervalToDuration } from 'date-fns'
 import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { runOnJS } from 'react-native-worklets'
+import { useRetryWithLanguageMutation } from '@/features/ai-jobs/api/fetch'
 import type {
   LocalOrRemoteRecording,
   RemoteRecording,
 } from '@/screens/recordings/types'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
+import type { TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 // @ts-expect-error Icon
 import FileDisabledIcon from '@/assets/icons/file-disabled.svg'
 // @ts-expect-error Icon
@@ -30,10 +38,12 @@ import UploadProgress from '@/components/UploadProgress'
 import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
 import { useTranslation } from 'react-i18next'
+import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
+import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
 
 const OPEN_STATE_THRESHOLD = 60
-const RIGHT_ACTIONS_PANEL_WIDTH = 100
-const PROGRESS_THRESHOLD = OPEN_STATE_THRESHOLD / RIGHT_ACTIONS_PANEL_WIDTH
+const DELETE_ACTION_WIDTH = 80
+const RETRY_ACTION_WIDTH = 60
 
 export type SwipeableRowRef = React.ElementRef<typeof Swipeable>
 
@@ -130,38 +140,49 @@ function formatRecordMeta(
   return `${durationLabel} • ${dateLabel} • ${t('recordings.meta.processing')}`
 }
 
-function DeleteRightAction({
+function RightActions({
   progress,
+  canRetry,
+  onRetryPress,
   onPress,
 }: {
   progress: SharedValue<number>
+  canRetry: boolean
+  onRetryPress: () => void
   onPress: () => void
 }) {
   const { t } = useTranslation()
   const didFireHaptic = useSharedValue(false)
+  const rightActionsPanelWidth = canRetry
+    ? DELETE_ACTION_WIDTH + RETRY_ACTION_WIDTH
+    : DELETE_ACTION_WIDTH
+  const progressThreshold = OPEN_STATE_THRESHOLD / rightActionsPanelWidth
 
-  const handleValueChanged = useCallback((value: number) => {
-    if (value > PROGRESS_THRESHOLD) {
-      triggerHaptic('impactMedium', {
-        enableVibrateFallback: true,
-        ignoreAndroidSystemSettings: true,
-      })
-    }
-    if (value < PROGRESS_THRESHOLD) {
-      triggerHaptic('impactLight', {
-        enableVibrateFallback: true,
-        ignoreAndroidSystemSettings: true,
-      })
-    }
-  }, [])
+  const handleValueChanged = useCallback(
+    (value: number) => {
+      if (value > progressThreshold) {
+        triggerHaptic('impactMedium', {
+          enableVibrateFallback: true,
+          ignoreAndroidSystemSettings: true,
+        })
+      }
+      if (value < progressThreshold) {
+        triggerHaptic('impactLight', {
+          enableVibrateFallback: true,
+          ignoreAndroidSystemSettings: true,
+        })
+      }
+    },
+    [progressThreshold]
+  )
 
   useDerivedValue(() => {
-    const isAboveThreshold = progress.value > PROGRESS_THRESHOLD
+    const isAboveThreshold = progress.value > progressThreshold
     if (isAboveThreshold !== didFireHaptic.value) {
       didFireHaptic.value = isAboveThreshold
       runOnJS(handleValueChanged)(progress.value)
     }
-  })
+  }, [handleValueChanged, progressThreshold])
 
   const animatedButtonStyle = useAnimatedStyle(() => ({
     transform: [
@@ -169,7 +190,7 @@ function DeleteRightAction({
         translateX: interpolate(
           progress.value,
           [0, 1],
-          [1.5 * OPEN_STATE_THRESHOLD, 0]
+          [rightActionsPanelWidth + 30, 0]
         ),
       },
     ],
@@ -177,7 +198,26 @@ function DeleteRightAction({
   }))
 
   return (
-    <Animated.View style={[styles.rightActionContainer, animatedButtonStyle]}>
+    <Animated.View
+      style={[
+        styles.rightActionContainer,
+        { width: rightActionsPanelWidth },
+        animatedButtonStyle,
+      ]}
+    >
+      {canRetry && (
+        <Pressable
+          onPress={onRetryPress}
+          style={({ pressed }) => [
+            styles.retryAction,
+            pressed && styles.retryActionPressed,
+          ]}
+          accessibilityLabel={t('recordings.menu.retry')}
+          accessibilityRole="button"
+        >
+          <Lucide name="rotate-cw" size={20} color={colors.textPrimary} />
+        </Pressable>
+      )}
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
@@ -195,12 +235,16 @@ function DeleteRightAction({
 
 function SwipeableRemoteRow({
   item,
+  canRetry,
+  onRetry,
   onDelete,
   onWillOpen,
   onClose,
   children,
 }: {
   item: RemoteRecording
+  canRetry: boolean
+  onRetry: (file: RemoteRecording) => void
   onDelete: (fileId: string) => void
   onWillOpen: (row: SwipeableRowRef) => void
   onClose: (row: SwipeableRowRef) => void
@@ -216,6 +260,14 @@ function SwipeableRemoteRow({
     onDelete(item.id)
   }, [item.id, onDelete])
 
+  const handleRetryPress = useCallback(() => {
+    if (!swipeableRef.current) {
+      return
+    }
+    swipeableRef.current.close()
+    onRetry(item)
+  }, [item, onRetry])
+
   const handleSwipeableWillOpen = useCallback(() => {
     if (swipeableRef.current) {
       onWillOpen(swipeableRef.current)
@@ -230,9 +282,14 @@ function SwipeableRemoteRow({
 
   const renderRightActions = useCallback(
     (progress: SharedValue<number>) => (
-      <DeleteRightAction progress={progress} onPress={handleDeletePress} />
+      <RightActions
+        progress={progress}
+        canRetry={canRetry}
+        onRetryPress={handleRetryPress}
+        onPress={handleDeletePress}
+      />
     ),
-    [handleDeletePress]
+    [canRetry, handleDeletePress, handleRetryPress]
   )
 
   return (
@@ -240,7 +297,9 @@ function SwipeableRemoteRow({
       ref={swipeableRef}
       friction={1.5}
       overshootRight={false}
-      rightThreshold={OPEN_STATE_THRESHOLD}
+      rightThreshold={
+        canRetry ? OPEN_STATE_THRESHOLD * 2 : OPEN_STATE_THRESHOLD
+      }
       enableTrackpadTwoFingerGesture
       onSwipeableWillOpen={handleSwipeableWillOpen}
       onSwipeableClose={handleSwipeableClose}
@@ -270,9 +329,62 @@ export function RecordingListItem({
   onWillOpenRow,
   onCloseRow,
 }: RecordingListItemProps) {
-  const isOpenableRemoteRecording =
+  const retryWithLanguageMutation = useRetryWithLanguageMutation()
+  const [isRetryModalVisible, setIsRetryModalVisible] = useState(false)
+  const [retryLanguage, setRetryLanguage] =
+    useState<TTranscriptionLanguage | null>(null)
+  const remoteTranscriptJob =
+    item.kind === 'remote'
+      ? getMainAiJobs(item.ai_jobs).lastAiJobTranscript
+      : null
+  const hasPendingTranscriptJob = useMemo(
+    () =>
+      item.kind === 'remote' &&
+      item.ai_jobs.some(
+        (job) => job.type === 'transcript' && job.status === 'pending'
+      ),
+    [item]
+  )
+  const canRetryFromRow =
     item.kind === 'remote' &&
-    getMainAiJobs(item.ai_jobs).lastAiJobTranscript?.status === 'success'
+    remoteTranscriptJob?.status === 'failed' &&
+    Boolean(remoteTranscriptJob?.id) &&
+    !hasPendingTranscriptJob
+  const isOpenableRemoteRecording =
+    item.kind === 'remote' && remoteTranscriptJob?.status === 'success'
+
+  const handleOpenRetryModal = useCallback((recording: RemoteRecording) => {
+    const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
+    if (!lastAiJobTranscript?.id || lastAiJobTranscript.status !== 'failed') {
+      return
+    }
+    setRetryLanguage(
+      TRANSCRIPTION_LANGUAGES.find((el) => el !== lastAiJobTranscript.language)!
+    )
+    setIsRetryModalVisible(true)
+  }, [])
+
+  const handleRetry = useCallback(
+    async (language: TTranscriptionLanguage) => {
+      if (!remoteTranscriptJob?.id) {
+        return
+      }
+      try {
+        await retryWithLanguageMutation.mutateAsync({
+          id: remoteTranscriptJob.id,
+          language,
+        })
+        setIsRetryModalVisible(false)
+        Alert.alert(t('recordings.menu.retrySuccess'))
+      } catch {
+        Alert.alert(
+          t('recordings.menu.errorTitle'),
+          t('recordings.menu.retryError')
+        )
+      }
+    },
+    [remoteTranscriptJob, retryWithLanguageMutation, t]
+  )
 
   const card = (
     <Pressable
@@ -329,14 +441,26 @@ export function RecordingListItem({
   }
 
   return (
-    <SwipeableRemoteRow
-      item={item}
-      onDelete={onDelete}
-      onWillOpen={onWillOpenRow}
-      onClose={onCloseRow}
-    >
-      {card}
-    </SwipeableRemoteRow>
+    <>
+      <SwipeableRemoteRow
+        item={item}
+        canRetry={canRetryFromRow}
+        onRetry={handleOpenRetryModal}
+        onDelete={onDelete}
+        onWillOpen={onWillOpenRow}
+        onClose={onCloseRow}
+      >
+        {card}
+      </SwipeableRemoteRow>
+      <RetryTranscriptModal
+        isVisible={isRetryModalVisible}
+        isPending={retryWithLanguageMutation.isPending}
+        selectedLanguage={retryLanguage}
+        onSelectLanguage={setRetryLanguage}
+        onClose={() => setIsRetryModalVisible(false)}
+        onRetry={handleRetry}
+      />
+    </>
   )
 }
 
@@ -379,12 +503,31 @@ const styles = StyleSheet.create({
   },
   rightActionContainer: {
     display: 'flex',
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
   },
+  retryAction: {
+    width: RETRY_ACTION_WIDTH,
+    paddingHorizontal: 4,
+    marginVertical: 2,
+    borderRadius: 8,
+    alignItems: 'center',
+    height: 40,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    backgroundColor: colors.backgroundSubtle,
+    borderWidth: 1,
+    borderColor: colors.surfacePrimary,
+  },
+  retryActionPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
+  },
   deleteAction: {
-    width: RIGHT_ACTIONS_PANEL_WIDTH,
+    width: DELETE_ACTION_WIDTH,
     paddingHorizontal: 4,
     marginVertical: 2,
     borderRadius: 8,
