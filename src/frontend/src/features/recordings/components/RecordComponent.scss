@@ -8,7 +8,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 2rem;
+    gap: 1.5rem;
     min-height: 250px;
   }
 
@@ -45,9 +45,64 @@
     font-size: 3.25rem;
     line-height: 1;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     color: var(--c--globals--colors--gray-900);
     font-family: Monospace;
+  }
+
+  .record-component__source-settings {
+    width: min(100%, 520px);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .record-component__field {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.375rem;
+  }
+
+  .record-component__field-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c--globals--colors--gray-700);
+    text-align: left;
+  }
+
+  .record-component__select {
+    width: 100%;
+    min-height: 2.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--c--globals--colors--gray-300);
+    background-color: var(--c--globals--colors--white);
+    color: var(--c--globals--colors--gray-900);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9375rem;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      background-color: var(--c--globals--colors--gray-100);
+    }
+  }
+
+  .record-component__tab-input {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .record-component__button--tab {
+    justify-self: start;
+  }
+
+  .record-component__tab-hint {
+    margin: 0;
+    text-align: left;
+    color: var(--c--globals--colors--gray-600);
+    font-size: 0.8125rem;
+    line-height: 1.35;
   }
 
   .record-component__controls {
@@ -148,5 +203,22 @@
 
   .record-component__retry-button {
     min-height: 3rem;
+  }
+
+  .record-component__error,
+  .record-component__warning {
+    width: min(100%, 520px);
+    margin: 0 auto;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  .record-component__error {
+    color: var(--c--globals--colors--red-600);
+  }
+
+  .record-component__warning {
+    color: var(--c--globals--colors--orange-600);
   }
 }

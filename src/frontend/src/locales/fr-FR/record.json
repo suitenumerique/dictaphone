@@ -13,9 +13,21 @@
   "retryUpload": "Réessayer le transfert sur nos serveurs",
   "recordingPrefix": "Enregistrement",
   "status": {
+    "ready": "Prêt à enregistrer",
     "recordingInProgress": "Enregistrement en cours",
     "recordingPaused": "Enregistrement en pause",
     "uploadFailed": "Transfert interrompu"
+  },
+  "inputs": {
+    "captureMode": "Source audio",
+    "microphone": "Microphone",
+    "defaultMicrophone": "Microphone par défaut",
+    "modeMicrophone": "Microphone uniquement",
+    "modeTabAudio": "Audio onglet / système uniquement",
+    "modeMicrophoneAndTab": "Microphone + audio onglet/système",
+    "shareTabAudio": "Partager audio onglet / système",
+    "tabAudioActive": "L'audio onglet ou système est connecté.",
+    "tabAudioInactive": "Aucun audio onglet/système sélectionné pour le moment."
   },
   "uploadRecovery": {
     "title": "Votre enregistrement est toujours disponible",
@@ -29,13 +41,15 @@
   },
   "warnings": {
     "stayOnPage": "Vous ne pouvez pas quitter ou recharger cette page pendant l'enregistrement.",
-    "keepPhoneAwake": "Si vous enregistrez sur un téléphone, gardez l'écran allumé pour limiter les interruptions."
+    "keepPhoneAwake": "Si vous enregistrez sur un téléphone, gardez l'écran allumé pour limiter les interruptions.",
+    "tabAudioMissing": "L'audio onglet/système n'est pas connecté. Cliquez sur « Partager audio onglet / système » et choisissez un onglet ou un écran avec du son."
   },
   "alerts": {
     "uploadFailedDownloaded": "L'enregistrement n'a pas pu être transféré sur nos serveurs après un nouvel essai. Le fichier « {{fileName}} » a été téléchargé et enregistré sur votre ordinateur. Vous pouvez le transférer plus tard ou prévenir l'équipe support."
   },
   "errors": {
     "recordingFailed": "L'enregistrement a échoué. Vérifiez les permissions du micro puis réessayez.",
-    "uploadFailed": "Le transfert sur nos serveurs a échoué. Veuillez réessayer une fois."
+    "uploadFailed": "Le transfert sur nos serveurs a échoué. Veuillez réessayer une fois.",
+    "captureSetupFailed": "La configuration audio a échoué. Vérifiez les permissions puis sélectionnez à nouveau vos sources audio."
   }
 }

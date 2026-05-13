@@ -3,7 +3,14 @@ import { captureAnalyticsEvent } from '@/features/analytics/hooks/useAnalytics.t
 import { useCreateFile } from '@/features/files/api/createFile.ts'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
 import { Button, Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'wouter'
 
@@ -20,6 +27,23 @@ const preferredMimeType =
   ) ?? 'audio/webm'
 
 const maxUploadAttempts = 2
+
+type RecorderState =
+  | 'idle'
+  | 'starting'
+  | 'recording'
+  | 'paused'
+  | 'stopping'
+  | 'recorded'
+  | 'uploading'
+  | 'error'
+
+type AudioCaptureMode = 'microphone' | 'tab' | 'microphone-and-tab'
+
+type AudioInput = {
+  deviceId: string
+  label: string
+}
 
 const formatDuration = (durationMs: number) => {
   const totalSeconds = Math.floor(durationMs / 1000)
@@ -74,15 +98,20 @@ const getErrorMessage = (error: unknown) => {
   return undefined
 }
 
-type RecorderState =
-  | 'idle'
-  | 'starting'
-  | 'recording'
-  | 'paused'
-  | 'stopping'
-  | 'recorded'
-  | 'uploading'
-  | 'error'
+const stopStream = (stream: MediaStream | null) => {
+  if (!stream) return
+  stream.getTracks().forEach((track) => track.stop())
+}
+
+const isCaptureMode = (value: string): value is AudioCaptureMode =>
+  value === 'microphone' || value === 'tab' || value === 'microphone-and-tab'
+
+const getMicrophoneConstraints = (deviceId: string) => ({
+  audio:
+    deviceId === 'default'
+      ? true
+      : ({ deviceId: { exact: deviceId } } as MediaTrackConstraints),
+})
 
 export default function RecordComponent() {
   const { t } = useTranslation(['layout', 'record', 'shared'])
@@ -91,10 +120,17 @@ export default function RecordComponent() {
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false)
   const [recorderState, setRecorderState] = useState<RecorderState>('idle')
   const [recordingDurationMs, setRecordingDurationMs] = useState(0)
-  const recordedBlobRef = useRef<Blob | null>(null)
   const [recordedMimeType, setRecordedMimeType] = useState(preferredMimeType)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState(false)
+  const [audioInputs, setAudioInputs] = useState<AudioInput[]>([])
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState('default')
+  const [captureMode, setCaptureMode] = useState<AudioCaptureMode>('microphone')
+  const [isApplyingCaptureSettings, setIsApplyingCaptureSettings] =
+    useState(false)
+  const [tabAudioActive, setTabAudioActive] = useState(false)
+  const [captureErrorKey, setCaptureErrorKey] = useState<string | null>(null)
+  const [hasStartedRecordingOnce, setHasStartedRecordingOnce] = useState(false)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -106,14 +142,58 @@ export default function RecordComponent() {
   const recordingFailedRef = useRef(false)
   const uploadAfterStopRef = useRef(false)
   const uploadAttemptsRef = useRef(0)
+  const recordedBlobRef = useRef<Blob | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const destinationNodeRef = useRef<MediaStreamAudioDestinationNode | null>(
+    null
+  )
+  const microphoneStreamRef = useRef<MediaStream | null>(null)
+  const tabStreamRef = useRef<MediaStream | null>(null)
+  const microphoneSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(
+    null
+  )
+  const tabSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const captureSettingsRequestIdRef = useRef(0)
 
   const isRecordingInProgress =
     recorderState === 'recording' || recorderState === 'paused'
   const isPausedRecording = recorderState === 'paused'
   const isStoppingRecording = recorderState === 'stopping'
   const isUploading = recorderState === 'uploading'
+  const isStarting = recorderState === 'starting'
+  const isIdle = recorderState === 'idle'
   const recordingError = recorderState === 'error'
   const canRetryUpload = recorderState === 'recorded' && uploadError
+  const canStartRecording =
+    (isIdle || recordingError) && !isApplyingCaptureSettings && !isUploading
+  const microphoneEnabled =
+    captureMode === 'microphone' || captureMode === 'microphone-and-tab'
+  const tabCaptureEnabled =
+    captureMode === 'tab' || captureMode === 'microphone-and-tab'
+  const canEditSettings =
+    !isStoppingRecording && !isUploading && !isStarting && !canRetryUpload
+
+  const statusLabel = useMemo(() => {
+    if (canRetryUpload) return t('record:status.uploadFailed')
+    if (isPausedRecording) return t('record:status.recordingPaused')
+    if (
+      isRecordingInProgress ||
+      isStarting ||
+      isStoppingRecording ||
+      isUploading
+    ) {
+      return t('record:status.recordingInProgress')
+    }
+    return t('record:status.ready')
+  }, [
+    canRetryUpload,
+    isPausedRecording,
+    isRecordingInProgress,
+    isStarting,
+    isStoppingRecording,
+    isUploading,
+    t,
+  ])
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -138,6 +218,163 @@ export default function RecordComponent() {
     timerRef.current = window.setInterval(updateDuration, 250)
   }, [stopTimer, updateDuration])
 
+  const ensureAudioMixing = useCallback(async () => {
+    if (audioContextRef.current && destinationNodeRef.current) {
+      return
+    }
+
+    const audioContext = new AudioContext()
+    const destination = audioContext.createMediaStreamDestination()
+    await audioContext.resume()
+    audioContextRef.current = audioContext
+    destinationNodeRef.current = destination
+    mediaStreamRef.current = destination.stream
+  }, [])
+
+  const releaseAudioMixing = useCallback(() => {
+    microphoneSourceNodeRef.current?.disconnect()
+    tabSourceNodeRef.current?.disconnect()
+    microphoneSourceNodeRef.current = null
+    tabSourceNodeRef.current = null
+
+    stopStream(microphoneStreamRef.current)
+    stopStream(tabStreamRef.current)
+    microphoneStreamRef.current = null
+    tabStreamRef.current = null
+    setTabAudioActive(false)
+
+    const audioContext = audioContextRef.current
+    audioContextRef.current = null
+    destinationNodeRef.current = null
+    mediaStreamRef.current = null
+
+    if (audioContext) {
+      void audioContext.close()
+    }
+  }, [])
+
+  const switchMicrophoneInput = useCallback(
+    async (nextAudioInputId: string) => {
+      await ensureAudioMixing()
+      const audioContext = audioContextRef.current
+      const destination = destinationNodeRef.current
+      if (!audioContext || !destination) {
+        throw new Error('audio_context_not_available')
+      }
+
+      const microphoneStream = await navigator.mediaDevices.getUserMedia(
+        getMicrophoneConstraints(nextAudioInputId)
+      )
+      const microphoneSource =
+        audioContext.createMediaStreamSource(microphoneStream)
+
+      microphoneSource.connect(destination)
+      microphoneSourceNodeRef.current?.disconnect()
+      stopStream(microphoneStreamRef.current)
+
+      microphoneSourceNodeRef.current = microphoneSource
+      microphoneStreamRef.current = microphoneStream
+    },
+    [ensureAudioMixing]
+  )
+
+  const clearMicrophoneInput = useCallback(() => {
+    microphoneSourceNodeRef.current?.disconnect()
+    microphoneSourceNodeRef.current = null
+    stopStream(microphoneStreamRef.current)
+    microphoneStreamRef.current = null
+  }, [])
+
+  const clearTabInput = useCallback(() => {
+    tabSourceNodeRef.current?.disconnect()
+    tabSourceNodeRef.current = null
+    stopStream(tabStreamRef.current)
+    tabStreamRef.current = null
+    setTabAudioActive(false)
+  }, [])
+
+  const switchTabInput = useCallback(async () => {
+    await ensureAudioMixing()
+    const audioContext = audioContextRef.current
+    const destination = destinationNodeRef.current
+    if (!audioContext || !destination) {
+      throw new Error('audio_context_not_available')
+    }
+
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      audio: true,
+      video: true,
+    })
+    const audioTracks = displayStream.getAudioTracks()
+    if (audioTracks.length === 0) {
+      stopStream(displayStream)
+      throw new Error('no_tab_audio_track')
+    }
+
+    const tabSource = audioContext.createMediaStreamSource(displayStream)
+    tabSource.connect(destination)
+    tabSourceNodeRef.current?.disconnect()
+    stopStream(tabStreamRef.current)
+
+    tabSourceNodeRef.current = tabSource
+    tabStreamRef.current = displayStream
+    setTabAudioActive(true)
+
+    audioTracks[0].onended = () => {
+      setTabAudioActive(false)
+    }
+  }, [ensureAudioMixing])
+
+  const applyCaptureSettings = useCallback(
+    async (
+      nextCaptureMode: AudioCaptureMode,
+      nextAudioInputId: string,
+      options?: { alwaysRefreshTabInput?: boolean }
+    ) => {
+      const requestId = captureSettingsRequestIdRef.current + 1
+      captureSettingsRequestIdRef.current = requestId
+      setIsApplyingCaptureSettings(true)
+      setCaptureErrorKey(null)
+
+      try {
+        const needsMicrophone =
+          nextCaptureMode === 'microphone' ||
+          nextCaptureMode === 'microphone-and-tab'
+        const needsTabAudio =
+          nextCaptureMode === 'tab' || nextCaptureMode === 'microphone-and-tab'
+        const shouldRefreshTabInput = needsTabAudio
+          ? options?.alwaysRefreshTabInput || !tabStreamRef.current
+          : false
+
+        if (needsMicrophone) {
+          await switchMicrophoneInput(nextAudioInputId)
+        }
+
+        if (shouldRefreshTabInput) {
+          await switchTabInput()
+        }
+
+        if (!needsMicrophone) {
+          clearMicrophoneInput()
+        }
+
+        if (!needsTabAudio) {
+          clearTabInput()
+        }
+      } catch {
+        if (requestId === captureSettingsRequestIdRef.current) {
+          setCaptureErrorKey('record:errors.captureSetupFailed')
+        }
+        throw new Error('capture_setup_failed')
+      } finally {
+        if (requestId === captureSettingsRequestIdRef.current) {
+          setIsApplyingCaptureSettings(false)
+        }
+      }
+    },
+    [clearMicrophoneInput, clearTabInput, switchMicrophoneInput, switchTabInput]
+  )
+
   const cleanupMediaResources = useCallback(() => {
     const recorder = mediaRecorderRef.current
     if (recorder) {
@@ -146,13 +383,31 @@ export default function RecordComponent() {
       recorder.onerror = null
       mediaRecorderRef.current = null
     }
+    releaseAudioMixing()
+  }, [releaseAudioMixing])
 
-    const stream = mediaStreamRef.current
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
-      mediaStreamRef.current = null
+  const refreshAudioInputs = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const inputs = devices
+        .filter((device) => device.kind === 'audioinput')
+        .map((device, index) => ({
+          deviceId: device.deviceId,
+          label:
+            device.label ||
+            `${t('record:inputs.defaultMicrophone')} ${index + 1}`,
+        }))
+      setAudioInputs(inputs)
+      if (
+        inputs.length > 0 &&
+        !inputs.some((input) => input.deviceId === selectedAudioInputId)
+      ) {
+        setSelectedAudioInputId('default')
+      }
+    } catch {
+      setAudioInputs([])
     }
-  }, [])
+  }, [selectedAudioInputId, t])
 
   const resetRecordingState = useCallback(() => {
     stopTimer()
@@ -166,19 +421,17 @@ export default function RecordComponent() {
     setRecordedMimeType(preferredMimeType)
     setUploadProgress(0)
     setUploadError(false)
+    setCaptureErrorKey(null)
     uploadAttemptsRef.current = 0
   }, [cleanupMediaResources, stopTimer])
 
   const startRecording = useCallback(async () => {
-    if (
-      recorderState !== 'idle' &&
-      recorderState !== 'recorded' &&
-      recorderState !== 'error'
-    ) {
+    if (!canStartRecording) {
       return
     }
 
     setRecorderState('starting')
+    setHasStartedRecordingOnce(true)
     recordingRealStartDateRef.current = new Date()
     recordedBlobRef.current = null
     setRecordedMimeType(preferredMimeType)
@@ -189,12 +442,18 @@ export default function RecordComponent() {
     recordingStartedAtRef.current = null
     accumulatedDurationMsRef.current = 0
     setRecordingDurationMs(0)
+    setUploadError(false)
+    setCaptureErrorKey(null)
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaStreamRef.current = stream
+      await applyCaptureSettings(captureMode, selectedAudioInputId)
 
-      const recorder = new MediaRecorder(stream, {
+      const recordingStream = mediaStreamRef.current
+      if (!recordingStream) {
+        throw new Error('recording_stream_not_available')
+      }
+
+      const recorder = new MediaRecorder(recordingStream, {
         mimeType: preferredMimeType,
       })
       mediaRecorderRef.current = recorder
@@ -244,20 +503,36 @@ export default function RecordComponent() {
       setRecorderState('error')
     }
   }, [
+    applyCaptureSettings,
+    canStartRecording,
+    captureMode,
     cleanupMediaResources,
-    recorderState,
+    selectedAudioInputId,
     startTimer,
     stopTimer,
     updateDuration,
   ])
 
   useEffect(() => {
+    void refreshAudioInputs()
+    const handleDeviceChange = () => {
+      void refreshAudioInputs()
+    }
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange)
+    return () => {
+      navigator.mediaDevices.removeEventListener(
+        'devicechange',
+        handleDeviceChange
+      )
+    }
+  }, [refreshAudioInputs])
+
+  useEffect(() => {
     if (recorderState === 'idle') {
       if (
         new URLSearchParams(window.location.search).get('auto-start') === 'true'
       ) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        startRecording()
+        void startRecording()
         const url = window.location.pathname
         window.history.replaceState({}, document.title, url)
       }
@@ -271,7 +546,6 @@ export default function RecordComponent() {
     const blob = recordedBlobRef.current
     if (!blob) {
       console.error('No recorded blob available, skipping upload')
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRecorderState('error')
       return
     }
@@ -472,8 +746,60 @@ export default function RecordComponent() {
     ) {
       return
     }
-
     setRecorderState('uploading')
+  }
+
+  const handleCaptureModeChange = async (
+    event: ChangeEvent<HTMLSelectElement>
+  ) => {
+    const nextMode = event.target.value
+    if (!isCaptureMode(nextMode)) return
+
+    const previousMode = captureMode
+    setCaptureMode(nextMode)
+
+    if (!isRecordingInProgress) {
+      setCaptureErrorKey(null)
+      return
+    }
+
+    try {
+      await applyCaptureSettings(nextMode, selectedAudioInputId)
+    } catch {
+      setCaptureMode(previousMode)
+    }
+  }
+
+  const handleAudioInputChange = async (
+    event: ChangeEvent<HTMLSelectElement>
+  ) => {
+    const nextAudioInputId = event.target.value
+    const previousAudioInputId = selectedAudioInputId
+    setSelectedAudioInputId(nextAudioInputId)
+
+    if (!isRecordingInProgress || !microphoneEnabled) {
+      setCaptureErrorKey(null)
+      return
+    }
+
+    try {
+      await applyCaptureSettings(captureMode, nextAudioInputId)
+    } catch {
+      setSelectedAudioInputId(previousAudioInputId)
+    }
+  }
+
+  const handleRefreshTabInput = async () => {
+    if (!tabCaptureEnabled || !canEditSettings) {
+      return
+    }
+    try {
+      await applyCaptureSettings(captureMode, selectedAudioInputId, {
+        alwaysRefreshTabInput: true,
+      })
+    } catch {
+      // Error message is already handled in applyCaptureSettings.
+    }
   }
 
   return (
@@ -484,27 +810,98 @@ export default function RecordComponent() {
             canRetryUpload ? 'record-component__content--recovery' : ''
           }`}
         >
+          {!canRetryUpload && (
+            <div className="record-component__source-settings">
+              <label className="record-component__field">
+                <span className="record-component__field-label">
+                  {t('record:inputs.captureMode')}
+                </span>
+                <select
+                  className="record-component__select"
+                  value={captureMode}
+                  onChange={(event) => {
+                    void handleCaptureModeChange(event)
+                  }}
+                  disabled={!canEditSettings || isApplyingCaptureSettings}
+                >
+                  <option value="microphone">
+                    {t('record:inputs.modeMicrophone')}
+                  </option>
+                  <option value="tab">{t('record:inputs.modeTabAudio')}</option>
+                  <option value="microphone-and-tab">
+                    {t('record:inputs.modeMicrophoneAndTab')}
+                  </option>
+                </select>
+              </label>
+
+              <label className="record-component__field">
+                <span className="record-component__field-label">
+                  {t('record:inputs.microphone')}
+                </span>
+                <select
+                  className="record-component__select"
+                  value={selectedAudioInputId}
+                  onChange={(event) => {
+                    void handleAudioInputChange(event)
+                  }}
+                  disabled={
+                    !canEditSettings ||
+                    isApplyingCaptureSettings ||
+                    !microphoneEnabled ||
+                    audioInputs.length === 0
+                  }
+                >
+                  <option value="default">
+                    {t('record:inputs.defaultMicrophone')}
+                  </option>
+                  {audioInputs.map((audioInput) => (
+                    <option
+                      key={audioInput.deviceId}
+                      value={audioInput.deviceId}
+                    >
+                      {audioInput.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {tabCaptureEnabled && (
+                <div className="record-component__tab-input">
+                  <Button
+                    color="neutral"
+                    variant="secondary"
+                    className="record-component__button record-component__button--tab"
+                    onClick={handleRefreshTabInput}
+                    disabled={!canEditSettings || isApplyingCaptureSettings}
+                  >
+                    <span className="material-icons">tab</span>
+                    <span>{t('record:inputs.shareTabAudio')}</span>
+                  </Button>
+                  <p className="record-component__tab-hint">
+                    {tabAudioActive
+                      ? t('record:inputs.tabAudioActive')
+                      : t('record:inputs.tabAudioInactive')}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <p
             className={`record-component__status ${
               isPausedRecording ? 'record-component__status--paused' : ''
-            } ${canRetryUpload ? 'record-component__status--error' : ''}`}
+            } ${canRetryUpload || captureErrorKey ? 'record-component__status--error' : ''}`}
           >
             <span className="material-icons">
               {canRetryUpload
                 ? 'cloud_off'
                 : isPausedRecording
                   ? 'pause'
-                  : 'fiber_manual_record'}
+                  : isIdle
+                    ? 'fiber_manual_record'
+                    : 'fiber_manual_record'}
             </span>
-            <span>
-              {canRetryUpload
-                ? t('record:status.uploadFailed')
-                : t(
-                    isPausedRecording
-                      ? 'record:status.recordingPaused'
-                      : 'record:status.recordingInProgress'
-                  )}
-            </span>
+            <span>{statusLabel}</span>
           </p>
 
           <p className="record-component__timer">
@@ -529,7 +926,9 @@ export default function RecordComponent() {
 
           <div
             className={`record-component__controls ${
-              canRetryUpload ? 'record-component__controls--single' : ''
+              canRetryUpload || canStartRecording
+                ? 'record-component__controls--single'
+                : ''
             }`}
           >
             {canRetryUpload ? (
@@ -540,6 +939,19 @@ export default function RecordComponent() {
               >
                 <span className="material-icons">refresh</span>
                 <span>{t('record:retryUpload')}</span>
+              </Button>
+            ) : canStartRecording ? (
+              <Button
+                className="record-component__button"
+                color="error"
+                onClick={() => {
+                  void startRecording()
+                }}
+                disabled={!canStartRecording}
+                aria-label={t('record:startRecording')}
+              >
+                <span className="material-icons">radio_button_checked</span>
+                <span>{t('record:startRecording')}</span>
               </Button>
             ) : (
               <>
@@ -568,7 +980,7 @@ export default function RecordComponent() {
                 </Button>
 
                 <Button
-                  className={`record-component__button`}
+                  className="record-component__button"
                   color="error"
                   onClick={handleStopRequest}
                   disabled={!isRecordingInProgress || isStoppingRecording}
@@ -595,6 +1007,16 @@ export default function RecordComponent() {
         {recordingError && (
           <div className="record-component__error">
             {t('record:errors.recordingFailed')}
+          </div>
+        )}
+
+        {captureErrorKey && (
+          <div className="record-component__error">{t(captureErrorKey)}</div>
+        )}
+
+        {tabCaptureEnabled && !tabAudioActive && hasStartedRecordingOnce && (
+          <div className="record-component__warning">
+            {t('record:warnings.tabAudioMissing')}
           </div>
         )}
       </div>

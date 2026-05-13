@@ -13,9 +13,21 @@
   "retryUpload": "Retry upload",
   "recordingPrefix": "Recording",
   "status": {
+    "ready": "Ready to record",
     "recordingInProgress": "Recording in progress",
     "recordingPaused": "Recording paused",
     "uploadFailed": "Upload interrupted"
+  },
+  "inputs": {
+    "captureMode": "Audio source",
+    "microphone": "Microphone",
+    "defaultMicrophone": "Default microphone",
+    "modeMicrophone": "Microphone only",
+    "modeTabAudio": "Tab / system audio only",
+    "modeMicrophoneAndTab": "Microphone + tab/system audio",
+    "shareTabAudio": "Share tab / system audio",
+    "tabAudioActive": "Tab or system audio is connected.",
+    "tabAudioInactive": "No tab/system audio selected yet."
   },
   "uploadRecovery": {
     "title": "Your recording is still available",
@@ -29,13 +41,15 @@
   },
   "warnings": {
     "stayOnPage": "You cannot quit or refresh this page while recording.",
-    "keepPhoneAwake": "If you are recording on a phone, keep the screen on to reduce recording interruptions."
+    "keepPhoneAwake": "If you are recording on a phone, keep the screen on to reduce recording interruptions.",
+    "tabAudioMissing": "Tab/system audio is not connected. Click \"Share tab / system audio\" and choose a tab or screen with audio."
   },
   "alerts": {
     "uploadFailedDownloaded": "The recording could not be uploaded after a retry. The file \"{{fileName}}\" has been downloaded and saved on your computer. You can reupload it later or notify the support team."
   },
   "errors": {
     "recordingFailed": "Recording failed. Check your microphone permissions and try again.",
-    "uploadFailed": "Upload failed. Please retry once."
+    "uploadFailed": "Upload failed. Please retry once.",
+    "captureSetupFailed": "Audio setup failed. Check permissions and select your audio sources again."
   }
 }
