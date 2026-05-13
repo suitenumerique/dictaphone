@@ -10,6 +10,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
   gap: 16px;
   padding-left: 1rem;
   padding-right: 1rem;
+  padding-bottom: var(--c--globals--spacings--xl);
 
   @media (max-width: $tablet) {
   }
