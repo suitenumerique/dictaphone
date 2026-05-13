@@ -50,7 +50,13 @@ export default function MainMenu() {
         }
       >
         <View style={styles.popoverContent}>
-          <Pressable style={styles.actionButton} onPress={handleOpenInfo}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+            onPress={handleOpenInfo}
+          >
             <Lucide name="info" size={15} color={colors.textPrimary} />
             <AppText
               variant="body"
@@ -61,7 +67,13 @@ export default function MainMenu() {
             </AppText>
           </Pressable>
           {isLoggedIn && (
-            <Pressable style={styles.actionButton} onPress={handleLogout}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed && styles.actionButtonPressed,
+              ]}
+              onPress={handleLogout}
+            >
               <Lucide name="log-out" size={15} color={colors.textPrimary} />
               <AppText
                 variant="body"
@@ -110,6 +122,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    width: '100%',
+  },
+  actionButtonPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
   },
 })

@@ -190,7 +190,10 @@ export default function RecordingMenu({
         >
           <View style={styles.popoverContent}>
             <Pressable
-              style={styles.actionButton}
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed && styles.actionButtonPressed,
+              ]}
               onPress={openRenameModal}
               disabled={isBusy}
             >
@@ -235,7 +238,10 @@ export default function RecordingMenu({
               </Pressable>
             )}
             <Pressable
-              style={styles.actionButton}
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed && styles.actionButtonPressed,
+              ]}
               onPress={onConfirmDelete}
               disabled={isBusy}
             >
