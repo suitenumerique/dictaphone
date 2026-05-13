@@ -29,8 +29,9 @@ import DocsIcon from '@/assets/icons/docs.svg'
 import RecordingMenu from '@/components/RecordingMenu'
 import { intervalToDuration } from 'date-fns'
 import { InAppBrowser } from 'react-native-inappbrowser-reborn'
-import { AppText } from '@/components/AppText'
+import { AppText, typography } from '@/components/AppText'
 import { colors } from '@/components/colors'
+import { EnrichedMarkdownText } from 'react-native-enriched-markdown'
 
 type RecordingDetailsRouteProp = RouteProp<
   RootStackParamList,
@@ -231,28 +232,19 @@ export default function RecordingDetailsScreen() {
               {t('transcript.notAvailable')}
             </AppText>
           ) : (
-            <AppText selectable>
-              {transcriptSegments.map((segment, index) => (
-                <AppText
-                  variant="body"
-                  key={`${segment.start ?? index}-${index}`}
-                  style={styles.paragraph}
-                >
-                  <AppText variant="bodyBold">
-                    {formatTimestamp(segment.start ?? -1)}
-                    {' · '}
-                  </AppText>
-                  <AppText variant="bodyBold">
-                    {t('transcript.speaker')} {segment.speaker}
-                  </AppText>
-                  <AppText variant="body">
-                    {'  '}
-                    {segment.text.trimEnd()}
-                  </AppText>
-                  {'\n\n'}
-                </AppText>
-              ))}
-            </AppText>
+            <EnrichedMarkdownText
+              selectable={true}
+              markdownStyle={{
+                strong: typography.bodyBold,
+                paragraph: typography.body,
+              }}
+              markdown={transcriptSegments
+                .map(
+                  (segment) =>
+                    `**${formatTimestamp(segment.start ?? -1)} · ${t('transcript.speaker')} ${segment.speaker}**  ${segment.text.trim()}`
+                )
+                .join('\n\n')}
+            />
           )}
         </View>
       </ScrollView>

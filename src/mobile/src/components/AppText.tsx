@@ -21,7 +21,8 @@ type AppTextProps = TextProps & {
   align?: 'left' | 'right' | 'center'
 }
 
-const typography = StyleSheet.create({
+// eslint-disable-next-line react-refresh/only-export-components
+export const typography = StyleSheet.create({
   base: {
     includeFontPadding: false,
     fontFamily: 'Marianne-Regular',

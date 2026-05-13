@@ -6767,6 +6767,11 @@ react-native-device-info@15.0.2:
   resolved "https://registry.yarnpkg.com/react-native-device-info/-/react-native-device-info-15.0.2.tgz#c7de1bb6baeb07e1bab70159ad540c5705cb8dc0"
   integrity sha512-dd71eXG2l3Cwp66IvKNadMTB8fhU3PEjyVddI97sYan+D4bgIAUmgGDhbSOFvHcGavksb2U17kiQYaDiK2WK2g==
 
+react-native-enriched-markdown@0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/react-native-enriched-markdown/-/react-native-enriched-markdown-0.5.0.tgz#0d2e9a965963ca253c592136741d8329734d434f"
+  integrity sha512-CYihNlcg8IjsrVbmypDjFHsDF6Z6vYO0yraw6CkR30SDsg99J6fcBrOkyWOItO8PIDD21jw8yD1eYP/0LBOCdA==
+
 react-native-gesture-handler@2.31.1:
   version "2.31.1"
   resolved "https://registry.yarnpkg.com/react-native-gesture-handler/-/react-native-gesture-handler-2.31.1.tgz#0881209146ad272350f86277eccf189e5b44353f"
