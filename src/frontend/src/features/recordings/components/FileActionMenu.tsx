@@ -4,6 +4,7 @@ import {
   Input,
   Modal,
   ModalSize,
+  Select,
 } from '@gouvfr-lasuite/cunningham-react'
 import { useCallback, useMemo, useState } from 'react'
 import { ApiFileItem } from '@/features/files/api/types.ts'
@@ -16,6 +17,11 @@ import {
   addToast,
   ToasterItem,
 } from '@/features/ui/components/toaster/Toaster.tsx'
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { useRetryWithLanguageMutation } from '@/features/ai-jobs/api/fetch.ts'
+import { TTranscriptionLanguage } from '@/features/ai-jobs/api/types.ts'
+
+const RETRY_LANGUAGES: TTranscriptionLanguage[] = ['fr', 'en', 'de', 'nl']
 
 export function FileActionMenu({
   file,
@@ -29,11 +35,75 @@ export function FileActionMenu({
   const [title, setTitle] = useState(file.title)
   const [openRenameModal, setOpenRenameModal] = useState(false)
   const [openDeleteModal, setOpenDeleteModal] = useState(false)
+  const [openRetryModal, setOpenRetryModal] = useState(false)
+  const [retryLanguage, setRetryLanguage] =
+    useState<TTranscriptionLanguage | null>(null)
 
   const deleteFileMutation = useDeleteFile()
   const hardDeleteFileMutation = useHardDeleteFile()
   const restoreFileMutation = useRestoreFile()
   const partialUpdateFileMutation = usePartialUpdateFile()
+  const retryWithLanguageMutation = useRetryWithLanguageMutation()
+
+  const { lastAiJobTranscript } = useMemo(
+    () => getMainAiJobs(file.ai_jobs),
+    [file.ai_jobs]
+  )
+
+  const isRetryDisabled = lastAiJobTranscript?.status === 'pending'
+
+  const retryLanguages = useMemo(() => {
+    return RETRY_LANGUAGES.map((language) => ({
+      label: t(`actions.retryModal.languageOptions.${language}`),
+      value: language,
+      disabled:
+        lastAiJobTranscript?.status === 'success'
+          ? lastAiJobTranscript?.language === language
+          : false,
+    }))
+  }, [lastAiJobTranscript?.language, lastAiJobTranscript?.status, t])
+
+  const canOpenRetryModal =
+    Boolean(lastAiJobTranscript?.id) &&
+    !isRetryDisabled &&
+    !file.ai_jobs
+      .filter((el) => el.type === 'transcript')
+      .some((el) => el.status === 'pending')
+
+  const handleOpenRetryModal = useCallback(() => {
+    if (!canOpenRetryModal) {
+      return
+    }
+    setRetryLanguage(retryLanguages.find((el) => !el.disabled)!.value)
+    setOpenRetryModal(true)
+  }, [canOpenRetryModal, retryLanguages])
+
+  const handleRetry = useCallback(() => {
+    if (!lastAiJobTranscript?.id || !retryLanguage) {
+      return
+    }
+
+    retryWithLanguageMutation.mutate(
+      { id: lastAiJobTranscript.id, language: retryLanguage },
+      {
+        onSuccess: () => {
+          setOpenRetryModal(false)
+          setIsOpen(false)
+          addToast(
+            <ToasterItem type="info">
+              <span>{t('actions.retry.success')}</span>
+            </ToasterItem>
+          )
+        },
+        onError: () =>
+          addToast(
+            <ToasterItem type="error">
+              <span>{t('actions.retry.error')}</span>
+            </ToasterItem>
+          ),
+      }
+    )
+  }, [lastAiJobTranscript, retryLanguage, retryWithLanguageMutation, t])
 
   const handleRename = useCallback(() => {
     partialUpdateFileMutation.mutate(
@@ -89,6 +159,16 @@ export function FileActionMenu({
         label: t('actions.rename.label'),
         icon: <span className="material-icons">edit</span>,
         callback: () => setOpenRenameModal(true),
+      })
+    }
+
+    if (lastAiJobTranscript?.id) {
+      out.push({
+        label: isRetryDisabled
+          ? t('actions.retry.disabledPendingLabel')
+          : t('actions.retry.label'),
+        icon: <span className="material-icons">replay</span>,
+        callback: canOpenRetryModal ? handleOpenRetryModal : () => undefined,
       })
     }
 
@@ -159,6 +239,10 @@ export function FileActionMenu({
     file.abilities.restore,
     file.id,
     hardDeleteFileMutation,
+    handleOpenRetryModal,
+    canOpenRetryModal,
+    isRetryDisabled,
+    lastAiJobTranscript?.id,
     restoreFileMutation,
     t,
   ])
@@ -264,6 +348,45 @@ export function FileActionMenu({
             maxLength={255}
           />
         </div>
+      </Modal>
+      <Modal
+        size={ModalSize.MEDIUM}
+        isOpen={openRetryModal}
+        onClose={() => setOpenRetryModal(false)}
+        preventClose={retryWithLanguageMutation.isPending}
+        closeOnEsc={!retryWithLanguageMutation.isPending}
+        closeOnClickOutside={!retryWithLanguageMutation.isPending}
+        title={t('actions.retryModal.title')}
+        rightActions={
+          <>
+            <Button
+              variant="bordered"
+              onClick={() => setOpenRetryModal(false)}
+              disabled={retryWithLanguageMutation.isPending}
+              color="neutral"
+            >
+              {t('shared:actions.cancel')}
+            </Button>
+            <Button
+              onClick={handleRetry}
+              disabled={!retryLanguage || retryWithLanguageMutation.isPending}
+            >
+              {t('actions.retry.label')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('actions.retryModal.description')}</p>
+        <Select
+          label={t('actions.retryModal.languageLabel')}
+          value={retryLanguage ?? ''}
+          onChange={(event) =>
+            setRetryLanguage(event.target.value as TTranscriptionLanguage)
+          }
+          clearable={false}
+          disabled={retryWithLanguageMutation.isPending}
+          options={retryLanguages}
+        />
       </Modal>
     </div>
   )

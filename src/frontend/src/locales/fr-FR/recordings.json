@@ -38,6 +38,12 @@
       "success": "Enregistrement renommé",
       "error": "Échec du renommage de l'enregistrement"
     },
+    "retry": {
+      "label": "Régénérer",
+      "success": "Génération relancée",
+      "error": "Échec de la relance de la génération",
+      "disabledPendingLabel": "Régénérer (en cours)"
+    },
     "deletePermanently": {
       "label": "Supprimer définitivement",
       "success": "Enregistrement supprimé définitivement",
@@ -47,6 +53,17 @@
       "title": "Renommer l'enregistrement",
       "label": "Nouveau nom",
       "placeholder": "Entrez un nouveau nom"
+    },
+    "retryModal": {
+      "title": "Régénérer la transcription",
+      "description": "Choisissez la langue pour la nouvelle génération.",
+      "languageLabel": "Langue",
+      "languageOptions": {
+        "en": "Anglais",
+        "fr": "Français",
+        "de": "Allemand",
+        "nl": "Néerlandais"
+      }
     }
   },
   "transcript": {

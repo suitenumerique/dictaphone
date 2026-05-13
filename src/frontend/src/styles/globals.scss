@@ -32,6 +32,11 @@
   border-radius: 8px;
 }
 
+// Select component is broken in ui kit
+.c__select__menu__item--disabled {
+  color: var(--c--globals--colors--gray-600);
+}
+
 body {
   margin: 0;
 }

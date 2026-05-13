@@ -37,6 +37,12 @@
       "success": "Recording renamed",
       "error": "Failed to rename recording"
     },
+    "retry": {
+      "label": "Retry",
+      "success": "Generation restarted",
+      "error": "Failed to restart generation",
+      "disabledPendingLabel": "Retry (in progress)"
+    },
     "deletePermanently": {
       "label": "Delete permanently",
       "success": "Recording permanently deleted",
@@ -46,6 +52,17 @@
       "title": "Rename recording",
       "label": "New title",
       "placeholder": "Enter a new title"
+    },
+    "retryModal": {
+      "title": "Regenerate transcript",
+      "description": "Pick a language for the new generation.",
+      "languageLabel": "Language",
+      "languageOptions": {
+        "en": "English",
+        "fr": "French",
+        "de": "German",
+        "nl": "Dutch"
+      }
     }
   },
   "transcript": {

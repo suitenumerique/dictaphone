@@ -1,9 +1,10 @@
 import { fetchApi } from '@/api/fetchApi'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
 import {
   ApiAiJob,
   ApiOpenInDocsResponse,
+  TTranscriptionLanguage,
   WhisperXResponse,
 } from '@/features/ai-jobs/api/types.ts'
 
@@ -38,6 +39,24 @@ export const openInDocs = async (
   })
 }
 
+export const retryWithLanguage = async ({
+  id,
+  language,
+}: {
+  id: string
+  language: TTranscriptionLanguage
+}): Promise<void> => {
+  if (!id) {
+    throw new Error('Missing aiJob id')
+  }
+  return fetchApi<void>(`/ai-jobs/${id}/retry/`, {
+    method: 'POST',
+    body: JSON.stringify({
+      language,
+    }),
+  })
+}
+
 export const useTranscript = (params: Parameters<typeof getTranscript>[0]) => {
   return useQuery({
     queryKey: [keys.aiJobs, params?.id, params],
@@ -57,5 +76,21 @@ export const useSummary = (params: Parameters<typeof getSummary>[0]) => {
 export const useOpenInDocsMutation = () => {
   return useMutation({
     mutationFn: openInDocs,
+  })
+}
+
+export const useRetryWithLanguageMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: retryWithLanguage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [keys.aiJobs],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [keys.files],
+      })
+    },
   })
 }
