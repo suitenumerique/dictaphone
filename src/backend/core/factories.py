@@ -43,7 +43,9 @@ class FileFactory(factory.django.DjangoModelFactory):
     deleted_at = None
     type = factory.fuzzy.FuzzyChoice([t[0] for t in models.FileTypeChoices.choices])
     filename = factory.lazy_attribute(lambda o: fake.file_name())
-    duration_seconds = factory.Faker("pyfloat", positive=True, right_digits=2)
+    duration_seconds = factory.Faker(
+        "pyfloat", positive=True, right_digits=2, max_value=3600
+    )
     upload_state = None
     size = None
 

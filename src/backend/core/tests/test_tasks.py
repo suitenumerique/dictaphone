@@ -61,7 +61,14 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     """Transcribe task should call AI service and create a pending transcript job."""
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
-    file = factories.FileFactory(upload_bytes=b"hello")
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        duration_seconds=max_duration_seconds - 1,
+    )
 
     response = Mock()
     response.raise_for_status.return_value = None
@@ -85,9 +92,16 @@ def test_task_call_transcribe_service_success(mock_post, settings):
 
 
 @patch("core.tasks.file.requests.post")
-def test_task_call_transcribe_service_http_error(mock_post):
+def test_task_call_transcribe_service_http_error(mock_post, settings):
     """Errors from AI transcribe API should bubble up and mark job as failed."""
-    file = factories.FileFactory(upload_bytes=b"hello")
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        duration_seconds=max_duration_seconds - 1,
+    )
 
     response = Mock()
     response.raise_for_status.side_effect = RuntimeError("transcribe failure")
@@ -96,6 +110,32 @@ def test_task_call_transcribe_service_http_error(mock_post):
     with pytest.raises(RuntimeError, match="transcribe failure"):
         call_transcribe_service(file.id)
 
+    ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
+    assert ai_job.status == AiJobStatusChoices.FAILED
+    assert ai_job.remote_job_id is None
+
+
+@patch("core.tasks.file.requests.post")
+@pytest.mark.parametrize(
+    "duration_seconds",
+    [
+        60 * 60 * 3,
+    ],
+)
+def test_task_call_transcribe_service_fails_on_invalid_duration(
+    mock_post, settings, duration_seconds
+):
+    """Files with missing or too long duration should fail before external call."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        duration_seconds=duration_seconds,
+    )
+
+    call_transcribe_service(file.id)
+
+    mock_post.assert_not_called()
     ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
     assert ai_job.status == AiJobStatusChoices.FAILED
     assert ai_job.remote_job_id is None

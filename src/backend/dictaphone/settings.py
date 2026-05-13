@@ -195,6 +195,7 @@ class Base(Configuration):
             "audio_recording": {
                 "max_size": 1 * GB,
                 "max_count_by_user": 200,
+                "max_duration_seconds": 60 * 60 * 3 - 60,  # 2h59
                 "allowed_extensions": [
                     ".mp4",
                     ".m4a",

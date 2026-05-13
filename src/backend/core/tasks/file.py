@@ -63,6 +63,21 @@ def call_transcribe_service(file_id):
         status=AiJobStatusChoices.PENDING,
     )
 
+    if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+        config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
+        max_duration_seconds = config_for_file_type["max_duration_seconds"]
+
+        if (
+            file.duration_seconds is None
+            or file.duration_seconds > max_duration_seconds
+        ):
+            ai_transcribe_job.status = AiJobStatusChoices.FAILED
+            logger.warning(
+                "File duration exceeds maximum allowed for type %s", file.type
+            )
+            ai_transcribe_job.save()
+            return
+
     try:
         response = requests.post(
             settings.AI_SERVICE_URL + "async-jobs/transcribe/",
