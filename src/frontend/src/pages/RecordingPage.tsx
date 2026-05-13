@@ -207,7 +207,8 @@ export default function RecordingPage({
                     {t('shared:utils.duration', {
                       duration: intervalToDuration({
                         start: 0,
-                        end: (recording.duration_seconds || 1) * 1000,
+                        end:
+                          Math.max(recording.duration_seconds || 1, 1) * 1000,
                       }),
                     })}
                   </span>
