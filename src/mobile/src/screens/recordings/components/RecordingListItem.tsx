@@ -42,13 +42,21 @@ type StatusIndicatorProps = {
   uploadBlockReason: UploadBlockReason
 }
 
-export type UploadBlockReason = 'ok' | 'offline' | 'wifiOnly' | 'other'
+export type UploadBlockReason =
+  | 'not-logged-in'
+  | 'ok'
+  | 'offline'
+  | 'wifiOnly'
+  | 'other'
 
 function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
   if (item.kind === 'fake') {
     return <FileDisabledIcon />
   }
   if (item.kind === 'local') {
+    if (uploadBlockReason === 'not-logged-in') {
+      return <Lucide name="user-round-x" size={16} />
+    }
     if (uploadBlockReason === 'wifiOnly') {
       return <Lucide name="wifi-off" size={16} color={colors.warning} />
     }
@@ -74,8 +82,7 @@ function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
 function formatRecordMeta(
   recording: LocalOrRemoteRecording,
   t: TFunction,
-  uploadBlockReason: UploadBlockReason,
-  isLoggedIn: boolean
+  uploadBlockReason: UploadBlockReason
 ): string {
   if (recording.kind === 'fake') {
     return ''
@@ -98,7 +105,7 @@ function formatRecordMeta(
     if (uploadBlockReason === 'offline' || uploadBlockReason === 'other') {
       return `${durationLabel} • ${t('recordings.meta.offline')}`
     }
-    if (!isLoggedIn) {
+    if (uploadBlockReason === 'not-logged-in') {
       return `${durationLabel} • ${t('recordings.meta.loginToSync')}`
     }
     if (recording.uploadingStatus === 'uploading') {
@@ -247,7 +254,6 @@ function SwipeableRemoteRow({
 type RecordingListItemProps = {
   item: LocalOrRemoteRecording
   uploadBlockReason: UploadBlockReason
-  isLoggedIn: boolean
   t: TFunction
   onOpen: (item: LocalOrRemoteRecording) => void
   onDelete: (fileId: string) => void
@@ -258,7 +264,6 @@ type RecordingListItemProps = {
 export function RecordingListItem({
   item,
   uploadBlockReason,
-  isLoggedIn,
   t,
   onOpen,
   onDelete,
@@ -298,7 +303,7 @@ export function RecordingListItem({
                 {item.title}
               </AppText>
               <AppText variant="muted" size="md" numberOfLines={1}>
-                {formatRecordMeta(item, t, uploadBlockReason, isLoggedIn)}
+                {formatRecordMeta(item, t, uploadBlockReason)}
               </AppText>
               {item.kind === 'local' &&
                 item.uploadingStatus === 'uploading' && (

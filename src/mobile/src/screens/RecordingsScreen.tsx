@@ -31,8 +31,8 @@ import type { LocalOrRemoteRecording } from '@/screens/recordings/types'
 import { RecordingsTopBar } from '@/screens/recordings/components/RecordingsTopBar'
 import {
   RecordingListItem,
-  type UploadBlockReason,
   type SwipeableRowRef,
+  type UploadBlockReason,
 } from '@/screens/recordings/components/RecordingListItem'
 import { StartRecordingSection } from '@/screens/recordings/components/StartRecordingSection'
 
@@ -73,11 +73,13 @@ export default function RecordingsScreen() {
   )
   const openedSwipeableRef = useRef<SwipeableRowRef | null>(null)
 
-  const uploadBlockReason: UploadBlockReason = !isOnline
-    ? 'offline'
-    : settings.wifiOnlyUpload && !isOnWifi && !wifiBypassActivated
-      ? 'wifiOnly'
-      : 'ok'
+  const uploadBlockReason: UploadBlockReason = !isLoggedIn
+    ? 'not-logged-in'
+    : !isOnline
+      ? 'offline'
+      : settings.wifiOnlyUpload && !isOnWifi && !wifiBypassActivated
+        ? 'wifiOnly'
+        : 'ok'
   const showWifiOnlyCard =
     isLoggedIn &&
     isOnline &&
@@ -190,7 +192,6 @@ export default function RecordingsScreen() {
       <RecordingListItem
         item={item}
         uploadBlockReason={uploadBlockReason}
-        isLoggedIn={isLoggedIn}
         t={t}
         onOpen={handleOpenRecording}
         onDelete={handleDeleteRecording}
@@ -204,7 +205,6 @@ export default function RecordingsScreen() {
       handleOpenRecording,
       handleRowClose,
       handleRowWillOpen,
-      isLoggedIn,
       t,
     ]
   )
