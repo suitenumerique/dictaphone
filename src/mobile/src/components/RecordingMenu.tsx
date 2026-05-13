@@ -46,6 +46,7 @@ export default function RecordingMenu({
     useState<TTranscriptionLanguage | null>(null)
   const [draftTitle, setDraftTitle] = useState(currentTitle)
   const [pendingRename, setPendingRename] = useState(false)
+  const [pendingRetry, setPendingRetry] = useState(false)
 
   const deleteMutation = useDeleteFile()
   const renameMutation = usePartialUpdateFile()
@@ -95,7 +96,16 @@ export default function RecordingMenu({
         setIsRenameModalVisible(true)
       }, 50)
     }
-  }, [pendingRename])
+
+    if (pendingRetry) {
+      setPendingRetry(false)
+
+      // Hack for opening the rename modal to work on iOS
+      setTimeout(() => {
+        setIsRetryModalVisible(true)
+      }, 50)
+    }
+  }, [pendingRename, pendingRetry])
 
   const closeRenameModal = useCallback(() => {
     if (!renameMutation.isPending) {
@@ -219,7 +229,7 @@ export default function RecordingMenu({
                       (language) => !disabledRetryLanguages.includes(language)
                     )
                     setRetryLanguage(availableLanguage ?? null)
-                    setIsRetryModalVisible(true)
+                    setPendingRetry(true)
                     setIsPopoverVisible(false)
                   }
                 }}
