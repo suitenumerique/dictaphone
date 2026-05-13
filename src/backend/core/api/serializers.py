@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from timezone_field.rest_framework import TimeZoneSerializerField
 
-from core import models, utils
+from core import enums, models, utils
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +48,36 @@ class AiJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.AiFileJob
-        fields = ["id", "type", "status", "created_at", "updated_at", "docs_app_id"]
-        read_only_fields = [
+        fields = [
             "id",
             "type",
             "status",
+            "language",
             "created_at",
             "updated_at",
             "docs_app_id",
         ]
+        read_only_fields = [
+            "id",
+            "type",
+            "status",
+            "language",
+            "created_at",
+            "updated_at",
+            "docs_app_id",
+        ]
+
+
+class AiJobRetrySerializer(serializers.Serializer):
+    """Serializer for transcript retry requests."""
+
+    language = serializers.ChoiceField(choices=enums.ISO_639_1_CHOICES)
+
+    def create(self, validated_data):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError()
 
 
 class ListFileSerializer(serializers.ModelSerializer):

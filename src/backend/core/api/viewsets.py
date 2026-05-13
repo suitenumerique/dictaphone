@@ -670,6 +670,51 @@ class AiJobViewSet(
             {"doc_url": urljoin(settings.DOCS_BASE_URL, f"docs/{ai_job.docs_app_id}/")}
         )
 
+    @decorators.action(detail=True, methods=["post"], url_path="retry")
+    def retry(self, request, *args, **kwargs):
+        """Retry a transcript job."""
+        ai_job = self.get_object()
+        serializer = serializers.AiJobRetrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        language = serializer.validated_data["language"]
+
+        if ai_job.type != AiJobTypeChoices.TRANSCRIPT:
+            raise drf_exceptions.ValidationError(
+                {"type": "Only transcript jobs can be retried."},
+                code="ai_job_retry_invalid_type",
+            )
+
+        if ai_job.status == AiJobStatusChoices.SUCCESS and language == ai_job.language:
+            raise drf_exceptions.ValidationError(
+                {
+                    "language": "Cannot retry with the same language when job is successful."
+                },
+                code="ai_job_retry_same_language",
+            )
+
+        has_pending_transcript_job = AiFileJob.objects.filter(
+            file_id=ai_job.file_id,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            status=AiJobStatusChoices.PENDING,
+        ).exists()
+
+        if has_pending_transcript_job:
+            raise drf_exceptions.ValidationError(
+                {"state": "Cannot retry when there is a pending job already."},
+                code="ai_job_retry_pending",
+            )
+
+        new_ai_job_id = call_transcribe_service(ai_job.file_id, language=language)
+        try:
+            new_ai_job = AiFileJob.objects.get(id=new_ai_job_id)
+        except AiFileJob.DoesNotExist as exc:
+            raise drf_exceptions.NotFound() from exc
+
+        return drf_response.Response(
+            self.serializer_class(new_ai_job, context={"request": request}).data,
+            status=drf_status.HTTP_201_CREATED,
+        )
+
     @decorators.action(
         detail=False,
         methods=["post"],

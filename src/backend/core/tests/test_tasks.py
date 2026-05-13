@@ -89,6 +89,27 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     assert ai_job.file == file
     assert ai_job.type == AiJobTypeChoices.TRANSCRIPT
     assert ai_job.status == AiJobStatusChoices.PENDING
+    assert ai_job.language == "fr"
+
+
+@patch("core.tasks.file.requests.post")
+def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
+    """Transcribe task should pass explicit language to AI service."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
+    file = factories.FileFactory(upload_bytes=b"hello")
+
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"job_id": "remote-transcript-job-id-en"}
+    mock_post.return_value = response
+
+    call_transcribe_service(file.id, language="en")
+
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"]["language"] == "en"
+
+    ai_job = AiFileJob.objects.get(remote_job_id="remote-transcript-job-id-en")
+    assert ai_job.language == "en"
 
 
 @patch("core.tasks.file.requests.post")
@@ -261,6 +282,10 @@ def test_task_store_transcript_and_call_summary_success(
         type=AiJobTypeChoices.SUMMARIZE,
         status=AiJobStatusChoices.PENDING,
     ).exists()
+    assert (
+        AiFileJob.objects.get(remote_job_id="remote-summary-job-id").language
+        == ai_transcript_job.language
+    )
 
 
 @patch("core.tasks.file.requests.post")

@@ -85,3 +85,4 @@ class AiFileJobFactory(factory.django.DjangoModelFactory):
     status = factory.fuzzy.FuzzyChoice(
         [s[0] for s in models.AiJobStatusChoices.choices]
     )
+    language = "fr"

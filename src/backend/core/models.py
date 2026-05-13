@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 
 from timezone_field import TimeZoneField
 
+from core.enums import ISO_639_1_CHOICES
 from core.utils import format_transcript_for_markdown
 from core.webhook_models import WhisperXResponse
 
@@ -455,6 +456,11 @@ class AiFileJob(BaseModel):
     status = models.CharField(
         max_length=25,
         choices=AiJobStatusChoices.choices,
+    )
+    language = models.CharField(
+        max_length=2,
+        choices=ISO_639_1_CHOICES,
+        default="fr",
     )
     docs_app_id = models.CharField(max_length=255, null=True, blank=True)
 

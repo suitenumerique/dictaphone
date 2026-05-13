@@ -46,7 +46,7 @@ def process_file_deletion(file_id):
 
 
 @app.task
-def call_transcribe_service(file_id):
+def call_transcribe_service(file_id, language="fr"):
     """
     Call the transcribe service for a given file.
     """
@@ -54,13 +54,14 @@ def call_transcribe_service(file_id):
         file = File.objects.get(id=file_id)
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
-        return
+        return None
 
     ai_transcribe_job = AiFileJob.objects.create(
         remote_job_id=None,
         file=file,
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.PENDING,
+        language=language,
     )
 
     if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
@@ -76,14 +77,14 @@ def call_transcribe_service(file_id):
                 "File duration exceeds maximum allowed for type %s", file.type
             )
             ai_transcribe_job.save()
-            return
+            return ai_transcribe_job.id
 
     try:
         response = requests.post(
             settings.AI_SERVICE_URL + "async-jobs/transcribe/",
             json={
                 "user_sub": file.creator.sub,
-                "language": "fr",
+                "language": language,
                 "cloud_storage_url": generate_download_file_url(
                     file, expires_in=60 * 60 * 24, override_domain=False
                 ),
@@ -106,6 +107,7 @@ def call_transcribe_service(file_id):
     ai_transcribe_job.save()
 
     logger.info("Transcription job created for file %s", file_id)
+    return ai_transcribe_job.id
 
 
 @app.task
@@ -147,6 +149,7 @@ def handle_transcript_received(remote_job_id, url):
                 timezone.now() - ai_transcript_job.created_at
             ).total_seconds(),
             "ai_file_job_id": ai_transcript_job.id,
+            "language": ai_transcript_job.language,
             "file_id": ai_transcript_job.file.id,
             "transcript_size": len(response.content),
             "file_duration_seconds": ai_transcript_job.file.duration_seconds,
@@ -160,6 +163,7 @@ def handle_transcript_received(remote_job_id, url):
         file=file,
         type=AiJobTypeChoices.SUMMARIZE,
         status=AiJobStatusChoices.PENDING,
+        language=ai_transcript_job.language,
     )
 
     try:
@@ -167,7 +171,7 @@ def handle_transcript_received(remote_job_id, url):
             settings.AI_SERVICE_URL + "async-jobs/summarize/",
             json={
                 "user_sub": file.creator.sub,
-                "language": "fr",
+                "language": ai_transcript_job.language,
                 "content": format_transcript(transcript),
             },
             headers={
