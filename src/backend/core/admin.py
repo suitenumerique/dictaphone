@@ -1,11 +1,14 @@
 """Admin classes and registrations for core app."""
 
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
+from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from . import models
+from .tasks.file import call_transcribe_service
 from .utils import generate_download_file_url
 
 
@@ -28,6 +31,12 @@ class AiFileJobInline(admin.TabularInline):
     fields = ("id", "remote_job_id", "type", "status", "created_at")
     readonly_fields = ("id", "created_at")
     show_change_link = True
+
+
+class RetryTranscriptActionForm(ActionForm):
+    """Admin action form used to choose the transcription language."""
+
+    language = forms.ChoiceField(choices=models.ISO_639_1_CHOICES, required=True)
 
 
 @admin.register(models.User)
@@ -126,6 +135,8 @@ class FileAdmin(admin.ModelAdmin):
     """Admin class for the File model."""
 
     inlines = (AiFileJobInline,)
+    action_form = RetryTranscriptActionForm
+    actions = ("retry_transcript_generation",)
 
     list_display = (
         "id",
@@ -226,6 +237,28 @@ class FileAdmin(admin.ModelAdmin):
             '<a href="{}" target="_blank" rel="noopener noreferrer">Open File</a>', url
         )
 
+    @admin.action(description=_("Retry transcript generation"))
+    def retry_transcript_generation(self, request, queryset):
+        """Retry transcript generation for selected files."""
+        language = request.POST.get("language")
+        valid_languages = {code for code, _ in models.ISO_639_1_CHOICES}
+        if language not in valid_languages:
+            self.message_user(
+                request,
+                _("Invalid language selected."),
+                level=messages.ERROR,
+            )
+            return
+
+        for file in queryset:
+            call_transcribe_service.delay(file.id, language=language)
+
+        self.message_user(
+            request,
+            _("%(count)s transcript retry job(s) enqueued.")
+            % {"count": queryset.count()},
+        )
+
 
 @admin.register(models.AiFileJob)
 class AiFileJobAdmin(admin.ModelAdmin):
@@ -236,6 +269,7 @@ class AiFileJobAdmin(admin.ModelAdmin):
         "remote_job_id",
         "type",
         "status",
+        "language",
         "file",
         "created_at",
         "updated_at",
