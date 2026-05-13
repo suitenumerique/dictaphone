@@ -34,7 +34,10 @@
     "discardRecordingTitle": "Un enregistrement est en cours.",
     "discardRecordingMessage": "Voulez-vous l'abandonner ?",
     "discardRecordingCancel": "Ne pas quitter",
-    "discardRecordingConfirm": "Abandonner"
+    "discardRecordingConfirm": "Abandonner",
+    "recordingMaxDurationTitle": "Durée maximale d'enregistrement atteinte",
+    "recordingMaxDurationMessage": "L'enregistrement s'est arrêté automatiquement.",
+    "recordingMaxDurationConfirm": "OK"
   },
   "recordings": {
     "emptyTitle": "Aucun enregistrement",

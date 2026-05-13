@@ -39,8 +39,8 @@ export const useUserStore = create<UserStore>()(
         if (state) {
           const parsed = apiUserSchema.safeParse(state.user)
           state.user = parsed.success ? parsed.data : null
-          state.hasHydrated = true
         }
+        useUserStore.setState({ hasHydrated: true })
       },
     }
   )

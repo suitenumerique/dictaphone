@@ -171,8 +171,8 @@ export const useRecordingsStore = create<RecordingsStore>()(
                 uploadPercentage: undefined,
               }))
             : []
-          state.hasHydrated = true
         }
+        useRecordingsStore.setState({ hasHydrated: true })
       },
     }
   )
@@ -194,8 +194,8 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state) {
           const parsed = appSettingsSchema.safeParse(state.settings)
           state.settings = parsed.success ? parsed.data : { ...defaultSettings }
-          state.hasHydrated = true
         }
+        useSettingsStore.setState({ hasHydrated: true })
       },
     }
   )

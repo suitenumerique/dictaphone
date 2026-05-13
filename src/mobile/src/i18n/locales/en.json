@@ -34,7 +34,10 @@
     "discardRecordingTitle": "A recording is in progress.",
     "discardRecordingMessage": "Do you want to discard it?",
     "discardRecordingCancel": "Don't leave",
-    "discardRecordingConfirm": "Discard"
+    "discardRecordingConfirm": "Discard",
+    "recordingMaxDurationTitle": "Maximum recording duration reached",
+    "recordingMaxDurationMessage": "Recording stopped automatically.",
+    "recordingMaxDurationConfirm": "OK"
   },
   "recordings": {
     "emptyTitle": "No recordings yet",

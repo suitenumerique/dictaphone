@@ -1,6 +1,11 @@
 import { fetchApi } from './fetchApi'
 import { keys } from './queryKeys'
 import { useQuery } from '@tanstack/react-query'
+import {
+  ConfigStore,
+  DEFAULT_MAX_RECORDING_DURATION_SECONDS,
+  useConfigStore,
+} from '@/services/configStore'
 
 export interface ApiConfig {
   analytics?: {
@@ -10,6 +15,8 @@ export interface ApiConfig {
   audio_recording: {
     upload_is_enabled: boolean
     max_size: number
+    // might not exist yet in prod
+    max_duration_seconds?: number
     max_count_by_user: number
     allowed_extensions: string[]
     allowed_mimetypes: string[]
@@ -24,14 +31,38 @@ export interface ApiConfig {
   }
 }
 
-const fetchConfig = (): Promise<ApiConfig> => {
-  return fetchApi<ApiConfig>(`config/`)
+const fetchConfig = async (): Promise<ConfigStore['config']> => {
+  try {
+    const config = await fetchApi<ApiConfig>(`config/`)
+    const cleanedConfig: ConfigStore['config'] = {
+      ...config,
+      audio_recording: {
+        ...config.audio_recording,
+        max_duration_seconds:
+          config.audio_recording.max_duration_seconds ??
+          DEFAULT_MAX_RECORDING_DURATION_SECONDS,
+      },
+    }
+    useConfigStore.getState().setCachedConfig(cleanedConfig)
+    return cleanedConfig
+  } catch (error) {
+    const cachedConfig = useConfigStore.getState().config
+    if (cachedConfig) {
+      console.warn('Using cached config after config fetch failure:', error)
+      return cachedConfig
+    }
+    throw error
+  }
 }
 
 export const useConfig = () => {
+  const hasHydrated = useConfigStore((state) => state.hasHydrated)
+
   return useQuery({
     queryKey: [keys.config],
     queryFn: fetchConfig,
+    placeholderData: () => useConfigStore.getState().config ?? undefined,
     staleTime: Infinity,
+    enabled: hasHydrated,
   })
 }

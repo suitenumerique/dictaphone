@@ -17,6 +17,7 @@ import {
   FilePreset,
   RecordingNotificationManager,
 } from 'react-native-audio-api'
+import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { formatDuration } from '@/features/recordings/utils/formatDuration'
 import { useNavigation, usePreventRemove } from '@react-navigation/core'
 import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types'
@@ -31,6 +32,7 @@ import PauseIcon from '@/assets/icons/pause-recording.svg'
 import StopIcon from '@/assets/icons/stop-recording.svg'
 // @ts-expect-error SVG
 import PlayIcon from '@/assets/icons/resume-recording.svg'
+import { useConfigStore } from '@/services/configStore'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'record',
@@ -39,6 +41,12 @@ AudioManager.setAudioSessionOptions({
 })
 
 const audioRecorder = new AudioRecorderApi()
+
+const HEAVY_HAPTIC_INTERVAL_MS = 900
+const HAPTIC_OPTIONS = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+}
 
 const waitForNextFrame = () =>
   new Promise<void>((resolve) => {
@@ -49,6 +57,10 @@ const waitForNextFrame = () =>
 
 export const AudioRecorder = () => {
   const { t } = useTranslation()
+  const maxDurationSeconds = useConfigStore(
+    // We add a buffer to avoid the recording from being rejected due to timing issues
+    (state) => Math.max(state.maxDurationSeconds - 60, 0)
+  )
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -61,6 +73,10 @@ export const AudioRecorder = () => {
   const resetNavigationHistory = useResetNavigationHistory()
   const navigation = useNavigation()
   const recordingStartDateTime = useRef<Date | null>(null)
+  const autoStopHapticsInterval = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  )
+  const hasReachedMaxDuration = useRef(false)
 
   const recordTimeLabel = useMemo(
     () => formatDuration(recordingTimeMs),
@@ -70,6 +86,36 @@ export const AudioRecorder = () => {
   const recordingDurationInterval = useRef<ReturnType<
     typeof setTimeout
   > | null>(null)
+
+  const stopAutoStopHaptics = useCallback(() => {
+    if (autoStopHapticsInterval.current) {
+      clearInterval(autoStopHapticsInterval.current)
+      autoStopHapticsInterval.current = null
+    }
+  }, [])
+
+  const showMaxDurationAlert = useCallback(() => {
+    stopAutoStopHaptics()
+    triggerHaptic('impactHeavy', HAPTIC_OPTIONS)
+    autoStopHapticsInterval.current = setInterval(() => {
+      triggerHaptic('impactHeavy', HAPTIC_OPTIONS)
+    }, HEAVY_HAPTIC_INTERVAL_MS)
+
+    Alert.alert(
+      t('home.recordingMaxDurationTitle'),
+      t('home.recordingMaxDurationMessage'),
+      [
+        {
+          text: t('home.recordingMaxDurationConfirm'),
+          onPress: stopAutoStopHaptics,
+        },
+      ],
+      {
+        cancelable: false,
+        onDismiss: stopAutoStopHaptics,
+      }
+    )
+  }, [stopAutoStopHaptics, t])
 
   const showRecordingNotification = useCallback(
     async (paused: boolean) => {
@@ -110,9 +156,10 @@ export const AudioRecorder = () => {
     })
 
     return () => {
+      stopAutoStopHaptics()
       clearRecording()
     }
-  }, [clearRecording])
+  }, [clearRecording, stopAutoStopHaptics])
 
   usePreventRemove(isRecording, ({ data }) => {
     Alert.alert(
@@ -202,6 +249,7 @@ export const AudioRecorder = () => {
       setRecordingTimeMs(0)
       setIsRecording(true)
       setIsPaused(false)
+      hasReachedMaxDuration.current = false
       recordingStartDateTime.current = new Date()
     } catch (error) {
       console.error('Failed to start recording:', error)
@@ -252,7 +300,7 @@ export const AudioRecorder = () => {
       if (result.status === 'error') {
         console.warn(result.message)
         setIsStopping(false)
-        return
+        return false
       }
 
       await AudioManager.setAudioSessionActivity(false)
@@ -274,13 +322,47 @@ export const AudioRecorder = () => {
       setIsRecording(false)
       setIsPaused(false)
       setShouldResetNavigation(true)
+      return true
     } catch (error) {
       console.error('Failed to stop recording:', error)
       setIsStopping(false)
+      return false
     } finally {
       setIsLoading(false)
     }
   }, [addRecording, t])
+
+  useEffect(() => {
+    if (
+      !isRecording ||
+      isPaused ||
+      isStopping ||
+      hasReachedMaxDuration.current ||
+      recordingTimeMs < maxDurationSeconds * 1000
+    ) {
+      return
+    }
+
+    hasReachedMaxDuration.current = true
+
+    onStopRecord()
+      .then((didStop) => {
+        if (didStop) {
+          showMaxDurationAlert()
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to stop recording at max duration:', error)
+      })
+  }, [
+    isPaused,
+    isRecording,
+    isStopping,
+    maxDurationSeconds,
+    onStopRecord,
+    recordingTimeMs,
+    showMaxDurationAlert,
+  ])
 
   useEffect(() => {
     const pauseListener = RecordingNotificationManager.addEventListener(
