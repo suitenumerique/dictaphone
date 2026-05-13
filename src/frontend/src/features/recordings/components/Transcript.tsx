@@ -1,5 +1,5 @@
 import { useTranscript } from '@/features/ai-jobs/api/fetch.ts'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   buildTranscriptViewSegments,
   findActiveSegmentIndex,
@@ -22,10 +22,10 @@ export function Transcript({
 }) {
   const { t } = useTranslation('recordings')
   const transcriptContainerRef = useRef<HTMLDivElement>(null)
-  const segmentRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  const segmentRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
 
   const setSegmentRef = useCallback(
-    (id: string, element: HTMLButtonElement | null) => {
+    (id: string, element: HTMLSpanElement | null) => {
       if (!element) {
         segmentRefs.current.delete(id)
         return
@@ -107,16 +107,19 @@ export function Transcript({
             ref={transcriptContainerRef}
           >
             {transcriptSegments.map((segment, index) => (
-              <TranscriptSegment
-                key={segment.id}
-                isActive={index === activeSegmentIndex}
-                activeWordIndex={
-                  index === activeSegmentIndex ? activeWordIndex : -1
-                }
-                segment={segment}
-                seekTo={seekTo}
-                setSegmentRef={setSegmentRef}
-              />
+              <Fragment key={segment.id}>
+                <TranscriptSegment
+                  isActive={index === activeSegmentIndex}
+                  activeWordIndex={
+                    index === activeSegmentIndex ? activeWordIndex : -1
+                  }
+                  segment={segment}
+                  seekTo={seekTo}
+                  setSegmentRef={setSegmentRef}
+                />
+                {/* "invisible" line break so that text selection works */}
+                <div className="invisible-line-break"></div>
+              </Fragment>
             ))}
           </div>
         </>

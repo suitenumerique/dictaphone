@@ -1,7 +1,12 @@
 .transcript__transcript-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
+
+  .invisible-line-break {
+    line-height: 0;
+    height: 0;
+  }
 }
 
 .transcript__segment {
@@ -12,7 +17,7 @@
   padding: 0.25rem 0.25rem;
   margin-left: -0.25rem;
   background: transparent;
-  cursor: pointer;
+  cursor: text;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -20,9 +25,7 @@
   font-size: 14px;
   line-height: 20px;
 
-  display: flex;
-  flex-direction: row;
-  gap: 0.15rem;
+  display: inline;
 
   font-family: inherit;
 
@@ -60,17 +63,11 @@
 
 .transcript__segment-text {
   color: var(--c--contextuals--content--surface--primary);
-  display: flex;
-  flex-direction: row;
-  gap: 0.06em;
-  align-items: center;
-  flex-wrap: wrap;
+  display: inline;
 }
 
 .transcript__word {
   border-radius: 0.2rem;
-  padding: 0.02rem 0.12rem;
-  cursor: pointer;
   transition: background-color 0.15s ease;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
@@ -82,4 +79,8 @@
     var(--c--contextuals--background--semantic--brand--primary) 30%,
     transparent
   );
+}
+
+.transcript__word-whitespace {
+  white-space: pre-wrap;
 }

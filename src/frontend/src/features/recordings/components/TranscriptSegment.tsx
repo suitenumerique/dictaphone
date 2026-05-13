@@ -3,6 +3,7 @@ import {
   TranscriptViewSegment,
 } from '@/features/ai-jobs/utils/transcript.ts'
 import { useTranslation } from 'react-i18next'
+import { Fragment } from 'react'
 
 export function TranscriptSegment({
   segment,
@@ -15,16 +16,17 @@ export function TranscriptSegment({
   isActive: boolean
   activeWordIndex: number
   seekTo: (seconds: number) => void
-  setSegmentRef: (id: string, element: HTMLButtonElement | null) => void
+  setSegmentRef: (id: string, element: HTMLSpanElement | null) => void
 }) {
   const { t } = useTranslation('recordings')
   return (
-    <button
+    <span
       key={segment.id}
       className="transcript__segment"
       data-active={isActive}
-      type="button"
-      onClick={(event) => {
+      onDoubleClick={(event) => {
+        // We clear the selection to avoid a weird UX
+        window.getSelection()?.removeAllRanges()
         if (event.target instanceof HTMLElement) {
           const wordElement =
             event.target.closest<HTMLElement>('[data-word-start]')
@@ -49,20 +51,25 @@ export function TranscriptSegment({
             &nbsp;{`· ${t('transcript.speaker')} ${segment.speaker}`}
           </span>
         )}
+        &nbsp;
         <span className="transcript__intro__spacer" />
         {segment.words.length > 0
           ? segment.words.map((word, wordIndex) => (
-              <span
-                key={`${segment.id}-${wordIndex}-${word.start}`}
-                className="transcript__word"
-                data-active={isActive && wordIndex === activeWordIndex}
-                data-word-start={word.start}
-              >
-                {word.text}
-              </span>
+              <Fragment key={`${segment.id}-${wordIndex}-${word.start}`}>
+                <span
+                  className="transcript__word"
+                  data-active={isActive && wordIndex === activeWordIndex}
+                  data-word-start={word.start}
+                >
+                  {word.text}
+                </span>
+                <span className="transcript__word-whitespace">
+                  {wordIndex < segment.words.length - 1 ? ' ' : ''}
+                </span>
+              </Fragment>
             ))
           : segment.text}
       </span>
-    </button>
+    </span>
   )
 }
