@@ -2,7 +2,8 @@
   "login": {
     "loginCta": "Me connecter",
     "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
-    "logout": "Me déconnecter"
+    "logout": "Me déconnecter",
+    "skip": "Passer"
   },
   "home": {
     "record": "Démarrer",

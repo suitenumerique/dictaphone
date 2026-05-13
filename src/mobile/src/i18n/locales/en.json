@@ -2,7 +2,8 @@
   "login": {
     "loginCta": "Login",
     "subtitle": "Record your in-person meetings and access your transcripts.",
-    "logout": "Logout"
+    "logout": "Logout",
+    "skip": "Skip for now"
   },
   "home": {
     "record": "Record",

@@ -1,6 +1,6 @@
 // src/screens/LoginScreen.tsx
 import React, { useEffect } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 // @ts-expect-error  Logo SVG
 import LogoWithName from '../assets/logo-single-line.svg'
@@ -41,7 +41,22 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             {t('login.subtitle')}
           </AppText>
         </View>
-        <LoginButton />
+        <View style={styles.loginContainer}>
+          <LoginButton />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('login.skip')}
+            style={({ pressed }) => [
+              styles.skipButton,
+              pressed && styles.skipButtonPressed,
+            ]}
+            onPress={() => navigation.replace('Main')}
+          >
+            <AppText variant="body" size="md" align="center">
+              {t('login.skip')}
+            </AppText>
+          </Pressable>
+        </View>
       </View>
     </View>
   )
@@ -66,5 +81,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
+  },
+  loginContainer: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+  },
+  skipButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: colors.backgroundSubtle,
+    lineHeight: 16,
+  },
+  skipButtonPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
   },
 })
