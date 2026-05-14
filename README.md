@@ -36,7 +36,7 @@ _NB: The project codename and Python package name remain **Dictaphone**; GitHub 
 | Components | Stack / notes                                                                                |
 | ---------- | -------------------------------------------------------------------------------------------- |
 | Backend    | Python, Django, Celery under [`src/backend/`](./src/backend/) <br> _PostgreSQL / Redis / S3_ |
-| Web App    | React, Vite under [`src/frontend/`](./src/frontend/)                                         |
+| Web App    | React SPA, Vite under [`src/frontend/`](./src/frontend/)                                         |
 | Mobile App | React Native app under [`src/mobile/`](./src/mobile/)                                        |
 | Helm Chart | Under [`src/helm/`](./src/helm/)                                                             |
 
