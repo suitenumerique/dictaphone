@@ -56,7 +56,7 @@ It is nice to add information about the purpose of the pull request to help revi
 
 ### Don't forget to:
 - check your commits
-- check the linting: `make lint && make frontend-lint`
+- check the linting: `make lint && make frontend-lint && make mobile-lint`
 - check the tests: `make test`
 - add a changelog entry
 

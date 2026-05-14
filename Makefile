@@ -53,6 +53,9 @@ MANAGE              = $(COMPOSE_RUN_APP) python manage.py
 # -- Frontend
 PATH_FRONT          = ./src/frontend
 
+# -- Mobile
+PATH_MOBILE          = ./src/mobile
+
 # ==============================================================================
 # RULES
 
@@ -149,6 +152,16 @@ run-frontend-development: ## run the frontend in development mode
 	@$(COMPOSE) stop frontend
 	cd $(PATH_FRONT) && npm run dev
 .PHONY: run-frontend-development
+
+# -- Mobile
+
+mobile-lint: ## run the mobile linter
+	cd $(PATH_MOBILE) && yarn lint && yarn tsc
+.PHONY: mobile-lint
+
+mobile-format: ## run the mobile format
+	cd $(PATH_MOBILE) && yarn format
+.PHONY: mobile-format
 
 # -- Backend
 
