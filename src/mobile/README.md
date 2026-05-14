@@ -87,13 +87,16 @@ find ios -name "*.png" -exec convert {} -background "#F5FCFF" -flatten -alpha of
 
 ## Release
 
-- Bump the version in [package.json](./package.json)
+Run `bash scripts/release_bump.sh <version>`, this will update the version and build number in the following places:
+
+- [package.json](./package.json)
+- [ios/AssistantTranscripts.xcodeproj/project.pbxproj](./ios/AssistantTranscripts.xcodeproj/project.pbxproj)
+- [android/app/build.gradle](./android/app/build.gradle)
 
 ### iOS
 
-- Connect XCode to the appropriate Apple Developper account
+- Connect XCode to the appropriate Apple Developer account
 - Open project in Xcode
-- Bump the build number (+1) and marketing version accordingly (semantic versionning) in [ios/AssistantTranscripts.xcodeproj/project.pbxproj](./ios/AssistantTranscripts.xcodeproj/project.pbxproj)
 - Select "Any iOS device (arm64)" as target
 - In the `Product` menu, select `Archive`
 - In the `Distribute` menu, select `App Store Connect`
@@ -102,7 +105,6 @@ find ios -name "*.png" -exec convert {} -background "#F5FCFF" -flatten -alpha of
 ### Android
 
 - Open project in Android Studio
-- Bump the build number and the version (semantic versionning) in [android/app/build.gradle](./android/app/build.gradle)
 - (ask for the keystore)
 - In the `build` menu, click on `Generate Signed App Bundle or APK`, select `Android App Bundle`, select the appropriate keystore, `release` as build variant, and then `create`.
 - From there everything happens on https://play.google.com/console/
