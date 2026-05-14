@@ -3,7 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/suitenumerique/dictaphone/stargazers/"><img src="https://img.shields.io/github/stars/suitenumerique/dictaphone" alt=""></a><img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/suitenumerique/dictaphone"/><img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/suitenumerique/dictaphone"/><a href="https://github.com/suitenumerique/dictaphone/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/suitenumerique/dictaphone"/></a>
+  <a href="https://github.com/suitenumerique/dictaphone/stargazers/"><img src="https://img.shields.io/github/stars/suitenumerique/dictaphone" alt=""></a>
+  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/suitenumerique/dictaphone"/>
+  <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/suitenumerique/dictaphone"/>
+  <a href="https://github.com/suitenumerique/dictaphone/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/suitenumerique/dictaphone"/></a>
 </p>
 
 <p align="center">
