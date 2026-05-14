@@ -545,8 +545,13 @@ class Base(Configuration):
     )
     # For Resource server integration
     # Store OIDC tokens in the session
-    OIDC_STORE_ACCESS_TOKEN = True  # Store the access token in the session
-    OIDC_STORE_REFRESH_TOKEN = True  # Store the encrypted refresh token in the session
+    OIDC_STORE_ACCESS_TOKEN = values.BooleanValue(
+        default=True, environ_name="OIDC_STORE_ACCESS_TOKEN", environ_prefix=None
+    )
+    # Store the encrypted refresh token in the session
+    OIDC_STORE_REFRESH_TOKEN = values.BooleanValue(
+        default=True, environ_name="OIDC_STORE_REFRESH_TOKEN", environ_prefix=None
+    )
     # Must be a valid Fernet key (32 url-safe base64-encoded bytes)
     OIDC_STORE_REFRESH_TOKEN_KEY = values.Value(
         default="ThisIsAnExampleKeyForTestPurposeOnly",
