@@ -74,9 +74,7 @@ export function BaseLayout({
           </div>
           <div className="base-layout__header__right__separator" />
           <Button
-            onClick={() =>
-              window.location.replace(authUrl({ returnTo: '/recordings' }))
-            }
+            onClick={() => window.location.replace(authUrl())}
             size="small"
           >
             {t('login')}
