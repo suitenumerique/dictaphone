@@ -38,6 +38,7 @@ _NB: The project codename and Python package name remain **Dictaphone**; GitHub 
 | Backend    | Python, Django, Celery under [`src/backend/`](./src/backend/) <br> _PostgreSQL / Redis / S3_ |
 | Web App    | React, Vite under [`src/frontend/`](./src/frontend/)                                         |
 | Mobile App | React Native app under [`src/mobile/`](./src/mobile/)                                        |
+| Helm Chart | Under [`src/helm/`](./src/helm/)                                                             |
 
 Note that the main processing pipeline is currently hosted under [La Suite Meet repository](https://github.com/suitenumerique/meet), under the [summary component](https://github.com/suitenumerique/meet/tree/main/src/summary). It is based on WhisperX.
 

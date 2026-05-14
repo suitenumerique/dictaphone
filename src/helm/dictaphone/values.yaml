@@ -50,7 +50,6 @@ ingress:
   ## @param ingress.customBackends Add custom backends to ingress
   customBackends: []
 
-
 ## @param ingressAdmin.enabled whether to enable the Ingress or not
 ## @param ingressAdmin.className IngressClass to use for the Ingress
 ## @param ingressAdmin.host Host for the Ingress
@@ -61,7 +60,7 @@ ingressAdmin:
   host: dictaphone.example.com
   path: /admin
   ## @param ingressAdmin.hosts Additional host to configure for the Ingress
-  hosts: [ ]
+  hosts: []
   #  - chart-example.local
   ## @param ingressAdmin.tls.enabled Weather to enable TLS for the Ingress
   ## @param ingressAdmin.tls.secretName Secret name for TLS config
@@ -83,7 +82,7 @@ ingressMediaFiles:
   host: dictaphone.example.com
   path: /media/files/(.*)
   ## @param ingressMediaFiles.hosts Additional host to configure for the Ingress
-  hosts: [ ]
+  hosts: []
   #  - chart-example.local
   ## @param ingressMediaFiles.tls.enabled Weather to enable TLS for the Ingress
   ## @param ingressMediaFiles.tls.secretName Secret name for TLS config
@@ -95,10 +94,11 @@ ingressMediaFiles:
     enabled: true
     additional: []
 
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-url
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-response-headers
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/upstream-vhost
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/configuration-snippet
+  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/use-regex Enable use of regex for ingress paths
+  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-url Authentication URL for the ingress
+  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-response-headers Headers to pass from auth response
+  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/upstream-vhost Upstream host for proxying
+  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/configuration-snippet Custom nginx configuration snippet
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/auth-url: https://dictaphone.example.com/api/v1.0/files/media-auth/
@@ -115,8 +115,6 @@ serviceMediaFiles:
   host: minio.dictaphone.svc.cluster.local
   port: 9000
   annotations: {}
-
-
 
 ## @section backend
 
@@ -208,27 +206,37 @@ backend:
         python manage.py createsuperuser --email $DJANGO_SUPERUSER_EMAIL --password $DJANGO_SUPERUSER_PASSWORD
     restartPolicy: Never
 
-  # List of cronjob to add
-  ## @param backend.cronjobs Cronjob name, schedule, command
+  ## @section Jobs
+
+  ## Schedule jobs at fixed times (like cron)
+  ## Each cron job can be configured with name, schedule time and command.
+  ## @param backend.cronjobs[0].name Name of the CronJob
+  ## @param backend.cronjobs[0].schedule Schedule in cron format
+  ## @param backend.cronjobs[0].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[1].name Name of the CronJob
+  ## @param backend.cronjobs[1].schedule Schedule in cron format
+  ## @param backend.cronjobs[1].command The bash command to execute in the CronJob
+
   cronjobs:
     - name: clean-pending-files
       schedule: "30 0 * * *"
       command:
         - "/bin/sh"
         - "-c"
-        - python manage.py clean_pending_files
+        - "python manage.py clean_pending_files"
     - name: purge-deleted-files
       schedule: "45 0 * * *"
       command:
         - "/bin/sh"
         - "-c"
-        - python manage.py purge_deleted_files
+        - "python manage.py purge_deleted_files"
 
   ## @param backend.probes.liveness.path [nullable] Configure path for backend HTTP liveness probe
   ## @param backend.probes.liveness.targetPort [nullable] Configure port for backend HTTP liveness probe
   ## @param backend.probes.liveness.initialDelaySeconds [nullable] Configure initial delay for backend liveness probe
   ## @param backend.probes.liveness.timeoutSeconds [nullable] Configure timeout for backend liveness probe
   ## @param backend.probes.liveness.period [nullable] Configure period for backend liveness probe
+  ## @param backend.probes.liveness.periodSeconds [nullable] Configure period for backend liveness probe
   ## @param backend.probes.startup.path [nullable] Configure path for backend HTTP startup probe
   ## @param backend.probes.startup.targetPort [nullable] Configure port for backend HTTP startup probe
   ## @param backend.probes.startup.initialDelaySeconds [nullable] Configure initial delay for backend startup probe
@@ -239,6 +247,7 @@ backend:
   ## @param backend.probes.readiness.initialDelaySeconds [nullable] Configure initial delay for backend readiness probe
   ## @param backend.probes.readiness.timeoutSeconds [nullable] Configure timeout for backend readiness probe
   ## @param backend.probes.readiness.period [nullable] Configure period for backend readiness probe
+  ## @param backend.probes.readiness.periodSeconds [nullable] Configure period for backend readiness probe
   probes:
     liveness:
       path: /__heartbeat__
@@ -279,7 +288,6 @@ backend:
 
 ## @section celeryBackend
 celeryBackend:
-
   ## @param celeryBackend.dpAnnotations Annotations to add to the celeryBackend Deployment
   dpAnnotations: {}
 
@@ -376,7 +384,6 @@ celeryBackend:
   ## @param celeryBackend.pdb.enabled Enable pdb on celeryBackend
   pdb:
     enabled: false
-
 
 ## @section frontend
 
@@ -479,7 +486,6 @@ frontend:
 ## @section posthog
 
 posthog:
-
   ## @param posthog.ingress.enabled Enable or disable the ingress resource creation
   ## @param posthog.ingress.className Kubernetes ingress class name to use (e.g., nginx, traefik)
   ## @param posthog.ingress.host Primary hostname for the ingress resource
@@ -495,13 +501,13 @@ posthog:
     className: null
     host: dictaphone.example.com
     path: /
-    hosts: [ ]
+    hosts: []
     tls:
       secretName: null
       enabled: true
-      additional: [ ]
+      additional: []
 
-    customBackends: [ ]
+    customBackends: []
     annotations: {}
 
   ## @param posthog.ingressAssets.enabled Enable or disable the ingress resource creation
@@ -519,13 +525,13 @@ posthog:
     className: null
     host: dictaphone.example.com
     path: /static
-    hosts: [ ]
+    hosts: []
     tls:
       secretName: null
       enabled: true
-      additional: [ ]
+      additional: []
 
-    customBackends: [ ]
+    customBackends: []
     annotations: {}
 
   ## @param posthog.service.type Service type (e.g. ExternalName, ClusterIP, LoadBalancer)
