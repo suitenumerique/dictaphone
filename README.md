@@ -3,14 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/suitenumerique/dictaphone/stargazers/">
-    <img src="https://img.shields.io/github/stars/suitenumerique/dictaphone" alt="">
-  </a>
-  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/suitenumerique/dictaphone"/>
-  <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/suitenumerique/dictaphone"/>
-  <a href="https://github.com/suitenumerique/dictaphone/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/suitenumerique/dictaphone"/>
-  </a>
+  <a href="https://github.com/suitenumerique/dictaphone/stargazers/"><img src="https://img.shields.io/github/stars/suitenumerique/dictaphone" alt=""></a><img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/suitenumerique/dictaphone"/><img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/suitenumerique/dictaphone"/><a href="https://github.com/suitenumerique/dictaphone/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/suitenumerique/dictaphone"/></a>
 </p>
 
 <p align="center">
@@ -36,7 +29,7 @@ _NB: The project codename and Python package name remain **Dictaphone**; GitHub 
 | Components | Stack / notes                                                                                |
 | ---------- | -------------------------------------------------------------------------------------------- |
 | Backend    | Python, Django, Celery under [`src/backend/`](./src/backend/) <br> _PostgreSQL / Redis / S3_ |
-| Web App    | React SPA, Vite under [`src/frontend/`](./src/frontend/)                                         |
+| Web App    | React SPA, Vite under [`src/frontend/`](./src/frontend/)                                     |
 | Mobile App | React Native app under [`src/mobile/`](./src/mobile/)                                        |
 | Helm Chart | Under [`src/helm/`](./src/helm/)                                                             |
 
