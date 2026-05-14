@@ -763,7 +763,7 @@ class AiJobViewSet(
         ):
             ai_file_job.status = AiJobStatusChoices.FAILED
             ai_file_job.save()
-            if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):
+            if isinstance(payload, webhook_models.TranscribeWebhookFailurePayload):
                 analytics.capture_event(
                     analytics.EventName.TRANSCRIPT_GENERATION_FAILURE,
                     user=ai_file_job.file.creator,
