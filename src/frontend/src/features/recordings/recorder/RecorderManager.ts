@@ -6,12 +6,10 @@ import {
 
 const DEFAULT_TIMESLICE_MS = 10_000
 const FALLBACK_MIME_TYPE = 'audio/webm'
-const LEVEL_MULTIPLIER = 4
 
 type RecorderManagerCallbacks = {
   onChunk?: (chunk: RecorderChunk) => Promise<void> | void
   onStateChange?: (state: RecorderLifecycleState) => void
-  onAudioLevel?: (level: number) => void
   onError?: (error: Error) => void
 }
 
@@ -55,7 +53,6 @@ export class RecorderManager {
   private sequenceNumber = 0
   private state: RecorderLifecycleState = 'idle'
   private chunkPersistQueue = Promise.resolve()
-  private levelAnimationFrameId: number | null = null
   private timesliceMs = DEFAULT_TIMESLICE_MS
   private disposed = false
   private stopResolve: (() => void) | null = null
@@ -76,6 +73,10 @@ export class RecorderManager {
 
   public getMimeType() {
     return this.mediaRecorder?.mimeType
+  }
+
+  public getAnalyserNode() {
+    return this.analyserNode
   }
 
   private setState(nextState: RecorderLifecycleState) {
@@ -110,7 +111,7 @@ export class RecorderManager {
     this.inputGainNode.gain.value = 1
     this.analyserNode = this.audioContext.createAnalyser()
     this.analyserNode.fftSize = 1024
-    this.analyserNode.smoothingTimeConstant = 0.85
+    this.analyserNode.smoothingTimeConstant = 0.4
 
     this.inputGainNode.connect(this.analyserNode)
     this.inputGainNode.connect(this.mediaDestination)
@@ -144,43 +145,6 @@ export class RecorderManager {
     if (activeDeviceId) {
       await this.audioInputManager.selectDevice(activeDeviceId)
     }
-  }
-
-  private startLevelLoop() {
-    if (!this.analyserNode) {
-      return
-    }
-
-    const analyser = this.analyserNode
-    const samples = new Uint8Array(analyser.fftSize)
-
-    const tick = () => {
-      if (this.state !== 'recording') {
-        this.callbacks.onAudioLevel?.(0)
-        this.levelAnimationFrameId = window.requestAnimationFrame(tick)
-        return
-      }
-
-      analyser.getByteTimeDomainData(samples)
-      let squareSum = 0
-      for (const sample of samples) {
-        const centered = (sample - 128) / 128
-        squareSum += centered * centered
-      }
-      const rms = Math.sqrt(squareSum / samples.length)
-      this.callbacks.onAudioLevel?.(Math.min(1, rms * LEVEL_MULTIPLIER))
-      this.levelAnimationFrameId = window.requestAnimationFrame(tick)
-    }
-
-    this.levelAnimationFrameId = window.requestAnimationFrame(tick)
-  }
-
-  private stopLevelLoop() {
-    if (this.levelAnimationFrameId !== null) {
-      window.cancelAnimationFrame(this.levelAnimationFrameId)
-      this.levelAnimationFrameId = null
-    }
-    this.callbacks.onAudioLevel?.(0)
   }
 
   private handleRecorderError = (event: Event) => {
@@ -274,7 +238,6 @@ export class RecorderManager {
 
       recorder.start(this.timesliceMs)
       this.setState('recording')
-      this.startLevelLoop()
     })
   }
 
@@ -330,8 +293,6 @@ export class RecorderManager {
     this.disposed = true
 
     await this.enqueue(async () => {
-      this.stopLevelLoop()
-
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         this.mediaRecorder.stop()
       }

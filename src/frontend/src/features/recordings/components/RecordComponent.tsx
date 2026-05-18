@@ -54,7 +54,7 @@ export default function RecordComponent() {
     selectedAudioInputId,
     audioInputs,
     recordingDurationMs,
-    signalLevel,
+    analyserNode,
     uploadProgress,
     uploadError,
     recordingError,
@@ -204,7 +204,7 @@ export default function RecordComponent() {
           </p>
 
           <SignalLevelMeter
-            level={signalLevel}
+            analyserNode={analyserNode}
             isActive={recorderState === 'recording'}
             ariaLabel={t('record:source.signalLevelAriaLabel')}
           />

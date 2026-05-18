@@ -43,7 +43,7 @@ type RecordingControllerState = {
   selectedAudioInputId: string
   audioInputs: MediaDeviceInfo[]
   recordingDurationMs: number
-  signalLevel: number
+  analyserNode: AnalyserNode | null
   uploadProgress: number
   uploadError: string | null
   recordingError: string | null
@@ -88,7 +88,7 @@ export const useRecordingController = (
     selectedAudioInputId: '',
     audioInputs: [],
     recordingDurationMs: 0,
-    signalLevel: 0,
+    analyserNode: null,
     uploadProgress: 0,
     uploadError: null,
     recordingError: null,
@@ -188,9 +188,6 @@ export const useRecordingController = (
           ...currentState,
           recordingDurationMs: accumulatedDurationMsRef.current,
         }))
-      },
-      onAudioLevel: (level) => {
-        setState((current) => ({ ...current, signalLevel: level }))
       },
       onError: (error) => {
         setState((current) => ({
@@ -307,6 +304,10 @@ export const useRecordingController = (
         timesliceMs: RECORDING_CHUNK_TIMESLICE_MS,
         deviceId: state.selectedAudioInputId || undefined,
       })
+      setState((current) => ({
+        ...current,
+        analyserNode: recorder.getAnalyserNode(),
+      }))
 
       const resolvedMimeType = recorder.getMimeType()
       if (!resolvedMimeType) {
@@ -319,6 +320,7 @@ export const useRecordingController = (
     } catch (error) {
       setState((current) => ({
         ...current,
+        analyserNode: null,
         recordingError:
           error instanceof Error ? error.message : 'Failed to start recording',
       }))
