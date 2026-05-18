@@ -6,6 +6,7 @@ import {
 
 const DEFAULT_TIMESLICE_MS = 10_000
 const FALLBACK_MIME_TYPE = 'audio/webm'
+const FLUSH_WAIT_TIMEOUT_MS = 200
 
 type RecorderManagerCallbacks = {
   onChunk?: (chunk: RecorderChunk) => Promise<void> | void
@@ -77,6 +78,32 @@ export class RecorderManager {
 
   public getAnalyserNode() {
     return this.analyserNode
+  }
+
+  public requestDataFlush() {
+    if (!this.mediaRecorder) {
+      return
+    }
+    if (this.mediaRecorder.state === 'inactive') {
+      return
+    }
+    if (this.state !== 'recording' && this.state !== 'paused') {
+      return
+    }
+    try {
+      this.mediaRecorder.requestData()
+    } catch {
+      // Ignore best-effort flush failures.
+    }
+  }
+
+  public async flushPendingChunks(timeoutMs = FLUSH_WAIT_TIMEOUT_MS) {
+    await Promise.race([
+      this.chunkPersistQueue,
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, timeoutMs)
+      }),
+    ])
   }
 
   private setState(nextState: RecorderLifecycleState) {
