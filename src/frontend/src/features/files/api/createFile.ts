@@ -47,6 +47,38 @@ export const uploadFile = (
     xhr.send(file)
   })
 
+export const createPendingAudioFile = async ({
+  filename,
+  durationSeconds,
+  createdAt,
+}: {
+  filename: string
+  durationSeconds: number
+  createdAt: string
+}) => {
+  const pendingFile = await fetchApi<ApiFileItem>(`/files/`, {
+    method: 'POST',
+    body: JSON.stringify({
+      created_at: createdAt,
+      filename,
+      type: 'audio_recording',
+      duration_seconds: durationSeconds,
+    }),
+  })
+
+  if (pendingFile.upload_state !== 'pending') {
+    throw new Error('State should be pending right after creation')
+  }
+
+  return pendingFile
+}
+
+export const markUploadEnded = async (fileId: string) => {
+  return fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
+    method: 'POST',
+  })
+}
+
 /**
  * Asynchronously creates a new file and uploads it to the server.
  *
@@ -66,23 +98,13 @@ export const createFile = async ({
   onProgress: (progress: number) => void
   createdAt: string
 }): Promise<ApiFileItem> => {
-  const res = await fetchApi<ApiFileItem>(`/files/`, {
-    method: 'POST',
-    body: JSON.stringify({
-      created_at: createdAt,
-      filename: file.name,
-      type: 'audio_recording',
-      duration_seconds: durationSeconds,
-    }),
+  const pendingFile = await createPendingAudioFile({
+    filename: file.name,
+    durationSeconds,
+    createdAt,
   })
-  if (res.upload_state !== 'pending') {
-    throw new Error('State should be pending right after creation')
-  }
-  const policy = res.policy
-  await uploadFile(policy, file, onProgress)
-  return await fetchApi<ApiFileItem>(`/files/${res.id}/upload-ended/`, {
-    method: 'POST',
-  })
+  await uploadFile(pendingFile.policy, file, onProgress)
+  return markUploadEnded(pendingFile.id)
 }
 
 export const useCreateFile = () => {

@@ -23,7 +23,6 @@
     "clsx": "2.1.1",
     "crisp-sdk-web": "1.0.27",
     "date-fns": "4.1.0",
-    "derive-valtio": "0.2.0",
     "hoofd": "1.7.3",
     "humanize-duration": "3.33.2",
     "i18next": "25.8.8",
@@ -41,8 +40,8 @@
     "react-i18next": "16.5.5",
     "react-toastify": "11.0.5",
     "uuid": "14.0.0",
-    "valtio": "2.3.0",
-    "wouter": "3.9.0"
+    "wouter": "3.9.0",
+    "zustand": "5.0.13"
   },
   "devDependencies": {
     "@tanstack/eslint-plugin-query": "5.91.4",
