@@ -238,6 +238,34 @@ export const useRecordingController = (
     }
   }, [ensureManagers])
 
+  useEffect(() => {
+    const flushCurrentChunk = () => {
+      console.info('Flushing current changers chunk.')
+      const recorder = recorderRef.current
+      if (!recorder) {
+        return
+      }
+      recorder.requestDataFlush()
+      void recorder.flushPendingChunks()
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushCurrentChunk()
+      }
+    }
+
+    window.addEventListener('pagehide', flushCurrentChunk)
+    window.addEventListener('beforeunload', flushCurrentChunk)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      window.removeEventListener('pagehide', flushCurrentChunk)
+      window.removeEventListener('beforeunload', flushCurrentChunk)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [])
+
   const startRecording = useCallback(async () => {
     ensureManagers()
     const chunkStore = chunkStoreRef.current!
