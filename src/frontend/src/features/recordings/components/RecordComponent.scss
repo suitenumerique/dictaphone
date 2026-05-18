@@ -44,6 +44,10 @@
     color: var(--c--globals--colors--gray-600);
   }
 
+  .record-component__status--starting {
+    color: var(--c--globals--colors--gray-600);
+  }
+
   .record-component__status--error {
     color: var(--c--globals--colors--orange-500);
   }

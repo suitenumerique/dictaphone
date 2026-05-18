@@ -20,6 +20,7 @@
   },
   "status": {
     "readyToRecord": "Ready to record",
+    "requestingPermission": "Waiting for microphone permission",
     "recordingInProgress": "Recording in progress",
     "recordingPaused": "Recording paused",
     "uploadFailed": "Upload interrupted"

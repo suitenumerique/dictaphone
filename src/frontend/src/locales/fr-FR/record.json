@@ -20,6 +20,7 @@
   },
   "status": {
     "readyToRecord": "Prêt à enregistrer",
+    "requestingPermission": "En attente de l'autorisation du micro",
     "recordingInProgress": "Enregistrement en cours",
     "recordingPaused": "Enregistrement en pause",
     "uploadFailed": "Transfert interrompu"
