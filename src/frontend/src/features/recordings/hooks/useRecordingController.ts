@@ -213,7 +213,21 @@ export const useRecordingController = (
     const chunkStore = chunkStoreRef.current!
     const audioInputManager = audioInputManagerRef.current!
 
-    void chunkStore.openDatabase()
+    let active = true
+    void (async () => {
+      try {
+        await chunkStore.openDatabase()
+      } catch (error) {
+        if (!active) {
+          return
+        }
+        console.error('Failed to open recordings IndexedDB database', error)
+        setState((current) => ({
+          ...current,
+          recordingError: 'Failed to initialize local recording storage.',
+        }))
+      }
+    })()
 
     const unsubscribeAudioInputs = audioInputManager.subscribe((devices) => {
       setState((current) => {
@@ -232,6 +246,7 @@ export const useRecordingController = (
     })
 
     return () => {
+      active = false
       unsubscribeAudioInputs()
       if (durationTimerRef.current !== null) {
         window.clearInterval(durationTimerRef.current)
@@ -279,6 +294,7 @@ export const useRecordingController = (
     startedAtRef.current = null
     setState((current) => ({
       ...current,
+      recorderState: 'starting',
       recordingDurationMs: 0,
       uploadProgress: 0,
       uploadError: null,
@@ -289,6 +305,7 @@ export const useRecordingController = (
     if (permissionState === 'denied') {
       setState((current) => ({
         ...current,
+        recorderState: 'idle',
         recordingError:
           'Microphone access is denied. Please allow microphone permission in your browser settings.',
       }))
@@ -300,6 +317,7 @@ export const useRecordingController = (
       if (!granted) {
         setState((current) => ({
           ...current,
+          recorderState: 'idle',
           recordingError: 'Microphone access is required to start recording.',
         }))
         return
@@ -351,6 +369,7 @@ export const useRecordingController = (
     } catch (error) {
       setState((current) => ({
         ...current,
+        recorderState: 'idle',
         analyserNode: null,
         recordingError:
           error instanceof Error ? error.message : 'Failed to start recording',
