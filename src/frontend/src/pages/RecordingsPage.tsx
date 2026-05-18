@@ -2,18 +2,21 @@ import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
 import { useUploadZone } from '@/hooks/useUpload.tsx'
+import { useRecordingController } from '@/features/recordings/hooks/useRecordingController.ts'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { FileShare } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
+import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { RecoverAlert } from '@/features/recordings/components/RecoverAlert'
 
 const PAGE_SIZE = 10
 
 export default function RecordingsPage() {
   const { t } = useTranslation(['recordings', 'record'])
   const [, navigate] = useLocation()
+  const { hasRecoverableRecording } = useRecordingController()
 
   const filesQ = useListMyFilesInfinite({
     filters: {
@@ -28,6 +31,14 @@ export default function RecordingsPage() {
   const { dropZone } = useUploadZone()
   const isDropZoneActive =
     dropZone.isFocused || dropZone.isDragAccept || dropZone.isDragReject
+
+  const handleStartNewRecording = () => {
+    if (hasRecoverableRecording) {
+      window.alert(t('recordings:recovery.blockNewRecordingAlert'))
+      return
+    }
+    navigate('/new-recording')
+  }
 
   return (
     <ConnectedLayout
@@ -47,10 +58,12 @@ export default function RecordingsPage() {
             'drop-zone--drag-in-progress-main-area': isDropZoneActive,
           })}
         >
+          <RecoverAlert />
+
           <div className="recordings-actions">
             <div className="first-row">
               <Button
-                onClick={() => navigate('/new-recording?auto-start=true')}
+                onClick={handleStartNewRecording}
                 className="recordings-actions__record-button"
                 color="error"
                 variant="secondary"

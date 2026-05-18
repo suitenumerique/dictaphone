@@ -8,11 +8,18 @@
   "playRecordedAudio": "Lire l'audio enregistré",
   "pauseRecordedAudio": "Mettre en pause l'audio enregistré",
   "stopRecording": "Arrêter",
-  "discardRecording": "Supprimer l'enregistrement",
+  "discardRecording": "Supprimer",
   "uploadCta": "Transférer",
   "retryUpload": "Réessayer le transfert sur nos serveurs",
   "recordingPrefix": "Enregistrement",
+  "source": {
+    "label": "Source d'entrée",
+    "fallbackLabel": "Microphone {{index}}",
+    "noInputs": "Aucune source micro disponible.",
+    "signalLevelAriaLabel": "Niveau du signal micro"
+  },
   "status": {
+    "readyToRecord": "Prêt à enregistrer",
     "recordingInProgress": "Enregistrement en cours",
     "recordingPaused": "Enregistrement en pause",
     "uploadFailed": "Transfert interrompu"
@@ -20,6 +27,10 @@
   "uploadRecovery": {
     "title": "Votre enregistrement est toujours disponible",
     "description": "Le transfert vers nos serveurs a échoué. Réessayez une fois maintenant. Si cela échoue encore, le fichier audio sera téléchargé automatiquement pour que vous puissiez le transférer plus tard."
+  },
+  "recovery": {
+    "title": "Enregistrement récupérable détecté",
+    "description": "Une session d'enregistrement précédente est toujours stockée localement. Vous pouvez la transférer maintenant ou la supprimer."
   },
   "confirmStop": {
     "title": "Arrêter l'enregistrement ?",

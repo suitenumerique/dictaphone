@@ -3,7 +3,7 @@ import RecordComponent from '@/features/recordings/components/RecordComponent.ts
 
 export default function RecordPage() {
   return (
-    <ConnectedLayout>
+    <ConnectedLayout className="record-parent">
       <RecordComponent />
     </ConnectedLayout>
   )

@@ -14,11 +14,10 @@
   position: absolute;
   inset: 0;
   width: var(--meter-level);
-  background: var(--c--globals--colors--error-100);;
+  background: var(--c--globals--colors--error-100);
   pointer-events: none;
   transition: width 130ms ease;
 }
-
 
 .signal-level-meter--inactive::after {
   width: 0%;

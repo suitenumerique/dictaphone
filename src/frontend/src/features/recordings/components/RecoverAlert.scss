@@ -1,0 +1,58 @@
+.recordings-recovery-alert {
+  display: flex;
+  flex-direction: row;
+  gap: var(--c--globals--spacings--sm);
+  align-items: start;
+  margin-bottom: var(--c--globals--spacings--md);
+  padding: var(--c--globals--spacings--sm);
+  border: 1px solid var(--c--globals--colors--orange-300);
+  border-radius: var(--c--globals--spacings--xs);
+  background: var(--c--globals--colors--orange-050);
+
+  .recordings-recovery-alert__icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--c--globals--colors--orange-100);
+    color: var(--c--globals--colors--orange-600);
+  }
+
+  .recordings-recovery-alert__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--c--globals--spacings--xs);
+  }
+
+  .recordings-recovery-alert__title {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--c--globals--colors--gray-900);
+  }
+
+  .recordings-recovery-alert__description {
+    margin: 0;
+    color: var(--c--globals--colors--gray-700);
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .recordings-recovery-alert__error {
+    margin: 0;
+    color: var(--c--globals--colors--red-500);
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  .recordings-recovery-alert__actions {
+    display: flex;
+    flex-direction: row;
+    margin-top: var(--c--globals--spacings--xs);
+    gap: var(--c--globals--spacings--xs);
+    justify-content: center;
+  }
+}
