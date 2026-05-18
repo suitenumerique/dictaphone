@@ -1,0 +1,33 @@
+.signal-level-meter {
+  width: min(100%, 360px);
+  height: var(--c--globals--spacings--md);
+  padding: 0.5rem 0.75rem;
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--c--globals--colors--white);
+  border: 1px dashed var(--c--globals--colors--error-400);
+}
+
+.signal-level-meter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--meter-level);
+  background: var(--c--globals--colors--error-100);
+  pointer-events: none;
+  transition: width 130ms ease;
+}
+
+.signal-level-meter--inactive::after {
+  width: 0%;
+}
+
+.signal-level-meter--inactive {
+  width: 0%;
+  box-shadow: none;
+}
+
+.signal-level-meter--inactive {
+  opacity: 0;
+}

@@ -12,6 +12,8 @@
 @use './../components/DownloadAppsButtons';
 @use './../features/ui/preview/preview';
 @use './../features/recordings/components/RecordComponent';
+@use './../features/recordings/components/SignalLevelMeter';
+@use './../features/recordings/components/RecoverAlert';
 @use './../components/ProgressBar';
 @use './../features/recordings/components/ListRecordings';
 @use './../features/recordings/components/Transcript';

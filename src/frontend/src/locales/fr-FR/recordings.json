@@ -5,6 +5,9 @@
   "notFound": "Enregistrement introuvable.",
   "deleted": "Supprimé",
   "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
+  "recovery": {
+    "blockNewRecordingAlert": "Un enregistrement précédent n'a pas été transféré et est encore stocké localement. Veuillez le transférer ou le supprimer avant de démarrer un nouvel enregistrement."
+  },
   "list": {
     "title": "Mes enregistrements",
     "titleTrash": "Corbeille",

@@ -8,11 +8,19 @@
   "playRecordedAudio": "Play recorded audio",
   "pauseRecordedAudio": "Pause recorded audio",
   "stopRecording": "Stop",
-  "discardRecording": "Discard recording",
+  "discardRecording": "Discard",
   "uploadCta": "Upload",
   "retryUpload": "Retry upload",
   "recordingPrefix": "Recording",
+  "source": {
+    "label": "Input source",
+    "fallbackLabel": "Microphone {{index}}",
+    "noInputs": "No microphone source available.",
+    "signalLevelAriaLabel": "Microphone signal level"
+  },
   "status": {
+    "readyToRecord": "Ready to record",
+    "requestingPermission": "Waiting for microphone permission",
     "recordingInProgress": "Recording in progress",
     "recordingPaused": "Recording paused",
     "uploadFailed": "Upload interrupted"
@@ -20,6 +28,10 @@
   "uploadRecovery": {
     "title": "Your recording is still available",
     "description": "The upload to our servers failed. Retry once now. If it fails again, the audio file will be downloaded automatically so you can upload it later."
+  },
+  "recovery": {
+    "title": "Recoverable recording found",
+    "description": "A previous recording session is still stored locally. Upload it now or discard it."
   },
   "confirmStop": {
     "title": "Stop recording?",
