@@ -6,7 +6,7 @@
   "deleted": "Deleted",
   "subtitle": "Record your in-person meetings and access your transcripts.",
   "recovery": {
-    "blockNewRecordingAlert": "A record hasn't been transferred and is still stored locally. Please transfer it or delete it before starting a new recording."
+    "blockNewRecordingAlert": "A recording hasn't been transferred and is still stored locally. Please transfer it or delete it before starting a new recording."
   },
   "list": {
     "title": "My recordings",

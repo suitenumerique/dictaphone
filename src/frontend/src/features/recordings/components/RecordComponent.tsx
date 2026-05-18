@@ -80,6 +80,7 @@ export default function RecordComponent() {
 
   const isRecordingInProgress =
     recorderState === 'recording' || recorderState === 'paused'
+  const isStarting = recorderState === 'starting'
 
   const isBusy =
     isRecordingInProgress || recorderState === 'stopping' || isUploading
@@ -103,7 +104,9 @@ export default function RecordComponent() {
           ? 'record:status.recordingPaused'
           : 'record:status.recordingInProgress'
       )
-    : t('record:status.readyToRecord')
+    : isStarting
+      ? t('record:status.requestingPermission')
+      : t('record:status.readyToRecord')
 
   useEffect(() => {
     const releaseWakeLock = async () => {
@@ -186,7 +189,11 @@ export default function RecordComponent() {
         <div className="record-component__content">
           <p
             className={`record-component__status ${
-              isPaused ? 'record-component__status--paused' : ''
+              isPaused
+                ? 'record-component__status--paused'
+                : isStarting
+                  ? 'record-component__status--starting'
+                  : ''
             }`}
           >
             <span className="material-icons">
@@ -194,7 +201,9 @@ export default function RecordComponent() {
                 ? isPaused
                   ? 'pause'
                   : 'fiber_manual_record'
-                : 'mic'}
+                : isStarting
+                  ? 'hourglass_top'
+                  : 'mic'}
             </span>
             <span>{statusLabel}</span>
           </p>
@@ -228,18 +237,26 @@ export default function RecordComponent() {
             )}
           </div>
 
-          <div className="record-component__controls">
-            {!isRecordingInProgress && (
-              <Button
-                className="record-component__button"
-                onClick={() => void startRecording()}
-                disabled={recorderState === 'starting' || isUploading}
-              >
-                <span className="material-icons">fiber_manual_record</span>
-                <span>{t('record:startRecording')}</span>
-              </Button>
-            )}
+          {!isRecordingInProgress && (
+            <Button
+              className="record-component__button"
+              onClick={() => void startRecording()}
+              disabled={isStarting || isUploading}
+              variant="secondary"
+              color="error"
+              icon={
+                <span className="material-icons">
+                  {isStarting ? 'hourglass_top' : 'fiber_manual_record'}
+                </span>
+              }
+            >
+              {isStarting
+                ? t('record:status.requestingPermission')
+                : t('record:startRecording')}
+            </Button>
+          )}
 
+          <div className="record-component__controls">
             {isRecordingInProgress && (
               <>
                 <Button
