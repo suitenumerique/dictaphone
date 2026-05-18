@@ -1,5 +1,17 @@
 type AudioInputListener = (devices: MediaDeviceInfo[]) => void
 
+// Exclude common monitor/display audio names
+const EXCLUDED_INPUTS = [
+  'monitor',
+  'display',
+  'hdmi',
+  'dp audio',
+  'displayport',
+  'nvidia output',
+  'amd high definition',
+  'intel display audio',
+]
+
 /**
  * Manages audio input devices, including device selection, subscribing to device change events,
  * and acquiring media streams from audio input devices.
@@ -45,7 +57,13 @@ export class AudioInputManager {
       return []
     }
     const devices = await navigator.mediaDevices.enumerateDevices()
-    return devices.filter((device) => device.kind === 'audioinput')
+    return devices.filter(
+      (device) =>
+        device.kind === 'audioinput' &&
+        !EXCLUDED_INPUTS.some((excluded) =>
+          (device.label || '').toLowerCase().includes(excluded)
+        )
+    )
   }
 
   /**
