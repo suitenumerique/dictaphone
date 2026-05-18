@@ -2,12 +2,13 @@ import { useRecordingController } from '@/features/recordings/hooks/useRecording
 import { ProgressBar } from '@/components/ProgressBar'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { useTranslation } from 'react-i18next'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export function RecoverAlert() {
   const { t } = useTranslation(['recordings', 'record'])
   const {
     hasRecoverableRecording,
+    recoverableRecording,
     isUploading,
     uploadProgress,
     uploadError,
@@ -15,17 +16,75 @@ export function RecoverAlert() {
     clearRecoverableRecording,
   } = useRecordingController()
 
-  const [isClearing, setIsClearing] = useState(false)
-  const handleClear = useCallback(async () => {
-    setIsClearing(true)
-    try {
-      await clearRecoverableRecording()
-    } finally {
-      setIsClearing(false)
-    }
-  }, [clearRecoverableRecording])
+  const [pendingAction, setPendingAction] = useState<'clear' | 'upload' | null>(
+    null
+  )
+  const [dismissedRecordingId, setDismissedRecordingId] = useState<
+    string | null
+  >(null)
+  const currentRecoverableRecordingId = recoverableRecording?.id ?? null
 
-  if (!hasRecoverableRecording) return null
+  useEffect(() => {
+    if (!currentRecoverableRecordingId) {
+      setDismissedRecordingId(null)
+    }
+  }, [currentRecoverableRecordingId])
+
+  const isDismissed =
+    currentRecoverableRecordingId !== null &&
+    dismissedRecordingId === currentRecoverableRecordingId
+
+  const handleClear = useCallback(async () => {
+    if (
+      !currentRecoverableRecordingId ||
+      pendingAction !== null ||
+      isUploading
+    ) {
+      return
+    }
+
+    setPendingAction('clear')
+    try {
+      await clearRecoverableRecording(currentRecoverableRecordingId)
+      setDismissedRecordingId(currentRecoverableRecordingId)
+    } finally {
+      setPendingAction(null)
+    }
+  }, [
+    clearRecoverableRecording,
+    currentRecoverableRecordingId,
+    isUploading,
+    pendingAction,
+  ])
+
+  const handleUpload = useCallback(async () => {
+    if (
+      !currentRecoverableRecordingId ||
+      pendingAction !== null ||
+      isUploading
+    ) {
+      return
+    }
+
+    setPendingAction('upload')
+    try {
+      const uploadedFile = await uploadCurrentRecording(
+        currentRecoverableRecordingId
+      )
+      if (uploadedFile) {
+        setDismissedRecordingId(currentRecoverableRecordingId)
+      }
+    } finally {
+      setPendingAction(null)
+    }
+  }, [
+    currentRecoverableRecordingId,
+    isUploading,
+    pendingAction,
+    uploadCurrentRecording,
+  ])
+
+  if (!hasRecoverableRecording || isDismissed) return null
   return (
     <div className="recordings-recovery-alert" role="alert">
       <div className="recordings-recovery-alert__icon">
@@ -49,16 +108,16 @@ export function RecoverAlert() {
           <Button
             color="neutral"
             variant="secondary"
-            onClick={handleClear}
-            disabled={isUploading || isClearing}
+            onClick={() => void handleClear()}
+            disabled={isUploading || pendingAction !== null}
             icon={<span className="material-icons">delete</span>}
           >
             {t('record:discardRecording')}
           </Button>
           <Button
             color="brand"
-            onClick={uploadCurrentRecording}
-            disabled={isUploading || isClearing}
+            onClick={() => void handleUpload()}
+            disabled={isUploading || pendingAction !== null}
             icon={<span className="material-icons">cloud_upload</span>}
           >
             {t('record:uploadCta')}

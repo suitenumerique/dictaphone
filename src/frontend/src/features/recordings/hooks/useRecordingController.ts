@@ -61,9 +61,11 @@ type RecordingController = RecordingControllerState & {
   resumeRecording: () => Promise<void>
   stopRecording: () => Promise<void>
   switchAudioInput: (deviceId: string) => Promise<void>
-  uploadCurrentRecording: () => Promise<ApiFileItem | undefined>
+  uploadCurrentRecording: (
+    recordingId?: string
+  ) => Promise<ApiFileItem | undefined>
   downloadCurrentRecording: () => Promise<File | undefined>
-  clearRecoverableRecording: () => Promise<void>
+  clearRecoverableRecording: (recordingId?: string) => Promise<void>
 }
 
 export const useRecordingController = (
@@ -79,6 +81,8 @@ export const useRecordingController = (
   const recorderRef = useRef<RecorderManager | null>(null)
   const activeRecordingIdRef = useRef<string | null>(null)
   const uploadAbortControllerRef = useRef<AbortController | null>(null)
+  const uploadInFlightIdsRef = useRef<Set<string>>(new Set())
+  const clearInFlightIdsRef = useRef<Set<string>>(new Set())
   const durationTimerRef = useRef<number | null>(null)
   const startedAtRef = useRef<number | null>(null)
   const accumulatedDurationMsRef = useRef(0)
@@ -240,7 +244,6 @@ export const useRecordingController = (
 
   useEffect(() => {
     const flushCurrentChunk = () => {
-      console.info('Flushing current changers chunk.')
       const recorder = recorderRef.current
       if (!recorder) {
         return
@@ -438,113 +441,138 @@ export const useRecordingController = (
   }, [])
 
   const { t } = useTranslation(['record', 'shared'])
-  const uploadCurrentRecording = useCallback(async () => {
-    const uploadManager = uploadManagerRef.current
-    const chunkStore = chunkStoreRef.current
-    if (!uploadManager || !chunkStore) {
-      return
+  const resolveRecordingId = useCallback((preferredRecordingId?: string) => {
+    if (preferredRecordingId) {
+      return preferredRecordingId
+    }
+    if (activeRecordingIdRef.current) {
+      return activeRecordingIdRef.current
     }
 
-    const recordingId =
-      activeRecordingIdRef.current ?? recoverableRecording?.id ?? null
-    if (!recordingId || uploadManager.isUploading(recordingId)) {
-      return
-    }
+    return selectLatestRecoverableRecording(useLocalRecordingsStore.getState())
+      ?.id
+  }, [])
 
-    const recording = useLocalRecordingsStore
-      .getState()
-      .getRecordingById(recordingId)
-    if (!recording) {
-      return
-    }
+  const uploadCurrentRecording = useCallback(
+    async (preferredRecordingId?: string) => {
+      const uploadManager = uploadManagerRef.current
+      const chunkStore = chunkStoreRef.current
+      if (!uploadManager || !chunkStore) {
+        return
+      }
 
-    uploadAbortControllerRef.current?.abort()
-    const abortController = new AbortController()
-    uploadAbortControllerRef.current = abortController
+      const recordingId = resolveRecordingId(preferredRecordingId)
+      if (!recordingId) {
+        return
+      }
+      if (
+        uploadInFlightIdsRef.current.has(recordingId) ||
+        uploadManager.isUploading(recordingId)
+      ) {
+        return
+      }
+      uploadInFlightIdsRef.current.add(recordingId)
 
-    setState((current) => ({
-      ...current,
-      isUploading: true,
-      uploadProgress: 0,
-      uploadError: null,
-      recordingError: null,
-    }))
+      const recording = useLocalRecordingsStore
+        .getState()
+        .getRecordingById(recordingId)
+      if (!recording) {
+        uploadInFlightIdsRef.current.delete(recordingId)
+        return
+      }
 
-    useLocalRecordingsStore.getState().updateRecording(recordingId, {
-      status: 'uploading',
-    })
-
-    try {
-      const createdAtIso = new Date(recording.createdAt).toISOString()
-      const durationSeconds = Math.max(0, recording.durationMs / 1000)
-
-      const filename = `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: recording.createdAt })}.${getExtensionFromMimeType(recording.mimeType)}`
-
-      const pendingFile = await createPendingAudioFile({
-        filename,
-        durationSeconds,
-        createdAt: createdAtIso,
-      })
-
-      await uploadManager.uploadRecording({
-        recordingId,
-        url: pendingFile.policy,
-        method: 'PUT',
-        totalBytes: recording.totalBytes,
-        contentType: recording.mimeType || 'audio/webm',
-        headers: {
-          'X-amz-acl': 'private',
-        },
-        signal: abortController.signal,
-        onProgress: (progress) => {
-          setState((current) => ({
-            ...current,
-            uploadProgress: progress.percent,
-          }))
-        },
-      })
-
-      await chunkStore.clearRecording(recordingId)
-      useLocalRecordingsStore.getState().removeRecording(recordingId)
-      activeRecordingIdRef.current = null
-      setState((current) => ({
-        ...current,
-        currentRecordingId: null,
-      }))
-
-      const apiFile = await markUploadEnded(pendingFile.id)
-      queryClient.invalidateQueries({
-        queryKey: [keys.files],
-      })
+      uploadAbortControllerRef.current?.abort()
+      const abortController = new AbortController()
+      uploadAbortControllerRef.current = abortController
 
       setState((current) => ({
         ...current,
-        isUploading: false,
-        uploadProgress: 100,
+        isUploading: true,
+        uploadProgress: 0,
+        uploadError: null,
+        recordingError: null,
       }))
-      accumulatedDurationMsRef.current = 0
-      setState((current) => ({
-        ...current,
-        recordingDurationMs: 0,
-      }))
-      return apiFile
-    } catch (error) {
-      const aborted =
-        error instanceof DOMException && error.name === 'AbortError'
+
       useLocalRecordingsStore.getState().updateRecording(recordingId, {
-        status: 'stopped',
+        status: 'uploading',
       })
-      setState((current) => ({
-        ...current,
-        isUploading: false,
-        uploadError: aborted
-          ? null
-          : error instanceof Error
-            ? error.message
-            : 'Upload failed',
-      }))
-    }
-  }, [queryClient, recoverableRecording?.id, t])
+
+      try {
+        const createdAtIso = new Date(recording.createdAt).toISOString()
+        const durationSeconds = Math.max(0, recording.durationMs / 1000)
+
+        const filename = `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: recording.createdAt })}.${getExtensionFromMimeType(recording.mimeType)}`
+
+        const pendingFile = await createPendingAudioFile({
+          filename,
+          durationSeconds,
+          createdAt: createdAtIso,
+        })
+
+        await uploadManager.uploadRecording({
+          recordingId,
+          url: pendingFile.policy,
+          method: 'PUT',
+          totalBytes: recording.totalBytes,
+          contentType: recording.mimeType || 'audio/webm',
+          headers: {
+            'X-amz-acl': 'private',
+          },
+          signal: abortController.signal,
+          onProgress: (progress) => {
+            setState((current) => ({
+              ...current,
+              uploadProgress: progress.percent,
+            }))
+          },
+        })
+
+        await chunkStore.clearRecording(recordingId)
+        useLocalRecordingsStore.getState().removeRecording(recordingId)
+        activeRecordingIdRef.current = null
+        setState((current) => ({
+          ...current,
+          currentRecordingId: null,
+        }))
+
+        const apiFile = await markUploadEnded(pendingFile.id)
+        queryClient.invalidateQueries({
+          queryKey: [keys.files],
+        })
+
+        setState((current) => ({
+          ...current,
+          isUploading: false,
+          uploadProgress: 100,
+          uploadError: null,
+        }))
+        accumulatedDurationMsRef.current = 0
+        setState((current) => ({
+          ...current,
+          recordingDurationMs: 0,
+        }))
+        return apiFile
+      } catch (error) {
+        const aborted =
+          error instanceof DOMException && error.name === 'AbortError'
+        useLocalRecordingsStore.getState().updateRecording(recordingId, {
+          status: 'stopped',
+        })
+        setState((current) => ({
+          ...current,
+          isUploading: false,
+          uploadError: aborted
+            ? null
+            : error instanceof Error
+              ? error.message
+              : 'Upload failed',
+        }))
+      } finally {
+        uploadInFlightIdsRef.current.delete(recordingId)
+      }
+    },
+    [queryClient, resolveRecordingId, t]
+  )
 
   const downloadCurrentRecording = useCallback(async () => {
     const chunkStore = chunkStoreRef.current
@@ -591,26 +619,37 @@ export const useRecordingController = (
     return file
   }, [recoverableRecording?.id, t])
 
-  const clearRecoverableRecording = useCallback(async () => {
-    const recordingId = recoverableRecording?.id
-    if (!recordingId) {
-      return
-    }
-    await chunkStoreRef.current?.clearRecording(recordingId)
-    useLocalRecordingsStore.getState().removeRecording(recordingId)
-    setState((current) => ({
-      ...current,
-      uploadError: null,
-      uploadProgress: 0,
-    }))
-    if (activeRecordingIdRef.current === recordingId) {
-      activeRecordingIdRef.current = null
-      setState((current) => ({
-        ...current,
-        currentRecordingId: null,
-      }))
-    }
-  }, [recoverableRecording?.id])
+  const clearRecoverableRecording = useCallback(
+    async (preferredRecordingId?: string) => {
+      const recordingId = resolveRecordingId(preferredRecordingId)
+      if (!recordingId) {
+        return
+      }
+      if (clearInFlightIdsRef.current.has(recordingId)) {
+        return
+      }
+      clearInFlightIdsRef.current.add(recordingId)
+      try {
+        await chunkStoreRef.current?.clearRecording(recordingId)
+        useLocalRecordingsStore.getState().removeRecording(recordingId)
+        setState((current) => ({
+          ...current,
+          uploadError: null,
+          uploadProgress: 0,
+        }))
+        if (activeRecordingIdRef.current === recordingId) {
+          activeRecordingIdRef.current = null
+          setState((current) => ({
+            ...current,
+            currentRecordingId: null,
+          }))
+        }
+      } finally {
+        clearInFlightIdsRef.current.delete(recordingId)
+      }
+    },
+    [resolveRecordingId]
+  )
 
   return useMemo(() => {
     const canPauseOrStop =
