@@ -48,6 +48,7 @@ export default function RecordComponent() {
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false)
   const [uploadAttempts, setUploadAttempts] = useState(0)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const stopAndUploadInFlightRef = useRef(false)
 
   const {
     recorderState,
@@ -154,32 +155,41 @@ export default function RecordComponent() {
   }
 
   const handleStopAndUpload = async () => {
-    const nextAttempt = uploadAttempts + 1
-    setUploadAttempts(nextAttempt)
-
-    if (isRecordingInProgress) {
-      await stopRecording()
-    }
-
-    const file = await uploadCurrentRecording()
-    if (file) {
-      setIsStopDialogOpen(false)
-      navigate(`/recordings/${file.id}`)
+    if (stopAndUploadInFlightRef.current) {
       return
     }
+    stopAndUploadInFlightRef.current = true
 
-    if (nextAttempt >= maxUploadAttempts) {
-      const localFile = await downloadCurrentRecording()
-      if (localFile) {
-        downloadFile(localFile)
-        window.alert(
-          t('record:alerts.uploadFailedDownloaded', {
-            fileName: localFile.name,
-          })
-        )
+    try {
+      const nextAttempt = uploadAttempts + 1
+      setUploadAttempts(nextAttempt)
+
+      if (isRecordingInProgress) {
+        await stopRecording()
       }
-      setIsStopDialogOpen(false)
-      navigate('/recordings')
+
+      const file = await uploadCurrentRecording()
+      if (file) {
+        setIsStopDialogOpen(false)
+        navigate(`/recordings/${file.id}`)
+        return
+      }
+
+      if (nextAttempt >= maxUploadAttempts) {
+        const localFile = await downloadCurrentRecording()
+        if (localFile) {
+          downloadFile(localFile)
+          window.alert(
+            t('record:alerts.uploadFailedDownloaded', {
+              fileName: localFile.name,
+            })
+          )
+        }
+        setIsStopDialogOpen(false)
+        navigate('/recordings')
+      }
+    } finally {
+      stopAndUploadInFlightRef.current = false
     }
   }
 

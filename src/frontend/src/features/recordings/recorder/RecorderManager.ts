@@ -258,7 +258,11 @@ export class RecorderManager {
         }
         this.sequenceNumber += 1
         this.chunkPersistQueue = this.chunkPersistQueue.then(async () => {
-          await this.callbacks.onChunk?.(chunk)
+          try {
+            await this.callbacks.onChunk?.(chunk)
+          } catch (error) {
+            console.error('Failed to persist recording chunk', error)
+          }
         })
       }
       recorder.onerror = this.handleRecorderError
