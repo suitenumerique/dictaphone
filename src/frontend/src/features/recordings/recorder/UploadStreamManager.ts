@@ -142,8 +142,16 @@ export class UploadStreamManager {
         ...options.headers,
       },
     }
+    const request = new Request(options.url, requestInit)
+    // @ts-expect-error not yet widely supported
+    if (request.duplex !== 'half') {
+      console.warn(
+        'Duplex not supported in request, will fallback to direct blob upload'
+      )
+      throw new Error('Streaming upload not supported by this browser')
+    }
 
-    const response = await fetch(options.url, requestInit)
+    const response = await fetch(request)
     const responseText = await response.text().catch(() => undefined)
     if (!response.ok) {
       throw new Error(

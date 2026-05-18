@@ -197,6 +197,9 @@ export class RecorderManager {
       this.sequenceNumber = 0
       this.timesliceMs = options.timesliceMs ?? DEFAULT_TIMESLICE_MS
       await this.ensureAudioGraph()
+      if (this.audioContext?.state === 'suspended') {
+        await this.audioContext.resume()
+      }
 
       const inputStream = await this.audioInputManager.acquireStream(
         options.deviceId
@@ -217,10 +220,14 @@ export class RecorderManager {
         if (!event.data || event.data.size === 0) {
           return
         }
+        // Clone the chunk before persistence to avoid browser-specific Blob lifecycle issues.
+        const persistedChunkBlob = new Blob([event.data], {
+          type: event.data.type || mimeType || FALLBACK_MIME_TYPE,
+        })
         const chunk: RecorderChunk = {
           sequenceNumber: this.sequenceNumber,
           timestamp: Date.now(),
-          blob: event.data,
+          blob: persistedChunkBlob,
         }
         this.sequenceNumber += 1
         this.chunkPersistQueue = this.chunkPersistQueue.then(async () => {
