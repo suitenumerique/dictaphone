@@ -6,6 +6,7 @@ from uuid import uuid4
 from django.core.files.storage import default_storage
 
 import pytest
+import requests
 
 from core import factories
 from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
@@ -504,10 +505,38 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
             "sub": ai_transcript_job.file.creator.sub,
         },
         headers={"Authorization": "Bearer docs-api-key"},
-        timeout=20,
+        timeout=(20, 3 * 60),
     )
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.docs_app_id == "new-doc-id"
+
+
+@patch("core.tasks.file.logger.error")
+@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
+def test_task_create_document_in_docs_read_timeout_is_ignored(
+    mock_to_markdown, mock_post, mock_logger_error, settings
+):
+    """Read timeout should be logged and ignored to avoid duplicate docs."""
+    settings.DOCS_BASE_URL = "https://docs.example.com"
+    settings.DOCS_SERVER_TO_SERVER_API_KEY = "docs-api-key"
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+    )
+
+    mock_to_markdown.return_value = "# Transcript"
+    mock_post.side_effect = requests.ReadTimeout
+
+    create_document_in_docs(ai_transcript_job.id)
+
+    mock_logger_error.assert_called_once_with(
+        "Request to Docs timed out for file %s, "
+        "do not considering this a failure to avoid creating multiple files on docs",
+        ai_transcript_job.file.id,
+    )
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.docs_app_id is None
 
 
 @patch("core.tasks.file.logger.error")

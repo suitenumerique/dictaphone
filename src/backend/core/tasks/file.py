@@ -241,19 +241,29 @@ def create_document_in_docs(ai_job_id):
 
     content = ai_job.to_markdown(ai_job.file.creator.language)
 
-    response = requests.post(
-        urljoin(settings.DOCS_BASE_URL, "/api/v1.0/documents/create-for-owner/"),
-        json={
-            "title": ai_job.file.title,
-            "content": content,
-            "email": ai_job.file.creator.email,
-            "sub": ai_job.file.creator.sub,
-        },
-        headers={
-            "Authorization": f"Bearer {settings.DOCS_SERVER_TO_SERVER_API_KEY}",
-        },
-        timeout=20,
-    )
+    try:
+        response = requests.post(
+            urljoin(settings.DOCS_BASE_URL, "/api/v1.0/documents/create-for-owner/"),
+            json={
+                "title": ai_job.file.title,
+                "content": content,
+                "email": ai_job.file.creator.email,
+                "sub": ai_job.file.creator.sub,
+            },
+            headers={
+                "Authorization": f"Bearer {settings.DOCS_SERVER_TO_SERVER_API_KEY}",
+            },
+            timeout=(20, 3 * 60),
+        )
+    except requests.ReadTimeout:
+        logger.error(
+            "Request to Docs timed out for file %s, "
+            "do not considering this a failure to avoid creating multiple files on docs",
+            ai_job.file.id,
+        )
+        # We will "just" loose the link between the job and docs id but that's ok
+        return
+
     if response.status_code != 201:
         logger.error(
             "Failed to create document in Docs for file %s: %s",
