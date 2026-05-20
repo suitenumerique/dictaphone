@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-import requests
+import requests as requests_lib
 
 from core import analytics
 from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
@@ -19,6 +19,10 @@ from core.webhook_models import WhisperXResponse
 from dictaphone.celery_app import app
 
 logger = logging.getLogger(__name__)
+
+
+session = requests_lib.Session()
+session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 
 
 @app.task
@@ -80,7 +84,7 @@ def call_transcribe_service(file_id, language="fr"):
             return ai_transcribe_job.id
 
     try:
-        response = requests.post(
+        response = session.post(
             settings.AI_SERVICE_URL + "async-jobs/transcribe/",
             json={
                 "user_sub": file.creator.sub,
@@ -126,7 +130,7 @@ def handle_transcript_received(remote_job_id, url):
 
     logger.info("Storing transcript for file %s & url %s", file.id, url)
     # could be streamed to S3 later
-    response = requests.get(url, timeout=(10, 20))
+    response = session.get(url, timeout=(10, 20))
     response.raise_for_status()
     transcript = WhisperXResponse(**response.json())
 
@@ -167,7 +171,7 @@ def handle_transcript_received(remote_job_id, url):
     )
 
     try:
-        summary_response = requests.post(
+        summary_response = session.post(
             settings.AI_SERVICE_URL + "async-jobs/summarize/",
             json={
                 "user_sub": file.creator.sub,
@@ -208,7 +212,7 @@ def store_summary(remote_job_id, url):
 
     logger.info("Storing summary for file %s & url %s", file.id, url)
     # could be streamed to S3 later
-    response = requests.get(url, timeout=(10, 20))
+    response = session.get(url, timeout=(10, 20))
     response.raise_for_status()
 
     s3_client = default_storage.connection.meta.client
@@ -242,7 +246,7 @@ def create_document_in_docs(ai_job_id):
     content = ai_job.to_markdown(ai_job.file.creator.language)
 
     try:
-        response = requests.post(
+        response = session.post(
             urljoin(settings.DOCS_BASE_URL, "/api/v1.0/documents/create-for-owner/"),
             json={
                 "title": ai_job.file.title,
@@ -255,7 +259,7 @@ def create_document_in_docs(ai_job_id):
             },
             timeout=(20, 3 * 60),
         )
-    except requests.ReadTimeout:
+    except requests_lib.ReadTimeout:
         logger.error(
             "Request to Docs timed out for file %s, "
             "do not considering this a failure to avoid creating multiple files on docs",

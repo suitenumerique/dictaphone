@@ -225,6 +225,12 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
+    APP_EXTERNAL_USER_AGENT = values.Value(
+        "dictaphone",
+        environ_name="APP_EXTERNAL_USER_AGENT",
+        environ_prefix=None,
+    )
+
     # External AI Config service
     AI_SERVICE_URL = values.Value(
         "http://meet-summary.meet.svc.cluster.local/api/v2/",

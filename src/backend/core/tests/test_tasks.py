@@ -49,7 +49,7 @@ def test_task_process_file_deletion_success():
     assert not default_storage.exists(file.file_key)
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_file_does_not_exist(mock_post):
     """External API should not be called when the file does not exist."""
     call_transcribe_service(uuid4())
@@ -57,7 +57,7 @@ def test_task_call_transcribe_service_file_does_not_exist(mock_post):
     assert mock_post.call_count == 0
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_success(mock_post, settings):
     """Transcribe task should call AI service and create a pending transcript job."""
     settings.AI_SERVICE_URL = "http://ai-service/"
@@ -93,7 +93,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     assert ai_job.language == "fr"
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
     """Transcribe task should pass explicit language to AI service."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
@@ -113,7 +113,7 @@ def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
     assert ai_job.language == "en"
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_http_error(mock_post, settings):
     """Errors from AI transcribe API should bubble up and mark job as failed."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
@@ -137,7 +137,7 @@ def test_task_call_transcribe_service_http_error(mock_post, settings):
     assert ai_job.remote_job_id is None
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 @pytest.mark.parametrize(
     "duration_seconds",
     [
@@ -163,8 +163,8 @@ def test_task_call_transcribe_service_fails_on_invalid_duration(
     assert ai_job.remote_job_id is None
 
 
-@patch("core.tasks.file.requests.post")
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_job_does_not_exist(mock_get, mock_post):
     """No external calls should be made for unknown remote job id."""
     handle_transcript_received(
@@ -176,8 +176,8 @@ def test_task_store_transcript_and_call_summary_job_does_not_exist(mock_get, moc
     assert mock_post.call_count == 0
 
 
-@patch("core.tasks.file.requests.post")
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
     mock_get, mock_post
 ):
@@ -194,8 +194,8 @@ def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
 
 
 @patch("core.tasks.file.create_document_in_docs.apply_async")
-@patch("core.tasks.file.requests.post")
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_success(
     mock_get, mock_post, mock_create_document_in_docs, settings
 ):
@@ -289,8 +289,8 @@ def test_task_store_transcript_and_call_summary_success(
     )
 
 
-@patch("core.tasks.file.requests.post")
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_get_error(mock_get, mock_post):
     """If transcript download fails, nothing should be persisted."""
     ai_transcript_job = factories.AiFileJobFactory(
@@ -318,7 +318,7 @@ def test_task_store_transcript_and_call_summary_get_error(mock_get, mock_post):
     assert mock_post.call_count == 0
 
 
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.get")
 def test_task_store_summary_job_does_not_exist(mock_get):
     """No external calls should be made for unknown summary remote job id."""
     store_summary(
@@ -329,7 +329,7 @@ def test_task_store_summary_job_does_not_exist(mock_get):
     mock_get.assert_not_called()
 
 
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.get")
 def test_task_store_summary_ignores_non_summary_job(mock_get):
     """No external calls should be made if remote id belongs to a non-summary job."""
     ai_transcript_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
@@ -342,7 +342,7 @@ def test_task_store_summary_ignores_non_summary_job(mock_get):
     mock_get.assert_not_called()
 
 
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.get")
 def test_task_store_summary_success(mock_get):
     """Summary should be stored and summary job marked success."""
     ai_summary_job = factories.AiFileJobFactory(
@@ -377,7 +377,7 @@ def test_task_store_summary_success(mock_get):
     assert ai_summary_job.status == AiJobStatusChoices.SUCCESS
 
 
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.get")
 def test_task_store_summary_get_error(mock_get):
     """If summary download fails, nothing should be persisted."""
     ai_summary_job = factories.AiFileJobFactory(
@@ -400,8 +400,8 @@ def test_task_store_summary_get_error(mock_get):
 
 
 @patch("core.tasks.file.create_document_in_docs.apply_async")
-@patch("core.tasks.file.requests.post")
-@patch("core.tasks.file.requests.get")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_post_error(
     mock_get, mock_post, mock_create_document_in_docs
 ):
@@ -453,7 +453,7 @@ def test_task_store_transcript_and_call_summary_post_error(
     mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 def test_task_create_document_in_docs_ignores_non_transcript_job(mock_post):
     """Non-transcript jobs should not trigger Docs document creation."""
     ai_summary_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
@@ -463,7 +463,7 @@ def test_task_create_document_in_docs_ignores_non_transcript_job(mock_post):
     mock_post.assert_not_called()
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 def test_task_create_document_in_docs_ignores_existing_doc(mock_post):
     """Jobs with existing docs id should not call Docs API again."""
     ai_transcript_job = factories.AiFileJobFactory(
@@ -476,7 +476,7 @@ def test_task_create_document_in_docs_ignores_existing_doc(mock_post):
     mock_post.assert_not_called()
 
 
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 @patch("core.tasks.file.AiFileJob.to_markdown")
 def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, settings):
     """Transcript jobs should create Docs documents and store docs id."""
@@ -512,7 +512,7 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
 
 
 @patch("core.tasks.file.logger.error")
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 @patch("core.tasks.file.AiFileJob.to_markdown")
 def test_task_create_document_in_docs_read_timeout_is_ignored(
     mock_to_markdown, mock_post, mock_logger_error, settings
@@ -540,7 +540,7 @@ def test_task_create_document_in_docs_read_timeout_is_ignored(
 
 
 @patch("core.tasks.file.logger.error")
-@patch("core.tasks.file.requests.post")
+@patch("core.tasks.file.session.post")
 @patch("core.tasks.file.AiFileJob.to_markdown")
 def test_task_create_document_in_docs_logs_and_raises_on_http_error(
     mock_to_markdown, mock_post, mock_logger_error, settings
