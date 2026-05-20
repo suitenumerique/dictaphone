@@ -67,10 +67,14 @@ export const HeaderRight = () => {
       />
       <UserMenu
         actions={<LanguagePickerSyncedBackend />}
-        user={{
-          email: user!.email,
-          full_name: user!.full_name,
-        }}
+        user={
+          user && user.email
+            ? {
+                email: user.email,
+                full_name: user.full_name ?? undefined,
+              }
+            : null
+        }
         logout={logout}
       />
     </>

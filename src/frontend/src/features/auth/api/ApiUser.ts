@@ -1,8 +1,8 @@
 export type ApiUser = {
   id: string
-  email: string
-  full_name: string
-  last_name: string
+  email: string | null
+  full_name: string | null
+  last_name: string | null
   language: 'fr-fr' | 'en-us'
   timezone: string
   flag_show_mobile_app_popup: boolean
