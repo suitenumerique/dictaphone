@@ -29,6 +29,8 @@
     "personalData": "Personal data",
     "personalDataUrl": "/personal-data",
     "accessibility": "Accessibility : not compliant",
-    "accessibilityUrl": "/accessibility"
+    "accessibilityUrl": "/accessibility",
+    "serviceProvisionAgreement": "Service provision agreement",
+    "serviceProvisionAgreementUrl": "/service-provision-agreement"
   }
 }

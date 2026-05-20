@@ -4,6 +4,7 @@
   }
 
   section {
+    width: 100%;
     max-width: 650px;
     margin: 0 auto;
   }
@@ -18,5 +19,36 @@
       margin-bottom: var(--c--globals--spacings--2xs);
       margin-top: var(--c--globals--spacings--2xs);
     }
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    border-collapse: collapse;
+    border: 1px solid #ccc;
+
+    background: white;
+  }
+
+  thead {
+    display: none;
+  }
+
+  td {
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+
+    min-width: 200px;
+    max-width: 300px;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  tr:nth-child(1) {
+    font-weight: 700;
   }
 }

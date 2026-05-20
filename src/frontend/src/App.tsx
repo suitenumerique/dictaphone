@@ -30,6 +30,9 @@ const AccessibilityPage = React.lazy(
 const PersonalDataPage = React.lazy(
   () => import('@/pages/legal/PersonalDataPage')
 )
+const serviceProvisionAgreement = React.lazy(
+  () => import('@/pages/legal/ServiceProvisionAgreement')
+)
 
 function App() {
   const { i18n } = useTranslation()
@@ -83,6 +86,16 @@ function App() {
                 key={'en-personal-data'}
                 path={'/personal-data'}
                 component={PersonalDataPage}
+              />
+              <Route
+                key={'fr-service-provision-agreement'}
+                path={'/convention-mise-a-disposition'}
+                component={serviceProvisionAgreement}
+              />
+              <Route
+                key={'en-service-provision-agreement'}
+                path={'/service-provision-agreement'}
+                component={serviceProvisionAgreement}
               />
               <Route
                 key={'recordings'}

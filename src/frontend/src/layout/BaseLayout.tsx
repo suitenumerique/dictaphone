@@ -132,16 +132,20 @@ export function BaseLayout({
             label: t('layout:legal.legalTerms'),
           },
           {
+            href: t('layout:legal.termsOfServiceUrl'),
+            label: t('layout:legal.termsOfService'),
+          },
+          {
             href: t('layout:legal.personalDataUrl'),
             label: t('layout:legal.personalData'),
           },
           {
-            href: t('layout:legal.accessibilityUrl'),
-            label: t('layout:legal.accessibility'),
+            href: t('layout:legal.serviceProvisionAgreementUrl'),
+            label: t('layout:legal.serviceProvisionAgreement'),
           },
           {
-            href: t('layout:legal.termsOfServiceUrl'),
-            label: t('layout:legal.termsOfService'),
+            href: t('layout:legal.accessibilityUrl'),
+            label: t('layout:legal.accessibility'),
           },
         ]}
         license={{
