@@ -16,7 +16,9 @@
     "label": "Source d'entrée",
     "fallbackLabel": "Microphone {{index}}",
     "noInputs": "Aucune source micro disponible.",
-    "signalLevelAriaLabel": "Niveau du signal micro"
+    "signalLevelAriaLabel": "Niveau du signal micro",
+    "noSoundDetected": "Aucun son détecté !",
+    "lowSound": "Son très faible !"
   },
   "status": {
     "readyToRecord": "Prêt à enregistrer",

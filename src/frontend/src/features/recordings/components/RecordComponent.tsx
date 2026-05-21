@@ -226,6 +226,8 @@ export default function RecordComponent() {
             analyserNode={analyserNode}
             isActive={recorderState === 'recording'}
             ariaLabel={t('record:source.signalLevelAriaLabel')}
+            noSoundDetectedLabel={t('record:source.noSoundDetected')}
+            lowSoundLabel={t('record:source.lowSound')}
           />
           <div className="record-component__source-selector">
             <Select

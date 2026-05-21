@@ -16,7 +16,9 @@
     "label": "Input source",
     "fallbackLabel": "Microphone {{index}}",
     "noInputs": "No microphone source available.",
-    "signalLevelAriaLabel": "Microphone signal level"
+    "signalLevelAriaLabel": "Microphone signal level",
+    "noSoundDetected": "No sound detected!",
+    "lowSound": "Very low sound!"
   },
   "status": {
     "readyToRecord": "Ready to record",
