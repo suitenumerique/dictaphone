@@ -210,6 +210,11 @@ class Base(Configuration):
                     "video/webm",
                     "audio/mp4",
                     "video/mp4",
+                    # Some mp4 files
+                    "audio/mpeg",
+                    # Some M4A files
+                    "video/3gpp",
+                    "audio/x-hx-aac-adts",
                     "audio/x-m4a",
                     "audio/webm;codecs=opus",
                     "audio/mp4",
@@ -217,6 +222,8 @@ class Base(Configuration):
                     "audio/ogg",
                     "audio/ogg;codecs=opus",
                     "audio/wav",
+                    "audio/x-wav",
+                    "audio/vnd.wave",
                     "audio/wave",
                 ],
             },
