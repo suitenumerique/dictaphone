@@ -20,6 +20,7 @@ import {
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { useRetryWithLanguageMutation } from '@/features/ai-jobs/api/fetch.ts'
 import { TTranscriptionLanguage } from '@/features/ai-jobs/api/types.ts'
+import { useLocation } from 'wouter'
 
 const RETRY_LANGUAGES: TTranscriptionLanguage[] = ['fr', 'en', 'de', 'nl']
 
@@ -38,6 +39,7 @@ export function FileActionMenu({
   const [openRetryModal, setOpenRetryModal] = useState(false)
   const [retryLanguage, setRetryLanguage] =
     useState<TTranscriptionLanguage | null>(null)
+  const [, navigate] = useLocation()
 
   const deleteFileMutation = useDeleteFile()
   const hardDeleteFileMutation = useHardDeleteFile()
@@ -141,6 +143,7 @@ export function FileActionMenu({
               <span>{t('actions.delete.success')}</span>
             </ToasterItem>
           )
+          navigate('/recordings')
         },
         onError: () =>
           addToast(
@@ -150,7 +153,7 @@ export function FileActionMenu({
           ),
       }
     )
-  }, [deleteFileMutation, file.id, t])
+  }, [deleteFileMutation, file.id, navigate, t])
 
   const menuItems = useMemo(() => {
     const out: DropdownMenuProps['options'] = []
