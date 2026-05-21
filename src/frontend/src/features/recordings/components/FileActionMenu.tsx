@@ -272,6 +272,7 @@ export function FileActionMenu({
           <Button
             size="small"
             variant="tertiary"
+            color="neutral"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="more_actions"
             icon={<span className="material-icons more">more_horiz</span>}

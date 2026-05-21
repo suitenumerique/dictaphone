@@ -3,7 +3,8 @@
     "cancel": "Annuler",
     "delete": "Supprimer",
     "back": "Retour",
-    "copy": "Copier"
+    "copy": "Copier",
+    "copyText": "Copier le texte"
   },
   "utils": {
     "formatDate": "{{value, formatDate}}",

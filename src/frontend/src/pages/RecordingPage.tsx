@@ -9,6 +9,7 @@ import { Transcript } from '@/features/recordings/components/Transcript.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import {
   ArrowLeft,
+  ArrowUpRight,
   Badge,
   Calendar2,
   Clock,
@@ -40,7 +41,11 @@ function OpenInDocsButton({
   const { t } = useTranslation('recordings')
   const openInDocs = useOpenInDocsMutation()
   const handleOpenInDocs = useCallback(() => {
-    if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
+    if (
+      lastAiJobTranscript?.id &&
+      lastAiJobTranscript.status === 'success' &&
+      lastAiJobTranscript.docs_app_id
+    ) {
       openInDocs.mutate(lastAiJobTranscript, {
         onSuccess: (res) => {
           window.open(res.doc_url, '_blank')
@@ -54,20 +59,14 @@ function OpenInDocsButton({
     <Button
       onClick={handleOpenInDocs}
       size="small"
-      variant="primary"
+      variant="secondary"
       disabled={
+        openInDocs.isPending ||
         lastAiJobTranscript?.status !== 'success' ||
         !lastAiJobTranscript?.docs_app_id
       }
       aria-label={t('transcript.openInDocsCta')}
-      icon={
-        <img
-          src="/assets/files/icons/docs-mono.svg"
-          alt="Docs"
-          width={20}
-          height={20}
-        />
-      }
+      icon={<ArrowUpRight />}
       children={!isMobile ? t('transcript.openInDocsCta') : undefined}
     />
   )
@@ -170,7 +169,7 @@ export default function RecordingPage({
           </Button>
           <div className="recording-page__actions-buttons__right">
             <Button
-              aria-label={t('shared:actions.copy')}
+              aria-label={t('shared:actions.copyText')}
               size="small"
               variant="tertiary"
               color="neutral"
@@ -178,7 +177,7 @@ export default function RecordingPage({
               disabled={
                 lastAiJobTranscript?.status !== 'success' || !transcriptMarkdown
               }
-              children={!isMobile ? t('shared:actions.copy') : undefined}
+              children={!isMobile ? t('shared:actions.copyText') : undefined}
               onClick={handleCopy}
             />
             <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
