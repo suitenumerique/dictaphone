@@ -18,16 +18,21 @@ export type StoredRecordingStatus =
   | 'paused'
   | 'stopped'
   | 'uploading'
+  | 'exited'
+  | 'upload_failed'
 
 export type StoredRecording = {
   id: string
   createdAt: number
   updatedAt: number
+  filename: string
   mimeType: string
   status: StoredRecordingStatus
   chunkCount: number
   totalBytes: number
   durationMs: number
+  uploadProgress: number
+  uploadError: string | null
 }
 
 export type StoredChunk = {

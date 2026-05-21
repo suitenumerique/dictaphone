@@ -221,61 +221,66 @@ export class RecorderManager {
       }
 
       this.setState('starting')
-      this.sequenceNumber = 0
-      this.timesliceMs = options.timesliceMs ?? DEFAULT_TIMESLICE_MS
-      await this.ensureAudioGraph()
-      if (this.audioContext?.state === 'suspended') {
-        await this.audioContext.resume()
-      }
-
-      const inputStream = await this.audioInputManager.acquireStream(
-        options.deviceId
-      )
-      await this.replaceInputStream(inputStream)
-
-      const mimeType = resolveMimeType(options.preferredMimeTypes)
-      if (!this.mediaDestination) {
-        throw new Error('No MediaStreamDestination available')
-      }
-
-      const recorder = mimeType
-        ? new MediaRecorder(this.mediaDestination.stream, { mimeType })
-        : new MediaRecorder(this.mediaDestination.stream)
-      this.mediaRecorder = recorder
-
-      recorder.ondataavailable = (event) => {
-        if (!event.data || event.data.size === 0) {
-          return
+      try {
+        this.sequenceNumber = 0
+        this.timesliceMs = options.timesliceMs ?? DEFAULT_TIMESLICE_MS
+        await this.ensureAudioGraph()
+        if (this.audioContext?.state === 'suspended') {
+          await this.audioContext.resume()
         }
-        // Clone the chunk before persistence to avoid browser-specific Blob lifecycle issues.
-        const persistedChunkBlob = new Blob([event.data], {
-          type: event.data.type || mimeType || FALLBACK_MIME_TYPE,
-        })
-        const chunk: RecorderChunk = {
-          sequenceNumber: this.sequenceNumber,
-          timestamp: Date.now(),
-          blob: persistedChunkBlob,
+
+        const inputStream = await this.audioInputManager.acquireStream(
+          options.deviceId
+        )
+        await this.replaceInputStream(inputStream)
+
+        const mimeType = resolveMimeType(options.preferredMimeTypes)
+        if (!this.mediaDestination) {
+          throw new Error('No MediaStreamDestination available')
         }
-        this.sequenceNumber += 1
-        this.chunkPersistQueue = this.chunkPersistQueue.then(async () => {
-          try {
-            await this.callbacks.onChunk?.(chunk)
-          } catch (error) {
-            console.error('Failed to persist recording chunk', error)
+
+        const recorder = mimeType
+          ? new MediaRecorder(this.mediaDestination.stream, { mimeType })
+          : new MediaRecorder(this.mediaDestination.stream)
+        this.mediaRecorder = recorder
+
+        recorder.ondataavailable = (event) => {
+          if (!event.data || event.data.size === 0) {
+            return
           }
-        })
-      }
-      recorder.onerror = this.handleRecorderError
-      recorder.onstop = () => {
-        void this.chunkPersistQueue.finally(() => {
-          this.setState('stopped')
-          this.stopResolve?.()
-          this.stopResolve = null
-        })
-      }
+          // Clone the chunk before persistence to avoid browser-specific Blob lifecycle issues.
+          const persistedChunkBlob = new Blob([event.data], {
+            type: event.data.type || mimeType || FALLBACK_MIME_TYPE,
+          })
+          const chunk: RecorderChunk = {
+            sequenceNumber: this.sequenceNumber,
+            timestamp: Date.now(),
+            blob: persistedChunkBlob,
+          }
+          this.sequenceNumber += 1
+          this.chunkPersistQueue = this.chunkPersistQueue.then(async () => {
+            try {
+              await this.callbacks.onChunk?.(chunk)
+            } catch (error) {
+              console.error('Failed to persist recording chunk', error)
+            }
+          })
+        }
+        recorder.onerror = this.handleRecorderError
+        recorder.onstop = () => {
+          void this.chunkPersistQueue.finally(() => {
+            this.setState('stopped')
+            this.stopResolve?.()
+            this.stopResolve = null
+          })
+        }
 
-      recorder.start(this.timesliceMs)
-      this.setState('recording')
+        recorder.start(this.timesliceMs)
+        this.setState('recording')
+      } catch (e) {
+        this.setState('idle')
+        throw e
+      }
     })
   }
 

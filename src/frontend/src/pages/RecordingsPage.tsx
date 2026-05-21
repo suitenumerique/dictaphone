@@ -2,21 +2,19 @@ import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
 import { useUploadZone } from '@/hooks/useUpload.tsx'
-import { useRecordingController } from '@/features/recordings/hooks/useRecordingController.ts'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
 import { FileShare } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
-import { RecoverAlert } from '@/features/recordings/components/RecoverAlert'
+import { RecoverList } from '../features/recordings/components/RecoverList'
 
 const PAGE_SIZE = 10
 
 export default function RecordingsPage() {
   const { t } = useTranslation(['recordings', 'record'])
   const [, navigate] = useLocation()
-  const { hasRecoverableRecording } = useRecordingController()
 
   const filesQ = useListMyFilesInfinite({
     filters: {
@@ -33,10 +31,6 @@ export default function RecordingsPage() {
     dropZone.isFocused || dropZone.isDragAccept || dropZone.isDragReject
 
   const handleStartNewRecording = () => {
-    if (hasRecoverableRecording) {
-      window.alert(t('recordings:recovery.blockNewRecordingAlert'))
-      return
-    }
     navigate('/new-recording')
   }
 
@@ -58,8 +52,6 @@ export default function RecordingsPage() {
             'drop-zone--drag-in-progress-main-area': isDropZoneActive,
           })}
         >
-          <RecoverAlert />
-
           <div className="recordings-actions">
             <div className="first-row">
               <Button
@@ -86,6 +78,7 @@ export default function RecordingsPage() {
           </div>
         </div>
 
+        <RecoverList />
         <ListRecordings queryData={filesQ} />
       </div>
       <input

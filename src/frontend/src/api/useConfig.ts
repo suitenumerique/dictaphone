@@ -13,6 +13,7 @@ export interface ApiConfig {
     max_count_by_user: number
     allowed_extensions: string[]
     allowed_mimetypes: string[]
+    max_duration_seconds: number
   }
   mobile_app: {
     ios_download_link: string

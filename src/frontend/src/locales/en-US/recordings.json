@@ -8,6 +8,25 @@
   "recovery": {
     "blockNewRecordingAlert": "A recording hasn't been transferred and is still stored locally. Please transfer it or delete it before starting a new recording."
   },
+  "localQueue": {
+    "title": "Local recordings waiting for upload",
+    "description": "These recordings are still stored in this browser.",
+    "recordingLabel": "Recording {{value, formatDateTimeStatic}}",
+    "badges": {
+      "local": "local",
+      "notUploaded": "Not uploaded",
+      "failedToUpload": "Failed to upload",
+      "interrupted": "Interrupted"
+    },
+    "uploadFailed": "Upload failed.",
+    "confirmDiscard": "Discard this local recording?",
+    "actions": {
+      "upload": "Upload",
+      "retry": "Retry",
+      "download": "Download",
+      "discard": "Discard"
+    }
+  },
   "list": {
     "title": "My recordings",
     "titleTrash": "Trash",

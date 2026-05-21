@@ -1,6 +1,113 @@
+import { keys } from '@/api/queryKeys.ts'
+import { queryClient } from '@/api/queryClient.ts'
+import {
+  createPendingAudioFile,
+  markUploadEnded,
+} from '@/features/files/api/createFile.ts'
+import {
+  IndexedDbChunkStore,
+  UploadStreamManager,
+} from '@/features/recordings/recorder'
 import { StoredRecording } from '@/features/recordings/recorder/types.ts'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { IDBPDatabase } from 'idb'
+import { RecorderDatabaseSchema } from '@/features/recordings/recorder/IndexedDbChunkStore'
+
+const chunkStore = new IndexedDbChunkStore()
+const uploadManager = new UploadStreamManager(chunkStore)
+
+let storageReadyPromise: Promise<IDBPDatabase<RecorderDatabaseSchema>> | null =
+  null
+
+const ensureStorageReady = () => {
+  if (!storageReadyPromise) {
+    storageReadyPromise = chunkStore.openDatabase().catch((error) => {
+      storageReadyPromise = null
+      throw error
+    })
+  }
+  return storageReadyPromise
+}
+
+const uploadRecording = async (recordingId: string) => {
+  const storeState = useLocalRecordingsStore.getState()
+  const recording = storeState.getRecordingById(recordingId)
+  if (!recording) return
+  if (recording.chunkCount <= 0) {
+    storeState.removeRecording(recordingId)
+    return
+  }
+
+  storeState.updateRecording(recordingId, {
+    status: 'uploading',
+    uploadProgress: 0,
+    uploadError: null,
+  })
+
+  try {
+    await ensureStorageReady()
+
+    const pendingFile = await createPendingAudioFile({
+      filename: recording.filename,
+      durationSeconds: Math.max(0, recording.durationMs / 1000),
+      createdAt: new Date(recording.createdAt).toISOString(),
+    })
+
+    await uploadManager.uploadRecording({
+      recordingId,
+      url: pendingFile.policy,
+      method: 'PUT',
+      totalBytes: recording.totalBytes,
+      contentType: recording.mimeType || 'audio/webm',
+      headers: {
+        'X-amz-acl': 'private',
+      },
+      onProgress: (progress) => {
+        useLocalRecordingsStore.getState().updateRecording(recordingId, {
+          status: 'uploading',
+          uploadProgress: progress.percent,
+          uploadError: null,
+        })
+      },
+    })
+    await markUploadEnded(pendingFile.id)
+
+    await chunkStore.clearRecording(recordingId)
+    useLocalRecordingsStore.getState().removeRecording(recordingId)
+    queryClient.invalidateQueries({
+      queryKey: [keys.files],
+    })
+  } catch (error) {
+    const aborted = error instanceof DOMException && error.name === 'AbortError'
+    useLocalRecordingsStore.getState().updateRecording(recordingId, {
+      status: aborted ? 'stopped' : 'upload_failed',
+      uploadError: aborted || !(error instanceof Error) ? null : error.message,
+    })
+  }
+}
+
+export const createLocalFileFromChunkStore = async (
+  recordingId: string
+): Promise<File> => {
+  await ensureStorageReady()
+
+  const recording = useLocalRecordingsStore
+    .getState()
+    .getRecordingById(recordingId)
+  if (!recording) {
+    throw new Error('Recording not found')
+  }
+
+  const chunks: Blob[] = []
+  for await (const chunk of chunkStore.getChunkStream(recordingId)) {
+    chunks.push(chunk)
+  }
+
+  return new File(chunks, recording.filename, {
+    type: recording.mimeType || 'audio/webm',
+  })
+}
 
 type LocalRecordingsState = {
   recordingsById: Record<string, StoredRecording>
@@ -10,9 +117,9 @@ type LocalRecordingsState = {
     patch: Partial<Omit<StoredRecording, 'id' | 'createdAt'>>
   ) => void
   removeRecording: (recordingId: string) => void
-  removeManyRecordings: (recordingIds: string[]) => void
   getRecordingById: (recordingId: string) => StoredRecording | null
   getAllRecordings: () => StoredRecording[]
+  requestUpload: (recordingId: string) => Promise<void>
 }
 
 export const useLocalRecordingsStore = create<LocalRecordingsState>()(
@@ -50,43 +157,71 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
           }
           const next = { ...state.recordingsById }
           delete next[recordingId]
-          return { recordingsById: next }
-        }),
-      removeManyRecordings: (recordingIds) =>
-        set((state) => {
-          if (recordingIds.length === 0) {
-            return state
-          }
-          const next = { ...state.recordingsById }
-          for (const recordingId of recordingIds) {
-            delete next[recordingId]
-          }
+          void chunkStore.clearRecording(recordingId)
           return { recordingsById: next }
         }),
       getRecordingById: (recordingId) =>
         get().recordingsById[recordingId] ?? null,
       getAllRecordings: () => Object.values(get().recordingsById),
+      requestUpload: async (recordingId) => {
+        const recording = get().recordingsById[recordingId]
+        if (
+          !recording ||
+          recording.chunkCount <= 0 ||
+          recording.status === 'recording' ||
+          recording.status === 'paused'
+        ) {
+          return
+        }
+        get().updateRecording(recordingId, {
+          status: 'stopped',
+          uploadError: null,
+          uploadProgress: 0,
+        })
+      },
     }),
     {
       name: 'local-recordings-metadata-v1',
       partialize: (state) => ({
         recordingsById: state.recordingsById,
       }),
+      onRehydrateStorage: () => (state, error) => {
+        if (error || !state) return
+
+        state.recordingsById = Object.fromEntries(
+          Object.entries(state.recordingsById).map(([id, recording]) => [
+            id,
+            {
+              ...recording,
+              status:
+                recording.status === 'recording' ||
+                recording.status === 'uploading' ||
+                recording.status === 'paused'
+                  ? 'exited'
+                  : recording.status,
+            },
+          ])
+        )
+      },
     }
   )
 )
 
-const RECOVERABLE_STATES = new Set([
-  'recording',
-  'paused',
-  'stopped',
-  'uploading',
-])
+function checkUploads() {
+  const recordings = Object.values(
+    useLocalRecordingsStore.getState().recordingsById
+  )
+  const isUploading = recordings.some((r) => r.status === 'uploading')
+  if (!isUploading) {
+    const nextUpload = recordings.find((r) => r.status === 'stopped')
+    if (nextUpload) {
+      void uploadRecording(nextUpload.id)
+    }
+  }
+}
 
-export const selectLatestRecoverableRecording = (state: LocalRecordingsState) =>
-  Object.values(state.recordingsById)
-    .filter(
-      (recording) =>
-        RECOVERABLE_STATES.has(recording.status) && recording.chunkCount > 0
-    )
-    .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null
+useLocalRecordingsStore.subscribe((newState, prevState) => {
+  if (newState.recordingsById !== prevState?.recordingsById) {
+    checkUploads()
+  }
+})

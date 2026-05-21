@@ -1,89 +1,76 @@
 import { StoredChunk } from '@/features/recordings/recorder/types.ts'
+import { DBSchema, IDBPDatabase, openDB } from 'idb'
 
 const DATABASE_NAME = 'audio-recorder'
 const DATABASE_VERSION = 2
 const CHUNKS_STORE = 'chunks'
+const LEGACY_RECORDINGS_STORE = 'recordings'
+const BY_RECORDING_SEQUENCE_INDEX = 'byRecordingSequence'
+const BY_RECORDING_TIMESTAMP_INDEX = 'byRecordingTimestamp'
 
-type IDBDatabaseWithStores = IDBDatabase
+type RecordingSequenceKey = [string, number]
 
-const openCursorRequest = (
-  source: IDBObjectStore | IDBIndex,
-  query?: IDBValidKey | IDBKeyRange
-) =>
-  new Promise<IDBCursorWithValue | null>((resolve, reject) => {
-    const request = source.openCursor(query)
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
+export interface RecorderDatabaseSchema extends DBSchema {
+  [CHUNKS_STORE]: {
+    key: number
+    value: StoredChunk
+    indexes: {
+      [BY_RECORDING_SEQUENCE_INDEX]: RecordingSequenceKey
+      [BY_RECORDING_TIMESTAMP_INDEX]: RecordingSequenceKey
+    }
+  }
+}
 
-const txDone = (transaction: IDBTransaction) =>
-  new Promise<void>((resolve, reject) => {
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error)
-  })
+type UpgradeDatabaseWithLegacySupport = IDBPDatabase<RecorderDatabaseSchema> & {
+  deleteObjectStore(name: string): void
+  objectStoreNames: DOMStringList
+}
 
 /**
  * IndexedDB-based chunk store for audio recordings.
  * Helps to keep memory usage low and data safe in regards to browser crashes, etc.
- *
- * Was mostly LLM generated.
  */
 export class IndexedDbChunkStore {
-  private dbPromise: Promise<IDBDatabaseWithStores> | null = null
+  private dbPromise: Promise<IDBPDatabase<RecorderDatabaseSchema>> | null = null
   private activeRecordingId: string | null = null
 
   public setActiveRecording(recordingId: string) {
     this.activeRecordingId = recordingId
   }
 
-  public getActiveRecordingId() {
-    return this.activeRecordingId
-  }
-
   public async openDatabase() {
-    if (this.dbPromise) {
-      return this.dbPromise
-    }
-
-    this.dbPromise = new Promise<IDBDatabaseWithStores>((resolve, reject) => {
-      const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION)
-
-      request.onupgradeneeded = () => {
-        const db = request.result
-
-        if (!db.objectStoreNames.contains(CHUNKS_STORE)) {
-          const chunksStore = db.createObjectStore(CHUNKS_STORE, {
-            keyPath: 'id',
-            autoIncrement: true,
-          })
-          chunksStore.createIndex(
-            'byRecordingSequence',
-            ['recordingId', 'sequenceNumber'],
-            {
-              unique: true,
+    if (!this.dbPromise) {
+      this.dbPromise = openDB<RecorderDatabaseSchema>(
+        DATABASE_NAME,
+        DATABASE_VERSION,
+        {
+          upgrade(db) {
+            const upgradeDb = db as UpgradeDatabaseWithLegacySupport
+            if (!db.objectStoreNames.contains(CHUNKS_STORE)) {
+              const chunksStore = db.createObjectStore(CHUNKS_STORE, {
+                keyPath: 'id',
+                autoIncrement: true,
+              })
+              chunksStore.createIndex(BY_RECORDING_SEQUENCE_INDEX, [
+                'recordingId',
+                'sequenceNumber',
+              ])
+              chunksStore.createIndex(BY_RECORDING_TIMESTAMP_INDEX, [
+                'recordingId',
+                'timestamp',
+              ])
             }
-          )
-          chunksStore.createIndex('byRecordingTimestamp', [
-            'recordingId',
-            'timestamp',
-          ])
+
+            if (upgradeDb.objectStoreNames.contains(LEGACY_RECORDINGS_STORE)) {
+              upgradeDb.deleteObjectStore(LEGACY_RECORDINGS_STORE)
+            }
+          },
+          blocked() {
+            console.error('IndexedDB open is blocked')
+          },
         }
-
-        if (db.objectStoreNames.contains('recordings')) {
-          db.deleteObjectStore('recordings')
-        }
-      }
-
-      request.onsuccess = () => {
-        const db = request.result
-        db.onversionchange = () => db.close()
-        resolve(db)
-      }
-      request.onerror = () => reject(request.error)
-      request.onblocked = () => reject(new Error('IndexedDB open is blocked'))
-    })
-
+      )
+    }
     return this.dbPromise
   }
 
@@ -99,7 +86,6 @@ export class IndexedDbChunkStore {
 
     const db = await this.openDatabase()
     const tx = db.transaction(CHUNKS_STORE, 'readwrite')
-    const chunksStore = tx.objectStore(CHUNKS_STORE)
 
     const chunk: StoredChunk = {
       recordingId,
@@ -107,9 +93,9 @@ export class IndexedDbChunkStore {
       timestamp,
       blob,
     }
-    chunksStore.put(chunk)
+    await tx.store.put(chunk)
 
-    await txDone(tx)
+    await tx.done
   }
 
   public async *getChunkStream(recordingId = this.activeRecordingId) {
@@ -117,28 +103,23 @@ export class IndexedDbChunkStore {
       throw new Error('No active recording id configured for chunk stream')
     }
 
-    const db = await this.openDatabase()
-    const tx = db.transaction(CHUNKS_STORE, 'readonly')
-    const index = tx.objectStore(CHUNKS_STORE).index('byRecordingSequence')
-    const keyRange = IDBKeyRange.bound(
-      [recordingId, 0],
-      [recordingId, Number.MAX_SAFE_INTEGER]
-    )
-    // Cursor iteration avoids materializing all chunks in memory (no getAll()).
-    let cursor = await openCursorRequest(index, keyRange)
+    // Do not keep one transaction open across `yield`.
+    // IndexedDB auto-commits transactions once control returns to the event loop,
+    // which makes `cursor.continue()` fail on the next pull.
+    let nextSequenceNumber = 0
 
-    while (cursor) {
-      const chunk = cursor.value as StoredChunk
-      yield chunk.blob
-      cursor = await new Promise<IDBCursorWithValue | null>(
-        (resolve, reject) => {
-          cursor!.continue()
-          cursor!.request.onsuccess = () => resolve(cursor!.request.result)
-          cursor!.request.onerror = () => reject(cursor!.request.error)
-        }
+    while (true) {
+      const chunk = await this.getFirstChunkAtOrAfter(
+        recordingId,
+        nextSequenceNumber
       )
+      if (!chunk) {
+        return
+      }
+
+      yield chunk.blob
+      nextSequenceNumber = chunk.sequenceNumber + 1
     }
-    await txDone(tx)
   }
 
   public async deleteChunks(recordingId = this.activeRecordingId) {
@@ -148,24 +129,17 @@ export class IndexedDbChunkStore {
 
     const db = await this.openDatabase()
     const tx = db.transaction(CHUNKS_STORE, 'readwrite')
-    const index = tx.objectStore(CHUNKS_STORE).index('byRecordingSequence')
-    const range = IDBKeyRange.bound(
-      [recordingId, 0],
-      [recordingId, Number.MAX_SAFE_INTEGER]
+    const index = tx.store.index(BY_RECORDING_SEQUENCE_INDEX)
+    let cursor = await index.openCursor(
+      this.getRecordingSequenceRange(recordingId)
     )
-    let cursor = await openCursorRequest(index, range)
 
     while (cursor) {
-      cursor.delete()
-      cursor = await new Promise<IDBCursorWithValue | null>(
-        (resolve, reject) => {
-          cursor!.continue()
-          cursor!.request.onsuccess = () => resolve(cursor!.request.result)
-          cursor!.request.onerror = () => reject(cursor!.request.error)
-        }
-      )
+      await cursor.delete()
+      cursor = await cursor.continue()
     }
-    await txDone(tx)
+
+    await tx.done
   }
 
   public async clearRecording(recordingId = this.activeRecordingId) {
@@ -178,5 +152,31 @@ export class IndexedDbChunkStore {
     if (this.activeRecordingId === recordingId) {
       this.activeRecordingId = null
     }
+  }
+
+  private async getFirstChunkAtOrAfter(
+    recordingId: string,
+    sequenceNumber: number
+  ) {
+    const db = await this.openDatabase()
+    const tx = db.transaction(CHUNKS_STORE, 'readonly')
+    const index = tx.store.index(BY_RECORDING_SEQUENCE_INDEX)
+    const keyRange = IDBKeyRange.bound(
+      [recordingId, sequenceNumber],
+      [recordingId, Number.MAX_SAFE_INTEGER]
+    )
+
+    const cursor = await index.openCursor(keyRange)
+    const chunk = (cursor?.value as StoredChunk | undefined) ?? null
+
+    await tx.done
+    return chunk
+  }
+
+  private getRecordingSequenceRange(recordingId: string) {
+    return IDBKeyRange.bound(
+      [recordingId, 0],
+      [recordingId, Number.MAX_SAFE_INTEGER]
+    )
   }
 }

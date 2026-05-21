@@ -34,6 +34,12 @@ const serviceProvisionAgreement = React.lazy(
   () => import('@/pages/legal/ServiceProvisionAgreement')
 )
 
+// We avoid arriving directly on the new recording page
+const pathname = window.location.pathname.replace(/\/+$/, '')
+if (pathname === '/new-recording') {
+  window.location.replace('/')
+}
+
 function App() {
   const { i18n } = useTranslation()
   useLang(i18n.language)

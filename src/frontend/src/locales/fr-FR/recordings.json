@@ -8,6 +8,25 @@
   "recovery": {
     "blockNewRecordingAlert": "Un enregistrement précédent n'a pas été transféré et est encore stocké localement. Veuillez le transférer ou le supprimer avant de démarrer un nouvel enregistrement."
   },
+  "localQueue": {
+    "title": "Enregistrements locaux en attente de transfert",
+    "description": "Ces enregistrements sont encore stockés dans ce navigateur.",
+    "recordingLabel": "Enregistrement {{value, formatDateTimeStatic}}",
+    "badges": {
+      "local": "local",
+      "notUploaded": "Non transféré",
+      "failedToUpload": "Échec du transfert",
+      "interrupted": "Interrompu"
+    },
+    "uploadFailed": "Le transfert a échoué.",
+    "confirmDiscard": "Supprimer cet enregistrement local ?",
+    "actions": {
+      "upload": "Transférer",
+      "retry": "Réessayer",
+      "download": "Télécharger",
+      "discard": "Supprimer"
+    }
+  },
   "list": {
     "title": "Mes enregistrements",
     "titleTrash": "Corbeille",

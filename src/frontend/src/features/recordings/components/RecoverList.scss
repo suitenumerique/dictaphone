@@ -1,0 +1,102 @@
+.recordings-recovery-alert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--c--globals--spacings--xs);
+  margin-bottom: var(--c--globals--spacings--md);
+
+  .recordings-recovery-alert__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--c--globals--spacings--xs);
+  }
+
+  .recordings-recovery-alert__item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--c--globals--spacings--xxs);
+    border-radius: var(--c--globals--spacings--xxs);
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--c--globals--spacings--xs);
+  }
+
+  .recordings-recovery-alert__item-left {
+    display: flex;
+    align-items: center;
+    gap: var(--c--globals--spacings--xs);
+    min-width: 0;
+  }
+
+  .recordings-recovery-alert__item-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+    width: 32px;
+  }
+
+  .recordings-recovery-alert__warning-icon {
+    color: var(--c--globals--colors--orange-500);
+    font-size: 1.25rem;
+  }
+
+  .recordings-recovery-alert__item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .recordings-recovery-alert__item-title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--c--globals--spacings--3xs);
+    flex-wrap: wrap;
+  }
+
+  .recordings-recovery-alert__item-title {
+    font-size: 14px;
+    line-height: 14px;
+    font-weight: 500;
+    color: var(--c--globals--colors--gray-900);
+  }
+
+  .recordings-recovery-alert__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.375rem;
+    border-radius: 999px;
+    border: 1px solid var(--c--globals--colors--orange-300);
+    background: var(--c--globals--colors--orange-050);
+    color: var(--c--globals--colors--orange-700);
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: 600;
+    text-transform: lowercase;
+  }
+
+  .recordings-recovery-alert__item-meta {
+    display: flex;
+    gap: 0.25rem;
+    color: var(--c--globals--colors--gray-600);
+    font-size: 12px;
+    line-height: 12px;
+    flex-wrap: wrap;
+  }
+
+  .recordings-recovery-alert__error {
+    margin: 0;
+    color: var(--c--globals--colors--red-500);
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  .recordings-recovery-alert__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--c--globals--spacings--2xs);
+    flex-shrink: 0;
+  }
+}
