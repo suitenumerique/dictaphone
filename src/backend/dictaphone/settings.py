@@ -204,27 +204,58 @@ class Base(Configuration):
                     ".ogv",
                     ".opus",
                     ".wav",
+                    ".mp3",
+                    ".aac",
+                    ".flac",
+                    ".opus",
+                    ".weba",
+                    ".ogv",
+                    ".mov",
+                    ".mpeg",
+                    ".mkv",
                 ],
                 "allowed_mimetypes": [
-                    "audio/webm",
-                    "video/webm",
+                    # MP4 / M4A
                     "audio/mp4",
                     "video/mp4",
-                    # Some mp4 files
-                    "audio/mpeg",
+                    "audio/x-m4a",
                     # Some M4A files
                     "video/3gpp",
                     "audio/x-hx-aac-adts",
-                    "audio/x-m4a",
+                    # webm
                     "audio/webm;codecs=opus",
-                    "audio/mp4",
+                    "audio/webm",
+                    "video/webm",
+                    # OGG
                     "application/ogg",
                     "audio/ogg",
                     "audio/ogg;codecs=opus",
+                    "audio/vorbis",
+                    "video/ogg",
+                    # Wav
                     "audio/wav",
+                    "audio/wave",
                     "audio/x-wav",
                     "audio/vnd.wave",
-                    "audio/wave",
+                    # AAC
+                    "audio/aac",
+                    "audio/x-aac",
+                    # Flac
+                    "audio/flac",
+                    "audio/x-flac",
+                    # Opus
+                    "audio/opus",
+                    # Quicktime
+                    "video/quicktime",
+                    # MKV
+                    "video/x-matroska",
+                    "audio/x-matroska",
+                    # MP3
+                    "audio/mpeg",
+                    "audio/mpeg3",
+                    "audio/x-mpeg-3",
+                    "audio/x-mp3",
+                    "audio/mp3",
                 ],
             },
         },
