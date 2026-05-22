@@ -1,4 +1,4 @@
-import { authUrl } from '@/features/auth'
+import { authUrl } from '@/features/auth/utils/authUrl'
 
 const SILENT_LOGIN_RETRY_KEY = 'silent-login-retry'
 

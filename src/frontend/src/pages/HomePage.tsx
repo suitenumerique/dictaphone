@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { authUrl, useUser } from '@/features/auth'
+import { authUrl } from '@/features/auth/utils/authUrl'
+import { useUser } from '@/features/auth/api/useUser'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { Redirect } from 'wouter'
 import { BaseLayout } from '@/layout/BaseLayout'

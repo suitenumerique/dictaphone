@@ -1,7 +1,7 @@
 import { MainLayout, Spinner } from '@gouvfr-lasuite/ui-kit'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { HeaderRight } from '@/layout/HeaderRight.tsx'
-import { useUser } from '@/features/auth'
+import { useUser } from '@/features/auth/api/useUser'
 import { Link, Redirect } from 'wouter'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'

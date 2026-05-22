@@ -1,7 +1,7 @@
 import { LaGaufreV2, LanguagePicker, UserMenu } from '@gouvfr-lasuite/ui-kit'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useUser } from '@/features/auth'
+import { useUser } from '@/features/auth/api/useUser'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const LANGUAGES = [

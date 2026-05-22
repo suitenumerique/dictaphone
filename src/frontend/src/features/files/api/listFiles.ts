@@ -10,7 +10,7 @@ import {
   ApiFileType,
   ApiFileUploadState,
 } from '@/features/files/api/types.ts'
-import { useUser } from '@/features/auth'
+import { useUser } from '@/features/auth/api/useUser'
 import { shouldRefetchMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 
 const REFRESH_AI_JOBS_INTERVAL_MS = 10_000

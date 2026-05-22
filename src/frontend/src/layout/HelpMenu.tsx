@@ -2,7 +2,7 @@ import { DropdownMenu, Info, QuestionMark } from '@gouvfr-lasuite/ui-kit'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useUser } from '@/features/auth'
+import { useUser } from '@/features/auth/api/useUser'
 import { DownloadMobileAppPopUp } from '@/layout/DownloadMobileAppPopUp'
 import { useConfig } from '@/api/useConfig'
 

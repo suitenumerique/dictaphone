@@ -5,7 +5,7 @@ import {
   useResponsive,
 } from '@gouvfr-lasuite/ui-kit'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
-import { authUrl } from '@/features/auth'
+import { authUrl } from '@/features/auth/utils/authUrl'
 import { useTranslation } from 'react-i18next'
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react'
 import { LANGUAGES } from '@/layout/HeaderRight'
