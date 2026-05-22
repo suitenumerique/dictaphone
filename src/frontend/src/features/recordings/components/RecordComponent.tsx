@@ -49,7 +49,7 @@ export default function RecordComponent() {
   const isStopping = recorderState === 'stopping'
 
   const isBusy = isStarting || isRecordingInProgress || isStopping
-  useDisablePageRefresh(isBusy)
+  useDisablePageRefresh(isBusy, t('record:preventGoBackAlert'))
 
   const audioInputOptions = useMemo(
     () =>

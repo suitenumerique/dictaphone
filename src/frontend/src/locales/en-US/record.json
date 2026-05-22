@@ -12,6 +12,7 @@
   "uploadCta": "Upload",
   "retryUpload": "Retry upload",
   "recordingPrefix": "Recording",
+  "preventGoBackAlert": "You are about to leave the recording page. Your recording will be lost if you do so. Please terminate it properly!",
   "source": {
     "label": "Input source",
     "fallbackLabel": "Microphone {{index}}",

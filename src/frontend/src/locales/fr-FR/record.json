@@ -12,6 +12,7 @@
   "uploadCta": "Transférer",
   "retryUpload": "Réessayer le transfert sur nos serveurs",
   "recordingPrefix": "Enregistrement",
+  "preventGoBackAlert": "Vous êtes sur le point de quitter la page d'enregistrement. Votre enregistrement sera perdu si vous le faites. Veuillez le terminer correctement !",
   "source": {
     "label": "Source d'entrée",
     "fallbackLabel": "Microphone {{index}}",
