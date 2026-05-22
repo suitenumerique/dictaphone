@@ -30,6 +30,8 @@ const ensureStorageReady = () => {
   return storageReadyPromise
 }
 
+const uploadsInProgress = new Set<string>()
+
 const uploadRecording = async (recordingId: string) => {
   const storeState = useLocalRecordingsStore.getState()
   const recording = storeState.getRecordingById(recordingId)
@@ -38,14 +40,19 @@ const uploadRecording = async (recordingId: string) => {
     storeState.removeRecording(recordingId)
     return
   }
-
-  storeState.updateRecording(recordingId, {
-    status: 'uploading',
-    uploadProgress: 0,
-    uploadError: null,
-  })
+  if (uploadsInProgress.has(recordingId)) {
+    return
+  }
 
   try {
+    uploadsInProgress.add(recordingId)
+
+    storeState.updateRecording(recordingId, {
+      status: 'uploading',
+      uploadProgress: 0,
+      uploadError: null,
+    })
+
     await ensureStorageReady()
 
     const pendingFile = await createPendingAudioFile({
@@ -84,6 +91,8 @@ const uploadRecording = async (recordingId: string) => {
       status: aborted ? 'stopped' : 'upload_failed',
       uploadError: aborted || !(error instanceof Error) ? null : error.message,
     })
+  } finally {
+    uploadsInProgress.delete(recordingId)
   }
 }
 
@@ -168,6 +177,7 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
         if (
           !recording ||
           recording.chunkCount <= 0 ||
+          recording.status === 'uploading' ||
           recording.status === 'recording' ||
           recording.status === 'paused'
         ) {
@@ -213,9 +223,16 @@ function checkUploads() {
   const recordings = Object.values(
     useLocalRecordingsStore.getState().recordingsById
   )
-  const isUploading = recordings.some((r) => r.status === 'uploading')
+  const isUploading = recordings.some(
+    (recording) =>
+      recording.status === 'uploading' ||
+      uploadManager.isUploading(recording.id)
+  )
   if (!isUploading) {
-    const nextUpload = recordings.find((r) => r.status === 'stopped')
+    const nextUpload = recordings.find(
+      (recording) =>
+        recording.status === 'stopped' && !uploadsInProgress.has(recording.id)
+    )
     if (nextUpload) {
       void uploadRecording(nextUpload.id)
     }

@@ -55,6 +55,7 @@ export function RecoverList() {
       <div className="recordings-recovery-alert__list" role="list">
         {queuedRecordings.map((recording) => {
           const isUploading = recording.status === 'uploading'
+          const isPendingUpload = isUploading || recording.status === 'stopped'
           const isFailed =
             recording.status === 'upload_failed' ||
             recording.status === 'exited'
@@ -73,7 +74,7 @@ export function RecoverList() {
             >
               <div className="recordings-recovery-alert__item-left">
                 <div className="recordings-recovery-alert__item-status">
-                  {recording.status === 'uploading' ? (
+                  {isPendingUpload ? (
                     <span
                       role="status"
                       aria-label={t(
@@ -131,7 +132,7 @@ export function RecoverList() {
                 />
               )}
               <div className="recordings-recovery-alert__actions">
-                {recording.status !== 'uploading' && (
+                {!isPendingUpload && (
                   <Button
                     color="neutral"
                     variant="bordered"
@@ -170,9 +171,7 @@ export function RecoverList() {
                   </Button>
                 )}
 
-                {(recording.status === 'stopped' ||
-                  isFailed ||
-                  recording.status === 'exited') && (
+                {isFailed && (
                   <Button
                     color="brand"
                     size="small"
