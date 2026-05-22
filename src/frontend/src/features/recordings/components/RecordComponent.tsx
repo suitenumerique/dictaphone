@@ -38,7 +38,7 @@ export default function RecordComponent() {
     startRecording,
     pauseRecording,
     resumeRecording,
-    stopRecording,
+    stopAndDispose,
     switchAudioInput,
   } = useRecordingController(true)
 
@@ -120,12 +120,12 @@ export default function RecordComponent() {
 
     stopInFlightRef.current = true
     try {
-      await stopRecording()
+      await stopAndDispose()
       navigate('/recordings')
     } finally {
       stopInFlightRef.current = false
     }
-  }, [isRecordingInProgress, navigate, stopRecording])
+  }, [isRecordingInProgress, navigate, stopAndDispose])
 
   return (
     <div className="record-component">

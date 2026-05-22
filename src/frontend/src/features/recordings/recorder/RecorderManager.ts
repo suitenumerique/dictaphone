@@ -49,6 +49,7 @@ export class RecorderManager {
   private analyserNode: AnalyserNode | null = null
   private sourceNode: MediaStreamAudioSourceNode | null = null
   private currentInputStream: MediaStream | null = null
+  private readonly inputStreams = new Set<MediaStream>()
   private mediaRecorder: MediaRecorder | null = null
   private operationQueue = Promise.resolve()
   private sequenceNumber = 0
@@ -57,6 +58,29 @@ export class RecorderManager {
   private timesliceMs = DEFAULT_TIMESLICE_MS
   private disposed = false
   private stopResolve: (() => void) | null = null
+
+  private stopStreamTracks(stream: MediaStream | null) {
+    if (!stream) {
+      return
+    }
+    this.inputStreams.delete(stream)
+    stream.getTracks().forEach((track) => {
+      track.onended = null
+      track.stop()
+    })
+  }
+
+  private stopAllInputStreams() {
+    for (const stream of this.inputStreams) {
+      this.stopStreamTracks(stream)
+    }
+  }
+
+  private ensureNotDisposed() {
+    if (this.disposed) {
+      throw new Error('RecorderManager has been disposed')
+    }
+  }
 
   constructor(
     audioInputManager: AudioInputManager,
@@ -72,6 +96,10 @@ export class RecorderManager {
     return this.state
   }
 
+  public isDisposed() {
+    return this.disposed
+  }
+
   public getMimeType() {
     return this.mediaRecorder?.mimeType
   }
@@ -81,6 +109,9 @@ export class RecorderManager {
   }
 
   public requestDataFlush() {
+    if (this.disposed) {
+      return
+    }
     if (!this.mediaRecorder) {
       return
     }
@@ -121,6 +152,7 @@ export class RecorderManager {
   }
 
   private async ensureAudioGraph() {
+    this.ensureNotDisposed()
     if (
       this.audioContext &&
       this.mediaDestination &&
@@ -145,6 +177,7 @@ export class RecorderManager {
   }
 
   private async replaceInputStream(stream: MediaStream) {
+    this.ensureNotDisposed()
     if (!this.audioContext || !this.inputGainNode) {
       throw new Error('Audio graph is not initialized')
     }
@@ -160,13 +193,20 @@ export class RecorderManager {
     }
 
     this.currentInputStream = stream
+    this.inputStreams.add(stream)
 
     for (const track of stream.getAudioTracks()) {
       track.onended = this.handleInputTrackEnded
     }
 
-    this.sourceNode = this.audioContext.createMediaStreamSource(stream)
-    this.sourceNode.connect(this.inputGainNode)
+    try {
+      this.sourceNode = this.audioContext.createMediaStreamSource(stream)
+      this.sourceNode.connect(this.inputGainNode)
+    } catch (error) {
+      this.stopStreamTracks(stream)
+      this.currentInputStream = null
+      throw error
+    }
 
     const activeDeviceId = stream.getAudioTracks()[0]?.getSettings().deviceId
     if (activeDeviceId) {
@@ -186,6 +226,9 @@ export class RecorderManager {
 
   private handleInputTrackEnded = () => {
     void this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
       if (this.state !== 'recording' && this.state !== 'paused') {
         return
       }
@@ -215,7 +258,9 @@ export class RecorderManager {
   }
 
   public async start(options: StartRecordingOptions) {
+    this.ensureNotDisposed()
     await this.enqueue(async () => {
+      this.ensureNotDisposed()
       if (this.state !== 'idle' && this.state !== 'stopped') {
         return
       }
@@ -232,6 +277,10 @@ export class RecorderManager {
         const inputStream = await this.audioInputManager.acquireStream(
           options.deviceId
         )
+        if (this.disposed) {
+          this.stopStreamTracks(inputStream)
+          throw new Error('RecorderManager has been disposed')
+        }
         await this.replaceInputStream(inputStream)
 
         const mimeType = resolveMimeType(options.preferredMimeTypes)
@@ -285,7 +334,13 @@ export class RecorderManager {
   }
 
   public async pause() {
+    if (this.disposed) {
+      return
+    }
     await this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
       if (!this.mediaRecorder || this.state !== 'recording') {
         return
       }
@@ -295,7 +350,13 @@ export class RecorderManager {
   }
 
   public async resume() {
+    if (this.disposed) {
+      return
+    }
     await this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
       if (!this.mediaRecorder || this.state !== 'paused') {
         return
       }
@@ -305,15 +366,31 @@ export class RecorderManager {
   }
 
   public async switchInput(deviceId: string) {
+    if (this.disposed) {
+      return
+    }
     await this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
       await this.audioInputManager.selectDevice(deviceId)
       const nextStream = await this.audioInputManager.acquireStream(deviceId)
+      if (this.disposed) {
+        this.stopStreamTracks(nextStream)
+        return
+      }
       await this.replaceInputStream(nextStream)
     })
   }
 
   public async stop() {
+    if (this.disposed) {
+      return
+    }
     await this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
       if (
         !this.mediaRecorder ||
         (this.state !== 'recording' && this.state !== 'paused')
@@ -324,7 +401,12 @@ export class RecorderManager {
 
       await new Promise<void>((resolve) => {
         this.stopResolve = resolve
-        this.mediaRecorder?.stop()
+        try {
+          this.mediaRecorder?.stop()
+        } catch {
+          this.stopResolve = null
+          resolve()
+        }
       })
     })
   }
@@ -336,24 +418,34 @@ export class RecorderManager {
     this.disposed = true
 
     await this.enqueue(async () => {
-      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-        this.mediaRecorder.stop()
+      this.stopResolve?.()
+      this.stopResolve = null
+
+      if (this.mediaRecorder) {
+        this.mediaRecorder.ondataavailable = null
+        this.mediaRecorder.onerror = null
+        this.mediaRecorder.onstop = null
+        if (this.mediaRecorder.state !== 'inactive') {
+          try {
+            this.mediaRecorder.stop()
+          } catch {
+            // Ignore stop failures during disposal.
+          }
+        }
       }
       this.mediaRecorder = null
 
       this.sourceNode?.disconnect()
       this.sourceNode = null
 
-      this.currentInputStream?.getTracks().forEach((track) => {
-        track.onended = null
-        track.stop()
-      })
+      this.stopAllInputStreams()
       this.currentInputStream = null
 
       this.inputGainNode?.disconnect()
       this.inputGainNode = null
       this.analyserNode?.disconnect()
       this.analyserNode = null
+      this.stopStreamTracks(this.mediaDestination?.stream ?? null)
       this.mediaDestination?.disconnect()
       this.mediaDestination = null
 

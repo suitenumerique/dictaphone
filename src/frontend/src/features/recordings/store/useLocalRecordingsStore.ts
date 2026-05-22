@@ -189,18 +189,20 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
         if (error || !state) return
 
         state.recordingsById = Object.fromEntries(
-          Object.entries(state.recordingsById).map(([id, recording]) => [
-            id,
-            {
-              ...recording,
-              status:
-                recording.status === 'recording' ||
-                recording.status === 'uploading' ||
-                recording.status === 'paused'
-                  ? 'exited'
-                  : recording.status,
-            },
-          ])
+          Object.entries(state.recordingsById)
+            .filter(([, recording]) => recording.chunkCount > 0)
+            .map(([id, recording]) => [
+              id,
+              {
+                ...recording,
+                status:
+                  recording.status === 'recording' ||
+                  recording.status === 'uploading' ||
+                  recording.status === 'paused'
+                    ? 'exited'
+                    : recording.status,
+              },
+            ])
         )
       },
     }

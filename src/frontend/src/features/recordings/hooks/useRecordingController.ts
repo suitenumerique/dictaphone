@@ -45,7 +45,7 @@ type RecordingController = RecordingControllerState & {
   startRecording: () => Promise<void>
   pauseRecording: () => Promise<void>
   resumeRecording: () => Promise<void>
-  stopRecording: () => Promise<void>
+  stopAndDispose: () => Promise<void>
   switchAudioInput: (deviceId: string) => Promise<void>
 }
 
@@ -62,6 +62,7 @@ export const useRecordingController = (
   const startedAtRef = useRef<number | null>(null)
   const accumulatedDurationMsRef = useRef(0)
   const autoSplitInFlightRef = useRef(false)
+  const isUnmountedRef = useRef(false)
 
   const [state, setState] = useState<RecordingControllerState>({
     recorderState: 'idle',
@@ -74,10 +75,15 @@ export const useRecordingController = (
   })
 
   const ensureManagers = useCallback(() => {
+    if (isUnmountedRef.current) {
+      return
+    }
+
     if (
       chunkStoreRef.current &&
       audioInputManagerRef.current &&
-      recorderRef.current
+      recorderRef.current &&
+      !recorderRef.current.isDisposed()
     ) {
       return
     }
@@ -181,6 +187,7 @@ export const useRecordingController = (
   }, [])
 
   useEffect(() => {
+    isUnmountedRef.current = false
     ensureManagers()
 
     const chunkStore = chunkStoreRef.current!
@@ -219,13 +226,22 @@ export const useRecordingController = (
     })
 
     return () => {
+      isUnmountedRef.current = true
       active = false
       unsubscribeAudioInputs()
       if (durationTimerRef.current !== null) {
         window.clearInterval(durationTimerRef.current)
       }
-      void recorderRef.current?.dispose()
-      audioInputManagerRef.current?.dispose()
+
+      const recorder = recorderRef.current
+      const audioInputManager = audioInputManagerRef.current
+
+      recorderRef.current = null
+      audioInputManagerRef.current = null
+      chunkStoreRef.current = null
+
+      void recorder?.dispose()
+      audioInputManager?.dispose()
     }
   }, [ensureManagers])
 
@@ -257,10 +273,25 @@ export const useRecordingController = (
   }, [])
 
   const startRecording = useCallback(async () => {
+    if (isUnmountedRef.current) {
+      return
+    }
+
     ensureManagers()
-    const chunkStore = chunkStoreRef.current!
-    const audioInputManager = audioInputManagerRef.current!
-    const recorder = recorderRef.current!
+    if (isUnmountedRef.current) {
+      return
+    }
+
+    const chunkStore = chunkStoreRef.current
+    const audioInputManager = audioInputManagerRef.current
+    const recorder = recorderRef.current
+    if (!chunkStore || !audioInputManager || !recorder) {
+      return
+    }
+    const isStaleRecorder = () =>
+      isUnmountedRef.current ||
+      recorderRef.current !== recorder ||
+      recorder.isDisposed()
 
     accumulatedDurationMsRef.current = 0
     startedAtRef.current = null
@@ -272,6 +303,9 @@ export const useRecordingController = (
     }))
 
     const permissionState = await audioInputManager.getPermissionState()
+    if (isStaleRecorder()) {
+      return
+    }
     if (permissionState === 'denied') {
       setState((current) => ({
         ...current,
@@ -284,6 +318,9 @@ export const useRecordingController = (
 
     if (permissionState !== 'granted') {
       const granted = await audioInputManager.requestPermission()
+      if (isStaleRecorder()) {
+        return
+      }
       if (!granted) {
         setState((current) => ({
           ...current,
@@ -292,6 +329,10 @@ export const useRecordingController = (
         }))
         return
       }
+    }
+
+    if (isStaleRecorder()) {
+      return
     }
 
     const recordingId = crypto.randomUUID()
@@ -324,6 +365,19 @@ export const useRecordingController = (
         timesliceMs: RECORDING_CHUNK_TIMESLICE_MS,
         deviceId: state.selectedAudioInputId || undefined,
       })
+      if (isStaleRecorder()) {
+        await chunkStore.clearRecording(recordingId)
+        useLocalRecordingsStore.getState().removeRecording(recordingId)
+        if (activeRecordingIdRef.current === recordingId) {
+          activeRecordingIdRef.current = null
+        }
+        setState((current) =>
+          current.currentRecordingId === recordingId
+            ? { ...current, currentRecordingId: null, analyserNode: null }
+            : current
+        )
+        return
+      }
       setState((current) => ({
         ...current,
         analyserNode: recorder.getAnalyserNode(),
@@ -341,6 +395,19 @@ export const useRecordingController = (
         filename: `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: createdAt })}.${getExtensionFromMimeType(resolvedMimeType)}`,
       })
     } catch (error) {
+      if (isStaleRecorder()) {
+        await chunkStore.clearRecording(recordingId)
+        useLocalRecordingsStore.getState().removeRecording(recordingId)
+        if (activeRecordingIdRef.current === recordingId) {
+          activeRecordingIdRef.current = null
+        }
+        setState((current) =>
+          current.currentRecordingId === recordingId
+            ? { ...current, currentRecordingId: null, analyserNode: null }
+            : current
+        )
+        return
+      }
       setState((current) => ({
         ...current,
         recorderState: 'idle',
@@ -360,9 +427,20 @@ export const useRecordingController = (
 
   const autoStartedRef = useRef(false)
   useEffect(() => {
-    if (autoStart && !autoStartedRef.current) {
+    if (!autoStart || autoStartedRef.current) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (autoStartedRef.current) {
+        return
+      }
       autoStartedRef.current = true
       void startRecording()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
     }
   }, [autoStart, startRecording])
 
@@ -480,6 +558,41 @@ export const useRecordingController = (
     stopRecording,
   ])
 
+  const stopAndDispose = useCallback(async () => {
+    const recorder = recorderRef.current
+    const audioInputManager = audioInputManagerRef.current
+    if (!recorder) {
+      audioInputManager?.dispose()
+      audioInputManagerRef.current = null
+      return
+    }
+
+    let stopError: unknown = null
+    try {
+      await stopRecording()
+    } catch (error) {
+      stopError = error
+      console.error('Failed to stop recorder cleanly, forcing dispose', error)
+    } finally {
+      await recorder.dispose()
+      recorderRef.current = null
+      audioInputManager?.dispose()
+      audioInputManagerRef.current = null
+    }
+
+    if (stopError) {
+      setState((current) => ({
+        ...current,
+        recorderState: 'idle',
+        analyserNode: null,
+        recordingError:
+          stopError instanceof Error
+            ? stopError.message
+            : 'Failed to stop recording cleanly',
+      }))
+    }
+  }, [stopRecording])
+
   return useMemo(() => {
     const canPauseOrStop =
       state.recorderState === 'recording' || state.recorderState === 'paused'
@@ -491,7 +604,7 @@ export const useRecordingController = (
       startRecording,
       pauseRecording,
       resumeRecording,
-      stopRecording,
+      stopAndDispose,
       switchAudioInput,
     }
   }, [
@@ -499,7 +612,7 @@ export const useRecordingController = (
     resumeRecording,
     startRecording,
     state,
-    stopRecording,
+    stopAndDispose,
     switchAudioInput,
   ])
 }
