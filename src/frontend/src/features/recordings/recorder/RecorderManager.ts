@@ -20,6 +20,9 @@ type StartRecordingOptions = {
   deviceId?: string
 }
 
+const startAudio = new Audio('/public/assets/sounds/start_recording.ogg')
+const stopAudio = new Audio('/public/assets/sounds/stop_recording.ogg')
+
 const resolveMimeType = (preferredMimeTypes: string[]) => {
   for (const mimeType of preferredMimeTypes) {
     if (MediaRecorder.isTypeSupported(mimeType)) {
@@ -324,6 +327,7 @@ export class RecorderManager {
           })
         }
 
+        void startAudio.play()
         recorder.start(this.timesliceMs)
         this.setState('recording')
       } catch (e) {
@@ -345,6 +349,7 @@ export class RecorderManager {
         return
       }
       this.mediaRecorder.pause()
+      void stopAudio.play()
       this.setState('paused')
     })
   }
@@ -360,6 +365,8 @@ export class RecorderManager {
       if (!this.mediaRecorder || this.state !== 'paused') {
         return
       }
+
+      void startAudio.play()
       this.mediaRecorder.resume()
       this.setState('recording')
     })
@@ -397,6 +404,10 @@ export class RecorderManager {
       ) {
         return
       }
+      if (this.state === 'recording') {
+        void stopAudio.play()
+      }
+
       this.setState('stopping')
 
       await new Promise<void>((resolve) => {
