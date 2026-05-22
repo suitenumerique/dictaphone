@@ -1,10 +1,24 @@
-import { DropdownMenu, Info, QuestionMark } from '@gouvfr-lasuite/ui-kit'
+import {
+  BubbleText,
+  Building,
+  DocLink,
+  DropdownMenu,
+  QuestionMark,
+} from '@gouvfr-lasuite/ui-kit'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth/api/useUser'
 import { DownloadMobileAppPopUp } from '@/layout/DownloadMobileAppPopUp'
 import { useConfig } from '@/api/useConfig'
+
+const legalKeys = [
+  'accessibility',
+  'legalTerms',
+  'termsOfService',
+  'personalData',
+  'serviceProvisionAgreement',
+] as const
 
 export function HelpMenu() {
   const [isOpen, setIsOpen] = useState(false)
@@ -70,6 +84,17 @@ export function HelpMenu() {
       />
       <DropdownMenu
         options={[
+          {
+            icon: <Building />,
+            label: t('info.help.legalInfo'),
+            children: legalKeys.map((key) => ({
+              icon: <DocLink />,
+              label: t(`legal.${key}`),
+              callback: () => {
+                window.open(t(`legal.${key}Url`), '_blank')
+              },
+            })),
+          },
           ...(forceHideMobileStuff
             ? []
             : [
@@ -80,14 +105,21 @@ export function HelpMenu() {
                 },
               ]),
           {
-            icon: <span className="material-icons">article</span>,
+            icon: <DocLink />,
             label: t('info.help.documentation'),
             callback: () => {
               window.open(t('info.documentationUrl'), '_blank')
             },
           },
           {
-            icon: <Info />,
+            icon: <DocLink />,
+            label: 'FAQ',
+            callback: () => {
+              window.open(t('info.faqUrl'), '_blank')
+            },
+          },
+          {
+            icon: <BubbleText />,
             label: t('info.help.support'),
             callback: handleSupportClick,
           },

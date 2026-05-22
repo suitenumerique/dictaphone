@@ -9,6 +9,7 @@
   "info": {
     "supportEmailStart": "Hello, ...",
     "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "faqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/",
     "mobileApp": {
       "title": "Keep recording, anywhere",
       "description": "With the mobile app, your recording continues even when your screen is locked.",
@@ -18,7 +19,8 @@
     "help": {
       "documentation": "Documentation",
       "support": "Support",
-      "mobileApp": "Mobile app"
+      "mobileApp": "Mobile app",
+      "legalInfo": "Legal information"
     }
   },
   "legal": {

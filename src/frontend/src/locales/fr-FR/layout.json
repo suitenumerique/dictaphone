@@ -9,6 +9,7 @@
   "info": {
     "supportEmailStart": "Bonjour, ...",
     "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "faqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/",
     "mobileApp": {
       "title": "Enregistrer, n'importe où",
       "description": "Avec l'application mobile, votre enregistrement continue même lorsque votre écran est verrouillé.",
@@ -17,8 +18,9 @@
     },
     "help": {
       "documentation": "Documentation",
-      "support": "Support",
-      "mobileApp": "Application mobile"
+      "support": "Obtenir de l'aide",
+      "mobileApp": "Application mobile",
+      "legalInfo": "Informations légales"
     }
   },
   "legal": {
