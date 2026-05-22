@@ -28,6 +28,7 @@ const getExtensionFromMimeType = (mimeType: string) => {
 }
 
 const RECORDING_CHUNK_TIMESLICE_MS = 10_000
+const MIN_FREE_BYTES = 5 * 1024 * 1024
 
 type RecordingControllerState = {
   recorderState: RecorderLifecycleState
@@ -63,6 +64,7 @@ export const useRecordingController = (
   const accumulatedDurationMsRef = useRef(0)
   const autoSplitInFlightRef = useRef(false)
   const isUnmountedRef = useRef(false)
+  const lowStorageAlertShownRef = useRef(false)
 
   const [state, setState] = useState<RecordingControllerState>({
     recorderState: 'idle',
@@ -526,6 +528,44 @@ export const useRecordingController = (
       ? maxDurationSeconds * 1000
       : Number.POSITIVE_INFINITY
   }, [appConfig?.audio_recording?.max_duration_seconds])
+
+  useEffect(() => {
+    if (state.recorderState !== 'recording') {
+      lowStorageAlertShownRef.current = false
+      return
+    }
+    const checkAvailableStorage = async () => {
+      if (!navigator.storage?.estimate) {
+        return
+      }
+
+      try {
+        const { usage = 0, quota = 0 } = await navigator.storage.estimate()
+        const remaining = quota - usage
+
+        if (
+          remaining > 0 &&
+          remaining < MIN_FREE_BYTES &&
+          !lowStorageAlertShownRef.current
+        ) {
+          lowStorageAlertShownRef.current = true
+          await stopRecording()
+          window.alert(t('record:alerts.lowStorage'))
+        }
+      } catch (error) {
+        console.error('Failed to estimate storage.', error)
+      }
+    }
+
+    void checkAvailableStorage()
+    const intervalId = window.setInterval(() => {
+      void checkAvailableStorage()
+    }, 5000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [state.recorderState, stopRecording, t])
 
   useEffect(() => {
     if (

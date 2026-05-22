@@ -46,7 +46,8 @@
     "keepPhoneAwake": "If you are recording on a phone, keep the screen on to reduce recording interruptions."
   },
   "alerts": {
-    "uploadFailedDownloaded": "The recording could not be uploaded after a retry. The file \"{{fileName}}\" has been downloaded and saved on your computer. You can reupload it later or notify the support team."
+    "uploadFailedDownloaded": "The recording could not be uploaded after a retry. The file \"{{fileName}}\" has been downloaded and saved on your computer. You can reupload it later or notify the support team.",
+    "lowStorage": "Recording stopped: less than 5 MB of storage is available."
   },
   "errors": {
     "recordingFailed": "Recording failed. Check your microphone permissions and try again.",
