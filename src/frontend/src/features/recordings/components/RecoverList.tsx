@@ -6,7 +6,7 @@ import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Download, Retry, Spinner, Trash } from '@gouvfr-lasuite/ui-kit'
 import { ProgressBar } from '@/components/ProgressBar'
 
 const downloadFile = (file: File) => {
@@ -149,11 +149,7 @@ export function RecoverList() {
                         .getState()
                         .removeRecording(recording.id)
                     }}
-                    icon={
-                      <span className="material-icons" aria-hidden="true">
-                        delete
-                      </span>
-                    }
+                    icon={<Trash size="small" />}
                   ></Button>
                 )}
                 {isFailed && (
@@ -168,11 +164,7 @@ export function RecoverList() {
                       )
                       downloadFile(file)
                     }}
-                    icon={
-                      <span className="material-icons" aria-hidden="true">
-                        download
-                      </span>
-                    }
+                    icon={<Download size="small" />}
                   >
                     {t('recordings:localQueue.actions.download')}
                   </Button>
@@ -191,11 +183,7 @@ export function RecoverList() {
                         .getState()
                         .requestUpload(recording.id)
                     }
-                    icon={
-                      <span className="material-icons" aria-hidden="true">
-                        cloud_upload
-                      </span>
-                    }
+                    icon={<Retry size="small" />}
                   >
                     {t(
                       isFailed
