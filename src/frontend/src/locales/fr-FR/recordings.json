@@ -5,6 +5,12 @@
   "notFound": "Enregistrement introuvable.",
   "deleted": "Supprimé",
   "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
+  "logoAlt": "Logo Transcripts",
+  "uploadButtonAriaLabel": "Importer des enregistrements",
+  "uploadInputAriaLabel": "Importer des enregistrements audio",
+  "metadata": {
+    "ariaLabel": "Métadonnées de l'enregistrement"
+  },
   "uploadTooltip": {
     "title": "Importer des fichiers",
     "supportedFormats": "Formats pris en charge : {{formats, list}}",
@@ -38,6 +44,7 @@
     "titleTrash": "Corbeille",
     "trashInfo": "Les enregistrements sont supprimés définitivement après 30 jours",
     "ariaLabelTable": "Liste des enregistrements",
+    "openRecording": "Ouvrir l'enregistrement {{title}}",
     "deleteAriaLabel": "Supprimer l'enregistrement {{title}}",
     "paginationAriaLabel": "Pagination des enregistrements",
     "paginationPreviousAriaLabel": "Aller à la page précédente",
@@ -47,6 +54,7 @@
   },
   "actions": {
     "cta": "Actions",
+    "moreOptionsAriaLabel": "Plus d'options pour {{title}}",
     "delete": {
       "label": "Supprimer",
       "success": "Enregistrement supprimé",
@@ -96,6 +104,9 @@
   },
   "transcript": {
     "title": "Transcription",
+    "segmentsAriaLabel": "Segments de transcription",
+    "segmentSeekAriaLabel": "Aller à {{timestamp}} ({{speaker}})",
+    "noSpeaker": "Intervenant inconnu",
     "openInDocsCta": "Ouvrir dans Docs",
     "copySuccess": "Transcript copié dans le presse-papiers",
     "copyError": "Échec de la copie du transcript dans le presse-papiers",

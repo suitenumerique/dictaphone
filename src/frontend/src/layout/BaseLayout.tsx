@@ -48,13 +48,13 @@ export function BaseLayout({
         <div className="base-layout__header__left">
           <a href="/">
             <img
-              alt="Logo gouvernement"
+              alt={t('images.governmentLogoAlt')}
               className="base-layout__header__gouv-logo"
               src="/assets/gouv-logo.svg"
             />
             <img
               className="base-layout__header__app-logo"
-              alt="L'assistant transcript logo"
+              alt={t('images.appLogoAlt')}
               src="/assets/logo-single-line.svg"
             />
           </a>
@@ -88,7 +88,7 @@ export function BaseLayout({
         {showShowcaseAssistant && (
           <div className="base-layout__showcase-assistant">
             <img
-              alt="Logo LaSuite Assistant"
+              alt={t('images.assistantLogoAlt')}
               src="/assets/logo-lasuite-assistant.svg"
             />
             <p>{t('introLasuiteAssistant')}</p>

@@ -147,7 +147,9 @@ export default function RecordingPage({
     return (
       <ConnectedLayout>
         <div className="recording-page__not-found">
-          <span className="material-icons">search_off</span>
+          <span className="material-icons" aria-hidden="true">
+            search_off
+          </span>
           {t('notFound')}
         </div>
       </ConnectedLayout>
@@ -185,12 +187,18 @@ export default function RecordingPage({
           </div>
         </div>
         <h1 className="recording-page__title">{recording.title}</h1>
-        <table className="recording-page__metadata">
+        <table
+          className="recording-page__metadata"
+          aria-label={t('metadata.ariaLabel')}
+        >
           <tbody>
             <tr>
               <td>
                 <div className="recording-page__metadata__item">
-                  <Calendar2 className="recording-page__metadata__item__icon" />
+                  <Calendar2
+                    className="recording-page__metadata__item__icon"
+                    aria-hidden="true"
+                  />
                   <span>
                     {t('shared:utils.formatDate', {
                       // value: recording.created_at,
@@ -201,7 +209,10 @@ export default function RecordingPage({
               </td>
               <td>
                 <div className="recording-page__metadata__item">
-                  <Clock className="recording-page__metadata__item__icon" />
+                  <Clock
+                    className="recording-page__metadata__item__icon"
+                    aria-hidden="true"
+                  />
                   <span>
                     {t('shared:utils.duration', {
                       duration: intervalToDuration({
@@ -216,7 +227,10 @@ export default function RecordingPage({
               {numberOfParticipants !== null && (
                 <td>
                   <div className="recording-page__metadata__item">
-                    <Shared className="recording-page__metadata__item__icon" />
+                    <Shared
+                      className="recording-page__metadata__item__icon"
+                      aria-hidden="true"
+                    />
                     <span>{numberOfParticipants}</span>
                   </div>
                 </td>

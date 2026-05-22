@@ -2,6 +2,15 @@
   "home": "Home",
   "logout": "Log out",
   "recordCta": "Start recording",
+  "images": {
+    "governmentLogoAlt": "French government logo",
+    "appLogoAlt": "Transcripts logo",
+    "assistantLogoAlt": "LaSuite Assistant logo",
+    "downloadIosAlt": "Download on the App Store",
+    "downloadAndroidAlt": "Download on Google Play",
+    "downloadIosAriaLabel": "Download the iOS app on the App Store",
+    "downloadAndroidAriaLabel": "Download the Android app on Google Play"
+  },
   "breadcrumbs": {
     "myRecordings": "My recordings",
     "trash": "Trash"
@@ -17,6 +26,7 @@
       "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs."
     },
     "help": {
+      "ariaLabel": "Help / Documentation",
       "documentation": "Documentation",
       "support": "Support",
       "mobileApp": "Mobile app",

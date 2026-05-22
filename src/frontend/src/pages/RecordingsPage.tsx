@@ -84,7 +84,7 @@ export default function RecordingsPage() {
     >
       <div className="recordings-page">
         <div className="recordings-page__header">
-          <LogoApp height={60} />
+          <LogoApp height={60} alt={t('logoAlt')} />
           <span>{t('subtitle')}</span>
         </div>
         <div
@@ -100,16 +100,15 @@ export default function RecordingsPage() {
                 color="error"
                 variant="secondary"
               >
-                <span className="material-icons">radio_button_checked</span>
+                <span className="material-icons" aria-hidden="true">
+                  radio_button_checked
+                </span>
                 {t('record:newRecording')}
               </Button>
 
-              <Tooltip
-                content={uploadTooltipContent}
-                placement="top"
-              >
+              <Tooltip content={uploadTooltipContent} placement="top">
                 <Button
-                  aria-label={t('cta')}
+                  aria-label={t('uploadButtonAriaLabel')}
                   onClick={() =>
                     document.getElementById('import-files')?.click()
                   }
@@ -131,6 +130,7 @@ export default function RecordingsPage() {
       <input
         {...dropZone.getInputProps({
           id: 'import-files',
+          'aria-label': t('uploadInputAriaLabel'),
         })}
       />
     </ConnectedLayout>

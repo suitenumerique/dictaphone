@@ -5,6 +5,12 @@
   "notFound": "Recording not found",
   "deleted": "Deleted",
   "subtitle": "Record your in-person meetings and access your transcripts.",
+  "logoAlt": "Transcripts logo",
+  "uploadButtonAriaLabel": "Upload recordings",
+  "uploadInputAriaLabel": "Upload audio recordings",
+  "metadata": {
+    "ariaLabel": "Recording metadata"
+  },
   "uploadTooltip": {
     "title": "Upload files",
     "supportedFormats": "Supported formats: {{formats, list}}",
@@ -37,6 +43,7 @@
     "title": "My recordings",
     "titleTrash": "Trash",
     "trashInfo": "Files are permanently deleted after 30 days",
+    "openRecording": "Open recording {{title}}",
     "ariaLabelTable": "Recordings list",
     "paginationAriaLabel": "Recordings pagination",
     "paginationPreviousAriaLabel": "Go to previous page",
@@ -46,6 +53,7 @@
   },
   "actions": {
     "cta": "Actions",
+    "moreOptionsAriaLabel": "More options for {{title}}",
     "delete": {
       "label": "Delete",
       "success": "Recording deleted",
@@ -95,6 +103,9 @@
   },
   "transcript": {
     "title": "Transcript",
+    "segmentsAriaLabel": "Transcript segments",
+    "segmentSeekAriaLabel": "Seek to {{timestamp}} ({{speaker}})",
+    "noSpeaker": "Unknown speaker",
     "openInDocsCta": "Open in Docs",
     "copySuccess": "Transcript copied to clipboard",
     "copyError": "Failed to copy transcript to clipboard",

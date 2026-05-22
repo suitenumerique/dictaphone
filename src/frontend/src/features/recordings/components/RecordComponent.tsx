@@ -138,8 +138,11 @@ export default function RecordComponent() {
                 ? 'record-component__status--starting'
                 : ''
           }`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
-          <span className="material-icons">
+          <span className="material-icons" aria-hidden="true">
             {isRecordingInProgress
               ? isPaused
                 ? 'pause'
@@ -190,7 +193,7 @@ export default function RecordComponent() {
             variant="secondary"
             color="error"
             icon={
-              <span className="material-icons">
+              <span className="material-icons" aria-hidden="true">
                 {isStarting ? 'hourglass_top' : 'fiber_manual_record'}
               </span>
             }
@@ -213,7 +216,7 @@ export default function RecordComponent() {
                 }
                 disabled={!canPauseOrStop}
               >
-                <span className="material-icons">
+                <span className="material-icons" aria-hidden="true">
                   {isPaused ? 'play_arrow' : 'pause'}
                 </span>
                 <span>
@@ -231,7 +234,9 @@ export default function RecordComponent() {
                 onClick={() => void handleStop()}
                 disabled={!canPauseOrStop}
               >
-                <span className="material-icons">stop_circle</span>
+                <span className="material-icons" aria-hidden="true">
+                  stop_circle
+                </span>
                 <span>{t('record:stopRecording')}</span>
               </Button>
             </>
@@ -240,7 +245,9 @@ export default function RecordComponent() {
       </div>
 
       {recordingError && (
-        <div className="record-component__error">{recordingError}</div>
+        <div className="record-component__error" role="alert">
+          {recordingError}
+        </div>
       )}
     </div>
   )

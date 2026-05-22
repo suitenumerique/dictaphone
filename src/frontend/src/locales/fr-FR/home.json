@@ -5,5 +5,12 @@
   "license": "Sauf mention contraire, tous les contenus de ce site sont sous",
   "introLasuiteAssistant": "Transcripts fait partie de LaSuite Assistant, l’application d'intelligence artificielle de LaSuite.",
   "discoverAssistant": "Découvrir l'Assistant IA",
-  "discoverLaSuite": "Découvrir LaSuite"
+  "discoverLaSuite": "Découvrir LaSuite",
+  "images": {
+    "appLogoAlt": "Logo Transcripts",
+    "heroAlt": "Illustration de l'Assistant Transcripts",
+    "example1Alt": "Exemple de l'applicaiton mobile Assistant Transcripts",
+    "example2Alt": "Exemple de l'applicaiton mobile Assistant Transcripts",
+    "example3Alt": "Exemple de l'applicaiton mobile Assistant Transcripts"
+  }
 }

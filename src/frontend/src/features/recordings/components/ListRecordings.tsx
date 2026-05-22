@@ -20,7 +20,10 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   if (lastAiJobTranscript?.status === 'success') {
     return (
       <div className="recordings-list__document-icon">
-        <img src="/assets/files/icons/doc.svg" alt="Document logo" />
+        <img
+          src="/assets/files/icons/doc.svg"
+          alt={t('transcript.statusPreview.success')}
+        />
       </div>
     )
   }
@@ -28,11 +31,17 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   if (lastAiJobTranscript?.status === 'failed') {
     return (
       <Tooltip content={t('transcript.status.failed')}>
-        <span aria-hidden="true">⚠️</span>
+        <span role="img" aria-label={t('transcript.statusPreview.failed')}>
+          ⚠️
+        </span>
       </Tooltip>
     )
   }
-  return <Spinner />
+  return (
+    <span role="status" aria-label={t('transcript.statusPreview.pending')}>
+      <Spinner />
+    </span>
+  )
 }
 
 export function ListRecordings({
@@ -69,54 +78,54 @@ export function ListRecordings({
           aria-label={t('list.title')}
         >
           {allFiles.map((file) => (
-            <div
-              className="recordings-list__item clickable"
+            <article
+              className="recordings-list__item"
               key={file.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(`/recordings/${file.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  navigate(`/recordings/${file.id}`)
-                }
-              }}
-              aria-label={t('list.openRecording', {
-                title: file.title || file.filename,
-              })}
+              role="listitem"
             >
-              <div className="recordings-list__item__left">
-                <div className="recordings-list__item__status">
-                  <RecordingStatus recording={file} />
-                </div>
-                <div className="recordings-list__item__info">
-                  <span className="recordings-list__item__title">
-                    {file.title || file.filename}
-                  </span>
-                  <div className="recordings-list__item__metadata">
-                    <span>
-                      {t('shared:utils.duration', {
-                        duration: intervalToDuration({
-                          start: 0,
-                          end: Math.max(file.duration_seconds || 1, 1) * 1000,
-                        }),
-                      })}
+              <button
+                className="recordings-list__item__open"
+                onClick={() => navigate(`/recordings/${file.id}`)}
+                aria-label={t('list.openRecording', {
+                  title: file.title || file.filename,
+                })}
+              >
+                <div className="recordings-list__item__left">
+                  <div className="recordings-list__item__status">
+                    <RecordingStatus recording={file} />
+                  </div>
+                  <div className="recordings-list__item__info">
+                    <span className="recordings-list__item__title">
+                      {file.title || file.filename}
                     </span>
-                    •
-                    <span>
-                      {t('shared:utils.formatDateTime', {
-                        value: file.created_at,
-                      })}
-                    </span>
+                    <div className="recordings-list__item__metadata">
+                      <span>
+                        {t('shared:utils.duration', {
+                          duration: intervalToDuration({
+                            start: 0,
+                            end: Math.max(file.duration_seconds || 1, 1) * 1000,
+                          }),
+                        })}
+                      </span>
+                      •
+                      <span>
+                        {t('shared:utils.formatDateTime', {
+                          value: file.created_at,
+                        })}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events,jsx-a11y/no-static-element-interactions */}
-              <div onClick={(e) => e.stopPropagation()}>
+              </button>
+              <div
+                className="recordings-list__item__actions"
+                aria-label={t('actions.moreOptionsAriaLabel', {
+                  title: file.title || file.filename,
+                })}
+              >
                 <FileActionMenu file={file} />
               </div>
-            </div>
+            </article>
           ))}
 
           {queryData.hasNextPage && (

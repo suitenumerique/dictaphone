@@ -26,11 +26,41 @@
     color: var(--c--globals--colors--gray-600);
   }
 
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+
   &__item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: var(--c--globals--spacings--xxs);
+    border-radius: var(--c--globals--spacings--xxs);
+
+    &:hover {
+      background: var(--c--globals--colors--gray-025);
+    }
+
+    &__open {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      flex: 1;
+      justify-content: flex-start;
+      padding: 0;
+      border: 0;
+      min-height: auto;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+
+      &:focus-visible {
+        outline: 2px solid
+          var(--c--contextuals--border--semantic--brand--primary);
+        outline-offset: 2px;
+      }
+    }
 
     &__left {
       display: flex;
@@ -65,6 +95,10 @@
       line-height: 12px;
       color: var(--c--globals--colors--gray-600);
     }
+
+    &__actions {
+      flex-shrink: 0;
+    }
   }
 }
 
@@ -76,15 +110,6 @@
 .recordings-list {
   width: 100%;
   border-collapse: collapse;
-
-  .clickable {
-    cursor: pointer;
-
-    border-radius: var(--c--globals--spacings--xxs);
-    &:hover {
-      background: var(--c--globals--colors--gray-025);
-    }
-  }
 
   .recording-status {
     display: flex;

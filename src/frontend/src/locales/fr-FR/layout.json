@@ -2,6 +2,15 @@
   "home": "Accueil",
   "logout": "Déconnexion",
   "recordCta": "Enregistrer",
+  "images": {
+    "governmentLogoAlt": "Logo du Gouvernement français",
+    "appLogoAlt": "Logo Transcripts",
+    "assistantLogoAlt": "Logo LaSuite Assistant",
+    "downloadIosAlt": "Télécharger sur l'App Store",
+    "downloadAndroidAlt": "Télécharger sur Google Play",
+    "downloadIosAriaLabel": "Télécharger l'application iOS sur l'App Store",
+    "downloadAndroidAriaLabel": "Télécharger l'application Android sur Google Play"
+  },
   "breadcrumbs": {
     "myRecordings": "Mes enregistrements",
     "trash": "Corbeille"
@@ -17,6 +26,7 @@
       "catchPhrase": "Enregistrez vos réunions en présentiel et générez automatiquement un rapport structuré dans Docs."
     },
     "help": {
+      "ariaLabel": "Aide / Documentation",
       "documentation": "Documentation",
       "support": "Obtenir de l'aide",
       "mobileApp": "Application mobile",

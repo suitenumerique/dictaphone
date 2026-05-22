@@ -79,7 +79,10 @@ export function Transcript({
   }, [activeSegment?.id])
 
   return (
-    <section className="recording-page__panel recording-page__panel--transcript">
+    <section
+      className="recording-page__panel recording-page__panel--transcript"
+      aria-label={t('transcript.title')}
+    >
       {lastAiJobTranscript?.status === 'failed' && (
         <div className="recording-page__state">
           {t('transcript.status.failed')}
@@ -105,6 +108,7 @@ export function Transcript({
           <div
             className="transcript__transcript-list"
             ref={transcriptContainerRef}
+            aria-label={t('transcript.segmentsAriaLabel')}
           >
             {transcriptSegments.map((segment, index) => (
               <Fragment key={segment.id}>

@@ -34,7 +34,7 @@ export default function ConnectedLayout({
           aria-label={t('home')}
           style={{ textDecoration: 'none' }}
         >
-          <LogoApp variant="multiline" height={42} />
+          <LogoApp variant="multiline" height={42} alt="" />
         </Link>
       }
       rightHeaderContent={<HeaderRight />}

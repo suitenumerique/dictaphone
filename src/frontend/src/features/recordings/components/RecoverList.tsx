@@ -74,9 +74,23 @@ export function RecoverList() {
               <div className="recordings-recovery-alert__item-left">
                 <div className="recordings-recovery-alert__item-status">
                   {recording.status === 'uploading' ? (
-                    <Spinner />
+                    <span
+                      role="status"
+                      aria-label={t(
+                        'recordings:transcript.statusPreview.pending'
+                      )}
+                    >
+                      <Spinner />
+                    </span>
                   ) : (
-                    <span aria-hidden="true">⚠️</span>
+                    <span
+                      role="img"
+                      aria-label={t(
+                        'recordings:transcript.statusPreview.failed'
+                      )}
+                    >
+                      ⚠️
+                    </span>
                   )}
                 </div>
                 <div className="recordings-recovery-alert__item-info">
@@ -135,7 +149,11 @@ export function RecoverList() {
                         .getState()
                         .removeRecording(recording.id)
                     }}
-                    icon={<span className="material-icons">delete</span>}
+                    icon={
+                      <span className="material-icons" aria-hidden="true">
+                        delete
+                      </span>
+                    }
                   ></Button>
                 )}
                 {isFailed && (
@@ -150,7 +168,11 @@ export function RecoverList() {
                       )
                       downloadFile(file)
                     }}
-                    icon={<span className="material-icons">download</span>}
+                    icon={
+                      <span className="material-icons" aria-hidden="true">
+                        download
+                      </span>
+                    }
                   >
                     {t('recordings:localQueue.actions.download')}
                   </Button>
@@ -169,7 +191,11 @@ export function RecoverList() {
                         .getState()
                         .requestUpload(recording.id)
                     }
-                    icon={<span className="material-icons">cloud_upload</span>}
+                    icon={
+                      <span className="material-icons" aria-hidden="true">
+                        cloud_upload
+                      </span>
+                    }
                   >
                     {t(
                       isFailed

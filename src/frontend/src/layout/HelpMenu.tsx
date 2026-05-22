@@ -133,6 +133,7 @@ export function HelpMenu() {
           variant="tertiary"
           icon={<QuestionMark />}
           onClick={() => setIsOpen(true)}
+          aria-label={t('info.help.ariaLabel')}
         />
       </DropdownMenu>
     </>

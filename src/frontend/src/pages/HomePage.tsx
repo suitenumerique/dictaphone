@@ -19,7 +19,7 @@ export default function HomePage() {
         <>
           <img
             className="home-page__app-logo"
-            alt="L'assistant transcript logo"
+            alt={t('images.appLogoAlt')}
             src="/assets/logo-single-line.svg"
           />
           <div className="home-page__hero">
@@ -40,14 +40,14 @@ export default function HomePage() {
                 </Button>
               </div>
             </div>
-            <img alt="Hero Transcripts" src="/assets/hero.svg" />
+            <img alt={t('images.heroAlt')} src="/assets/hero.svg" />
           </div>
 
           <div className="home-page__examples">
             <div className="home-page__examples__images">
-              <img alt="Example app 1" src="/assets/home/ex-1.svg" />
-              <img alt="Example app 2" src="/assets/home/ex-2.svg" />
-              <img alt="Example app 3" src="/assets/home/ex-3.svg" />
+              <img alt={t('images.example1Alt')} src="/assets/home/ex-1.svg" />
+              <img alt={t('images.example2Alt')} src="/assets/home/ex-2.svg" />
+              <img alt={t('images.example3Alt')} src="/assets/home/ex-3.svg" />
             </div>
             <DownloadAppsButtons />
           </div>

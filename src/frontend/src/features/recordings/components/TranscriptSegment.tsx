@@ -5,6 +5,15 @@ import {
 import { useTranslation } from 'react-i18next'
 import { Fragment } from 'react'
 
+const seekToSegmentStart = (
+  segment: TranscriptViewSegment,
+  seekTo: (seconds: number) => void
+) => {
+  if (segment.start !== null) {
+    seekTo(segment.start)
+  }
+}
+
 export function TranscriptSegment({
   segment,
   isActive,
@@ -19,11 +28,20 @@ export function TranscriptSegment({
   setSegmentRef: (id: string, element: HTMLSpanElement | null) => void
 }) {
   const { t } = useTranslation('recordings')
+  const segmentTimestamp = formatTimestamp(segment.start ?? -1)
   return (
     <span
       key={segment.id}
       className="transcript__segment"
       data-active={isActive}
+      role="button"
+      tabIndex={0}
+      aria-label={t('transcript.segmentSeekAriaLabel', {
+        timestamp: segmentTimestamp,
+        speaker: segment.speaker
+          ? `${t('transcript.speaker')} ${segment.speaker}`
+          : t('transcript.noSpeaker'),
+      })}
       onDoubleClick={(event) => {
         // We clear the selection to avoid a weird UX
         window.getSelection()?.removeAllRanges()
@@ -36,16 +54,19 @@ export function TranscriptSegment({
             return
           }
         }
-        if (segment.start !== null) {
-          seekTo(segment.start)
+        seekToSegmentStart(segment, seekTo)
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return
         }
+        event.preventDefault()
+        seekToSegmentStart(segment, seekTo)
       }}
       ref={(element) => setSegmentRef(segment.id, element)}
     >
       <span className="transcript__segment-text">
-        <span className="transcript__intro">
-          {formatTimestamp(segment.start ?? -1)}
-        </span>
+        <span className="transcript__intro">{segmentTimestamp}</span>
         {segment.speaker && (
           <span className={'transcript__intro'}>
             &nbsp;{`· ${t('transcript.speaker')} ${segment.speaker}`}

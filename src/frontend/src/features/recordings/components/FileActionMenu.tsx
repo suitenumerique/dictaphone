@@ -160,7 +160,11 @@ export function FileActionMenu({
     if (file.abilities.partial_update) {
       out.push({
         label: t('actions.rename.label'),
-        icon: <span className="material-icons">edit</span>,
+        icon: (
+          <span className="material-icons" aria-hidden="true">
+            edit
+          </span>
+        ),
         callback: () => setOpenRenameModal(true),
       })
     }
@@ -170,7 +174,11 @@ export function FileActionMenu({
         label: isRetryDisabled
           ? t('actions.retry.disabledPendingLabel')
           : t('actions.retry.label'),
-        icon: <span className="material-icons">replay</span>,
+        icon: (
+          <span className="material-icons" aria-hidden="true">
+            replay
+          </span>
+        ),
         callback: canOpenRetryModal ? handleOpenRetryModal : () => undefined,
       })
     }
@@ -178,7 +186,11 @@ export function FileActionMenu({
     if (file.abilities.destroy) {
       out.push({
         label: t('actions.delete.label'),
-        icon: <span className="material-icons">delete</span>,
+        icon: (
+          <span className="material-icons" aria-hidden="true">
+            delete
+          </span>
+        ),
         callback: () => setOpenDeleteModal(true),
       })
     }
@@ -186,7 +198,11 @@ export function FileActionMenu({
     if (file.abilities.restore) {
       out.push({
         label: t('actions.restore.label'),
-        icon: <span className="material-icons">restore_from_trash</span>,
+        icon: (
+          <span className="material-icons" aria-hidden="true">
+            restore_from_trash
+          </span>
+        ),
         callback: () =>
           restoreFileMutation.mutate(
             { fileId: file.id },
@@ -211,7 +227,11 @@ export function FileActionMenu({
     if (file.abilities.hard_delete) {
       out.push({
         label: t('actions.deletePermanently.label'),
-        icon: <span className="material-icons">delete</span>,
+        icon: (
+          <span className="material-icons" aria-hidden="true">
+            delete
+          </span>
+        ),
         callback: () =>
           hardDeleteFileMutation.mutate(
             { fileId: file.id },
@@ -263,8 +283,14 @@ export function FileActionMenu({
             variant="secondary"
             color="neutral"
             onClick={() => setIsOpen(!isOpen)}
-            aria-label="more_actions"
-            icon={<span className="material-icons more">more_horiz</span>}
+            aria-label={t('actions.moreOptionsAriaLabel', {
+              title: file.title || file.filename,
+            })}
+            icon={
+              <span className="material-icons more" aria-hidden="true">
+                more_horiz
+              </span>
+            }
           >
             {t('actions.cta')}
           </Button>
@@ -274,8 +300,14 @@ export function FileActionMenu({
             variant="tertiary"
             color="neutral"
             onClick={() => setIsOpen(!isOpen)}
-            aria-label="more_actions"
-            icon={<span className="material-icons more">more_horiz</span>}
+            aria-label={t('actions.moreOptionsAriaLabel', {
+              title: file.title || file.filename,
+            })}
+            icon={
+              <span className="material-icons more" aria-hidden="true">
+                more_horiz
+              </span>
+            }
           />
         )}
       </DropdownMenu>
