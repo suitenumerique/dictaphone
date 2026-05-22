@@ -590,7 +590,6 @@ export const useRecordingController = (
       autoSplitInFlightRef.current = false
     })
   }, [
-    appConfig?.audio_recording.upload_is_enabled,
     maxDurationMs,
     startRecording,
     state.recordingDurationMs,
