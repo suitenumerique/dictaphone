@@ -20,8 +20,8 @@ type StartRecordingOptions = {
   deviceId?: string
 }
 
-const startAudio = new Audio('/public/assets/sounds/start_recording.ogg')
-const stopAudio = new Audio('/public/assets/sounds/stop_recording.ogg')
+const startAudio = new Audio('/assets/sounds/start_recording.ogg')
+const stopAudio = new Audio('/assets/sounds/stop_recording.ogg')
 
 const resolveMimeType = (preferredMimeTypes: string[]) => {
   for (const mimeType of preferredMimeTypes) {

@@ -8,7 +8,7 @@ export default function DownloadMobileAppPage() {
   return (
     <BaseLayout showShowcaseAssistant={false}>
       <div className="download-mobile-app-page">
-        <img src="/public/assets/logo-download.svg" alt="Download mobile app" />
+        <img src="/assets/logo-download.svg" alt="Download mobile app" />
         <span>{t('info.mobileApp.catchPhrase')}</span>
         <DownloadAppsButtons />
       </div>
