@@ -5,6 +5,12 @@
   "notFound": "Enregistrement introuvable.",
   "deleted": "Supprimé",
   "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
+  "uploadTooltip": {
+    "title": "Importer des fichiers",
+    "supportedFormats": "Formats pris en charge : {{formats, list}}",
+    "noSupportedFormats": "aucun",
+    "maxFileSize": "Taille maximale de fichier : {{maxSize}}"
+  },
   "recovery": {
     "blockNewRecordingAlert": "Un enregistrement précédent n'a pas été transféré et est encore stocké localement. Veuillez le transférer ou le supprimer avant de démarrer un nouvel enregistrement."
   },

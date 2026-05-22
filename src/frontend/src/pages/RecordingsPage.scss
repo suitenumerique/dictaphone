@@ -80,5 +80,9 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
       color: var(--c--globals--colors--gray-600);
       text-align: center;
     }
+
+    .c__tooltip {
+      max-width: 800px;
+    }
   }
 }

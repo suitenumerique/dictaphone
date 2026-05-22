@@ -7,14 +7,18 @@ import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
 import { FileShare } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { RecoverList } from '../features/recordings/components/RecoverList'
+import { useConfig } from '@/api/useConfig.ts'
+import { formatFileSize } from '@/features/recordings/utils/formatFileSize.ts'
+import { useMemo } from 'react'
 
 const PAGE_SIZE = 10
 
 export default function RecordingsPage() {
   const { t } = useTranslation(['recordings', 'record'])
   const [, navigate] = useLocation()
+  const { data: appConfig } = useConfig()
 
   const filesQ = useListMyFilesInfinite({
     filters: {
@@ -29,6 +33,42 @@ export default function RecordingsPage() {
   const { dropZone } = useUploadZone()
   const isDropZoneActive =
     dropZone.isFocused || dropZone.isDragAccept || dropZone.isDragReject
+  const supportedFormats = useMemo(
+    () => appConfig?.audio_recording.allowed_extensions ?? [],
+    [appConfig]
+  )
+  const maxFileSize = useMemo(
+    () => appConfig?.audio_recording.max_size ?? 0,
+    [appConfig]
+  )
+
+  const uploadTooltipContent = useMemo(
+    () => (
+      <div>
+        <div>{t('uploadTooltip.title')}</div>
+        <div>
+          {t('uploadTooltip.supportedFormats', {
+            formats:
+              supportedFormats.length > 0
+                ? supportedFormats.map((el) => el.replace('.', ''))
+                : [t('uploadTooltip.noSupportedFormats')],
+            formatParams: {
+              formats: {
+                type: 'conjunction',
+                style: 'long',
+              },
+            },
+          })}
+        </div>
+        <div>
+          {t('uploadTooltip.maxFileSize', {
+            maxSize: formatFileSize(maxFileSize),
+          })}
+        </div>
+      </div>
+    ),
+    [supportedFormats, maxFileSize, t]
+  )
 
   const handleStartNewRecording = () => {
     navigate('/new-recording')
@@ -64,13 +104,20 @@ export default function RecordingsPage() {
                 {t('record:newRecording')}
               </Button>
 
-              <Button
-                aria-label={t('cta')}
-                onClick={() => document.getElementById('import-files')?.click()}
-                variant="bordered"
-                color="neutral"
-                icon={<FileShare />}
-              ></Button>
+              <Tooltip
+                content={uploadTooltipContent}
+                placement="top"
+              >
+                <Button
+                  aria-label={t('cta')}
+                  onClick={() =>
+                    document.getElementById('import-files')?.click()
+                  }
+                  variant="bordered"
+                  color="neutral"
+                  icon={<FileShare />}
+                ></Button>
+              </Tooltip>
             </div>
             <div className="recordings-actions__warning">
               {t('record:consentWarning')}
