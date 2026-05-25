@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   Copy,
+  Download,
   DropdownMenu,
   DropdownMenuProps,
   Edit,
@@ -35,10 +36,40 @@ import { TTranscriptionLanguage } from '@/features/ai-jobs/api/types.ts'
 import { useLocation } from 'wouter'
 import {
   buildTranscriptMarkdown,
+  buildTranscriptSrt,
   buildTranscriptViewSegments,
 } from '@/features/ai-jobs/utils/transcript.ts'
 
 const RETRY_LANGUAGES: TTranscriptionLanguage[] = ['fr', 'en', 'de', 'nl']
+type ExportFormat = 'markdown' | 'srt' | 'json'
+
+const sanitizeFileName = (value: string) => {
+  const sanitized = value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+  return sanitized || 'transcript'
+}
+
+const downloadTextFile = ({
+  filename,
+  content,
+  mimeType,
+}: {
+  filename: string
+  content: string
+  mimeType: string
+}) => {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.setTimeout(() => URL.revokeObjectURL(url), 10000)
+}
 
 export function FileActionMenu({
   file,
@@ -53,7 +84,10 @@ export function FileActionMenu({
   const [openRenameModal, setOpenRenameModal] = useState(false)
   const [openDeleteModal, setOpenDeleteModal] = useState(false)
   const [openRetryModal, setOpenRetryModal] = useState(false)
+  const [openExportModal, setOpenExportModal] = useState(false)
   const [isCopyingText, setIsCopyingText] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('srt')
   const [retryLanguage, setRetryLanguage] =
     useState<TTranscriptionLanguage | null>(null)
   const [, navigate] = useLocation()
@@ -226,6 +260,102 @@ export function FileActionMenu({
     void copyTranscript()
   }, [file.title, isCopyingText, lastAiJobTranscript, t])
 
+  const exportFormats = useMemo(
+    () => [
+      {
+        value: 'srt' as const,
+        label: t('actions.exportModal.formatOptions.srt'),
+      },
+      {
+        value: 'markdown' as const,
+        label: t('actions.exportModal.formatOptions.markdown'),
+      },
+      {
+        value: 'json' as const,
+        label: t('actions.exportModal.formatOptions.json'),
+      },
+    ],
+    [t]
+  )
+
+  const handleExport = useCallback(() => {
+    if (lastAiJobTranscript?.status !== 'success' || isExporting) {
+      return
+    }
+
+    const runExport = async () => {
+      setIsExporting(true)
+      try {
+        const transcript = await getTranscript(lastAiJobTranscript)
+        const filenameBase = sanitizeFileName(file.title || file.filename)
+
+        if (exportFormat === 'markdown') {
+          const markdown = buildTranscriptMarkdown({
+            title: file.title,
+            transcriptSegments: buildTranscriptViewSegments(transcript),
+            speakerLabel: t('transcript.speaker'),
+          })
+          if (!markdown) {
+            throw new Error('No transcript markdown')
+          }
+          downloadTextFile({
+            filename: `${filenameBase}.md`,
+            content: markdown,
+            mimeType: 'text/markdown;charset=utf-8',
+          })
+        }
+
+        if (exportFormat === 'srt') {
+          const srt = buildTranscriptSrt(transcript, {
+            speakerLabel: t('transcript.speaker'),
+          })
+          if (!srt) {
+            throw new Error('No transcript srt')
+          }
+          downloadTextFile({
+            filename: `${filenameBase}.srt`,
+            content: srt,
+            mimeType: 'text/plain;charset=utf-8',
+          })
+        }
+
+        if (exportFormat === 'json') {
+          const rawJson = JSON.stringify(
+            buildTranscriptViewSegments(transcript),
+            null,
+            2
+          )
+          downloadTextFile({
+            filename: `${filenameBase}.json`,
+            content: rawJson,
+            mimeType: 'application/json;charset=utf-8',
+          })
+        }
+
+        setOpenExportModal(false)
+        setIsOpen(false)
+        addToast(
+          <ToasterItem type="info">{t('actions.export.success')}</ToasterItem>
+        )
+      } catch {
+        addToast(
+          <ToasterItem type="error">{t('actions.export.error')}</ToasterItem>
+        )
+      } finally {
+        setIsExporting(false)
+      }
+    }
+
+    void runExport()
+  }, [
+    exportFormat,
+    file.filename,
+    file.title,
+    isExporting,
+    lastAiJobTranscript,
+    t,
+  ])
+
   const menuItems = useMemo(() => {
     const out: DropdownMenuProps['options'] = []
     out.push({
@@ -240,6 +370,12 @@ export function FileActionMenu({
       icon: <Copy size="small" />,
       callback: handleCopyText,
       isDisabled: lastAiJobTranscript?.status !== 'success' || isCopyingText,
+    })
+    out.push({
+      label: t('actions.export.label'),
+      icon: <Download size="small" />,
+      callback: () => setOpenExportModal(true),
+      isDisabled: lastAiJobTranscript?.status !== 'success',
     })
 
     out.push({ type: 'separator' })
@@ -391,6 +527,42 @@ export function FileActionMenu({
           />
         )}
       </DropdownMenu>
+      <Modal
+        size={ModalSize.MEDIUM}
+        isOpen={openExportModal}
+        onClose={() => setOpenExportModal(false)}
+        preventClose={isExporting}
+        closeOnEsc={!isExporting}
+        closeOnClickOutside={!isExporting}
+        title={t('actions.exportModal.title')}
+        rightActions={
+          <>
+            <Button
+              variant="bordered"
+              onClick={() => setOpenExportModal(false)}
+              disabled={isExporting}
+              color="neutral"
+            >
+              {t('shared:actions.cancel')}
+            </Button>
+            <Button onClick={handleExport} disabled={isExporting}>
+              {t('actions.exportModal.submit')}
+            </Button>
+          </>
+        }
+      >
+        <p>{t('actions.exportModal.description')}</p>
+        <Select
+          label={t('actions.exportModal.formatLabel')}
+          value={exportFormat}
+          onChange={(event) =>
+            setExportFormat(event.target.value as ExportFormat)
+          }
+          clearable={false}
+          disabled={isExporting}
+          options={exportFormats}
+        />
+      </Modal>
       <Modal
         size={ModalSize.MEDIUM}
         isOpen={openDeleteModal}

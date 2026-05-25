@@ -80,6 +80,11 @@
       "error": "Échec de la relance de la génération",
       "disabledPendingLabel": "Régénérer (en cours)"
     },
+    "export": {
+      "label": "Exporter",
+      "success": "Transcription exportée",
+      "error": "Échec de l'export de la transcription"
+    },
     "deletePermanently": {
       "label": "Supprimer définitivement",
       "success": "Enregistrement supprimé définitivement",
@@ -99,6 +104,17 @@
         "fr": "Français",
         "de": "Allemand",
         "nl": "Néerlandais"
+      }
+    },
+    "exportModal": {
+      "title": "Exporter la transcription",
+      "description": "Choisissez un format.",
+      "formatLabel": "Format",
+      "submit": "Exporter",
+      "formatOptions": {
+        "markdown": "Markdown",
+        "srt": "Sous-titres (srt) - Beta",
+        "json": "Json brut"
       }
     }
   },

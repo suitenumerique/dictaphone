@@ -79,6 +79,11 @@
       "error": "Failed to restart generation",
       "disabledPendingLabel": "Retry (in progress)"
     },
+    "export": {
+      "label": "Export",
+      "success": "Transcript exported",
+      "error": "Failed to export transcript"
+    },
     "deletePermanently": {
       "label": "Delete permanently",
       "success": "Recording permanently deleted",
@@ -98,6 +103,17 @@
         "fr": "French",
         "de": "German",
         "nl": "Dutch"
+      }
+    },
+    "exportModal": {
+      "title": "Export transcript",
+      "description": "Choose a format.",
+      "formatLabel": "Format",
+      "submit": "Export",
+      "formatOptions": {
+        "markdown": "Markdown",
+        "srt": "Subtitles (srt) - Beta",
+        "json": "Raw json"
       }
     }
   },
