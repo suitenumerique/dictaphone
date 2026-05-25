@@ -167,21 +167,33 @@ export default function RecordingPage({
           >
             {t('shared:actions.back')}
           </Button>
+
           <div className="recording-page__actions-buttons__right">
-            <Button
-              aria-label={t('shared:actions.copyText')}
-              size="small"
-              variant="tertiary"
-              color="neutral"
-              icon={<Copy />}
-              disabled={
-                lastAiJobTranscript?.status !== 'success' || !transcriptMarkdown
-              }
-              children={!isMobile ? t('shared:actions.copyText') : undefined}
-              onClick={handleCopy}
+            {!isMobile && (
+              <>
+                <Button
+                  aria-label={t('shared:actions.copyText')}
+                  size="small"
+                  variant="tertiary"
+                  color="neutral"
+                  icon={<Copy />}
+                  disabled={
+                    lastAiJobTranscript?.status !== 'success' ||
+                    !transcriptMarkdown
+                  }
+                  children={t('shared:actions.copyText')}
+                  onClick={handleCopy}
+                />
+                <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
+              </>
+            )}
+
+            <FileActionMenu
+              file={recording}
+              largeTrigger={isMobile}
+              showCopyText={isMobile}
+              showOpenInDocs={isMobile}
             />
-            <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
-            <FileActionMenu file={recording} />
           </div>
         </div>
         <h1 className="recording-page__title">{recording.title}</h1>

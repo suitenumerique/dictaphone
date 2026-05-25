@@ -74,9 +74,13 @@ const downloadTextFile = ({
 export function FileActionMenu({
   file,
   largeTrigger = false,
+  showCopyText = true,
+  showOpenInDocs = true,
 }: {
   file: ApiFileItem
   largeTrigger?: boolean
+  showCopyText?: boolean
+  showOpenInDocs?: boolean
 }) {
   const { t } = useTranslation(['recordings', 'shared'])
   const [isOpen, setIsOpen] = useState(false)
@@ -358,19 +362,23 @@ export function FileActionMenu({
 
   const menuItems = useMemo(() => {
     const out: DropdownMenuProps['options'] = []
-    out.push({
-      label: t('transcript.openInDocsCta'),
-      icon: <ArrowUpRight size="small" />,
-      callback: handleOpenInDocs,
-      isDisabled: !lastAiJobTranscript?.docs_app_id,
-    })
+    if (showOpenInDocs) {
+      out.push({
+        label: t('transcript.openInDocsCta'),
+        icon: <ArrowUpRight size="small" />,
+        callback: handleOpenInDocs,
+        isDisabled: !lastAiJobTranscript?.docs_app_id,
+      })
+    }
+    if (showCopyText) {
+      out.push({
+        label: t('shared:actions.copyText'),
+        icon: <Copy size="small" />,
+        callback: handleCopyText,
+        isDisabled: lastAiJobTranscript?.status !== 'success' || isCopyingText,
+      })
+    }
 
-    out.push({
-      label: t('shared:actions.copyText'),
-      icon: <Copy size="small" />,
-      callback: handleCopyText,
-      isDisabled: lastAiJobTranscript?.status !== 'success' || isCopyingText,
-    })
     out.push({
       label: t('actions.export.label'),
       icon: <Download size="small" />,
@@ -467,18 +475,20 @@ export function FileActionMenu({
 
     return out
   }, [
+    showOpenInDocs,
+    showCopyText,
     t,
-    handleOpenInDocs,
-    lastAiJobTranscript?.docs_app_id,
     lastAiJobTranscript?.status,
     lastAiJobTranscript?.id,
-    isCopyingText,
-    handleCopyText,
+    lastAiJobTranscript?.docs_app_id,
     file.abilities.partial_update,
     file.abilities.destroy,
     file.abilities.restore,
     file.abilities.hard_delete,
     file.id,
+    handleOpenInDocs,
+    handleCopyText,
+    isCopyingText,
     isRetryDisabled,
     canOpenRetryModal,
     handleOpenRetryModal,
@@ -497,7 +507,7 @@ export function FileActionMenu({
           <Button
             size="medium"
             variant="secondary"
-            color="neutral"
+            color="brand"
             onClick={() => setIsOpen(!isOpen)}
             aria-label={t('actions.moreOptionsAriaLabel', {
               title: file.title || file.filename,
