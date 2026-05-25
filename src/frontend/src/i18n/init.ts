@@ -14,6 +14,66 @@ import {
 import { enUS, fr } from 'date-fns/locale'
 
 const i18nDefaultNamespace = 'global'
+const fallbackLocale = 'fr-FR' as const
+const supportedLocales = ['en-US', 'fr-FR'] as const
+
+type SupportedLocale = (typeof supportedLocales)[number]
+type BackendLocale = 'en-us' | 'fr-fr'
+
+const backendLocaleBySupportedLocale: Record<SupportedLocale, BackendLocale> = {
+  'en-US': 'en-us',
+  'fr-FR': 'fr-fr',
+}
+
+const supportedLocaleByBackendLocale: Record<BackendLocale, SupportedLocale> = {
+  'en-us': 'en-US',
+  'fr-fr': 'fr-FR',
+}
+
+export const normalizeLanguageTag = (
+  language: string | null | undefined
+): SupportedLocale => {
+  if (!language) {
+    return fallbackLocale
+  }
+
+  const normalizedLanguage = language.toLowerCase()
+
+  if (normalizedLanguage.startsWith('en')) {
+    return 'en-US'
+  }
+  if (normalizedLanguage.startsWith('fr')) {
+    return 'fr-FR'
+  }
+
+  return fallbackLocale
+}
+
+export const fromBackendLocale = (
+  language: string | null | undefined
+): SupportedLocale => {
+  if (!language) {
+    return fallbackLocale
+  }
+
+  const normalizedLanguage = language.toLowerCase()
+  const backendLanguage =
+    normalizedLanguage in supportedLocaleByBackendLocale
+      ? (normalizedLanguage as BackendLocale)
+      : undefined
+
+  if (!backendLanguage) {
+    return normalizeLanguageTag(language)
+  }
+
+  return supportedLocaleByBackendLocale[backendLanguage]
+}
+
+export const toBackendLocale = (
+  language: string | null | undefined
+): BackendLocale => {
+  return backendLocaleBySupportedLocale[normalizeLanguageTag(language)]
+}
 
 const dateFnsLocaleBySupportedLocale = {
   'en-US': enUS,
@@ -23,10 +83,7 @@ const dateFnsLocaleBySupportedLocale = {
 i18n.setDefaultNamespace(i18nDefaultNamespace)
 i18n.on('languageChanged', (lng) => {
   setDefaultOptions({
-    locale:
-      dateFnsLocaleBySupportedLocale[
-        lng as keyof typeof dateFnsLocaleBySupportedLocale
-      ] ?? fr,
+    locale: dateFnsLocaleBySupportedLocale[normalizeLanguageTag(lng)] ?? fr,
   })
 })
 
@@ -39,11 +96,12 @@ i18n
   .use(initReactI18next)
   .use(LanguageDetector)
   .init({
-    supportedLngs: ['en-US', 'fr-FR'],
-    fallbackLng: 'fr-FR',
+    supportedLngs: supportedLocales,
+    fallbackLng: fallbackLocale,
     ns: i18nDefaultNamespace,
     detection: {
       order: ['localStorage', 'navigator'],
+      convertDetectedLanguage: normalizeLanguageTag,
     },
     interpolation: {
       escapeValue: false,

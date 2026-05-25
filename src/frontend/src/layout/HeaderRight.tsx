@@ -1,7 +1,12 @@
 import { LaGaufreV2, LanguagePicker, UserMenu } from '@gouvfr-lasuite/ui-kit'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth/api/useUser'
+import {
+  fromBackendLocale,
+  normalizeLanguageTag,
+  toBackendLocale,
+} from '@/i18n/init'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const LANGUAGES = [
@@ -22,11 +27,27 @@ type TPossibleLanguages = (typeof LANGUAGES)[number]['value']
 export const LanguagePickerSyncedBackend = () => {
   const { i18n } = useTranslation()
   const { user, updateUser } = useUser()
-  const [selectedLanguage, setSelectedLanguage] = useState<TPossibleLanguages>(
-    user?.language ?? 'fr-fr'
-  )
+  const selectedLanguage = (user?.language ??
+    toBackendLocale(
+      i18n.resolvedLanguage ?? i18n.language
+    )) as TPossibleLanguages
 
-  // We must set the language to lowercase because django does not use "en-US", but "en-us".
+  useEffect(() => {
+    if (!user?.language) {
+      return
+    }
+
+    const targetLanguage = fromBackendLocale(user.language)
+    const currentLanguage = normalizeLanguageTag(
+      i18n.resolvedLanguage ?? i18n.language
+    )
+
+    if (currentLanguage !== targetLanguage) {
+      i18n.changeLanguage(targetLanguage).catch((err) => {
+        console.error('Error changing language from user preferences', err)
+      })
+    }
+  }, [i18n, user?.language])
 
   const languages = useMemo(() => {
     return LANGUAGES.map((language) => ({
@@ -39,12 +60,12 @@ export const LanguagePickerSyncedBackend = () => {
 
   const onChange = useCallback(
     (value: string) => {
-      setSelectedLanguage(value as TPossibleLanguages)
-      i18n.changeLanguage(value).catch((err) => {
+      const backendLanguage = value as TPossibleLanguages
+      i18n.changeLanguage(fromBackendLocale(backendLanguage)).catch((err) => {
         console.error('Error changing language', err)
       })
       if (user) {
-        updateUser({ language: value as TPossibleLanguages })
+        updateUser({ language: backendLanguage })
       }
     },
     [i18n, updateUser, user]
