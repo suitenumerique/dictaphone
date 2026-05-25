@@ -34,6 +34,12 @@
   border-radius: 8px;
 }
 
+.c__dropdown-menu-item {
+  gap: var(--c--globals--spacings--xxs);
+  padding-left: var(--c--globals--spacings--xs);
+  padding-right: var(--c--globals--spacings--xs);
+}
+
 // Select component is broken in ui kit
 .c__select__menu__item--disabled {
   color: var(--c--globals--colors--gray-600);

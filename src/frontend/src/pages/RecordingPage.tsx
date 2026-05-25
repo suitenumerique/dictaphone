@@ -25,7 +25,7 @@ import { useOpenInDocsMutation } from '@/features/ai-jobs/api/fetch.ts'
 import { useLocation } from 'wouter'
 import { intervalToDuration } from 'date-fns'
 import {
-  formatTimestamp,
+  buildTranscriptMarkdown,
   TranscriptViewSegment,
 } from '@/features/ai-jobs/utils/transcript.ts'
 import {
@@ -111,14 +111,12 @@ export default function RecordingPage({
   const { isMobile } = useResponsive()
 
   const transcriptMarkdown = useMemo(() => {
-    if (transcriptSegments.length === 0) {
-      return null
-    }
-    let out = `# ${recording!.title}\n\n`
-    transcriptSegments.forEach((segment) => {
-      out += `**${formatTimestamp(segment.start ?? -1)} · ${t('transcript.speaker')} ${segment.speaker}** ${segment.text} \n\n`
+    if (!recording) return null
+    return buildTranscriptMarkdown({
+      title: recording.title,
+      transcriptSegments,
+      speakerLabel: t('transcript.speaker'),
     })
-    return out
   }, [recording, transcriptSegments, t])
   const handleCopy = useCallback(() => {
     navigator.clipboard

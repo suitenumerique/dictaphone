@@ -165,3 +165,24 @@ export function formatTimestamp(seconds: number) {
 
   return `${TIMESTAMP_FORMATTER.format(minutes)}:${TIMESTAMP_FORMATTER.format(remainingSeconds)}`
 }
+
+export function buildTranscriptMarkdown({
+  title,
+  transcriptSegments,
+  speakerLabel,
+}: {
+  title: string
+  transcriptSegments: TranscriptViewSegment[]
+  speakerLabel: string
+}) {
+  if (transcriptSegments.length === 0) {
+    return null
+  }
+
+  let out = `# ${title}\n\n`
+  transcriptSegments.forEach((segment) => {
+    out += `**${formatTimestamp(segment.start ?? -1)} · ${speakerLabel} ${segment.speaker}** ${segment.text} \n\n`
+  })
+
+  return out
+}

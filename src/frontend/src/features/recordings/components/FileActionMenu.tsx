@@ -1,4 +1,12 @@
-import { DropdownMenu, DropdownMenuProps } from '@gouvfr-lasuite/ui-kit'
+import {
+  ArrowUpRight,
+  Copy,
+  DropdownMenu,
+  DropdownMenuProps,
+  Edit,
+  Trash,
+  UndoCircle,
+} from '@gouvfr-lasuite/ui-kit'
 import {
   Button,
   Input,
@@ -18,9 +26,17 @@ import {
   ToasterItem,
 } from '@/features/ui/components/toaster/Toaster.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
-import { useRetryWithLanguageMutation } from '@/features/ai-jobs/api/fetch.ts'
+import {
+  getTranscript,
+  useOpenInDocsMutation,
+  useRetryWithLanguageMutation,
+} from '@/features/ai-jobs/api/fetch.ts'
 import { TTranscriptionLanguage } from '@/features/ai-jobs/api/types.ts'
 import { useLocation } from 'wouter'
+import {
+  buildTranscriptMarkdown,
+  buildTranscriptViewSegments,
+} from '@/features/ai-jobs/utils/transcript.ts'
 
 const RETRY_LANGUAGES: TTranscriptionLanguage[] = ['fr', 'en', 'de', 'nl']
 
@@ -37,6 +53,7 @@ export function FileActionMenu({
   const [openRenameModal, setOpenRenameModal] = useState(false)
   const [openDeleteModal, setOpenDeleteModal] = useState(false)
   const [openRetryModal, setOpenRetryModal] = useState(false)
+  const [isCopyingText, setIsCopyingText] = useState(false)
   const [retryLanguage, setRetryLanguage] =
     useState<TTranscriptionLanguage | null>(null)
   const [, navigate] = useLocation()
@@ -155,42 +172,100 @@ export function FileActionMenu({
     )
   }, [deleteFileMutation, file.id, navigate, t])
 
-  const menuItems = useMemo(() => {
-    const out: DropdownMenuProps['options'] = []
-    if (file.abilities.partial_update) {
-      out.push({
-        label: t('actions.rename.label'),
-        icon: (
-          <span className="material-icons" aria-hidden="true">
-            edit
-          </span>
-        ),
-        callback: () => setOpenRenameModal(true),
+  const openInDocs = useOpenInDocsMutation()
+  const handleOpenInDocs = useCallback(() => {
+    if (
+      lastAiJobTranscript?.id &&
+      lastAiJobTranscript.status === 'success' &&
+      lastAiJobTranscript.docs_app_id
+    ) {
+      openInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) => {
+          window.open(res.doc_url, '_blank')
+        },
       })
     }
+  }, [lastAiJobTranscript, openInDocs])
+
+  const handleCopyText = useCallback(() => {
+    if (lastAiJobTranscript?.status !== 'success' || isCopyingText) {
+      return
+    }
+
+    const copyTranscript = async () => {
+      setIsCopyingText(true)
+      try {
+        const transcript = await getTranscript(lastAiJobTranscript)
+        const markdown = buildTranscriptMarkdown({
+          title: file.title,
+          transcriptSegments: buildTranscriptViewSegments(transcript),
+          speakerLabel: t('transcript.speaker'),
+        })
+
+        if (!markdown) {
+          addToast(
+            <ToasterItem type="error">{t('transcript.copyError')}</ToasterItem>
+          )
+          return
+        }
+
+        await navigator.clipboard.writeText(markdown)
+        setIsOpen(false)
+        addToast(
+          <ToasterItem type="info">{t('transcript.copySuccess')}</ToasterItem>
+        )
+      } catch {
+        addToast(
+          <ToasterItem type="error">{t('transcript.copyError')}</ToasterItem>
+        )
+      } finally {
+        setIsCopyingText(false)
+      }
+    }
+
+    void copyTranscript()
+  }, [file.title, isCopyingText, lastAiJobTranscript, t])
+
+  const menuItems = useMemo(() => {
+    const out: DropdownMenuProps['options'] = []
+    out.push({
+      label: t('transcript.openInDocsCta'),
+      icon: <ArrowUpRight size="small" />,
+      callback: handleOpenInDocs,
+      isDisabled: !lastAiJobTranscript?.docs_app_id,
+    })
+
+    out.push({
+      label: t('shared:actions.copyText'),
+      icon: <Copy size="small" />,
+      callback: handleCopyText,
+      isDisabled: lastAiJobTranscript?.status !== 'success' || isCopyingText,
+    })
+
+    out.push({ type: 'separator' })
 
     if (lastAiJobTranscript?.id) {
       out.push({
         label: isRetryDisabled
           ? t('actions.retry.disabledPendingLabel')
           : t('actions.retry.label'),
-        icon: (
-          <span className="material-icons" aria-hidden="true">
-            replay
-          </span>
-        ),
+        icon: <UndoCircle size="small" />,
         callback: canOpenRetryModal ? handleOpenRetryModal : () => undefined,
+      })
+    }
+
+    if (file.abilities.partial_update) {
+      out.push({
+        label: t('actions.rename.label'),
+        icon: <Edit size="small" />,
+        callback: () => setOpenRenameModal(true),
       })
     }
 
     if (file.abilities.destroy) {
       out.push({
         label: t('actions.delete.label'),
-        icon: (
-          <span className="material-icons" aria-hidden="true">
-            delete
-          </span>
-        ),
+        icon: <Trash size="small" />,
         callback: () => setOpenDeleteModal(true),
       })
     }
@@ -256,18 +331,23 @@ export function FileActionMenu({
 
     return out
   }, [
-    file.abilities.destroy,
-    file.abilities.hard_delete,
-    file.abilities.partial_update,
-    file.abilities.restore,
-    file.id,
-    hardDeleteFileMutation,
-    handleOpenRetryModal,
-    canOpenRetryModal,
-    isRetryDisabled,
-    lastAiJobTranscript?.id,
-    restoreFileMutation,
     t,
+    handleOpenInDocs,
+    lastAiJobTranscript?.docs_app_id,
+    lastAiJobTranscript?.status,
+    lastAiJobTranscript?.id,
+    isCopyingText,
+    handleCopyText,
+    file.abilities.partial_update,
+    file.abilities.destroy,
+    file.abilities.restore,
+    file.abilities.hard_delete,
+    file.id,
+    isRetryDisabled,
+    canOpenRetryModal,
+    handleOpenRetryModal,
+    restoreFileMutation,
+    hardDeleteFileMutation,
   ])
 
   return (
