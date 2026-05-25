@@ -243,6 +243,7 @@ export default function RecordingPage({
           ref={playerRef}
           title={recording.title}
           onTimeUpdate={setCurrentTime}
+          durationSecondsEstimate={recording.duration_seconds}
           extraTitle={
             recording.deleted_at ? (
               <Badge type="warning">{t('deleted')}</Badge>
