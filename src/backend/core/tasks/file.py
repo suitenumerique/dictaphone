@@ -88,6 +88,7 @@ def call_transcribe_service(file_id, language="fr"):
             settings.AI_SERVICE_URL + "async-jobs/transcribe/",
             json={
                 "user_sub": file.creator.sub,
+                "user_email": file.creator.email,
                 "language": language,
                 "cloud_storage_url": generate_download_file_url(
                     file, expires_in=60 * 60 * 24, override_domain=False

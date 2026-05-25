@@ -121,6 +121,7 @@ def test_api_file_upload_ended_success(mock_requests, settings):
         "json": {
             "language": "fr",
             "user_sub": file.creator.sub,
+            "user_email": file.creator.email,
         },
         "timeout": 10,
     }
