@@ -227,6 +227,16 @@ class FileTypeChoices(models.TextChoices):
     AUDIO_RECORDING = "audio_recording", _("Audio recording")
 
 
+class FileSourceChoices(models.TextChoices):
+    """Defines the possible source of a file."""
+
+    UNKNOWN = "unknown", _("Unknown")
+    WEB_RECORDING = "web_recording", _("Web recording")
+    WEB_FILE_UPLOAD = "web_file_upload", _("Web file upload")
+    MOBILE_RECORDING = "mobile_recording", _("Mobile recording")
+    MOBILE_FILE_UPLOAD = "mobile_file_upload", _("Mobile file upload")
+
+
 class File(BaseModel):
     """File uploaded by a user."""
 
@@ -262,6 +272,11 @@ class File(BaseModel):
         blank=True,
         default=dict,
         help_text=_("Malware detection info when the analysis status is unsafe."),
+    )
+    source = models.CharField(
+        max_length=25,
+        choices=FileSourceChoices.choices,
+        default=FileSourceChoices.UNKNOWN,
     )
 
     class Meta:

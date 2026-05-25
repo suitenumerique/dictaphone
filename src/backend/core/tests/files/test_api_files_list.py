@@ -108,6 +108,7 @@ def test_api_files_list_format():
             "filename": file.filename,
             "duration_seconds": file.duration_seconds,
             "size": None,
+            "source": "unknown",
             "description": None,
             "deleted_at": None,
             "hard_deleted_at": None,

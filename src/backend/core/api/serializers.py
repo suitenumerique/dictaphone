@@ -108,6 +108,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "url",
             "ai_jobs",
             "abilities",
+            "source",
         ]
         read_only_fields = [
             "id",
@@ -124,6 +125,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "url",
             "ai_jobs",
             "abilities",
+            "source",
         ]
 
     def get_url(self, obj):
@@ -162,7 +164,7 @@ class CreateFileSerializer(ListFileSerializer):
             *(
                 field
                 for field in ListFileSerializer.Meta.read_only_fields
-                if field not in {"filename", "duration_seconds"}
+                if field not in {"filename", "duration_seconds", "source"}
             ),
             "policy",
         ]

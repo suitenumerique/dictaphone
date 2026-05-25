@@ -41,7 +41,7 @@ from core.tasks.file import (
     store_summary,
 )
 
-from ..models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices
+from ..models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, FileSourceChoices
 from . import permissions, serializers
 
 # pylint: disable=too-many-ancestors
@@ -448,6 +448,10 @@ class FileViewSet(
                 "mimetype": file.mimetype,
                 "size": file.size,
                 "id": file.id,
+                # If the source is not set, it means it's a mobile recording for now
+                "source": file.source
+                if file.source != FileSourceChoices.UNKNOWN
+                else FileSourceChoices.MOBILE_RECORDING,
             },
         )
 
