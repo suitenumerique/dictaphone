@@ -351,6 +351,7 @@ export const useRecordingController = (
       uploadProgress: 0,
       uploadError: null,
       filename: '',
+      source: 'web_recording',
     }
     useLocalRecordingsStore.getState().upsertRecording(initialRecording)
 

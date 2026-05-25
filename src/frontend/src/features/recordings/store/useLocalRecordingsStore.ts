@@ -59,6 +59,7 @@ const uploadRecording = async (recordingId: string) => {
       filename: recording.filename,
       durationSeconds: Math.max(0, recording.durationMs / 1000),
       createdAt: new Date(recording.createdAt).toISOString(),
+      source: recording.source,
     })
 
     await uploadManager.uploadRecording({

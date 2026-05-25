@@ -33,6 +33,7 @@ export type StoredRecording = {
   durationMs: number
   uploadProgress: number
   uploadError: string | null
+  source: 'web_recording'
 }
 
 export type StoredChunk = {

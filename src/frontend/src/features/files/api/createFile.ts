@@ -51,10 +51,12 @@ export const createPendingAudioFile = async ({
   filename,
   durationSeconds,
   createdAt,
+  source,
 }: {
   filename: string
   durationSeconds: number
   createdAt: string
+  source: 'web_recording' | 'web_file_upload'
 }) => {
   const pendingFile = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -63,6 +65,7 @@ export const createPendingAudioFile = async ({
       filename,
       type: 'audio_recording',
       duration_seconds: durationSeconds,
+      source,
     }),
   })
 
@@ -92,16 +95,19 @@ export const createFile = async ({
   durationSeconds,
   onProgress,
   createdAt,
+  source,
 }: {
   file: File
   durationSeconds: number
   onProgress: (progress: number) => void
   createdAt: string
+  source: 'web_recording' | 'web_file_upload'
 }): Promise<ApiFileItem> => {
   const pendingFile = await createPendingAudioFile({
     filename: file.name,
     durationSeconds,
     createdAt,
+    source,
   })
   await uploadFile(pendingFile.policy, file, onProgress)
   return markUploadEnded(pendingFile.id)
