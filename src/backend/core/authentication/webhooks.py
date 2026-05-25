@@ -1,6 +1,7 @@
 """Webhooks authentication."""
 
 import logging
+import secrets
 
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
@@ -23,7 +24,10 @@ class AiWebhookAuthentication(BaseAuthentication):
         """
 
         authorization_header: str = request.headers.get("Authorization") or ""
-        if authorization_header.removeprefix("Bearer ") != settings.AI_WEBHOOK_API_KEY:
+
+        if not secrets.compare_digest(
+            authorization_header.removeprefix("Bearer "), settings.AI_WEBHOOK_API_KEY
+        ):
             logger.warning(
                 "Authentication failed: Bad Authorization header (ip: %s)",
                 request.META.get("REMOTE_ADDR"),
