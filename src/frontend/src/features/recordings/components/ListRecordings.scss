@@ -14,6 +14,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
     img {
       // a bit hacky bit didn't find another quick way for now
       border-radius: 3.56px;
@@ -26,7 +27,7 @@
     color: var(--c--globals--colors--gray-600);
   }
 
-  button {
+  .recordings-list__item__open {
     font: inherit;
     color: inherit;
     cursor: pointer;
