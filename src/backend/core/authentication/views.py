@@ -128,6 +128,9 @@ class OIDCAuthenticationCallbackWithPkceView(OIDCAuthenticationCallbackView):
         """Handles successful login callback."""
         res = super().login_success()
         if self.request.session.pop("pkce_oidc_response_type", None) != "code":
+            logger.info(
+                "PKCE response type not 'code', defaulting to usual login success response"
+            )
             return res
 
         pkce_data = self.request.session.pop("pkce_oidc_data", None)
@@ -153,11 +156,19 @@ class OIDCAuthenticationCallbackWithPkceView(OIDCAuthenticationCallbackView):
             )
             return self.login_failure()
 
+        logger.info(
+            "Mobile login successful, redirecting to mobile app for user %s",
+            self.user.pk,
+        )
         mobile_redirect = update_url_query_params(
             settings.MOBILE_DEEP_LINK_SCHEME,
             {"code": [authorization_code], "state": [pkce_data["state"]]},
         )
         return MobileFriendlyRedirect(mobile_redirect)
+
+    def login_failure(self):
+        logger.info("Login failed")
+        return super().login_failure()
 
 
 class PKCEOAuthTokenExchangeView(APIView):
