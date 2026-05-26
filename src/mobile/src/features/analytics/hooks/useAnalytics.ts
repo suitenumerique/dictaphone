@@ -32,6 +32,13 @@ export const useAnalytics = ({ id, host, isDisabled }: useAnalyticsProps) => {
     posthog = new PostHog(id, {
       host: host,
       personProfiles: 'always',
+      errorTracking: {
+        autocapture: {
+          unhandledRejections: true,
+          uncaughtExceptions: true,
+          console: ["error", "warn"]
+        }
+      }
     })
   }, [id, host, isDisabled])
   return null
