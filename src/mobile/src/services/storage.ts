@@ -8,6 +8,7 @@ import { createFile } from '@/features/files/api/createFile'
 import { queryClient } from '@/api/queryClient'
 import { keys } from '@/api/queryKeys'
 import { mmkvStorage } from '@/services/index'
+import omit from '@/utils/omit'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -160,6 +161,7 @@ export const useRecordingsStore = create<RecordingsStore>()(
       name: 'recordings',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
+      partialize: (state) => omit(state, ['hasHydrated']),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
@@ -171,8 +173,10 @@ export const useRecordingsStore = create<RecordingsStore>()(
                 uploadPercentage: undefined,
               }))
             : []
+          state.hasHydrated = true
+        } else {
+          useRecordingsStore.setState({ hasHydrated: true })
         }
-        useRecordingsStore.setState({ hasHydrated: true })
       },
     }
   )
@@ -190,12 +194,15 @@ export const useSettingsStore = create<SettingsStore>()(
       name: 'settings',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
+      partialize: (state) => omit(state, ['hasHydrated']),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = appSettingsSchema.safeParse(state.settings)
           state.settings = parsed.success ? parsed.data : { ...defaultSettings }
+          state.hasHydrated = true
+        } else {
+          useSettingsStore.setState({ hasHydrated: true })
         }
-        useSettingsStore.setState({ hasHydrated: true })
       },
     }
   )

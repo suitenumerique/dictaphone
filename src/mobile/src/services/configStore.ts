@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { z } from 'zod/v4'
 import { mmkvStorage } from '@/services/index'
+import omit from '@/utils/omit'
 
 export const DEFAULT_MAX_RECORDING_DURATION_SECONDS = 60 * 60 * 3
 
@@ -57,6 +58,7 @@ export const useConfigStore = create<ConfigStore>()(
       name: 'config',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
+      partialize: (state) => omit(state, ['hasHydrated']),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = apiConfigSchema.safeParse(state.config)
@@ -64,8 +66,10 @@ export const useConfigStore = create<ConfigStore>()(
           state.maxDurationSeconds =
             state.config?.audio_recording?.max_duration_seconds ??
             DEFAULT_MAX_RECORDING_DURATION_SECONDS
+          state.hasHydrated = true
+        } else {
+          useConfigStore.setState({ hasHydrated: true })
         }
-        useConfigStore.setState({ hasHydrated: true })
       },
     }
   )

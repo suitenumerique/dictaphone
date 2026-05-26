@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 import { mmkvStorage } from '@/services/index'
 import i18n from '@/i18n'
 import { type ApiUser } from '@/features/auth/api/ApiUser'
+import omit from '@/utils/omit'
 
 const apiUserSchema = z.object({
   id: z.string(),
@@ -35,12 +36,15 @@ export const useUserStore = create<UserStore>()(
       name: 'user-info',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
+      partialize: (state) => omit(state, ['hasHydrated']),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = apiUserSchema.safeParse(state.user)
           state.user = parsed.success ? parsed.data : null
+          state.hasHydrated = true
+        } else {
+          useUserStore.setState({ hasHydrated: true })
         }
-        useUserStore.setState({ hasHydrated: true })
       },
     }
   )
