@@ -10,6 +10,8 @@
 </p>
 
 <p align="center">
+  <a href="https://matrix.to/#/#dictaphone-official:matrix.org">Chat with us</a>
+  ·
   <a href="https://github.com/suitenumerique/dictaphone/blob/main/CHANGELOG.md">Changelog</a>
   ·
   <a href="https://github.com/suitenumerique/dictaphone/issues/new?assignees=&labels=bug&template=Bug_report.md">Bug reports</a>
