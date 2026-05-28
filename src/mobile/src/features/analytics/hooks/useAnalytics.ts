@@ -36,9 +36,9 @@ export const useAnalytics = ({ id, host, isDisabled }: useAnalyticsProps) => {
         autocapture: {
           unhandledRejections: true,
           uncaughtExceptions: true,
-          console: ["error", "warn"]
-        }
-      }
+          console: ['error', 'warn'],
+        },
+      },
     })
   }, [id, host, isDisabled])
   return null
