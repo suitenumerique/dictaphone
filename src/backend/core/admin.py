@@ -148,6 +148,8 @@ class FileAdmin(admin.ModelAdmin):
         "hard_deleted_at",
         "created_at",
         "updated_at",
+        "duration_seconds",
+        "source",
     )
     list_filter = (
         "type",
@@ -177,6 +179,8 @@ class FileAdmin(admin.ModelAdmin):
         "extension",
         "key_base",
         "file_key",
+        "source",
+        "duration_seconds",
     )
     autocomplete_fields = ("creator",)
     fieldsets = (
@@ -190,6 +194,7 @@ class FileAdmin(admin.ModelAdmin):
                     "creator",
                     "filename",
                     "upload_state",
+                    "source",
                 )
             },
         ),
@@ -199,6 +204,7 @@ class FileAdmin(admin.ModelAdmin):
                 "fields": (
                     "mimetype",
                     "size",
+                    "duration_seconds",
                     "description",
                     "malware_detection_info",
                 )
