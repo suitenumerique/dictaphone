@@ -44,5 +44,14 @@
     "accessibilityUrl": "/accessibilite",
     "serviceProvisionAgreement": "Convention de mise à disposition",
     "serviceProvisionAgreementUrl": "/convention-mise-a-disposition"
+  },
+  "pageTitles": {
+    "downloadMobileApp": "Télécharger l'application mobile",
+    "home": "Accueil",
+    "deletedRecordings": "Enregistrements supprimés",
+    "record": "Nouvel enregistrement",
+    "recordings": "Mes enregistrements",
+    "loading": "Chargement en cours",
+    "recordingNotFound": "Enregistrement non trouvé"
   }
 }

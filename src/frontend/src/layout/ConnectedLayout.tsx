@@ -6,16 +6,20 @@ import { Link, Redirect } from 'wouter'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import { HelpMenu } from '@/layout/HelpMenu'
+import { usePageTitle } from '@/layout/usePageTitle'
 
 export default function ConnectedLayout({
   children,
+  pageTitle,
   ...rest
 }: {
   children: React.ReactNode
   className?: string
+  pageTitle: string
 }) {
   const { t } = useTranslation('layout')
   const user = useUser()
+  usePageTitle(pageTitle)
 
   if (user.isLoading) {
     return <Spinner />

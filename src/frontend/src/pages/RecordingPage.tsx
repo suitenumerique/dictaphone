@@ -77,7 +77,7 @@ export default function RecordingPage({
 }: {
   recordingId: string
 }) {
-  const { t } = useTranslation(['recordings', 'shared'])
+  const { t } = useTranslation(['recordings', 'shared', 'layout'])
   const [, navigate] = useLocation()
   const playerRef = useRef<AudioPlayerHandle>(null)
   const [currentTime, setCurrentTime] = useState(0)
@@ -135,7 +135,7 @@ export default function RecordingPage({
 
   if (recordingQ.isPending) {
     return (
-      <ConnectedLayout>
+      <ConnectedLayout pageTitle={t('layout:pageTitles.loading')}>
         <div />
       </ConnectedLayout>
     )
@@ -143,7 +143,7 @@ export default function RecordingPage({
 
   if (!recording || recording.deleted_at !== null) {
     return (
-      <ConnectedLayout>
+      <ConnectedLayout pageTitle={t('layout:pageTitles.recordingNotFound')}>
         <div className="recording-page__not-found">
           <span className="material-icons" aria-hidden="true">
             search_off
@@ -155,7 +155,7 @@ export default function RecordingPage({
   }
 
   return (
-    <ConnectedLayout>
+    <ConnectedLayout pageTitle={recording.title}>
       <div className="recording-page">
         <div className="recording-page__actions-buttons">
           <Button

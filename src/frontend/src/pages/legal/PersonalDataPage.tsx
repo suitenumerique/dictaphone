@@ -16,7 +16,8 @@ export default function PersonalDataPage() {
     <BaseLayout
       showShowcaseAssistant={false}
       className="legal-page"
-      title={t('personalData.title')}
+      heading={t('personalData.title')}
+      pageTitle={t('personalData.title')}
     >
       <section dangerouslySetInnerHTML={{ __html: html }}></section>
     </BaseLayout>

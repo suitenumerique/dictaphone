@@ -44,5 +44,14 @@
     "accessibilityUrl": "/accessibility",
     "serviceProvisionAgreement": "Service provision agreement",
     "serviceProvisionAgreementUrl": "/service-provision-agreement"
+  },
+  "pageTitles": {
+    "downloadMobileApp": "Download mobile app",
+    "home": "Home",
+    "deletedRecordings": "Deleted recordings",
+    "record": "New recording",
+    "recordings": "My recordings",
+    "loading": "Loading...",
+    "recordingNotFound": "Recording not found"
   }
 }

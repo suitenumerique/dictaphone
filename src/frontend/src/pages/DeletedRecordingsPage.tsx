@@ -1,10 +1,12 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
+import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 10
 
 export function DeletedRecordingsPage() {
+  const { t } = useTranslation('layout')
   const filesQ = useListMyFilesInfinite({
     filters: {
       type: 'audio_recording',
@@ -16,7 +18,7 @@ export function DeletedRecordingsPage() {
   })
 
   return (
-    <ConnectedLayout>
+    <ConnectedLayout pageTitle={t('pageTitles.deletedRecordings')}>
       <div className="recordings-page">
         <ListRecordings queryData={filesQ} isTrashPage={true} />
       </div>

@@ -16,7 +16,8 @@ export default function LegalTermsPage() {
     <BaseLayout
       showShowcaseAssistant={false}
       className="legal-page"
-      title={t('legalTerms.title')}
+      heading={t('legalTerms.title')}
+      pageTitle={t('legalTerms.title')}
     >
       <section dangerouslySetInnerHTML={{ __html: html }}></section>
     </BaseLayout>

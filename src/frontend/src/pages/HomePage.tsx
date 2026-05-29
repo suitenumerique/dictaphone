@@ -7,7 +7,7 @@ import { BaseLayout } from '@/layout/BaseLayout'
 import { DownloadAppsButtons } from '@/components/DownloadAppsButtons'
 
 export default function HomePage() {
-  const { t } = useTranslation('home')
+  const { t } = useTranslation(['home', 'layout'])
 
   const { isLoggedIn, isLoading } = useUser()
 
@@ -15,7 +15,11 @@ export default function HomePage() {
 
   if (!isLoggedIn) {
     return (
-      <BaseLayout className="home-page" showShowcaseAssistant={true}>
+      <BaseLayout
+        className="home-page"
+        showShowcaseAssistant={true}
+        pageTitle={t('layout:pageTitles.home')}
+      >
         <>
           <img
             className="home-page__app-logo"

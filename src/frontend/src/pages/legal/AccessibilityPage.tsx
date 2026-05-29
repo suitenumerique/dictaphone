@@ -16,7 +16,8 @@ export default function AccessibilityPage() {
     <BaseLayout
       showShowcaseAssistant={false}
       className="legal-page"
-      title={t('accessibility.title')}
+      heading={t('accessibility.title')}
+      pageTitle={t('accessibility.title')}
     >
       <section dangerouslySetInnerHTML={{ __html: html }}></section>
     </BaseLayout>

@@ -16,7 +16,7 @@ import { useMemo } from 'react'
 const PAGE_SIZE = 10
 
 export default function RecordingsPage() {
-  const { t } = useTranslation(['recordings', 'record'])
+  const { t } = useTranslation(['recordings', 'record', 'layout'])
   const [, navigate] = useLocation()
   const { data: appConfig } = useConfig()
 
@@ -81,6 +81,7 @@ export default function RecordingsPage() {
           'drop-zone--drag-in-progress': isDropZoneActive,
         }),
       })}
+      pageTitle={t('layout:pageTitles.recordings')}
     >
       <div className="recordings-page">
         <div className="recordings-page__header">
