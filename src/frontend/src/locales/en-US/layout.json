@@ -23,7 +23,8 @@
       "title": "Keep recording, anywhere",
       "description": "With the mobile app, your recording continues even when your screen is locked.",
       "scanToInstall": "Scan to install",
-      "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs."
+      "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs.",
+      "closePopupAriaLabel": "Close the mobile app download pop-up"
     },
     "help": {
       "ariaLabel": "Help / Documentation",

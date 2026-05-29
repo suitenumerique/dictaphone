@@ -24,8 +24,8 @@ export function DownloadMobileAppPopUp({
     <div className={clsx('download-mobile-app-pop-up', !open && 'hidden')}>
       <Button
         className="download-mobile-app-pop-up__close-button"
-        icon={<XMark />}
-        aria-label={'Close the mobile app download pop-up'}
+        icon={<XMark aria-hidden={true} />}
+        aria-label={t('info.mobileApp.closePopupAriaLabel')}
         size="nano"
         variant="tertiary"
         color="neutral"

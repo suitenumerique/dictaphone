@@ -23,7 +23,8 @@
       "title": "Enregistrer, n'importe où",
       "description": "Avec l'application mobile, votre enregistrement continue même lorsque votre écran est verrouillé.",
       "scanToInstall": "Scanner pour installer",
-      "catchPhrase": "Enregistrez vos réunions en présentiel et générez automatiquement un rapport structuré dans Docs."
+      "catchPhrase": "Enregistrez vos réunions en présentiel et générez automatiquement un rapport structuré dans Docs.",
+      "closePopupAriaLabel": "Fermer la pop-up de téléchargement de l'application mobile"
     },
     "help": {
       "ariaLabel": "Aide / Documentation",
