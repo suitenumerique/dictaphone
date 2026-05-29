@@ -5,12 +5,14 @@
   "license": "Unless otherwise stated, all content on this site is under",
   "introLasuiteAssistant": "Transcripts is part of LaSuite Assistant, the AI app of LaSuite.",
   "discoverAssistant": "Discover AI Assistant",
+  "discoverAssistantAriaLabel": "Discover AI Assistant (new window)",
   "discoverLaSuite": "Discover LaSuite",
+  "discoverLaSuiteAriaLabel": "Discover LaSuite (new window)",
   "images": {
     "appLogoAlt": "Transcripts logo",
     "heroAlt": "Illustration of Assistant Transcripts",
-    "example1Alt": "Assistant Transcripts mobile app example",
-    "example2Alt": "Assistant Transcripts mobile app",
-    "example3Alt": "Assistant Transcripts mobile app"
+    "example1Alt": "Assistant Transcripts mobile app example 1",
+    "example2Alt": "Assistant Transcripts mobile app example 2",
+    "example3Alt": "Assistant Transcripts mobile app example 3"
   }
 }

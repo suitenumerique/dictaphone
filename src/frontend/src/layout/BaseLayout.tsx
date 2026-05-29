@@ -101,10 +101,15 @@ export function BaseLayout({
                 variant="bordered"
                 href="https://assistant.numerique.gouv.fr/"
                 target="_blank"
+                aria-label={t('discoverAssistantAriaLabel')}
               >
                 {t('discoverAssistant')}
               </Button>
-              <Button href="https://lasuite.numerique.gouv.fr/" target="_blank">
+              <Button
+                href="https://lasuite.numerique.gouv.fr/"
+                target="_blank"
+                aria-label={t('discoverLaSuiteAriaLabel')}
+              >
                 {t('discoverLaSuite')}
               </Button>
             </div>

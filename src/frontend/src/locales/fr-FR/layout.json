@@ -9,8 +9,8 @@
     "assistantLogoAlt": "Logo LaSuite Assistant",
     "downloadIosAlt": "Télécharger sur l'App Store",
     "downloadAndroidAlt": "Télécharger sur Google Play",
-    "downloadIosAriaLabel": "Télécharger l'application iOS sur l'App Store",
-    "downloadAndroidAriaLabel": "Télécharger l'application Android sur Google Play"
+    "downloadIosAriaLabel": "Télécharger l'application iOS sur l'App Store (nouvelle fenêtre)",
+    "downloadAndroidAriaLabel": "Télécharger l'application Android sur Google Play (nouvelle fenêtre)"
   },
   "breadcrumbs": {
     "myRecordings": "Mes enregistrements",

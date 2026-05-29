@@ -32,13 +32,17 @@ export default function HomePage() {
               <p>{t('subtitle')}</p>
 
               <div className="home-page__hero__intro__buttons">
-                <Button onClick={() => window.location.replace(authUrl())}>
+                <Button
+                  onClick={() => window.location.replace(authUrl())}
+                  aria-label={t('login')}
+                >
                   {t('login')}
                 </Button>
                 <Button
                   variant="bordered"
                   href="https://assistant.numerique.gouv.fr/"
                   target="_blank"
+                  aria-label={t('discoverAssistantAriaLabel')}
                 >
                   {t('discoverAssistant')}
                 </Button>
