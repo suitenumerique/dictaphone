@@ -99,6 +99,10 @@ body,
   display: none;
 }
 
+.invisible {
+  visibility: hidden;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

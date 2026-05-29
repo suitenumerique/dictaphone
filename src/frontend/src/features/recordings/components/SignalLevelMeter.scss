@@ -1,8 +1,10 @@
 .signal-level-meter-container {
   width: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
+  gap: 1rem;
 
   .signal-level-meter {
     width: min(100%, 360px);
@@ -24,5 +26,16 @@
     font-size: 0.875rem;
     color: var(--c--globals--colors--red-600);
     text-align: center;
+  }
+
+  span {
+    line-height: 1;
+  }
+  .warning {
+    color: var(--c--contextuals--content--semantic--warning--secondary);
+  }
+
+  .error {
+    color: var(--c--contextuals--content--semantic--error--secondary);
   }
 }

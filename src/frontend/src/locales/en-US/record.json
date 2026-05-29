@@ -15,12 +15,13 @@
   "recordingPrefix": "Recording",
   "preventGoBackAlert": "You are about to leave the recording page. Your recording will be lost if you do so. Please terminate it properly!",
   "source": {
-    "label": "Input source",
+    "ariaLabel": "Select input source",
     "fallbackLabel": "Microphone {{index}}",
     "noInputs": "No microphone source available.",
     "signalLevelAriaLabel": "Microphone signal level",
     "noSoundDetected": "No sound detected!",
-    "lowSound": "Very low sound!"
+    "lowSound": "Very low sound!",
+    "soundOk": "Sound is good!"
   },
   "status": {
     "readyToRecord": "Ready to record",

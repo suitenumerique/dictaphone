@@ -1,10 +1,16 @@
 import { SignalLevelMeter } from '@/features/recordings/components/SignalLevelMeter.tsx'
 import { useRecordingController } from '@/features/recordings/hooks/useRecordingController.ts'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
-import { Button, Select } from '@gouvfr-lasuite/cunningham-react'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'wouter'
+import clsx from 'clsx'
+import {
+  ChevronDown,
+  DropdownMenu,
+  DropdownMenuOption,
+} from '@gouvfr-lasuite/ui-kit'
 
 const formatDuration = (durationMs: number) => {
   const totalSeconds = Math.floor(durationMs / 1000)
@@ -51,18 +57,29 @@ export default function RecordComponent() {
   const isBusy = isStarting || isRecordingInProgress || isStopping
   useDisablePageRefresh(isBusy, t('record:preventGoBackAlert'))
 
-  const audioInputOptions = useMemo(
+  const [openInputSelection, setOpenInputSelection] = useState(false)
+  const audioInputOptions = useMemo<DropdownMenuOption[]>(
     () =>
-      audioInputs.map((input, index) => ({
-        value: input.deviceId,
-        label:
-          input.label ||
-          t('record:source.fallbackLabel', {
-            index: index + 1,
-          }),
-      })),
-    [audioInputs, t]
+      audioInputs.map(
+        (input, index) =>
+          ({
+            value: input.deviceId,
+            isChecked: input.deviceId === selectedAudioInputId,
+            callback: () => switchAudioInput(input.deviceId),
+            label:
+              input.label ||
+              t('record:source.fallbackLabel', {
+                index: index + 1,
+              }),
+          }) satisfies DropdownMenuOption
+      ),
+    [audioInputs, selectedAudioInputId, switchAudioInput, t]
   )
+  const selectedSourceLabel = useMemo(
+    () => audioInputOptions.find((option) => option.isChecked)?.label,
+    [audioInputOptions]
+  )
+
   const statusLabel = isRecordingInProgress
     ? t(
         isPaused
@@ -154,93 +171,102 @@ export default function RecordComponent() {
           <span>{statusLabel}</span>
         </p>
 
-        <p className="record-component__timer">
-          {formatDuration(recordingDurationMs)}
-        </p>
-
-        <SignalLevelMeter
-          analyserNode={analyserNode}
-          isActive={recorderState === 'recording'}
-          ariaLabel={t('record:source.signalLevelAriaLabel')}
-          noSoundDetectedLabel={t('record:source.noSoundDetected')}
-          lowSoundLabel={t('record:source.lowSound')}
-        />
-        <div className="record-component__source-selector">
-          <Select
-            label={t('record:source.label')}
-            options={audioInputOptions}
-            value={selectedAudioInputId}
-            clearable={false}
-            onChange={(event) =>
-              void switchAudioInput(String(event.target.value))
-            }
-            disabled={
-              audioInputOptions.length === 0 || recorderState === 'starting'
-            }
+        <div className="record-component__signal-timer-container">
+          <SignalLevelMeter
+            analyserNode={analyserNode}
+            isActive={recorderState === 'recording'}
+            ariaLabel={t('record:source.signalLevelAriaLabel')}
+            noSoundDetectedLabel={t('record:source.noSoundDetected')}
+            lowSoundLabel={t('record:source.lowSound')}
+            soundOkLabel={t('record:source.soundOk')}
           />
-          {audioInputOptions.length === 0 && (
-            <p className="record-component__source-helper">
-              {t('record:source.noInputs')}
-            </p>
-          )}
-        </div>
-
-        {!isRecordingInProgress && (
-          <Button
-            className="record-component__button"
-            onClick={() => void startRecording()}
-            disabled={isStarting || isStopping}
-            variant="secondary"
-            color="error"
-            icon={
-              <span className="material-icons" aria-hidden="true">
-                {isStarting ? 'hourglass_top' : 'fiber_manual_record'}
-              </span>
-            }
+          <p
+            className={clsx(
+              'record-component__timer',
+              recorderState === 'paused' ? 'paused' : ''
+            )}
           >
-            {isStarting
-              ? t('record:status.requestingPermission')
-              : t('record:startRecording')}
+            {formatDuration(recordingDurationMs)}
+          </p>
+        </div>
+        <div className="record-component__footer">
+          <DropdownMenu
+            topMessage={t('record:source.ariaLabel')}
+            options={audioInputOptions}
+            isOpen={openInputSelection}
+            onOpenChange={setOpenInputSelection}
+          />
+          <Button
+            color="neutral"
+            variant="tertiary"
+            size={'nano'}
+            disabled={audioInputOptions.length === 0}
+            onClick={() => setOpenInputSelection(!openInputSelection)}
+            aria-label={t('record:source.ariaLabel')}
+          >
+            <span className="source-btn">
+              {selectedSourceLabel ?? t('record:source.noInputs')}
+            </span>
+            <ChevronDown size="small" />
           </Button>
-        )}
 
-        <div className="record-component__controls">
-          {isRecordingInProgress && (
-            <>
-              <Button
-                color="neutral"
-                variant="secondary"
-                className="record-component__button"
-                onClick={() =>
-                  void (isPaused ? resumeRecording() : pauseRecording())
-                }
-                disabled={!canPauseOrStop}
-              >
+          {!isRecordingInProgress && (
+            <Button
+              className="record-component__button"
+              onClick={() => void startRecording()}
+              disabled={isStarting || isStopping}
+              variant="secondary"
+              color="error"
+              icon={
                 <span className="material-icons" aria-hidden="true">
-                  {isPaused ? 'play_arrow' : 'pause'}
+                  {isStarting ? 'hourglass_top' : 'fiber_manual_record'}
                 </span>
-                <span>
-                  {t(
-                    isPaused
-                      ? 'record:resumeRecording'
-                      : 'record:pauseRecording'
-                  )}
-                </span>
-              </Button>
-
-              <Button
-                color="error"
-                className="record-component__button"
-                onClick={() => void handleStop()}
-                disabled={!canPauseOrStop}
-              >
-                <span className="material-icons" aria-hidden="true">
-                  stop_circle
-                </span>
-                <span>{t('record:stopRecording')}</span>
-              </Button>
-            </>
+              }
+            >
+              {isStarting
+                ? t('record:status.requestingPermission')
+                : t('record:startRecording')}
+            </Button>
           )}
+
+          <div className="record-component__controls">
+            {isRecordingInProgress && (
+              <>
+                <Button
+                  color="neutral"
+                  variant="secondary"
+                  className="record-component__button"
+                  onClick={() =>
+                    void (isPaused ? resumeRecording() : pauseRecording())
+                  }
+                  disabled={!canPauseOrStop}
+                >
+                  <span className="material-icons" aria-hidden="true">
+                    {isPaused ? 'play_arrow' : 'pause'}
+                  </span>
+                  <span>
+                    {t(
+                      isPaused
+                        ? 'record:resumeRecording'
+                        : 'record:pauseRecording'
+                    )}
+                  </span>
+                </Button>
+
+                <Button
+                  color="error"
+                  className="record-component__button"
+                  onClick={() => void handleStop()}
+                  disabled={!canPauseOrStop}
+                >
+                  <span className="material-icons" aria-hidden="true">
+                    stop_circle
+                  </span>
+                  <span>{t('record:stopRecording')}</span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

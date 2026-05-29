@@ -15,12 +15,13 @@
   "recordingPrefix": "Enregistrement",
   "preventGoBackAlert": "Vous êtes sur le point de quitter la page d'enregistrement. Votre enregistrement sera perdu si vous le faites. Veuillez le terminer correctement !",
   "source": {
-    "label": "Source d'entrée",
+    "ariaLabel": "Sélectionner la source d'entrée",
     "fallbackLabel": "Microphone {{index}}",
     "noInputs": "Aucune source micro disponible.",
     "signalLevelAriaLabel": "Niveau du signal micro",
     "noSoundDetected": "Aucun son détecté !",
-    "lowSound": "Son très faible !"
+    "lowSound": "Son très faible !",
+    "soundOk": "Le niveau du son est bon."
   },
   "status": {
     "readyToRecord": "Prêt à enregistrer",

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Tooltip } from '@gouvfr-lasuite/cunningham-react'
+import { Warning } from '@gouvfr-lasuite/ui-kit'
 
 const UPDATE_INTERVAL_MS = 33
 const BAR_SPAWN_INTERVAL_MS = 100
 const NO_SOUND_DELAY_MS = 3_000
-const LOW_SOUND_DELAY_MS = 10_000
-const LOW_SOUND_THRESHOLD = 5
 const BAR_WIDTH_PX = 5
 const BAR_GAP_PX = 5
 const BAR_STEP_PX = BAR_WIDTH_PX + BAR_GAP_PX
@@ -31,12 +31,14 @@ export function SignalLevelMeter({
   ariaLabel,
   noSoundDetectedLabel,
   lowSoundLabel,
+  soundOkLabel,
 }: {
   analyserNode: AnalyserNode | null
   isActive: boolean
   ariaLabel: string
   noSoundDetectedLabel: string
   lowSoundLabel: string
+  soundOkLabel: string
 }) {
   const meterRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -48,9 +50,7 @@ export function SignalLevelMeter({
   const noiseFloorRef = useRef(0)
   const zeroSinceRef = useRef<number | null>(null)
   const lowSinceRef = useRef<number | null>(null)
-  const [soundStatus, setSoundStatus] = useState<
-    'no-sound' | 'low-sound' | null
-  >(null)
+  const [soundStatus, setSoundStatus] = useState<'no-sound' | null>(null)
 
   const drawBars = useCallback(() => {
     const canvas = canvasRef.current
@@ -181,25 +181,11 @@ export function SignalLevelMeter({
         zeroSinceRef.current = null
       }
 
-      if (levelPercent < LOW_SOUND_THRESHOLD) {
-        lowSinceRef.current ??= now
-      } else {
-        lowSinceRef.current = null
-      }
-
       if (
         zeroSinceRef.current !== null &&
         now - zeroSinceRef.current >= NO_SOUND_DELAY_MS
       ) {
         setSoundStatus('no-sound')
-        return
-      }
-
-      if (
-        lowSinceRef.current !== null &&
-        now - lowSinceRef.current >= LOW_SOUND_DELAY_MS
-      ) {
-        setSoundStatus('low-sound')
         return
       }
 
@@ -309,10 +295,23 @@ export function SignalLevelMeter({
       ? noSoundDetectedLabel
       : soundStatus === 'low-sound'
         ? lowSoundLabel
-        : null
+        : soundOkLabel
 
   return (
     <div className="signal-level-meter-container">
+      {soundStatus === null ? (
+        <span role="status" aria-label={statusLabel} className="invisible">
+          {/*Just for the proper size */}
+          <Warning />
+        </span>
+      ) : (
+        <Tooltip content={statusLabel}>
+          <span role="status" aria-label={statusLabel} className={'warning'}>
+            <Warning />
+          </span>
+        </Tooltip>
+      )}
+
       <div
         ref={meterRef}
         className={`signal-level-meter ${
@@ -332,11 +331,6 @@ export function SignalLevelMeter({
           aria-hidden="true"
         />
       </div>
-      {statusLabel && (
-        <p className="signal-level-meter__status" role="status">
-          {statusLabel}
-        </p>
-      )}
     </div>
   )
 }
