@@ -1,4 +1,8 @@
 {
+  "title": "Assistant Transcripts (beta)",
+  "newRecording": "Nouvel enregistrement",
+  "myRecordings": "Mes enregistrements",
+  "mySavedRecordings": "Mes enregistrements transférés",
   "errorFetching": "Une erreur s'est produite lors de la récupération des enregistrements.",
   "noRecordings": "Vous n'avez pas encore d'enregistrements.",
   "noRecordingsTrash": "Vous n'avez pas encore d'enregistrements dans la corbeille.",

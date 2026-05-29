@@ -9,7 +9,12 @@ export default function LogoApp({
 }) {
   return (
     <div className="dictaphone__logo-app">
-      <img src={`/assets/logo-${variant}.svg`} alt={alt} height={height} />
+      <img
+        src={`/assets/logo-${variant}.svg`}
+        alt={alt}
+        height={height}
+        aria-hidden={true}
+      />
     </div>
   )
 }

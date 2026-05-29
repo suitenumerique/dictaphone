@@ -1,4 +1,8 @@
 {
+  "title": "Assitant Transcripts (beta)",
+  "newRecording": "New recording",
+  "myRecordings": "My recordings",
+  "mySavedRecordings": "My saved recordings",
   "errorFetching": "Error fetching recordings",
   "noRecordings": "You don't have any recordings yet.",
   "noRecordingsTrash": "You don't have any recordings in the trash.",

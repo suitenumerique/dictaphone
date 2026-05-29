@@ -61,7 +61,7 @@ export function ListRecordings({
   const totalFilesCount = queryData.data?.pages[0]?.count ?? 0
 
   return (
-    <>
+    <section aria-label={t('mySavedRecordings')}>
       {queryData.isPending && !queryData.data && <Spinner />}
       {queryData.error && (
         <div className="subtle-info">{t('errorFetching')}</div>
@@ -145,6 +145,6 @@ export function ListRecordings({
           )}
         </div>
       )}
-    </>
+    </section>
   )
 }

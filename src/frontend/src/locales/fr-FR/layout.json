@@ -2,6 +2,7 @@
   "home": "Accueil",
   "logout": "Déconnexion",
   "recordCta": "Enregistrer",
+  "recordPageH1": "Nouvel enregistrement",
   "images": {
     "governmentLogoAlt": "Logo du Gouvernement français",
     "appLogoAlt": "Logo Transcripts",

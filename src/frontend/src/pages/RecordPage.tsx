@@ -9,6 +9,7 @@ export default function RecordPage() {
       className="record-parent"
       pageTitle={t('pageTitles.record')}
     >
+      <h1 className="sr-only">{t('recordPageH1')}</h1>
       <RecordComponent />
     </ConnectedLayout>
   )

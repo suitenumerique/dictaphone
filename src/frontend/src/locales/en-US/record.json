@@ -1,6 +1,7 @@
 {
   "title": "Audio recording",
   "newRecording": "New recording",
+  "newRecordingAriaLabel": "Start a new recording",
   "consentWarning": "⚠ Recording requires participants consent",
   "startRecording": "Start recording",
   "pauseRecording": "Pause",

@@ -86,8 +86,10 @@ export default function RecordingsPage() {
       <div className="recordings-page">
         <div className="recordings-page__header">
           <LogoApp height={60} alt={t('logoAlt')} />
-          <span>{t('subtitle')}</span>
+          <h1 className="sr-only">{t('title')}</h1>
+          <p>{t('subtitle')}</p>
         </div>
+        <h2 className="sr-only">{t('newRecording')}</h2>
         <div
           className={clsx({
             'drop-zone--drag-in-progress-main-area': isDropZoneActive,
@@ -100,10 +102,13 @@ export default function RecordingsPage() {
                 className="recordings-actions__record-button"
                 color="error"
                 variant="secondary"
+                aria-label={t('record:newRecordingAriaLabel')}
+                icon={
+                  <span className="material-icons" aria-hidden="true">
+                    radio_button_checked
+                  </span>
+                }
               >
-                <span className="material-icons" aria-hidden="true">
-                  radio_button_checked
-                </span>
                 {t('record:newRecording')}
               </Button>
 
@@ -124,7 +129,7 @@ export default function RecordingsPage() {
             </div>
           </div>
         </div>
-
+        <h2 className="sr-only">{t('myRecordings')}</h2>
         <RecoverList />
         <ListRecordings queryData={filesQ} />
       </div>
