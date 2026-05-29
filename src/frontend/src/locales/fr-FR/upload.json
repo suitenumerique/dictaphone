@@ -17,7 +17,10 @@
   "uploader": {
     "toast": "Déposez vos fichiers ici pour les transférer",
     "steps": {
-      "preparing": "Préparation du transfert..."
+      "preparing": "Préparation du transfert...",
+      "none": "Aucun fichier sélectionné pour le transfert",
+      "upload_files": "Transferts en cours",
+      "done": "Terminé"
     },
     "files": {
       "description_one": "{{count}} fichier en cours de transfert",

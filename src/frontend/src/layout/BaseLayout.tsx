@@ -28,7 +28,7 @@ export function BaseLayout({
     i18n.language
   )
   const { isMobile } = useResponsive()
-usePageTitle(pageTitle)
+  usePageTitle(pageTitle)
 
   const languages = useMemo(() => {
     return LANGUAGES.map((language) => ({
@@ -52,7 +52,7 @@ usePageTitle(pageTitle)
         <div className="base-layout__header__left">
           <a href="/">
             <img
-              alt={t('images.governmentLogoAlt')}
+              alt={t('layout:images.governmentLogoAlt')}
               className="base-layout__header__gouv-logo"
               src="/assets/gouv-logo.svg"
             />
@@ -92,7 +92,7 @@ usePageTitle(pageTitle)
         {showShowcaseAssistant && (
           <div className="base-layout__showcase-assistant">
             <img
-              alt={t('images.assistantLogoAlt')}
+              alt={t('layout:images.assistantLogoAlt')}
               src="/assets/logo-lasuite-assistant.svg"
             />
             <p>{t('introLasuiteAssistant')}</p>

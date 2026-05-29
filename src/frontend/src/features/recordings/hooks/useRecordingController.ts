@@ -395,6 +395,7 @@ export const useRecordingController = (
         status: 'recording',
         uploadProgress: 0,
         uploadError: null,
+        // @ts-expect-error bad inference on formatDateTimeStatic
         filename: `${t('record:recordingPrefix')} ${t('shared:utils.formatDateTimeStatic', { value: createdAt })}.${getExtensionFromMimeType(resolvedMimeType)}`,
       })
     } catch (error) {

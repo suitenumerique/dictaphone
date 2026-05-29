@@ -17,7 +17,10 @@
   "uploader": {
     "toast": "Drop your files here to transfer them",
     "steps": {
-      "preparing": "Preparing the transfer..."
+      "preparing": "Preparing the transfer...",
+      "none": "No files selected for transfer",
+      "upload_files": "Uploading files",
+      "done": "Done"
     },
     "files": {
       "description_one": "{{count}} file being transferred",

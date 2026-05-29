@@ -255,7 +255,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               onClick={togglePlayPause}
               className="audio-player__btn"
               icon={isPlaying ? <Pause /> : <Play />}
-              aria-label={isPlaying ? t('player:pause') : t('player:play')}
+              aria-label={isPlaying ? t('player.pause') : t('player.play')}
               size={'nano'}
             />
             <div className="audio-player__separator" />
@@ -265,7 +265,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               onClick={handleRewind10Seconds}
               className="audio-player__btn"
               icon={<FastBackward />}
-              aria-label={t('player:rewind')}
+              aria-label={t('player.rewind')}
               size={'nano'}
             />
             <Button
@@ -274,7 +274,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               onClick={handleForward10Seconds}
               className="audio-player__btn"
               icon={<FastForward />}
-              aria-label={t('player:forward')}
+              aria-label={t('player.forward')}
               size={'nano'}
             />
             <div className="audio-player__separator" />
@@ -287,7 +287,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               step={0.01}
               onChange={handleSeek}
               className="audio-player__timeline"
-              aria-label={t('player:progressControl')}
+              aria-label={t('player.progressControl')}
               style={
                 {
                   '--progress-percentage': `${progressPercentage}%`,
@@ -304,7 +304,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               onClick={handleDownload}
               className="audio-player__btn"
               icon={<Download />}
-              aria-label={t('player:download')}
+              aria-label={t('player.download')}
               size={'nano'}
             />
           </div>
