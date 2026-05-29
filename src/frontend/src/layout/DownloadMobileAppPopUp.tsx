@@ -41,12 +41,20 @@ export function DownloadMobileAppPopUp({
         </a>
         <span>{t('info.mobileApp.scanToInstall')}</span>
         <div className="download-mobile-app-pop-up__download-links">
-          <a href={data?.mobile_app?.ios_download_link} target="_blank">
-            <img alt="Apple Logo" src="/assets/files/icons/apple-logo.svg" />
+          <a
+            href={data?.mobile_app?.ios_download_link}
+            target="_blank"
+            title={t('info.mobileApp.openInTheAppStoreTitle')}
+          >
+            <img alt="App Store" src="/assets/files/icons/apple-logo.svg" />
           </a>
-          <a href={data?.mobile_app?.android_download_link} target="_blank">
+          <a
+            href={data?.mobile_app?.android_download_link}
+            target="_blank"
+            title={t('info.mobileApp.openInThePlayStoreTitle')}
+          >
             <img
-              alt="Play store Logo"
+              alt="Play Store"
               src="/assets/files/icons/play-store-logo.svg"
             />
           </a>

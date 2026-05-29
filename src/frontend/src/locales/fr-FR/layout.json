@@ -24,7 +24,9 @@
       "description": "Avec l'application mobile, votre enregistrement continue même lorsque votre écran est verrouillé.",
       "scanToInstall": "Scanner pour installer",
       "catchPhrase": "Enregistrez vos réunions en présentiel et générez automatiquement un rapport structuré dans Docs.",
-      "closePopupAriaLabel": "Fermer la pop-up de téléchargement de l'application mobile"
+      "closePopupAriaLabel": "Fermer la pop-up de téléchargement de l'application mobile",
+      "openInTheAppStoreTitle": "Ouvrir dans l'App Store (nouvel onglet)",
+      "openInThePlayStoreTitle": "Ouvrir dans le Play Store (nouvel onglet)"
     },
     "help": {
       "ariaLabel": "Aide / Documentation",

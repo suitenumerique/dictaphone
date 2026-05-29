@@ -24,7 +24,9 @@
       "description": "With the mobile app, your recording continues even when your screen is locked.",
       "scanToInstall": "Scan to install",
       "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs.",
-      "closePopupAriaLabel": "Close the mobile app download pop-up"
+      "closePopupAriaLabel": "Close the mobile app download pop-up",
+      "openInTheAppStoreTitle": "Open in the App Store (new window)",
+      "openInThePlayStoreTitle": "Open in the Play Store (new window)"
     },
     "help": {
       "ariaLabel": "Help / Documentation",
