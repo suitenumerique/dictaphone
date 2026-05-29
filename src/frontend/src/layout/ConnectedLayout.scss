@@ -10,6 +10,21 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
   justify-content: center;
   padding-bottom: 2rem;
 
+  transition: background-color 0.2s ease;
+  &.fancy-background {
+    background-image:
+      linear-gradient(
+        212.98deg,
+        rgba(246, 248, 249, 0) 64.6%,
+        rgba(255, 237, 235, 0.6) 113.3%
+      ),
+      linear-gradient(
+        166.15deg,
+        rgba(246, 248, 249, 0) 46.92%,
+        rgba(200, 211, 255, 0.6) 126.35%
+      );
+  }
+
   .dictaphone__connected_layout_content {
     width: 100%;
     max-width: 800px;

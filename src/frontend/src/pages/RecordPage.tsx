@@ -6,7 +6,7 @@ export default function RecordPage() {
   const { t } = useTranslation('layout')
   return (
     <ConnectedLayout
-      className="record-parent"
+      className="record-parent fancy-background"
       pageTitle={t('pageTitles.record')}
     >
       <h1 className="sr-only">{t('recordPageH1')}</h1>
