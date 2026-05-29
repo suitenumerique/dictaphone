@@ -118,4 +118,8 @@
     align-items: center;
     gap: 0.25rem;
   }
+
+  .warning {
+    color: var(--c--contextuals--content--semantic--neutral--secondary);
+  }
 }

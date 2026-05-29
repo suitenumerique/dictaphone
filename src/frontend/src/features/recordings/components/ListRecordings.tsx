@@ -1,6 +1,6 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
-import { Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Spinner, Warning } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
@@ -31,8 +31,12 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   if (lastAiJobTranscript?.status === 'failed') {
     return (
       <Tooltip content={t('transcript.status.failed')}>
-        <span role="img" aria-label={t('transcript.statusPreview.failed')}>
-          ⚠️
+        <span
+          role="img"
+          aria-label={t('transcript.statusPreview.failed')}
+          className="warning"
+        >
+          <Warning />
         </span>
       </Tooltip>
     )

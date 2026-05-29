@@ -9,7 +9,7 @@
   "notFound": "Recording not found",
   "deleted": "Deleted",
   "subtitle": "Record your in-person meetings and access your transcripts.",
-  "logoAlt": "Transcripts logo",
+  "logoAlt": "Assistant Transcripts",
   "uploadButtonAriaLabel": "Upload recordings",
   "uploadInputAriaLabel": "Upload audio recordings",
   "metadata": {
@@ -135,9 +135,9 @@
       "empty": "Transcript is empty."
     },
     "statusPreview": {
-      "pending": "Pending transcript",
-      "failed": "Transcript error",
-      "success": "Transcript"
+      "pending": "Pending transcription",
+      "failed": "Transcription error",
+      "success": "Transcript generated successfully"
     },
     "speaker": "Speaker"
   },
@@ -152,7 +152,7 @@
     "statusPreview": {
       "pending": "Pending summary",
       "failed": "Summary error",
-      "success": "Summary"
+      "success": "Summary generated successfully"
     }
   },
   "player": {
