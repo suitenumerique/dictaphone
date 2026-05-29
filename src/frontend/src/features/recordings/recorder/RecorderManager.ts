@@ -172,8 +172,8 @@ export class RecorderManager {
     this.inputGainNode = this.audioContext.createGain()
     this.inputGainNode.gain.value = 1
     this.analyserNode = this.audioContext.createAnalyser()
-    this.analyserNode.fftSize = 1024
-    this.analyserNode.smoothingTimeConstant = 0.4
+    this.analyserNode.fftSize = 512
+    this.analyserNode.smoothingTimeConstant = 0.2
 
     this.inputGainNode.connect(this.analyserNode)
     this.inputGainNode.connect(this.mediaDestination)
