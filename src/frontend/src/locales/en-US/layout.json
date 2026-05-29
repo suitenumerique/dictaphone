@@ -26,7 +26,8 @@
       "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs.",
       "closePopupAriaLabel": "Close the mobile app download pop-up",
       "openInTheAppStoreTitle": "Open in the App Store (new window)",
-      "openInThePlayStoreTitle": "Open in the Play Store (new window)"
+      "openInThePlayStoreTitle": "Open in the Play Store (new window)",
+      "scanQRCodeAriaLabel": "QR code to scan to install the mobile app"
     },
     "help": {
       "ariaLabel": "Help / Documentation",

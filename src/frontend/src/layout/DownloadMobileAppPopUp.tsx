@@ -37,7 +37,10 @@ export function DownloadMobileAppPopUp({
       </div>
       <div className="download-mobile-app-pop-up__qr-code-container">
         <a href={scanUrl} target="_blank" rel="noreferrer">
-          <QRCodeSVG value={scanUrl} />
+          <QRCodeSVG
+            value={scanUrl}
+            aria-label={t('info.mobileApp.scanQRCodeAriaLabel')}
+          />
         </a>
         <span>{t('info.mobileApp.scanToInstall')}</span>
         <div className="download-mobile-app-pop-up__download-links">
