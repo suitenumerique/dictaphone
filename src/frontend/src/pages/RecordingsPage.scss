@@ -73,12 +73,14 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     }
 
     &__warning {
-      display: flex;
-      align-items: center;
+      display: inline;
       font-size: 12px;
-      gap: var(--c--globals--spacings--xs);
       color: var(--c--globals--colors--gray-600);
       text-align: center;
+
+      svg {
+        vertical-align: -4px;
+      }
     }
 
     .c__tooltip {

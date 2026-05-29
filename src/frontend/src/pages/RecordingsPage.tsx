@@ -5,7 +5,7 @@ import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
-import { FileShare } from '@gouvfr-lasuite/ui-kit'
+import { FileShare, Warning } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { RecoverList } from '../features/recordings/components/RecoverList'
@@ -125,7 +125,8 @@ export default function RecordingsPage() {
               </Tooltip>
             </div>
             <div className="recordings-actions__warning">
-              {t('record:consentWarning')}
+              <Warning size="small" />
+              &nbsp;{t('record:consentWarning')}
             </div>
           </div>
         </div>
