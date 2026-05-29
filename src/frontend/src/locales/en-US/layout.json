@@ -31,7 +31,8 @@
       "scanQRCodeAriaLabel": "QR code to scan to install the mobile app"
     },
     "help": {
-      "ariaLabel": "Help / Documentation",
+      "asideAriaLabel": "Help & Resources",
+      "ariaLabel": "Help & Resources",
       "documentation": "Documentation",
       "support": "Support",
       "mobileApp": "Mobile app",

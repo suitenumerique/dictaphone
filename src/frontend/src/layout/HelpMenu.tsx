@@ -77,7 +77,7 @@ export function HelpMenu() {
   }, [i18n.language, t, user.user?.id])
 
   return (
-    <>
+    <aside aria-label={t('info.help.asideAriaLabel')}>
       <DownloadMobileAppPopUp
         open={openDownloadMobileAppPopUp && !forceHideMobileStuff}
         setOpen={handleCloseMobileAppPopup}
@@ -136,6 +136,6 @@ export function HelpMenu() {
           aria-label={t('info.help.ariaLabel')}
         />
       </DropdownMenu>
-    </>
+    </aside>
   )
 }
