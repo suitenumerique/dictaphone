@@ -31,7 +31,7 @@
     "i18next-resources-to-backend": "1.2.1",
     "idb": "8.0.3",
     "marked": "18.0.2",
-    "posthog-js": "1.342.1",
+    "posthog-js": "1.372.10",
     "pretty-bytes": "7.1.0",
     "qrcode.react": "4.2.0",
     "react": "19.2.4",
