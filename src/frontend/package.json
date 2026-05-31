@@ -14,7 +14,7 @@
     "check": "prettier --check ./src"
   },
   "dependencies": {
-    "@formatjs/intl-durationformat": "0.10.3",
+    "@formatjs/intl-durationformat": "0.10.8",
     "@gouvfr-lasuite/cunningham-react": "4.3.0",
     "@gouvfr-lasuite/ui-kit": "0.20.1",
     "@react-aria/toast": "3.0.10",
