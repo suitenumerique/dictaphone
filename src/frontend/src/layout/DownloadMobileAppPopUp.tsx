@@ -47,6 +47,7 @@ export function DownloadMobileAppPopUp({
           <a
             href={data?.mobile_app?.ios_download_link}
             target="_blank"
+            rel="noopener noreferrer"
             title={t('info.mobileApp.openInTheAppStoreTitle')}
           >
             <img alt="App Store" src="/assets/files/icons/apple-logo.svg" />
@@ -54,6 +55,7 @@ export function DownloadMobileAppPopUp({
           <a
             href={data?.mobile_app?.android_download_link}
             target="_blank"
+            rel="noopener noreferrer"
             title={t('info.mobileApp.openInThePlayStoreTitle')}
           >
             <img
