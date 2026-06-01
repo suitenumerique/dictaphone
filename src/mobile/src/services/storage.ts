@@ -99,6 +99,7 @@ const triggerUpload = async (): Promise<void> => {
         type: 'audio/mp4',
         uri: recordingToUpload.filePath,
       },
+      source: 'mobile_recording',
       onProgress: (progress) => {
         updateRecording(recordingToUpload.id, {
           uploadProgress: progress,

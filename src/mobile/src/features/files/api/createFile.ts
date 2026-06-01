@@ -37,11 +37,13 @@ export const createFile = async ({
   durationSeconds,
   createdAt,
   onProgress,
+  source,
 }: {
   file: FileSource
   durationSeconds: number
   createdAt: string
   onProgress?: UploadProgressCallback
+  source: 'mobile_recording' | 'mobile_file_upload'
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -50,6 +52,7 @@ export const createFile = async ({
       type: 'audio_recording',
       duration_seconds: durationSeconds,
       created_at: createdAt,
+      source,
     }),
   })
   if (res.upload_state !== 'pending') {
