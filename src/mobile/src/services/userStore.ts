@@ -29,14 +29,14 @@ export const useUserStore = create<UserStore>()(
       user: null,
       authExpired: false,
       setAuthExpired: (expired) => set({ authExpired: expired }),
-      setCachedUser: (user) => set({ user }),
+      setCachedUser: (user) => set({ user, authExpired: false }),
       clearCachedUser: () => set({ user: null }),
     }),
     {
       name: 'user-info',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
-      partialize: (state) => omit(state, ['hasHydrated']),
+      partialize: (state) => omit(state, ['hasHydrated', 'authExpired']),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = apiUserSchema.safeParse(state.user)

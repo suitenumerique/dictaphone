@@ -9,6 +9,7 @@ import { queryClient } from '@/api/queryClient'
 import { keys } from '@/api/queryKeys'
 import { mmkvStorage } from '@/services/index'
 import omit from '@/utils/omit'
+import { useUserStore } from '@/services/userStore'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -62,6 +63,11 @@ const checkCanUpload = async (): Promise<boolean> => {
 let isUploadInProgress = false
 const triggerUpload = async (): Promise<void> => {
   if (isUploadInProgress) {
+    return
+  }
+
+  const { user, authExpired } = useUserStore.getState()
+  if (!user || authExpired) {
     return
   }
 
@@ -119,6 +125,7 @@ export const setBypassWifiOnly = (value: boolean) => {
 
 let isRecordingsUploadManagerStarted = false
 const startRecordingsUploadManager = () => {
+  console.log('Start recordings upload manager')
   if (isRecordingsUploadManagerStarted) {
     return
   }
@@ -214,3 +221,21 @@ export const useUploadStore = create<UploadStore>()((set) => ({
 }))
 
 startRecordingsUploadManager()
+
+useUserStore.subscribe((newState, oldState) => {
+  if (newState.user && !oldState.user) {
+    triggerUpload().catch(console.error)
+  }
+  if (!newState.authExpired && oldState.authExpired) {
+    const { recordings, updateRecording } = useRecordingsStore.getState()
+    recordings
+      .filter((recording) => recording.uploadingStatus === 'failed')
+      .forEach((recording) => {
+        updateRecording(recording.id, {
+          uploadingStatus: 'to_upload',
+          uploadProgress: undefined,
+        })
+      })
+    triggerUpload().catch(console.error)
+  }
+})
