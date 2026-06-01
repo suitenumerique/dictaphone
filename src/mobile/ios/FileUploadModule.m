@@ -10,4 +10,9 @@ RCT_EXTERN_METHOD(uploadFile:(NSString *)filePath
         resolver:(RCTPromiseResolveBlock)resolver
         rejecter:(RCTPromiseRejectBlock)rejecter)
 
+RCT_EXTERN_METHOD(shareAudioFile:(NSString *)filePath
+        fileName:(NSString *)fileName
+        resolver:(RCTPromiseResolveBlock)resolver
+        rejecter:(RCTPromiseRejectBlock)rejecter)
+
 @end

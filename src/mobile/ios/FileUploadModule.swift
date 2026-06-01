@@ -1,5 +1,6 @@
 import Foundation
 import React
+import UIKit
 
 @objc(FileUploadModule)
 class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
@@ -46,6 +47,64 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
       lastEmittedProgressByTaskId[task.taskIdentifier] = -1
     }
     task.resume()
+  }
+
+  @objc func shareAudioFile(_ filePath: String,
+                            fileName: String,
+                            resolver: @escaping RCTPromiseResolveBlock,
+                            rejecter: @escaping RCTPromiseRejectBlock) {
+    let normalizedPath = normalizePath(filePath)
+    let sourceUrl = URL(fileURLWithPath: normalizedPath)
+
+    guard FileManager.default.fileExists(atPath: sourceUrl.path) else {
+      rejecter("FILE_NOT_FOUND", "Recording file does not exist", nil)
+      return
+    }
+
+    let safeName = sanitizeFileName(fileName)
+    let sharedDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("shared_audio", isDirectory: true)
+
+    do {
+      try FileManager.default.createDirectory(
+        at: sharedDirectory,
+        withIntermediateDirectories: true,
+        attributes: nil
+      )
+      let destination = sharedDirectory.appendingPathComponent("\(UUID().uuidString)-\(safeName)")
+      if FileManager.default.fileExists(atPath: destination.path) {
+        try FileManager.default.removeItem(at: destination)
+      }
+      try FileManager.default.copyItem(at: sourceUrl, to: destination)
+
+      DispatchQueue.main.async {
+        guard let presenter = self.topViewController() else {
+          rejecter("NO_UI", "No view controller available to present share sheet", nil)
+          return
+        }
+
+        let activityViewController = UIActivityViewController(
+          activityItems: [destination],
+          applicationActivities: nil
+        )
+
+        if let popover = activityViewController.popoverPresentationController {
+          popover.sourceView = presenter.view
+          popover.sourceRect = CGRect(
+            x: presenter.view.bounds.midX,
+            y: presenter.view.bounds.midY,
+            width: 0,
+            height: 0
+          )
+          popover.permittedArrowDirections = []
+        }
+
+        presenter.present(activityViewController, animated: true) {
+          resolver(nil)
+        }
+      }
+    } catch {
+      rejecter("SHARE_ERROR", "Unable to prepare file for sharing", error)
+    }
   }
 
   override func supportedEvents() -> [String]! {
@@ -143,4 +202,30 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
   @objc override static func requiresMainQueueSetup() -> Bool { false }
 
   private static let uploadProgressEvent = "FileUploadProgress"
+
+  private func normalizePath(_ path: String) -> String {
+    path.hasPrefix("file://") ? String(path.dropFirst("file://".count)) : path
+  }
+
+  private func sanitizeFileName(_ fileName: String) -> String {
+    let trimmed = fileName.trimmingCharacters(in: .whitespacesAndNewlines)
+    let fallback = trimmed.isEmpty ? "recording.m4a" : trimmed
+    let withExtension = fallback.lowercased().hasSuffix(".m4a") ? fallback : "\(fallback).m4a"
+    let invalidCharacters = CharacterSet(charactersIn: "\\/:*?\"<>|")
+    return withExtension.components(separatedBy: invalidCharacters).joined(separator: "_")
+  }
+
+  private func topViewController() -> UIViewController? {
+    let rootController = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }?
+      .rootViewController
+
+    var current = rootController
+    while let presented = current?.presentedViewController {
+      current = presented
+    }
+    return current
+  }
 }

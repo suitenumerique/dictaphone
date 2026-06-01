@@ -71,6 +71,7 @@
     "menu": {
       "rename": "Renommer",
       "retry": "Régénérer",
+      "share": "Partager le fichier audio",
       "retryPending": "Régénérer (en cours)",
       "renameTitle": "Renommer l'enregistrement",
       "renameDescription": "Choisissez un titre clair pour retrouver rapidement cet enregistrement.",
@@ -79,6 +80,7 @@
       "errorTitle": "Une erreur est survenue",
       "deleteError": "Impossible de supprimer cet enregistrement pour le moment.",
       "renameError": "Impossible de renommer cet enregistrement pour le moment.",
+      "shareError": "Impossible de partager cet enregistrement pour le moment.",
       "retryError": "Impossible de relancer la génération pour le moment.",
       "retrySuccess": "Génération relancée",
       "retryModal": {

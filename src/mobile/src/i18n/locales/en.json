@@ -71,6 +71,7 @@
     "menu": {
       "rename": "Rename",
       "retry": "Retry",
+      "share": "Share audio file",
       "retryPending": "Retry (in progress)",
       "renameTitle": "Rename recording",
       "renameDescription": "Choose a clear title so you can find this recording quickly.",
@@ -79,6 +80,7 @@
       "errorTitle": "Something went wrong",
       "deleteError": "Unable to delete this recording right now.",
       "renameError": "Unable to rename this recording right now.",
+      "shareError": "Unable to share this recording right now.",
       "retryError": "Unable to restart generation right now.",
       "retrySuccess": "Generation restarted",
       "retryModal": {

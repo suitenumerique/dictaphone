@@ -40,6 +40,7 @@ import { colors } from '@/components/colors'
 import { useTranslation } from 'react-i18next'
 import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
+import { shareLocalRecording } from '@/utils/shareLocalRecording'
 
 const OPEN_STATE_THRESHOLD = 60
 const DELETE_ACTION_WIDTH = 80
@@ -333,6 +334,7 @@ export function RecordingListItem({
   const [isRetryModalVisible, setIsRetryModalVisible] = useState(false)
   const [retryLanguage, setRetryLanguage] =
     useState<TTranscriptionLanguage | null>(null)
+  const [isSharingLocalFile, setIsSharingLocalFile] = useState(false)
   const remoteTranscriptJob =
     item.kind === 'remote'
       ? getMainAiJobs(item.ai_jobs).lastAiJobTranscript
@@ -352,6 +354,9 @@ export function RecordingListItem({
     !hasPendingTranscriptJob
   const isOpenableRemoteRecording =
     item.kind === 'remote' && remoteTranscriptJob?.status === 'success'
+  const isShareableLocalRecording =
+    item.kind === 'local' &&
+    (item.uploadingStatus === 'failed' || item.uploadingStatus === 'to_upload')
 
   const handleOpenRetryModal = useCallback((recording: RemoteRecording) => {
     const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
@@ -385,6 +390,36 @@ export function RecordingListItem({
     },
     [remoteTranscriptJob, retryWithLanguageMutation, t]
   )
+
+  const handleShareLocalRecording = useCallback(async () => {
+    if (!isShareableLocalRecording) {
+      return
+    }
+    if (isSharingLocalFile) {
+      return
+    }
+
+    setIsSharingLocalFile(true)
+    try {
+      const safeTitle = item.title.trim() || item.id
+      const extension =
+        item.filePath.match(/(\.[^./\\]+)$/)?.[1]?.trim() || '.m4a'
+      const normalizedExtension = extension.startsWith('.')
+        ? extension
+        : `.${extension}`
+      await shareLocalRecording(
+        item.filePath,
+        `${safeTitle}${normalizedExtension}`
+      )
+    } catch {
+      Alert.alert(
+        t('recordings.menu.errorTitle'),
+        t('recordings.menu.shareError')
+      )
+    } finally {
+      setIsSharingLocalFile(false)
+    }
+  }, [isShareableLocalRecording, isSharingLocalFile, item, t])
 
   const card = (
     <Pressable
@@ -432,6 +467,29 @@ export function RecordingListItem({
             </>
           )}
         </View>
+        {isShareableLocalRecording && (
+          <View style={styles.shareActionColumn}>
+            <Pressable
+              onPress={handleShareLocalRecording}
+              disabled={isSharingLocalFile}
+              style={({ pressed }) => [
+                styles.shareAction,
+                isSharingLocalFile && styles.shareActionDisabled,
+                pressed && styles.shareActionPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t('recordings.menu.share')}
+              accessibilityState={{ disabled: isSharingLocalFile }}
+              hitSlop={4}
+            >
+              {isSharingLocalFile ? (
+                <ActivityIndicator size="small" color={colors.textPrimary} />
+              ) : (
+                <Lucide name="share" size={20} color={colors.textPrimary} />
+              )}
+            </Pressable>
+          </View>
+        )}
       </View>
     </Pressable>
   )
@@ -488,6 +546,24 @@ const styles = StyleSheet.create({
   cardHeaderRight: {
     flex: 1,
     gap: 2,
+  },
+  shareActionColumn: {
+    width: 48,
+    alignSelf: 'stretch',
+    marginLeft: 8,
+  },
+  shareAction: {
+    flex: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.backgroundSubtle,
+  },
+  shareActionPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
+  },
+  shareActionDisabled: {
+    opacity: 0.6,
   },
   recordingTitleSkeleton: {
     width: 140,

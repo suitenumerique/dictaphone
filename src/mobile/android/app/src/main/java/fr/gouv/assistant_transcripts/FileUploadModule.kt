@@ -1,8 +1,13 @@
 package fr.gouv.assistant_transcripts
 
+import android.content.ClipData
+import android.content.Intent
+import androidx.core.content.FileProvider
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
@@ -81,6 +86,51 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    @ReactMethod
+    fun shareAudioFile(filePath: String, fileName: String, promise: Promise) {
+        thread {
+            try {
+                val sourceFile = File(filePath)
+                if (!sourceFile.exists() || !sourceFile.isFile) {
+                    promise.reject("FILE_NOT_FOUND", "Recording file does not exist")
+                    return@thread
+                }
+
+                val safeName = sanitizeFileName(fileName)
+                val sharedDir = File(reactApplicationContext.cacheDir, "shared_audio")
+                if (!sharedDir.exists()) {
+                    sharedDir.mkdirs()
+                }
+                val sharedFile = File(sharedDir, "${System.currentTimeMillis()}-$safeName")
+                copyFile(sourceFile, sharedFile)
+
+                val authority = "${reactApplicationContext.packageName}.fileprovider"
+                val contentUri =
+                    FileProvider.getUriForFile(reactApplicationContext, authority, sharedFile)
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "audio/mp4"
+                        putExtra(Intent.EXTRA_STREAM, contentUri)
+                        clipData =
+                            ClipData.newUri(
+                                reactApplicationContext.contentResolver,
+                                sharedFile.name,
+                                contentUri
+                            )
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                val chooser = Intent.createChooser(shareIntent, null).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+
+                reactApplicationContext.startActivity(chooser)
+                promise.resolve(null)
+            } catch (e: Exception) {
+                promise.reject("SHARE_ERROR", e.message, e)
+            }
+        }
+    }
+
     private fun sendProgress(uploadId: String, uploadedBytes: Long, totalBytes: Long) {
         val params = Arguments.createMap().apply {
             putString("uploadId", uploadId)
@@ -100,5 +150,25 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     companion object {
         private const val UPLOAD_PROGRESS_EVENT = "FileUploadProgress"
         private const val DEFAULT_BUFFER_SIZE = 8192
+    }
+
+    private fun copyFile(source: File, destination: File) {
+        FileInputStream(source).use { input ->
+            FileOutputStream(destination).use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                var bytesRead = input.read(buffer)
+                while (bytesRead >= 0) {
+                    output.write(buffer, 0, bytesRead)
+                    bytesRead = input.read(buffer)
+                }
+                output.flush()
+            }
+        }
+    }
+
+    private fun sanitizeFileName(fileName: String): String {
+        val trimmed = fileName.trim().ifEmpty { "recording.m4a" }
+        val withExtension = if (trimmed.lowercase().endsWith(".m4a")) trimmed else "$trimmed.m4a"
+        return withExtension.replace(Regex("""[\\/:*?"<>|]"""), "_")
     }
 }
