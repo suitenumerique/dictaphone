@@ -11,6 +11,8 @@ import {
 import { useTranslation } from 'react-i18next'
 import { Lucide } from '@react-native-vector-icons/lucide'
 import {
+  AudioBuffer,
+  AudioContext,
   AudioManager,
   AudioRecorder as AudioRecorderApi,
   FileFormat,
@@ -33,14 +35,28 @@ import StopIcon from '@/assets/icons/stop-recording.svg'
 // @ts-expect-error SVG
 import PlayIcon from '@/assets/icons/resume-recording.svg'
 import { useConfigStore } from '@/services/configStore'
+// @ts-expect-error audio asset
+import startSound from '@/assets/sounds/start.m4a'
+// @ts-expect-error audio asset
+import endSound from '@/assets/sounds/end.m4a'
 
 AudioManager.setAudioSessionOptions({
-  iosCategory: 'record',
+  iosCategory: 'playAndRecord',
   iosMode: 'default',
-  iosOptions: [],
+  iosOptions: ['defaultToSpeaker'],
 })
 
 const audioRecorder = new AudioRecorderApi()
+const audioContext = new AudioContext()
+const cueSoundAssets = {
+  start: startSound,
+  end: endSound,
+} as const
+const cueSoundBuffers: Record<keyof typeof cueSoundAssets, AudioBuffer | null> =
+  {
+    start: null,
+    end: null,
+  }
 
 const HEAVY_HAPTIC_INTERVAL_MS = 900
 const HAPTIC_OPTIONS = {
@@ -54,6 +70,44 @@ const waitForNextFrame = () =>
       resolve()
     })
   })
+
+const wait = (durationMs: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, durationMs)
+  })
+
+const loadCueSoundBuffer = async (
+  soundName: keyof typeof cueSoundAssets
+): Promise<AudioBuffer> => {
+  if (!cueSoundBuffers[soundName]) {
+    cueSoundBuffers[soundName] = await audioContext.decodeAudioData(
+      cueSoundAssets[soundName]
+    )
+  }
+
+  return cueSoundBuffers[soundName]!
+}
+
+const playCueSound = async (
+  soundName: keyof typeof cueSoundAssets,
+  waitUntilFinished: boolean = false
+) => {
+  try {
+    const soundBuffer = await loadCueSoundBuffer(soundName)
+    await audioContext.resume()
+
+    const source = audioContext.createBufferSource()
+    source.buffer = soundBuffer
+    source.connect(audioContext.destination)
+    source.start()
+
+    if (waitUntilFinished) {
+      await wait(Math.ceil(soundBuffer.duration * 1000))
+    }
+  } catch (error) {
+    console.error(`Failed to play ${soundName} cue sound:`, error)
+  }
+}
 
 export const AudioRecorder = () => {
   const { t } = useTranslation()
@@ -239,6 +293,7 @@ export const AudioRecorder = () => {
         return
       }
 
+      await playCueSound('start', true)
       const result = audioRecorder.start()
       if (result.status === 'error') {
         console.warn(result.message)
@@ -268,6 +323,7 @@ export const AudioRecorder = () => {
     setIsLoading(true)
     try {
       audioRecorder.pause()
+      await playCueSound('end', true)
       setIsPaused(true)
       await showRecordingNotification(true)
     } catch (error) {
@@ -280,6 +336,7 @@ export const AudioRecorder = () => {
   const onResumeRecord = useCallback(async () => {
     setIsLoading(true)
     try {
+      await playCueSound('start', true)
       audioRecorder.resume()
       await showRecordingNotification(false)
       setIsPaused(false)
@@ -303,6 +360,9 @@ export const AudioRecorder = () => {
         return false
       }
 
+      if (!isPaused) {
+        await playCueSound('end', true)
+      }
       await AudioManager.setAudioSessionActivity(false)
 
       const title = `${t('home.recordingPrefix')} ${t(
@@ -330,7 +390,7 @@ export const AudioRecorder = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [addRecording, t])
+  }, [addRecording, isPaused, t])
 
   useEffect(() => {
     if (
