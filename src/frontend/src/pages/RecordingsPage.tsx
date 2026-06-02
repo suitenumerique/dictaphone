@@ -8,10 +8,11 @@ import { useTranslation } from 'react-i18next'
 import { FileShare, Warning } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
-import { RecoverList } from '../features/recordings/components/RecoverList'
+import { RecoverList } from '@/features/recordings/components/RecoverList'
 import { useConfig } from '@/api/useConfig.ts'
 import { formatFileSize } from '@/features/recordings/utils/formatFileSize.ts'
 import { useMemo } from 'react'
+import { intervalToDuration } from 'date-fns'
 
 const PAGE_SIZE = 10
 
@@ -65,10 +66,45 @@ export default function RecordingsPage() {
             maxSize: formatFileSize(maxFileSize),
           })}
         </div>
+        {appConfig?.audio_recording && (
+          <div>
+            {t('uploadTooltip.maxDuration', {
+              duration: intervalToDuration({
+                start: 0,
+                end: appConfig.audio_recording.max_duration_seconds * 1000,
+              }),
+            })}
+          </div>
+        )}
       </div>
     ),
-    [supportedFormats, maxFileSize, t]
+    [t, supportedFormats, maxFileSize, appConfig]
   )
+
+  const uploadBtnAriaLabel = useMemo(() => {
+    return `${t('uploadButtonAriaLabel')}.\n${t(
+      'uploadTooltip.supportedFormats',
+      {
+        formats:
+          supportedFormats.length > 0
+            ? supportedFormats.map((el) => el.replace('.', ''))
+            : [t('uploadTooltip.noSupportedFormats')],
+        formatParams: {
+          formats: {
+            type: 'conjunction',
+            style: 'long',
+          },
+        },
+      }
+    )}.\n${t('uploadTooltip.maxFileSize', {
+      maxSize: formatFileSize(maxFileSize),
+    })}.\n${t('uploadTooltip.maxDuration', {
+      duration: intervalToDuration({
+        start: 0,
+        end: (appConfig?.audio_recording.max_duration_seconds ?? 0) * 1000,
+      }),
+    })}`
+  }, [t, supportedFormats, maxFileSize, appConfig])
 
   const handleStartNewRecording = () => {
     navigate('/new-recording')
@@ -114,7 +150,7 @@ export default function RecordingsPage() {
 
               <Tooltip content={uploadTooltipContent} placement="top">
                 <Button
-                  aria-label={t('uploadButtonAriaLabel')}
+                  aria-label={uploadBtnAriaLabel}
                   onClick={() =>
                     document.getElementById('import-files')?.click()
                   }

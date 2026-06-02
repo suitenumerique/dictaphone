@@ -19,7 +19,8 @@
     "title": "Upload files",
     "supportedFormats": "Supported formats: {{formats, list}}",
     "noSupportedFormats": "none",
-    "maxFileSize": "Max file size: {{maxSize}}"
+    "maxFileSize": "Max file size: {{maxSize}}",
+    "maxDuration": "Max file duration: {{duration, formatDuration}}"
   },
   "recovery": {
     "blockNewRecordingAlert": "A recording hasn't been transferred and is still stored locally. Please transfer it or delete it before starting a new recording."

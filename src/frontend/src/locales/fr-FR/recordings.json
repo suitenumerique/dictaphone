@@ -19,7 +19,8 @@
     "title": "Importer des fichiers",
     "supportedFormats": "Formats pris en charge : {{formats, list}}",
     "noSupportedFormats": "aucun",
-    "maxFileSize": "Taille maximale de fichier : {{maxSize}}"
+    "maxFileSize": "Taille maximale par fichier : {{maxSize}}",
+    "maxDuration": "Durée maximale par fichier : {{duration, formatDuration}}"
   },
   "recovery": {
     "blockNewRecordingAlert": "Un enregistrement précédent n'a pas été transféré et est encore stocké localement. Veuillez le transférer ou le supprimer avant de démarrer un nouvel enregistrement."
