@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   Linking,
+  NativeModules,
   Platform,
   Pressable,
   StyleSheet,
@@ -28,18 +29,11 @@ import uuid from 'react-native-uuid'
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
 import { AppText } from './AppText'
 import { colors } from './colors'
-import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory'
-// @ts-expect-error SVG
-import PauseIcon from '@/assets/icons/pause-recording.svg'
-// @ts-expect-error SVG
-import StopIcon from '@/assets/icons/stop-recording.svg'
-// @ts-expect-error SVG
+import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory' // @ts-expect-error SVG
+import PauseIcon from '@/assets/icons/pause-recording.svg' // @ts-expect-error SVG
+import StopIcon from '@/assets/icons/stop-recording.svg' // @ts-expect-error SVG
 import PlayIcon from '@/assets/icons/resume-recording.svg'
 import { useConfigStore } from '@/services/configStore'
-// @ts-expect-error audio asset
-import startSound from '@/assets/sounds/start.wav'
-// @ts-expect-error audio asset
-import endSound from '@/assets/sounds/end.wav'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'playAndRecord',
@@ -49,6 +43,15 @@ AudioManager.setAudioSessionOptions({
 
 const audioRecorder = new AudioRecorderApi()
 const audioContext = new AudioContext()
+const startSound = 'start.wav'
+const endSound = 'end.wav'
+const { BundlePath } = NativeModules as {
+  BundlePath?: {
+    getBundlePath: () => Promise<string>
+  }
+}
+let iosBundlePathPromise: Promise<string | null> | null = null
+
 const cueSoundAssets = {
   start: startSound,
   end: endSound,
@@ -107,16 +110,48 @@ const wait = (durationMs: number) =>
     setTimeout(resolve, durationMs)
   })
 
+const getIosBundlePath = async (): Promise<string | null> => {
+  if (!BundlePath?.getBundlePath) {
+    return null
+  }
+
+  if (!iosBundlePathPromise) {
+    iosBundlePathPromise = BundlePath.getBundlePath()
+      .then((bundlePath) => bundlePath || null)
+      .catch((error) => {
+        console.error('Failed to resolve iOS bundle path:', error)
+        return null
+      })
+  }
+
+  return iosBundlePathPromise
+}
+
+const resolveCueSoundPath = async (soundFileName: string): Promise<string> => {
+  if (Platform.OS !== 'ios') {
+    return soundFileName
+  }
+
+  const bundlePath = await getIosBundlePath()
+  if (!bundlePath) {
+    return soundFileName
+  }
+
+  return `${bundlePath}/${soundFileName}`
+}
+
 const loadCueSoundBuffer = async (
   soundName: keyof typeof cueSoundAssets
 ): Promise<AudioBuffer> => {
-  if (!cueSoundBuffers[soundName]) {
-    cueSoundBuffers[soundName] = await audioContext.decodeAudioData(
-      cueSoundAssets[soundName]
-    )
+  const cachedSoundBuffer = cueSoundBuffers[soundName]
+  if (cachedSoundBuffer) {
+    return cachedSoundBuffer
   }
 
-  return cueSoundBuffers[soundName]!
+  const cueSoundPath = await resolveCueSoundPath(cueSoundAssets[soundName])
+  const soundBuffer = await audioContext.decodeAudioData(cueSoundPath)
+  cueSoundBuffers[soundName] = soundBuffer
+  return soundBuffer
 }
 
 const playCueSound = async (

@@ -15,6 +15,10 @@
 		21140A52DFCB427391FC2D8E /* Marianne-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */; };
 		2D7131C1D1994ACA86D3B442 /* Marianne-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */; };
 		3C2C21D82F98C91B00C7EC71 /* logo-app-assistant-transcript.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3C2C21D72F98C91B00C7EC71 /* logo-app-assistant-transcript.icon */; };
+		3CA118472F90C97900888295 /* BundlePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118462F90C97900888295 /* BundlePath.swift */; };
+		3CA118482F90C97900888295 /* BundlePath.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118492F90C97900888295 /* BundlePath.m */; };
+		3C8BE5AB2FCEFEFE006893EE /* end.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3C8BE5A92FCEFEFE006893EE /* end.wav */; };
+		3C8BE5AC2FCEFEFE006893EE /* start.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3C8BE5AA2FCEFEFE006893EE /* start.wav */; };
 		3CA118432F90C97500888295 /* FileUploadModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118422F90C97500888295 /* FileUploadModule.swift */; };
 		3CA118442F90C97500888295 /* FileUploadModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118412F90C97500888295 /* FileUploadModule.m */; };
 		4519DF0B08B440398A18F497 /* Marianne-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */; };
@@ -41,10 +45,14 @@
 		3B4392A12AC88292D35C810B /* Pods-AssistantTranscripts.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AssistantTranscripts.debug.xcconfig"; path = "Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts.debug.xcconfig"; sourceTree = "<group>"; };
 		3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-BoldItalic.ttf"; path = "../assets/fonts/Marianne-BoldItalic.ttf"; sourceTree = "<group>"; };
 		3C2C21D72F98C91B00C7EC71 /* logo-app-assistant-transcript.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = "logo-app-assistant-transcript.icon"; sourceTree = "<group>"; };
+		3C8BE5A92FCEFEFE006893EE /* end.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = end.wav; sourceTree = "<group>"; };
+		3C8BE5AA2FCEFEFE006893EE /* start.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = start.wav; sourceTree = "<group>"; };
 		3CA1183F2F90C97500888295 /* AssistantTranscripts-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AssistantTranscripts-Bridging-Header.h"; sourceTree = "<group>"; };
 		3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "dictaphone-Briding-Header.h"; sourceTree = "<group>"; };
 		3CA118412F90C97500888295 /* FileUploadModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileUploadModule.m; sourceTree = "<group>"; };
 		3CA118422F90C97500888295 /* FileUploadModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUploadModule.swift; sourceTree = "<group>"; };
+		3CA118462F90C97900888295 /* BundlePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundlePath.swift; sourceTree = "<group>"; };
+		3CA118492F90C97900888295 /* BundlePath.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BundlePath.m; sourceTree = "<group>"; };
 		3CA118452F90C97800888295 /* AssistantTranscripts-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AssistantTranscripts-Bridging-Header.h"; sourceTree = "<group>"; };
 		446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Thin.ttf"; path = "../assets/fonts/Marianne-Thin.ttf"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-AssistantTranscripts.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AssistantTranscripts.release.xcconfig"; path = "Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts.release.xcconfig"; sourceTree = "<group>"; };
@@ -102,6 +110,8 @@
 				3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */,
 				3CA118412F90C97500888295 /* FileUploadModule.m */,
 				3CA118422F90C97500888295 /* FileUploadModule.swift */,
+				3CA118492F90C97900888295 /* BundlePath.m */,
+				3CA118462F90C97900888295 /* BundlePath.swift */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -133,6 +143,8 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				3C8BE5A92FCEFEFE006893EE /* end.wav */,
+				3C8BE5AA2FCEFEFE006893EE /* start.wav */,
 				13B07FAE1A68108700A75B9A /* AssistantTranscripts */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
@@ -229,6 +241,8 @@
 				75E7D6C9B0C349F28AC1B9BA /* Colors.xcassets in Resources */,
 				120AB1BFD2E12625D6736AD4 /* PrivacyInfo.xcprivacy in Resources */,
 				6F6F97D2EC694FABBD5F9165 /* Marianne-Bold.ttf in Resources */,
+				3C8BE5AB2FCEFEFE006893EE /* end.wav in Resources */,
+				3C8BE5AC2FCEFEFE006893EE /* start.wav in Resources */,
 				4519DF0B08B440398A18F497 /* Marianne-BoldItalic.ttf in Resources */,
 				2D7131C1D1994ACA86D3B442 /* Marianne-ExtraBold.ttf in Resources */,
 				D6C2676FDCA748F182094FF7 /* Marianne-ExtraBoldItalic.ttf in Resources */,
@@ -271,9 +285,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -310,9 +328,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -326,6 +348,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3CA118472F90C97900888295 /* BundlePath.swift in Sources */,
+				3CA118482F90C97900888295 /* BundlePath.m in Sources */,
 				3CA118432F90C97500888295 /* FileUploadModule.swift in Sources */,
 				3CA118442F90C97500888295 /* FileUploadModule.m in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
