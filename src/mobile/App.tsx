@@ -96,7 +96,15 @@ function App() {
               }
             }}
           >
-            <RootStack.Navigator screenOptions={{ headerShown: false }}>
+            <RootStack.Navigator
+              screenOptions={{
+                headerShown: false,
+                headerTintColor: '#000000',
+                headerStyle: {
+                  backgroundColor: '#ffffff',
+                },
+              }}
+            >
               <RootStack.Screen name="Login" component={LoginScreen} />
               <RootStack.Screen name="Main" component={RecordingsScreen} />
               <RootStack.Screen name="Info" component={InfoScreen} />
