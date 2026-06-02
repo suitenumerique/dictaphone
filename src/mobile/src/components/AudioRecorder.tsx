@@ -403,7 +403,7 @@ export const AudioRecorder = () => {
       addRecording({
         created_at: recordingStartDateTime.current!.toISOString(),
         duration_seconds: result.duration,
-        filePath: result.path,
+        filePath: result.paths[0],
         title,
         id: uuid.v4(),
         uploadingStatus: 'to_upload',
