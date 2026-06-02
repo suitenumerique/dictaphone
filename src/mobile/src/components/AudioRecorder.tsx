@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   Linking,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -62,6 +63,36 @@ const HEAVY_HAPTIC_INTERVAL_MS = 900
 const HAPTIC_OPTIONS = {
   enableVibrateFallback: true,
   ignoreAndroidSystemSettings: false,
+}
+const isAndroid = Platform.OS === 'android'
+const noopNotificationSubscription = { remove: () => {} }
+
+const showRecordingNotificationSafely = async (
+  ...args: Parameters<typeof RecordingNotificationManager.show>
+) => {
+  if (!isAndroid) {
+    return
+  }
+
+  await RecordingNotificationManager.show(...args)
+}
+
+const hideRecordingNotificationSafely = () => {
+  if (!isAndroid) {
+    return
+  }
+
+  void RecordingNotificationManager.hide()
+}
+
+const addRecordingNotificationListenerSafely = (
+  ...args: Parameters<typeof RecordingNotificationManager.addEventListener>
+) => {
+  if (!isAndroid) {
+    return noopNotificationSubscription
+  }
+
+  return RecordingNotificationManager.addEventListener(...args)
 }
 
 const waitForNextFrame = () =>
@@ -173,7 +204,7 @@ export const AudioRecorder = () => {
 
   const showRecordingNotification = useCallback(
     async (paused: boolean) => {
-      await RecordingNotificationManager.show({
+      await showRecordingNotificationSafely({
         title: t('home.recordingNotificationTitle'),
         contentText: t(
           paused
@@ -194,7 +225,7 @@ export const AudioRecorder = () => {
     audioRecorder.stop()
     audioRecorder.disableFileOutput()
     AudioManager.setAudioSessionActivity(false)
-    RecordingNotificationManager.hide()
+    hideRecordingNotificationSafely()
     // Todo delete file as option for when going back alert
   }, [])
 
@@ -353,7 +384,7 @@ export const AudioRecorder = () => {
     try {
       await waitForNextFrame()
       const result = audioRecorder.stop()
-      await RecordingNotificationManager.hide()
+      hideRecordingNotificationSafely()
       if (result.status === 'error') {
         console.warn(result.message)
         setIsStopping(false)
@@ -425,14 +456,14 @@ export const AudioRecorder = () => {
   ])
 
   useEffect(() => {
-    const pauseListener = RecordingNotificationManager.addEventListener(
+    const pauseListener = addRecordingNotificationListenerSafely(
       'recordingNotificationPause',
       () => {
         onPauseRecord()
       }
     )
 
-    const resumeListener = RecordingNotificationManager.addEventListener(
+    const resumeListener = addRecordingNotificationListenerSafely(
       'recordingNotificationResume',
       () => {
         onResumeRecord()
@@ -442,7 +473,7 @@ export const AudioRecorder = () => {
     return () => {
       pauseListener.remove()
       resumeListener.remove()
-      RecordingNotificationManager.hide()
+      hideRecordingNotificationSafely()
     }
   }, [onPauseRecord, onResumeRecord])
 
