@@ -167,7 +167,9 @@ export default function RecordingsPage() {
           </div>
         </div>
         <h2 className="sr-only">{t('myRecordings')}</h2>
-        <RecoverList />
+        <RecoverList
+          addEndSeparator={(filesQ.data?.pages?.[0]?.count ?? 0) > 0}
+        />
         <ListRecordings queryData={filesQ} />
       </div>
       <input

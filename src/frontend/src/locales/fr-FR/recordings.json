@@ -29,17 +29,17 @@
     "title": "Enregistrements locaux en attente de transfert",
     "description": "Ces enregistrements sont encore stockés dans ce navigateur.",
     "recordingLabel": "Enregistrement {{value, formatDateTimeStatic}}",
-    "badges": {
-      "local": "local",
-      "notUploaded": "Non transféré",
-      "failedToUpload": "Échec du transfert",
-      "interrupted": "Interrompu"
+    "tooltip": {
+      "notUploaded": "Enregistrement non transféré",
+      "failedToUpload": "Échec du transfert, veuillez réessayer ou télécharger l'enregistrement pour un transfert ultérieur.",
+      "interrupted": "L'enregistrement a été interrompu brutalement. Vous pouvez réessayer de transférer la partie qui a été sauvegardée."
     },
     "uploadFailed": "Le transfert a échoué.",
-    "confirmDiscard": "Supprimer cet enregistrement local ?",
+    "confirmDiscard": "Supprimer cet enregistrement local ? (attention action définitive !)",
     "actions": {
       "upload": "Transférer",
       "retry": "Réessayer",
+      "retryAriaLabel": "Réessayer le transfert de cet enregistrement",
       "download": "Télécharger",
       "discard": "Supprimer"
     }

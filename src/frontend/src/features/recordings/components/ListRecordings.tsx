@@ -1,11 +1,11 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
-import { Spinner, Warning } from '@gouvfr-lasuite/ui-kit'
+import { HorizontalSeparator, Spinner, Warning } from '@gouvfr-lasuite/ui-kit'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
 import { ApiFileItem } from '@/features/files/api/types.ts'
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 
@@ -81,55 +81,55 @@ export function ListRecordings({
           role="list"
           aria-label={t('list.title')}
         >
-          {allFiles.map((file) => (
-            <article
-              className="recordings-list__item"
-              key={file.id}
-              role="listitem"
-            >
-              <button
-                className="recordings-list__item__open"
-                onClick={() => navigate(`/recordings/${file.id}`)}
-                aria-label={t('list.openRecording', {
-                  title: file.title || file.filename,
-                })}
-              >
-                <div className="recordings-list__item__left">
-                  <div className="recordings-list__item__status">
-                    <RecordingStatus recording={file} />
-                  </div>
-                  <div className="recordings-list__item__info">
-                    <span className="recordings-list__item__title">
-                      {file.title || file.filename}
-                    </span>
-                    <div className="recordings-list__item__metadata">
-                      <span>
-                        {t('shared:utils.duration', {
-                          duration: intervalToDuration({
-                            start: 0,
-                            end: Math.max(file.duration_seconds || 1, 1) * 1000,
-                          }),
-                        })}
+          {allFiles.map((file, idx) => (
+            <Fragment key={file.id}>
+              {idx !== 0 && <HorizontalSeparator withPadding={false} />}
+              <article className="recordings-list__item" role="listitem">
+                <button
+                  className="recordings-list__item__open"
+                  onClick={() => navigate(`/recordings/${file.id}`)}
+                  aria-label={t('list.openRecording', {
+                    title: file.title || file.filename,
+                  })}
+                >
+                  <div className="recordings-list__item__left">
+                    <div className="recordings-list__item__status">
+                      <RecordingStatus recording={file} />
+                    </div>
+                    <div className="recordings-list__item__info">
+                      <span className="recordings-list__item__title">
+                        {file.title || file.filename}
                       </span>
-                      •
-                      <span>
-                        {t('shared:utils.formatDateTime', {
-                          value: file.created_at,
-                        })}
-                      </span>
+                      <div className="recordings-list__item__metadata">
+                        <span>
+                          {t('shared:utils.duration', {
+                            duration: intervalToDuration({
+                              start: 0,
+                              end:
+                                Math.max(file.duration_seconds || 1, 1) * 1000,
+                            }),
+                          })}
+                        </span>
+                        •
+                        <span>
+                          {t('shared:utils.formatDateTime', {
+                            value: file.created_at,
+                          })}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                </button>
+                <div
+                  className="recordings-list__item__actions"
+                  aria-label={t('actions.moreOptionsAriaLabel', {
+                    title: file.title || file.filename,
+                  })}
+                >
+                  <FileActionMenu file={file} />
                 </div>
-              </button>
-              <div
-                className="recordings-list__item__actions"
-                aria-label={t('actions.moreOptionsAriaLabel', {
-                  title: file.title || file.filename,
-                })}
-              >
-                <FileActionMenu file={file} />
-              </div>
-            </article>
+              </article>
+            </Fragment>
           ))}
 
           {queryData.hasNextPage && (

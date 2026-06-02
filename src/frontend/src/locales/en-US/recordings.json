@@ -29,17 +29,17 @@
     "title": "Local recordings waiting for upload",
     "description": "These recordings are still stored in this browser.",
     "recordingLabel": "Recording {{value, formatDateTimeStatic}}",
-    "badges": {
-      "local": "local",
-      "notUploaded": "Not uploaded",
-      "failedToUpload": "Failed to upload",
-      "interrupted": "Interrupted"
+    "tooltip": {
+      "notUploaded": "Recording hasn't been uploaded yet",
+      "failedToUpload": "Uploading failed, please retry or download the recording for later upload.",
+      "interrupted": "The recording was abruptly interrupted. You can retry uploading the part that has been saved."
     },
     "uploadFailed": "Upload failed.",
-    "confirmDiscard": "Discard this local recording?",
+    "confirmDiscard": "Discard this local recording? (it will be lost forever)",
     "actions": {
       "upload": "Upload",
       "retry": "Retry",
+      "retryAriaLabel": "Retry uploading this recording",
       "download": "Download",
       "discard": "Discard"
     }
