@@ -36,9 +36,9 @@ import StopIcon from '@/assets/icons/stop-recording.svg'
 import PlayIcon from '@/assets/icons/resume-recording.svg'
 import { useConfigStore } from '@/services/configStore'
 // @ts-expect-error audio asset
-import startSound from '@/assets/sounds/start.m4a'
+import startSound from '@/assets/sounds/start.wav'
 // @ts-expect-error audio asset
-import endSound from '@/assets/sounds/end.m4a'
+import endSound from '@/assets/sounds/end.wav'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'playAndRecord',
