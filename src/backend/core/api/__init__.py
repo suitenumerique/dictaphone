@@ -55,9 +55,9 @@ def get_app_configuration(request):
             "allowed_mimetypes": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
                 "allowed_mimetypes"
             ],
-            "max_duration_seconds": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-                "max_duration_seconds"
-            ],
+            "max_duration_seconds": settings.FILE_UPLOAD_RESTRICTIONS[
+                "audio_recording"
+            ]["max_duration_seconds"],
         },
         "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
         "mobile_app": {
