@@ -8,19 +8,40 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from . import models
-from .tasks.file import call_transcribe_service
+from .tasks.file import call_transcribe_service, process_file_deletion
 from .utils import generate_download_file_url
+
+
+def hard_delete_file(file):
+    """Hard delete a file, soft deleting it first when needed."""
+    if file.deleted_at is None:
+        file.soft_delete()
+    file.hard_delete()
+    process_file_deletion.delay(file.id)
+
+
+class FileInlineFormSet(forms.BaseInlineFormSet):
+    """Inline formset overriding delete behavior for files."""
+
+    def delete_existing(self, obj, commit=True):
+        """Hard delete files instead of calling model.delete()."""
+        hard_delete_file(obj)
 
 
 class FileInline(admin.TabularInline):
     """Inline class for the File model."""
 
     model = models.File
+    formset = FileInlineFormSet
     fk_name = "creator"
     extra = 0
     fields = ("id", "title", "type", "upload_state", "created_at")
-    readonly_fields = ("id", "created_at")
+    readonly_fields = ("id", "created_at", "upload_state", "type")
     show_change_link = True
+
+    def get_queryset(self, request):
+        """Hide hard deleted files in the inline."""
+        return super().get_queryset(request).filter(hard_deleted_at__isnull=True)
 
 
 class AiFileJobInline(admin.TabularInline):
@@ -174,13 +195,21 @@ class FileAdmin(admin.ModelAdmin):
         "id",
         "created_at",
         "updated_at",
+        "deleted_at",
+        "hard_deleted_at",
+        "description",
+        "malware_detection_info",
         "is_ready",
         "preview_url",
         "extension",
         "key_base",
         "file_key",
+        "upload_state",
         "source",
         "duration_seconds",
+        "type",
+        "mimetype",
+        "size",
     )
     autocomplete_fields = ("creator",)
     fieldsets = (
@@ -242,6 +271,19 @@ class FileAdmin(admin.ModelAdmin):
         return format_html(
             '<a href="{}" target="_blank" rel="noopener noreferrer">Open File</a>', url
         )
+
+    def get_queryset(self, request):
+        """Hide hard deleted files in admin listing and lookups."""
+        return super().get_queryset(request).filter(hard_deleted_at__isnull=True)
+
+    def delete_model(self, request, obj):
+        """Hard delete instead of calling model.delete()."""
+        hard_delete_file(obj)
+
+    def delete_queryset(self, request, queryset):
+        """Hard delete all selected files."""
+        for file in queryset:
+            hard_delete_file(file)
 
     @admin.action(description=_("Retry transcript generation"))
     def retry_transcript_generation(self, request, queryset):
