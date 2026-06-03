@@ -88,7 +88,11 @@ def test_api_files_media_get_own():
     assert response.content.decode("utf-8") == "my prose"
 
 
-def test_api_files_media_auth_file_pending():
+@pytest.mark.parametrize(
+    "rejecting_status",
+    [models.FileUploadStateChoices.PENDING, models.FileUploadStateChoices.ANALYZING],
+)
+def test_api_files_media_auth_rejects(rejecting_status):
     """
     Users who have a specific access to a file, whatever the role, should not be able to
     retrieve related attachments if the file is not ready.
@@ -99,7 +103,7 @@ def test_api_files_media_auth_file_pending():
 
     file = factories.FileFactory(
         type=models.FileTypeChoices.AUDIO_RECORDING,
-        upload_state=models.FileUploadStateChoices.PENDING,
+        upload_state=rejecting_status,
         creator=user,
     )
 

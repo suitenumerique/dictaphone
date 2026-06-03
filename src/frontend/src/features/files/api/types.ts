@@ -7,7 +7,7 @@ export type ApiFileCreator = {
 }
 
 export type ApiFileType = 'audio_recording'
-export type ApiFileUploadState = 'pending' | 'ready'
+export type ApiFileUploadState = 'pending' | 'ready' | 'analyzing'
 
 export type ApiFileItem = {
   id: string // UUID
