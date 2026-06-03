@@ -34,7 +34,7 @@ def process_file_deletion(file_id):
     """
     logger.info("Processing file deletion for %s", file_id)
     try:
-        file = File.objects.get(id=file_id)
+        file = File.objects.prefetch_related("ai_jobs").get(id=file_id)
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
         return
@@ -42,6 +42,10 @@ def process_file_deletion(file_id):
     if file.hard_deleted_at is None:
         logger.error("To process a file deletion, it must be hard deleted first.")
         return
+
+    for ai_job in file.ai_jobs.iterator():
+        logger.info("Deleting AI job %s for file %s", ai_job.id, file.id)
+        ai_job.delete()
 
     logger.info("Deleting file %s", file.file_key)
     default_storage.delete(file.file_key)

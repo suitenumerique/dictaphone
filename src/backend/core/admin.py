@@ -353,3 +353,12 @@ class AiFileJobAdmin(admin.ModelAdmin):
         ),
         (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )
+
+    def delete_model(self, request, obj):
+        """Delete the AI job and its storage artifact."""
+        obj.delete()
+
+    def delete_queryset(self, request, queryset):
+        """Delete selected AI jobs with per-object cleanup."""
+        for ai_job in queryset.iterator():
+            ai_job.delete()

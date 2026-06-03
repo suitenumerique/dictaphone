@@ -9,7 +9,7 @@ from django.core.files.storage import default_storage
 import pytest
 
 from core import factories
-from core.models import AiJobStatusChoices, AiJobTypeChoices
+from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices
 
 pytestmark = pytest.mark.django_db
 
@@ -62,3 +62,15 @@ def test_models_ai_job_to_markdown_summary_formats_content():
     default_storage.save(ai_job.key, BytesIO(b"Summary content"))
 
     assert ai_job.to_markdown("fr") == "# Résumé \n \n Summary content"
+
+
+def test_models_ai_job_delete_removes_storage_file():
+    """Deleting an AI job should also remove its file from storage."""
+    ai_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
+    default_storage.save(ai_job.key, BytesIO(b"Summary content"))
+
+    assert default_storage.exists(ai_job.key)
+    ai_job.delete()
+
+    assert not AiFileJob.objects.filter(id=ai_job.id).exists()
+    assert not default_storage.exists(ai_job.key)

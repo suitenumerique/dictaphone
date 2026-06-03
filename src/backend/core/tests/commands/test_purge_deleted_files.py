@@ -1,7 +1,7 @@
 """Tests for the purge_deleted_files management command."""
 
 from datetime import timedelta
-from io import StringIO
+from io import BytesIO, StringIO
 from random import randint
 from unittest.mock import patch
 
@@ -23,6 +23,7 @@ def test_purge_deleted_files_no_deleted_files(django_assert_num_queries):
         call_command("purge_deleted_files")
 
 
+@pytest.mark.django_db(transaction=True)
 def test_purge_deleted_files_success(settings):
     """
     Queue deletion for:
@@ -63,6 +64,11 @@ def test_purge_deleted_files_success(settings):
     hard_deleted_file.soft_delete()
     hard_deleted_file.hard_delete()
 
+    purgeable_file_ai_job = factories.AiFileJobFactory(file=purgeable_file)
+    hard_deleted_file_ai_job = factories.AiFileJobFactory(file=hard_deleted_file)
+    default_storage.save(purgeable_file_ai_job.key, BytesIO(b"purgeable"))
+    default_storage.save(hard_deleted_file_ai_job.key, BytesIO(b"hard_deleted"))
+
     with patch(
         "core.management.commands.purge_deleted_files.process_file_deletion.delay",
         side_effect=process_file_deletion,
@@ -78,8 +84,12 @@ def test_purge_deleted_files_success(settings):
     assert models.File.objects.filter(id=not_purgeable_file.id).exists()
     assert not models.File.objects.filter(id=purgeable_file.id).exists()
     assert not models.File.objects.filter(id=hard_deleted_file.id).exists()
+    assert not models.AiFileJob.objects.filter(id=purgeable_file_ai_job.id).exists()
+    assert not models.AiFileJob.objects.filter(id=hard_deleted_file_ai_job.id).exists()
 
     assert default_storage.exists(not_deleted_file.file_key)
     assert default_storage.exists(not_purgeable_file.file_key)
     assert not default_storage.exists(purgeable_file.file_key)
     assert not default_storage.exists(hard_deleted_file.file_key)
+    assert not default_storage.exists(purgeable_file_ai_job.key)
+    assert not default_storage.exists(hard_deleted_file_ai_job.key)

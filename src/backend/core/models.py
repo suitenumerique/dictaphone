@@ -507,6 +507,16 @@ class AiFileJob(BaseModel):
     def __str__(self):
         return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
 
+    def delete(self, using=None, keep_parents=False):
+        """Delete the AI job and its result file from object storage."""
+        logger.info(
+            "Deleted AI job %s and its result file if it exists %s", self.id, self.key
+        )
+        key = self.key
+        result = super().delete(using=using, keep_parents=keep_parents)
+        transaction.on_commit(lambda: default_storage.delete(key))
+        return result
+
     @property
     def key(self) -> str:
         """Return the S3 key for the AI job result file."""

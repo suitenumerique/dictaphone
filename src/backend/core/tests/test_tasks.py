@@ -1,5 +1,6 @@
 """Tests for background tasks."""
 
+from io import BytesIO
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -36,17 +37,35 @@ def test_task_process_file_deletion_file_not_hard_deleted():
     assert default_storage.exists(file.file_key)
 
 
+@pytest.mark.django_db(transaction=True)
 def test_task_process_file_deletion_success():
     """A hard-deleted file should be removed from storage and database."""
     file = factories.FileFactory(upload_bytes=b"hello")
     file.soft_delete()
     file.hard_delete()
 
+    ai_transcript_job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.TRANSCRIPT,
+    )
+    ai_summary_job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.SUMMARIZE,
+    )
+    default_storage.save(ai_transcript_job.key, BytesIO(b'{"segments": []}'))
+    default_storage.save(ai_summary_job.key, BytesIO(b"summary"))
+
     assert default_storage.exists(file.file_key)
+    assert default_storage.exists(ai_transcript_job.key)
+    assert default_storage.exists(ai_summary_job.key)
     process_file_deletion(file.id)
 
     assert not File.objects.filter(id=file.id).exists()
+    assert not AiFileJob.objects.filter(id=ai_transcript_job.id).exists()
+    assert not AiFileJob.objects.filter(id=ai_summary_job.id).exists()
     assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(ai_transcript_job.key)
+    assert not default_storage.exists(ai_summary_job.key)
 
 
 @patch("core.tasks.file.session.post")
