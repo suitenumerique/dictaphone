@@ -41,7 +41,13 @@ from core.tasks.file import (
     store_summary,
 )
 
-from ..models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, FileSourceChoices
+from ..models import (
+    AiFileJob,
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+    FileSourceChoices,
+    get_file_hard_delete_cutoff_datetime,
+)
 from . import permissions, serializers
 
 # pylint: disable=too-many-ancestors
@@ -252,6 +258,14 @@ class FileViewSet(
         queryset = (
             super()
             .get_queryset()
+            .exclude(
+                lifecycle_state=models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
+            )
+            .filter(
+                created_at__gt=get_file_hard_delete_cutoff_datetime(
+                    include_grace_period=False
+                ),
+            )
             .select_related("creator")
             .prefetch_related(
                 Prefetch("ai_jobs", queryset=AiFileJob.objects.order_by("-created_at"))
@@ -637,6 +651,11 @@ class AiJobViewSet(
         return queryset.filter(
             file__creator=user,
             file__hard_deleted_at__isnull=True,
+            file__created_at__gt=get_file_hard_delete_cutoff_datetime(
+                include_grace_period=False
+            ),
+        ).exclude(
+            file__lifecycle_state=models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
         )
 
     def _proxy_ai_result(self, ai_job, expected_type, content_type):
@@ -732,6 +751,12 @@ class AiJobViewSet(
             raise drf_exceptions.ValidationError(
                 {"state": "Cannot retry when there is a pending job already."},
                 code="ai_job_retry_pending",
+            )
+
+        if ai_job.file.lifecycle_state != models.FileLifecycleStateChoices.ACTIVE:
+            raise drf_exceptions.ValidationError(
+                {"state": "Cannot retry when file is not in active state."},
+                code="ai_job_retry_file_not_active",
             )
 
         new_ai_job_id = call_transcribe_service(ai_job.file_id, language=language)

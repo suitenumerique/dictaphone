@@ -1,5 +1,6 @@
 """Tests for AI job retry API endpoint."""
 
+from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -8,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
-from core.models import AiJobStatusChoices, AiJobTypeChoices
+from core.models import AiJobStatusChoices, AiJobTypeChoices, FileLifecycleStateChoices
 
 pytestmark = pytest.mark.django_db
 
@@ -32,6 +33,27 @@ def test_api_ai_jobs_retry_non_owner_not_found():
     client = APIClient()
     client.force_login(other_user)
 
+    response = client.post(
+        f"/api/v1.0/ai-jobs/{ai_job.id}/retry/",
+        {"language": "en"},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_api_ai_jobs_retry_file_past_deadline_not_found(settings):
+    """Retry should not be possible when file is past API availability deadline."""
+    settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS = 10
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        file__creator=user,
+    )
+    ai_job.file.created_at = ai_job.file.created_at - timedelta(days=11)
+    ai_job.file.save(update_fields=["created_at"])
+
+    client = APIClient()
+    client.force_login(user)
     response = client.post(
         f"/api/v1.0/ai-jobs/{ai_job.id}/retry/",
         {"language": "en"},
@@ -216,3 +238,29 @@ def test_api_ai_jobs_retry_task_returns_unknown_job_id(mock_task):
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@patch("core.api.viewsets.call_transcribe_service")
+def test_api_ai_jobs_retry_file_not_active_bad_request(mock_task):
+    """Retry should return 400 when file is not in active lifecycle state."""
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__creator=user,
+    )
+    ai_job.file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    ai_job.file.save(update_fields=["lifecycle_state"])
+
+    client = APIClient()
+    client.force_login(user)
+    response = client.post(
+        f"/api/v1.0/ai-jobs/{ai_job.id}/retry/",
+        {"language": "fr"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "state": "Cannot retry when file is not in active state.",
+    }
+    mock_task.assert_not_called()

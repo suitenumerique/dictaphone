@@ -83,6 +83,7 @@ def test_api_files_get_format():
         "updated_at": file_obj.updated_at.isoformat().replace("+00:00", "Z"),
         "type": models.FileTypeChoices.AUDIO_RECORDING,
         "upload_state": file_obj.upload_state,
+        "lifecycle_state": file_obj.lifecycle_state,
         "url": None,
         "mimetype": file_obj.mimetype,
         "filename": file_obj.filename,

@@ -11,6 +11,10 @@ from rest_framework import serializers
 from timezone_field.rest_framework import TimeZoneSerializerField
 
 from core import enums, models, utils
+from core.models import (
+    FileLifecycleStateChoices,
+    get_original_file_data_cutoff_datetime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +106,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "filename",
             "duration_seconds",
             "upload_state",
+            "lifecycle_state",
             "mimetype",
             "size",
             "description",
@@ -120,6 +125,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "filename",
             "duration_seconds",
             "upload_state",
+            "lifecycle_state",
             "mimetype",
             "size",
             "url",
@@ -130,7 +136,12 @@ class ListFileSerializer(serializers.ModelSerializer):
 
     def get_url(self, obj):
         """Return the URL of the file."""
-        if not obj.is_ready:
+        if (
+            not obj.is_ready
+            or obj.lifecycle_state != FileLifecycleStateChoices.ACTIVE
+            or obj.created_at
+            < get_original_file_data_cutoff_datetime(include_grace_period=False)
+        ):
             return None
 
         return f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}{quote(obj.file_key)}"

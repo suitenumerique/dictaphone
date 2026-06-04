@@ -179,6 +179,7 @@ class Base(Configuration):
     TRASHBIN_CUTOFF_DAYS = values.IntegerValue(
         default=30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
     )
+    # Applies only to file that were manually deleted
     PURGE_GRACE_DAYS = values.IntegerValue(
         default=7, environ_name="PURGE_GRACE_DAYS", environ_prefix=None
     )
@@ -263,6 +264,28 @@ class Base(Configuration):
             },
         },
         environ_name="FILE_UPLOAD_RESTRICTIONS",
+        environ_prefix=None,
+    )
+
+    # Data conservation related
+    ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS = values.IntegerValue(
+        31,
+        environ_name="ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS",
+        environ_prefix=None,
+    )
+    ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS = values.IntegerValue(
+        7,
+        environ_name="ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS",
+        environ_prefix=None,
+    )
+    FILE_AUTO_HARD_DELETE_AFTER_DAYS = values.IntegerValue(
+        365,
+        environ_name="FILE_AUTO_HARD_DELETE_AFTER_DAYS",
+        environ_prefix=None,
+    )
+    FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS = values.IntegerValue(
+        10,
+        environ_name="FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS",
         environ_prefix=None,
     )
 

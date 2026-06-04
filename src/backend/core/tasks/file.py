@@ -12,7 +12,13 @@ from django.utils import timezone
 import requests as requests_lib
 
 from core import analytics
-from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
+from core.models import (
+    AiFileJob,
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+    File,
+    FileLifecycleStateChoices,
+)
 from core.utils import format_transcript, generate_download_file_url
 from core.webhook_models import WhisperXResponse
 
@@ -54,6 +60,21 @@ def process_file_deletion(file_id):
 
 
 @app.task
+def process_original_file_data_deletion(file_id):
+    """Delete only original source file data and keep DB record."""
+    logger.info("Processing original file data deletion for %s", file_id)
+    try:
+        file = File.objects.get(id=file_id)
+    except File.DoesNotExist:
+        logger.error("Item %s does not exist", file_id)
+        return
+
+    default_storage.delete(file.file_key)
+    file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    file.save(update_fields=["lifecycle_state"])
+
+
+@app.task
 def call_transcribe_service(file_id, language="fr"):
     """
     Call the transcribe service for a given file.
@@ -63,6 +84,9 @@ def call_transcribe_service(file_id, language="fr"):
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
         return None
+
+    if file.lifecycle_state != FileLifecycleStateChoices.ACTIVE:
+        raise ValueError("Cannot transcribe when file is not in active state")
 
     ai_transcribe_job = AiFileJob.objects.create(
         remote_job_id=None,

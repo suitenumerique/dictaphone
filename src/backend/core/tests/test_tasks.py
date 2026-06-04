@@ -10,12 +10,19 @@ import pytest
 import requests
 
 from core import factories
-from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices, File
+from core.models import (
+    AiFileJob,
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+    File,
+    FileLifecycleStateChoices,
+)
 from core.tasks.file import (
     call_transcribe_service,
     create_document_in_docs,
     handle_transcript_received,
     process_file_deletion,
+    process_original_file_data_deletion,
     store_summary,
 )
 
@@ -68,12 +75,45 @@ def test_task_process_file_deletion_success():
     assert not default_storage.exists(ai_summary_job.key)
 
 
+def test_task_process_original_file_data_deletion_success():
+    """Original source data deletion should keep file row and set lifecycle state."""
+    file = factories.FileFactory(upload_bytes=b"hello")
+
+    assert default_storage.exists(file.file_key)
+    process_original_file_data_deletion(file.id)
+
+    file.refresh_from_db()
+    assert file.lifecycle_state == FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    assert not default_storage.exists(file.file_key)
+
+
+def test_task_process_original_file_data_deletion_missing_file():
+    """Original data deletion task should ignore missing files."""
+    process_original_file_data_deletion(uuid4())
+
+
 @patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_file_does_not_exist(mock_post):
     """External API should not be called when the file does not exist."""
     call_transcribe_service(uuid4())
 
     assert mock_post.call_count == 0
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_rejects_non_accessible_file(mock_post):
+    """No AI job should be created when file is not active anymore."""
+    file = factories.FileFactory(upload_bytes=b"hello")
+    file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    file.save(update_fields=["lifecycle_state"])
+
+    with pytest.raises(
+        ValueError, match="Cannot transcribe when file is not in active state"
+    ):
+        call_transcribe_service(file.id)
+
+    mock_post.assert_not_called()
+    assert not AiFileJob.objects.filter(file=file).exists()
 
 
 @patch("core.tasks.file.session.post")

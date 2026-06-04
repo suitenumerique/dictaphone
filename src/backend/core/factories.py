@@ -47,6 +47,7 @@ class FileFactory(factory.django.DjangoModelFactory):
         "pyfloat", positive=True, right_digits=2, max_value=3600
     )
     upload_state = None
+    lifecycle_state = models.FileLifecycleStateChoices.ACTIVE
     size = None
 
     @factory.post_generation

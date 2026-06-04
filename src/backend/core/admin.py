@@ -171,10 +171,12 @@ class FileAdmin(admin.ModelAdmin):
         "updated_at",
         "duration_seconds",
         "source",
+        "lifecycle_state",
     )
     list_filter = (
         "type",
         "upload_state",
+        "lifecycle_state",
         "created_at",
         "updated_at",
         "deleted_at",
@@ -206,6 +208,7 @@ class FileAdmin(admin.ModelAdmin):
         "file_key",
         "upload_state",
         "source",
+        "lifecycle_state",
         "duration_seconds",
         "type",
         "mimetype",
@@ -224,6 +227,7 @@ class FileAdmin(admin.ModelAdmin):
                     "filename",
                     "upload_state",
                     "source",
+                    "lifecycle_state",
                 )
             },
         ),

@@ -43,6 +43,22 @@ def get_trashbin_cutoff():
     return timezone.now() - timedelta(days=settings.TRASHBIN_CUTOFF_DAYS)
 
 
+def get_original_file_data_cutoff_datetime(*, include_grace_period: bool = False):
+    """Return cutoff datetime for original file data availability."""
+    days = settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
+    if include_grace_period:
+        days += settings.ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS
+    return timezone.now() - timedelta(days=days)
+
+
+def get_file_hard_delete_cutoff_datetime(*, include_grace_period: bool = False):
+    """Return cutoff datetime for file hard deletion."""
+    days = settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS
+    if include_grace_period:
+        days += settings.FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS
+    return timezone.now() - timedelta(days=days)
+
+
 class BaseModel(models.Model):
     """
     Serves as an abstract base model for other models, ensuring that records are validated
@@ -221,6 +237,18 @@ class FileUploadStateChoices(models.TextChoices):
     READY = "ready", _("Ready")
 
 
+class FileLifecycleStateChoices(models.TextChoices):
+    """Possible lifecycle states of a file."""
+
+    ACTIVE = "active", _("Active")
+    PENDING_ORIGINAL_DATA_DELETION = (
+        "pending_original_data_deletion",
+        _("Pending original data deletion"),
+    )
+    ORIGINAL_DATA_DELETED = "original_data_deleted", _("Original data deleted")
+    PENDING_AUTO_HARD_DELETE = "pending_auto_hard_delete", _("Pending auto hard delete")
+
+
 class FileTypeChoices(models.TextChoices):
     """Defines the possible types of a file."""
 
@@ -264,6 +292,11 @@ class File(BaseModel):
         max_length=25,
         choices=FileUploadStateChoices.choices,
     )
+    lifecycle_state = models.CharField(
+        max_length=30,
+        choices=FileLifecycleStateChoices.choices,
+        default=FileLifecycleStateChoices.ACTIVE,
+    )
     mimetype = models.CharField(max_length=255, null=True, blank=True)
     size = models.BigIntegerField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
@@ -286,6 +319,8 @@ class File(BaseModel):
         ordering = ("created_at",)
         indexes = [
             models.Index(fields=["creator", "type", "-created_at"]),
+            # To ease with the deletion queries
+            models.Index(fields=["-created_at"]),
         ]
 
     def __str__(self):
@@ -296,6 +331,7 @@ class File(BaseModel):
 
         if self.created_at is None:
             self.upload_state = FileUploadStateChoices.PENDING
+            self.lifecycle_state = FileLifecycleStateChoices.ACTIVE
 
         return super().save(*args, **kwargs)
 

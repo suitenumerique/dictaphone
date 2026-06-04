@@ -2,6 +2,7 @@
 Tests for files API endpoint in dictaphone's core app: list
 """
 
+from datetime import timedelta
 from unittest import mock
 
 from django.utils import timezone
@@ -103,6 +104,7 @@ def test_api_files_list_format():
             "updated_at": file.updated_at.isoformat().replace("+00:00", "Z"),
             "type": models.FileTypeChoices.AUDIO_RECORDING,
             "upload_state": file.upload_state,
+            "lifecycle_state": file.lifecycle_state,
             "url": None,
             "mimetype": file.mimetype,
             "filename": file.filename,
@@ -124,6 +126,67 @@ def test_api_files_list_format():
             },
         }
     ]
+
+
+def test_api_files_list_excludes_files_past_hard_delete_deadline(settings):
+    """Files older than hard-delete deadline should be excluded from API list."""
+    settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS = 10
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    visible_file = factories.FileFactory(creator=user)
+    excluded_file = factories.FileFactory(creator=user)
+    models.File.objects.filter(pk=excluded_file.pk).update(
+        created_at=timezone.now() - timedelta(days=11),
+    )
+
+    response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    returned_ids = {result["id"] for result in response.json()["results"]}
+    assert str(visible_file.id) in returned_ids
+    assert str(excluded_file.id) not in returned_ids
+
+
+def test_api_files_list_excludes_pending_auto_hard_delete_files():
+    """Files pending auto hard delete should not be listed."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    visible_file = factories.FileFactory(creator=user)
+    excluded_file = factories.FileFactory(creator=user)
+    excluded_file.lifecycle_state = (
+        models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
+    )
+    excluded_file.save(update_fields=["lifecycle_state"])
+
+    response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    returned_ids = {result["id"] for result in response.json()["results"]}
+    assert str(visible_file.id) in returned_ids
+    assert str(excluded_file.id) not in returned_ids
+
+
+def test_api_files_list_has_url_for_ready_active_file(settings):
+    """Ready active files newer than original-data cutoff should expose media URL."""
+    settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS = 10
+    user = factories.UserFactory()
+    file = factories.FileFactory(creator=user)
+    file.upload_state = models.FileUploadStateChoices.READY
+    file.save(update_fields=["upload_state"])
+
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    result = response.json()["results"][0]
+    assert result["id"] == str(file.id)
+    assert result["url"] is not None
 
 
 @mock.patch.object(PageNumberPagination, "get_page_size", return_value=2)
