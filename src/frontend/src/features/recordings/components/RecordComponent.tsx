@@ -1,4 +1,6 @@
+import { RecordingPictureInPicturePanel } from '@/features/recordings/components/RecordingPictureInPicturePanel.tsx'
 import { SignalLevelMeter } from '@/features/recordings/components/SignalLevelMeter.tsx'
+import { useDocumentPictureInPicture } from '@/features/recordings/hooks/useDocumentPictureInPicture.tsx'
 import { useRecordingController } from '@/features/recordings/hooks/useRecordingController.ts'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
@@ -46,6 +48,13 @@ export default function RecordComponent() {
     resumeRecording,
     stopAndDispose,
     switchAudioInput,
+    tabAudioRequested,
+    tabAudioSupported,
+    tabAudioActive,
+    tabAudioLabel,
+    setTabAudioRequested,
+    enableTabAudioCapture,
+    disableTabAudioCapture,
   } = useRecordingController(true)
 
   const [, navigate] = useLocation()
@@ -53,27 +62,36 @@ export default function RecordComponent() {
     recorderState === 'recording' || recorderState === 'paused'
   const isStarting = recorderState === 'starting'
   const isStopping = recorderState === 'stopping'
-
   const isBusy = isStarting || isRecordingInProgress || isStopping
+  const durationLabel = formatDuration(recordingDurationMs)
+
   useDisablePageRefresh(isBusy, t('record:preventGoBackAlert'))
 
   const [openInputSelection, setOpenInputSelection] = useState(false)
+  const audioInputLabels = useMemo(
+    () =>
+      audioInputs.map((input, index) => ({
+        deviceId: input.deviceId,
+        label:
+          input.label ||
+          t('record:source.fallbackLabel', {
+            index: index + 1,
+          }),
+      })),
+    [audioInputs, t]
+  )
   const audioInputOptions = useMemo<DropdownMenuOption[]>(
     () =>
-      audioInputs.map(
-        (input, index) =>
+      audioInputLabels.map(
+        (input) =>
           ({
             value: input.deviceId,
             isChecked: input.deviceId === selectedAudioInputId,
             callback: () => switchAudioInput(input.deviceId),
-            label:
-              input.label ||
-              t('record:source.fallbackLabel', {
-                index: index + 1,
-              }),
+            label: input.label,
           }) satisfies DropdownMenuOption
       ),
-    [audioInputs, selectedAudioInputId, switchAudioInput, t]
+    [audioInputLabels, selectedAudioInputId, switchAudioInput]
   )
   const selectedSourceLabel = useMemo(
     () => audioInputOptions.find((option) => option.isChecked)?.label,
@@ -144,6 +162,55 @@ export default function RecordComponent() {
     }
   }, [isRecordingInProgress, navigate, stopAndDispose])
 
+  const handleTabAudioAction = useCallback(async () => {
+    if (tabAudioActive) {
+      await disableTabAudioCapture()
+      return
+    }
+    await enableTabAudioCapture()
+  }, [disableTabAudioCapture, enableTabAudioCapture, tabAudioActive])
+
+  const {
+    portal: pictureInPicturePortal,
+    openWindow: openPictureInPictureWindow,
+    isOpen: isPictureInPictureOpen,
+    supported: isPictureInPictureSupported,
+  } = useDocumentPictureInPicture({
+    enabled: isRecordingInProgress,
+    width: 980,
+    height: 110,
+    children: (
+      <RecordingPictureInPicturePanel
+        statusLabel={statusLabel}
+        durationLabel={durationLabel}
+        analyserNode={analyserNode}
+        isRecording={recorderState === 'recording'}
+        isPaused={isPaused}
+        onPauseResume={() =>
+          void (isPaused ? resumeRecording() : pauseRecording())
+        }
+        onStop={() => void handleStop()}
+        audioInputs={audioInputLabels}
+        selectedAudioInputId={selectedAudioInputId}
+        onSelectAudioInput={(deviceId) => void switchAudioInput(deviceId)}
+        sourceLabel={t('record:pip.source')}
+        tabAudioSupported={tabAudioSupported}
+        tabAudioLabel={tabAudioLabel}
+        tabAudioButtonLabel={
+          tabAudioActive
+            ? t('record:tabAudio.remove')
+            : t('record:tabAudio.add')
+        }
+        onTabAudioAction={() => void handleTabAudioAction()}
+        soundLevelAriaLabel={t('record:source.signalLevelAriaLabel')}
+        noSoundDetectedLabel={t('record:source.noSoundDetected')}
+        lowSoundLabel={t('record:source.lowSound')}
+        soundOkLabel={t('record:source.soundOk')}
+        tabAudioStatusLabel={t('record:pip.tabAudio')}
+      />
+    ),
+  })
+
   return (
     <div className="record-component">
       <div className="record-component__content">
@@ -186,7 +253,7 @@ export default function RecordComponent() {
               recorderState === 'paused' ? 'paused' : ''
             )}
           >
-            {formatDuration(recordingDurationMs)}
+            {durationLabel}
           </p>
         </div>
         <div className="record-component__footer">
@@ -227,6 +294,38 @@ export default function RecordComponent() {
                 ? t('record:status.requestingPermission')
                 : t('record:startRecording')}
             </Button>
+          )}
+
+          {isRecordingInProgress && tabAudioSupported && (
+            <Button
+              color="neutral"
+              variant="tertiary"
+              size="nano"
+              onClick={() => void handleTabAudioAction()}
+            >
+              {tabAudioActive
+                ? t('record:tabAudio.remove')
+                : t('record:tabAudio.add')}
+            </Button>
+          )}
+
+          {isRecordingInProgress &&
+            isPictureInPictureSupported &&
+            !isPictureInPictureOpen && (
+              <Button
+                color="neutral"
+                variant="tertiary"
+                size="nano"
+                onClick={() => void openPictureInPictureWindow()}
+              >
+                {t('record:pip.open')}
+              </Button>
+            )}
+
+          {tabAudioSupported && tabAudioActive && tabAudioLabel && (
+            <p className="record-component__tab-audio-label">
+              {t('record:tabAudio.activeLabel', { label: tabAudioLabel })}
+            </p>
           )}
 
           <div className="record-component__controls">
@@ -275,6 +374,7 @@ export default function RecordComponent() {
           {recordingError}
         </div>
       )}
+      {pictureInPicturePortal}
     </div>
   )
 }

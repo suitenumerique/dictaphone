@@ -1,0 +1,79 @@
+.record-pip-panel {
+  font-family: 'Marianne', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  color: #1b1f27;
+  background: #fff;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.record-pip-panel__status {
+  color: #e32c39;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.record-pip-panel__meter {
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.record-pip-panel__meter .signal-level-meter-container {
+  gap: 0.25rem;
+}
+
+.record-pip-panel__meter .signal-level-meter {
+  height: 1.5rem;
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.record-pip-panel__meter .signal-level-meter__status {
+  margin: 0;
+  font-size: 0.6875rem;
+}
+
+.record-pip-panel__timer {
+  font-weight: 700;
+  font-size: 0.875rem;
+  min-width: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-pip-panel__field {
+  display: inline-flex;
+}
+
+.record-pip-panel__field select {
+  border: 1px solid #cfd5de;
+  border-radius: 4px;
+  padding: 0.25rem 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  background: #fff;
+  min-width: 130px;
+  max-width: 180px;
+}
+
+.record-pip-panel__tab-audio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.record-pip-panel__tab-audio strong {
+  color: #3a404c;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.record-pip-panel__actions {
+  display: inline-flex;
+  gap: 0.375rem;
+}
