@@ -59,6 +59,10 @@ def get_app_configuration(request):
                 "audio_recording"
             ]["max_duration_seconds"],
         },
+        "data_policy": {
+            "file_auto_hard_delete_after_days": settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS,
+            "original_file_data_delete_after_days": settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS,
+        },
         "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
         "mobile_app": {
             "ios_download_link": settings.MOBILE_APP_IOS_DOWNLOAD_LINK,
