@@ -1,4 +1,4 @@
 apiVersion: v2
 type: application
 name: dictaphone
-version: 0.1.0
+version: 0.2.0

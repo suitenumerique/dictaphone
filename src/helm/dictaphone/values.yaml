@@ -218,6 +218,18 @@ backend:
   ## @param backend.cronjobs[1].command The bash command to execute in the CronJob
 
   cronjobs:
+    - name: delete-original-files-data
+      schedule: "1 0 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "python manage.py delete_original_files_data"
+    - name: auto-hard-delete-files
+      schedule: "15 0 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "python manage.py auto_hard_delete_files"
     - name: clean-pending-files
       schedule: "30 0 * * *"
       command:
