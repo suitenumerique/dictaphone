@@ -10,7 +10,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth/api/useUser'
 import { DownloadMobileAppPopUp } from '@/layout/DownloadMobileAppPopUp'
-import { useConfig } from '@/api/useConfig'
 
 const legalKeys = [
   'accessibility',
@@ -26,13 +25,6 @@ export function HelpMenu() {
     useState(false)
   const { t, i18n } = useTranslation('layout')
   const user = useUser()
-
-  const { data } = useConfig()
-
-  // we should remove this once the store are live to avoid moving elements
-  const forceHideMobileStuff =
-    !data?.mobile_app?.ios_download_link ||
-    !data?.mobile_app?.android_download_link
 
   useEffect(() => {
     if (user.user?.flag_show_mobile_app_popup) {
@@ -79,7 +71,7 @@ export function HelpMenu() {
   return (
     <aside aria-label={t('info.help.asideAriaLabel')}>
       <DownloadMobileAppPopUp
-        open={openDownloadMobileAppPopUp && !forceHideMobileStuff}
+        open={openDownloadMobileAppPopUp}
         setOpen={handleCloseMobileAppPopup}
       />
       <DropdownMenu
@@ -95,15 +87,11 @@ export function HelpMenu() {
               },
             })),
           },
-          ...(forceHideMobileStuff
-            ? []
-            : [
-                {
-                  icon: <span className="material-icons">devices</span>,
-                  label: t('info.help.mobileApp'),
-                  callback: () => setOpenDownloadMobileAppPopUp(true),
-                },
-              ]),
+          {
+            icon: <span className="material-icons">devices</span>,
+            label: t('info.help.mobileApp'),
+            callback: () => setOpenDownloadMobileAppPopUp(true),
+          },
           {
             icon: <DocLink />,
             label: t('info.help.documentation'),
