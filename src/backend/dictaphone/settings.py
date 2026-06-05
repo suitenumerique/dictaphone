@@ -754,6 +754,45 @@ class Base(Configuration):
         "BLACKLIST_AFTER_ROTATION": True,
     }
 
+    # Logging
+    # We want to make it easy to log to console but by default we log production
+    # to Sentry and don't want to log to console.
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "simple": {
+                "format": "{asctime} {name} {levelname} {message}",
+                "style": "{",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        # Override root logger to send it to console
+        "root": {
+            "handlers": ["console"],
+            "level": values.Value(
+                "INFO", environ_name="LOGGING_LEVEL_LOGGERS_ROOT", environ_prefix=None
+            ),
+        },
+        "loggers": {
+            "core": {
+                "handlers": ["console"],
+                "level": values.Value(
+                    "INFO",
+                    environ_name="LOGGING_LEVEL_LOGGERS_APP",
+                    environ_prefix=None,
+                ),
+                "propagate": False,
+            },
+        },
+    }
+
     # pylint: disable=invalid-name
     @property
     def ENVIRONMENT(self):
