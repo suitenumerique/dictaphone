@@ -40,6 +40,12 @@ function AuthCallbackScreen() {
   useEffect(() => {
     const params = route.params ?? {}
 
+    if (params.logout) {
+      void clearAuthState()
+      resetNavigationHistory('Login')
+      return
+    }
+
     if (!params.code || !params.state) {
       console.error('OAuth callback is missing authorization code or state')
       void clearAuthState()
