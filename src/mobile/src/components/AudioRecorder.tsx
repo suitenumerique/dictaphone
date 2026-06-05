@@ -17,6 +17,7 @@ import {
   AudioContext,
   AudioManager,
   AudioRecorder as AudioRecorderApi,
+  FileDirectory,
   FileFormat,
   FilePreset,
   RecordingNotificationManager,
@@ -271,6 +272,8 @@ export const AudioRecorder = () => {
         audioRecorder.enableFileOutput({
           format: FileFormat.M4A,
           preset: FilePreset.High,
+          directory: FileDirectory.Document,
+          subDirectory: 'Assistant Transcripts',
         })
       }
     })
