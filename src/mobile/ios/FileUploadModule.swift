@@ -107,6 +107,25 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
     }
   }
 
+  @objc func deleteLocalFile(_ filePath: String,
+                             resolver: @escaping RCTPromiseResolveBlock,
+                             rejecter: @escaping RCTPromiseRejectBlock) {
+    let normalizedPath = normalizePath(filePath)
+    let fileManager = FileManager.default
+
+    guard fileManager.fileExists(atPath: normalizedPath) else {
+      resolver(nil)
+      return
+    }
+
+    do {
+      try fileManager.removeItem(atPath: normalizedPath)
+      resolver(nil)
+    } catch {
+      rejecter("DELETE_ERROR", "Unable to delete local file", error)
+    }
+  }
+
   override func supportedEvents() -> [String]! {
     [FileUploadModule.uploadProgressEvent]
   }

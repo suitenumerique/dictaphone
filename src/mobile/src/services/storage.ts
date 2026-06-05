@@ -10,6 +10,7 @@ import { keys } from '@/api/queryKeys'
 import { mmkvStorage } from '@/services/index'
 import omit from '@/utils/omit'
 import { useUserStore } from '@/services/userStore'
+import { deleteLocalRecordingFile } from '@/utils/deleteLocalRecordingFile'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -147,17 +148,29 @@ const startRecordingsUploadManager = () => {
 
 export const useRecordingsStore = create<RecordingsStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       hasHydrated: false,
       recordings: [],
       addRecording: (recording) =>
         set((state) => ({ recordings: [recording, ...state.recordings] })),
-      deleteRecording: (recordingId) =>
+      deleteRecording: (recordingId) => {
+        const recording = get().recordings.find(
+          (item) => item.id === recordingId
+        )
+        if (recording) {
+          deleteLocalRecordingFile(recording.filePath).catch((error) => {
+            console.error(
+              `Failed to delete local recording file for id "${recordingId}":`,
+              error
+            )
+          })
+        }
         set((state) => ({
           recordings: state.recordings.filter(
-            (recording) => recording.id !== recordingId
+            (stateRecording) => stateRecording.id !== recordingId
           ),
-        })),
+        }))
+      },
       updateRecording: (id, data) =>
         set((state) => ({
           recordings: state.recordings.map((recording) =>

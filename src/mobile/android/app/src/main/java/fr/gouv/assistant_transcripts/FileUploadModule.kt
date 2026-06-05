@@ -90,7 +90,7 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     fun shareAudioFile(filePath: String, fileName: String, promise: Promise) {
         thread {
             try {
-                val sourceFile = File(filePath)
+                val sourceFile = File(normalizePath(filePath))
                 if (!sourceFile.exists() || !sourceFile.isFile) {
                     promise.reject("FILE_NOT_FOUND", "Recording file does not exist")
                     return@thread
@@ -127,6 +127,27 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
                 promise.resolve(null)
             } catch (e: Exception) {
                 promise.reject("SHARE_ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun deleteLocalFile(filePath: String, promise: Promise) {
+        thread {
+            try {
+                val file = File(normalizePath(filePath))
+                if (!file.exists()) {
+                    promise.resolve(null)
+                    return@thread
+                }
+
+                if (file.delete()) {
+                    promise.resolve(null)
+                } else {
+                    promise.reject("DELETE_ERROR", "Unable to delete local file")
+                }
+            } catch (e: Exception) {
+                promise.reject("DELETE_ERROR", e.message, e)
             }
         }
     }
@@ -170,5 +191,10 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         val trimmed = fileName.trim().ifEmpty { "recording.m4a" }
         val withExtension = if (trimmed.lowercase().endsWith(".m4a")) trimmed else "$trimmed.m4a"
         return withExtension.replace(Regex("""[\\/:*?"<>|]"""), "_")
+    }
+
+    private fun normalizePath(path: String): String {
+        val prefix = "file://"
+        return if (path.startsWith(prefix)) path.removePrefix(prefix) else path
     }
 }
