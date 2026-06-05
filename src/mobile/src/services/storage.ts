@@ -10,7 +10,11 @@ import { keys } from '@/api/queryKeys'
 import { mmkvStorage } from '@/services/index'
 import omit from '@/utils/omit'
 import { useUserStore } from '@/services/userStore'
-import { deleteLocalRecordingFile } from '@/utils/deleteLocalRecordingFile'
+import {
+  deleteLocalRecordingFile,
+  localRecordingFileExists,
+} from '@/utils/deleteLocalRecordingFile'
+import i18n from '@/i18n'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -19,15 +23,64 @@ const defaultSettings: AppSettings = {
 
 const recordingListSchema = z.array(recordingSchema)
 
+const removeMissingLocalRecordingsAfterHydration = async (
+  recordings: LocalRecording[]
+): Promise<void> => {
+  const missingRecordings: LocalRecording[] = []
+
+  for (const recording of recordings) {
+    try {
+      const fileExists = await localRecordingFileExists(recording.filePath)
+      if (!fileExists) {
+        missingRecordings.push(recording)
+      }
+    } catch (error) {
+      console.error(
+        `Failed to check local recording file for id "${recording.id}":`,
+        error
+      )
+    }
+  }
+
+  if (missingRecordings.length === 0) {
+    return
+  }
+
+  const missingRecordingIdsSet = new Set(
+    missingRecordings.map((recording) => recording.id)
+  )
+  const removedFileList = missingRecordings
+    .map((recording) => {
+      const trimmedTitle = recording.title.trim()
+      return `• ${
+        trimmedTitle.length > 0
+          ? trimmedTitle
+          : i18n.t('recordings.missingFiles.untitledFallback')
+      }`
+    })
+    .join('\n')
+
+  useRecordingsStore.setState((state) => ({
+    recordings: state.recordings.filter(
+      (recording) => !missingRecordingIdsSet.has(recording.id)
+    ),
+    missingFilesPending: state.missingFilesPending
+      ? `${state.missingFilesPending}\n${removedFileList}`
+      : removedFileList,
+  }))
+}
+
 export interface RecordingsStore {
   hasHydrated: boolean
   recordings: LocalRecording[]
+  missingFilesPending: string | null
   addRecording: (recording: LocalRecording) => void
   deleteRecording: (recordingId: string) => void
   updateRecording: (
     id: string,
     data: Partial<Omit<LocalRecording, 'id'>>
   ) => void
+  clearMissingFilesPending: () => void
 }
 
 export interface SettingsStore {
@@ -151,6 +204,7 @@ export const useRecordingsStore = create<RecordingsStore>()(
     (set, get) => ({
       hasHydrated: false,
       recordings: [],
+      missingFilesPending: null,
       addRecording: (recording) =>
         set((state) => ({ recordings: [recording, ...state.recordings] })),
       deleteRecording: (recordingId) => {
@@ -177,12 +231,14 @@ export const useRecordingsStore = create<RecordingsStore>()(
             recording.id === id ? { ...recording, ...data } : recording
           ),
         })),
+      clearMissingFilesPending: () => set({ missingFilesPending: null }),
     }),
     {
       name: 'recordings',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
-      partialize: (state) => omit(state, ['hasHydrated']),
+      partialize: (state) =>
+        omit(state, ['hasHydrated', 'missingFilesPending']),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
@@ -191,10 +247,19 @@ export const useRecordingsStore = create<RecordingsStore>()(
               parsed.data.map((el) => ({
                 ...el,
                 uploadingStatus: 'to_upload',
-                uploadPercentage: undefined,
+                uploadProgress: undefined,
               }))
             : []
           state.hasHydrated = true
+
+          removeMissingLocalRecordingsAfterHydration(state.recordings).catch(
+            (error) => {
+              console.error(
+                'Failed to cleanup missing local recordings after rehydration:',
+                error
+              )
+            }
+          )
         } else {
           useRecordingsStore.setState({ hasHydrated: true })
         }

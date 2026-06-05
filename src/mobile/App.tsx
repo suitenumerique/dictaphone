@@ -1,6 +1,6 @@
 import './src/i18n/index'
 import React, { useEffect } from 'react'
-import { StatusBar } from 'react-native'
+import { Alert, AppState, StatusBar } from 'react-native'
 import {
   NavigationContainer,
   RouteProp,
@@ -25,6 +25,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { AppInitialization } from '@/components/AppInitialization'
 import { logPosthogScreenChange } from '@/features/analytics/hooks/useAnalytics'
 import { UpdateModal } from '@/features/config/UpdateModal'
+import { useRecordingsStore } from '@/services/storage'
+import { useTranslation } from 'react-i18next'
 
 const RootStack = createNativeStackNavigator<RootStackParamList>()
 
@@ -66,11 +68,51 @@ function AuthCallbackScreen() {
   return null
 }
 
+function MissingFilesAlertHandler() {
+  const {t} = useTranslation()
+  const missingFilesPending = useRecordingsStore(
+    (state) => state.missingFilesPending
+  )
+  const clearMissingFilesPending = useRecordingsStore(
+    (state) => state.clearMissingFilesPending
+  )
+  const appStateRef = React.useRef(AppState.currentState)
+
+  const showMissingFilesAlertIfPossible = React.useCallback(() => {
+    if (appStateRef.current !== 'active' || !missingFilesPending) {
+      return
+    }
+
+    Alert.alert(
+      t('recordings.missingFiles.title'),
+      t('recordings.missingFiles.message', { files: missingFilesPending })
+    )
+    clearMissingFilesPending()
+  }, [clearMissingFilesPending, missingFilesPending, t])
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      appStateRef.current = nextState
+      if (nextState === 'active') {
+        showMissingFilesAlertIfPossible()
+      }
+    })
+    return () => subscription.remove()
+  }, [showMissingFilesAlertIfPossible])
+
+  useEffect(() => {
+    showMissingFilesAlertIfPossible()
+  }, [showMissingFilesAlertIfPossible])
+
+  return null
+}
+
 function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AppInitialization>
+          <MissingFilesAlertHandler />
           <StatusBar barStyle="dark-content" />
           <NavigationContainer
             onReady={() => {

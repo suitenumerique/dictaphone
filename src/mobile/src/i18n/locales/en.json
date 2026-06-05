@@ -60,6 +60,11 @@
     "syncNow": "Sync now",
     "syncNowHint": "Transfer pending recordings using current network connection",
     "listFooter": "No other recordings",
+    "missingFiles": {
+      "title": "Recordings removed",
+      "message": "Some local recordings were removed because their audio files are no longer available on this device:\n{{files}}",
+      "untitledFallback": "Untitled recording"
+    },
     "meta": {
       "loginToSync": "Login to sync",
       "offline": "Will sync when online",

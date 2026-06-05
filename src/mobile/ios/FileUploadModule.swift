@@ -126,6 +126,14 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
     }
   }
 
+  @objc func localFileExists(_ filePath: String,
+                             resolver: @escaping RCTPromiseResolveBlock,
+                             rejecter: @escaping RCTPromiseRejectBlock) {
+    let normalizedPath = normalizePath(filePath)
+    let fileExists = FileManager.default.fileExists(atPath: normalizedPath)
+    resolver(fileExists)
+  }
+
   override func supportedEvents() -> [String]! {
     [FileUploadModule.uploadProgressEvent]
   }

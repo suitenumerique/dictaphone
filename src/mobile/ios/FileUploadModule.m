@@ -19,4 +19,8 @@ RCT_EXTERN_METHOD(deleteLocalFile:(NSString *)filePath
         resolver:(RCTPromiseResolveBlock)resolver
         rejecter:(RCTPromiseRejectBlock)rejecter)
 
+RCT_EXTERN_METHOD(localFileExists:(NSString *)filePath
+        resolver:(RCTPromiseResolveBlock)resolver
+        rejecter:(RCTPromiseRejectBlock)rejecter)
+
 @end

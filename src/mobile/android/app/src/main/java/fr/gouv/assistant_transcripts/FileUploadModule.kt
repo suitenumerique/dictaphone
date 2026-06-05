@@ -152,6 +152,18 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    @ReactMethod
+    fun localFileExists(filePath: String, promise: Promise) {
+        thread {
+            try {
+                val file = File(normalizePath(filePath))
+                promise.resolve(file.exists() && file.isFile)
+            } catch (e: Exception) {
+                promise.reject("FILE_EXISTS_ERROR", e.message, e)
+            }
+        }
+    }
+
     private fun sendProgress(uploadId: String, uploadedBytes: Long, totalBytes: Long) {
         val params = Arguments.createMap().apply {
             putString("uploadId", uploadId)

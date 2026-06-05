@@ -60,6 +60,11 @@
     "syncNow": "Synchroniser maintenant",
     "syncNowHint": "Transférer les enregistrements en attente avec le réseau actuel",
     "listFooter": "Pas d'autres enregistrements",
+    "missingFiles": {
+      "title": "Enregistrements supprimés",
+      "message": "Certains enregistrements locaux ont été supprimés car leurs fichiers audio ne sont plus disponibles sur cet appareil :\n{{files}}",
+      "untitledFallback": "Enregistrement sans titre"
+    },
     "meta": {
       "loginToSync": "Se connecter pour synchroniser",
       "offline": "Synchronisera une fois en ligne",
