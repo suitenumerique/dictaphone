@@ -20,7 +20,6 @@ import {
   FileDirectory,
   FileFormat,
   FilePreset,
-  RecordingNotificationManager,
 } from 'react-native-audio-api'
 import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { formatDuration } from '@/features/recordings/utils/formatDuration'
@@ -79,32 +78,54 @@ const HAPTIC_OPTIONS = {
 const isAndroid = Platform.OS === 'android'
 const noopNotificationSubscription = { remove: () => {} }
 
+type RecordingNotificationManagerType =
+  typeof import('react-native-audio-api').RecordingNotificationManager
+let recordingNotificationManager: RecordingNotificationManagerType | null = null
+
+const getRecordingNotificationManager =
+  (): RecordingNotificationManagerType | null => {
+    if (!isAndroid) {
+      return null
+    }
+
+    if (!recordingNotificationManager) {
+      recordingNotificationManager =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('react-native-audio-api').RecordingNotificationManager
+    }
+
+    return recordingNotificationManager
+  }
+
 const showRecordingNotificationSafely = async (
-  ...args: Parameters<typeof RecordingNotificationManager.show>
+  ...args: Parameters<RecordingNotificationManagerType['show']>
 ) => {
-  if (!isAndroid) {
+  const manager = getRecordingNotificationManager()
+  if (!manager) {
     return
   }
 
-  await RecordingNotificationManager.show(...args)
+  await manager.show(...args)
 }
 
 const hideRecordingNotificationSafely = () => {
-  if (!isAndroid) {
+  const manager = getRecordingNotificationManager()
+  if (!manager) {
     return
   }
 
-  void RecordingNotificationManager.hide()
+  void manager.hide()
 }
 
 const addRecordingNotificationListenerSafely = (
-  ...args: Parameters<typeof RecordingNotificationManager.addEventListener>
+  ...args: Parameters<RecordingNotificationManagerType['addEventListener']>
 ) => {
-  if (!isAndroid) {
+  const manager = getRecordingNotificationManager()
+  if (!manager) {
     return noopNotificationSubscription
   }
 
-  return RecordingNotificationManager.addEventListener(...args)
+  return manager.addEventListener(...args)
 }
 
 type RecorderPhase =
