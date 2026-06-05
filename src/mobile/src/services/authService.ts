@@ -113,7 +113,7 @@ export async function clearAuthState(): Promise<void> {
   // We reset all queries on clearAuthState to ensure fresh data
   // But we do it at most once every 30 seconds to avoid excessive network traffic
   if (lastQueryResetMs === null || Date.now() - lastQueryResetMs > 30 * 1000) {
-    queryClient.resetQueries()
+    void queryClient.resetQueries()
     lastQueryResetMs = Date.now()
   }
 }

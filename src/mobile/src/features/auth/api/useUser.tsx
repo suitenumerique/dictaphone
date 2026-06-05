@@ -77,6 +77,8 @@ export const useUser = () => {
 
   const logout = useCallback(async () => {
     terminateAnalyticsSession()
+    clearCachedUser()
+    await clearAuthState()
 
     try {
       await InAppBrowser.openAuth(
@@ -114,9 +116,7 @@ export const useUser = () => {
         }
       )
     } finally {
-      await clearAuthState()
-      clearCachedUser()
-      queryClient.resetQueries()
+      await queryClient.resetQueries()
     }
   }, [clearCachedUser])
 

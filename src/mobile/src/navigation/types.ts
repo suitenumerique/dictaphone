@@ -8,6 +8,7 @@ export type RootStackParamList = {
     | {
         code?: string
         state?: string
+        logout?: string
       }
     | undefined
 }
