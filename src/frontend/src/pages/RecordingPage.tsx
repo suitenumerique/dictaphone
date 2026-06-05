@@ -211,8 +211,7 @@ export default function RecordingPage({
                   />
                   <span>
                     {t('shared:utils.formatDate', {
-                      // value: recording.created_at,
-                      value: '2024-04-12',
+                      value: recording.created_at,
                     })}
                   </span>
                 </div>
