@@ -8,6 +8,7 @@ import {
   format,
   isThisYear,
   isToday,
+  isTomorrow,
   isYesterday,
   setDefaultOptions,
 } from 'date-fns'
@@ -139,7 +140,9 @@ i18n
       return format(value, options?.formatStr ?? 'Pp')
     })
     i18n.services.formatter!.add('formatDate', (value, lng, options) => {
-      if (isToday(value)) {
+      if (isTomorrow(value)) {
+        return i18n.t('shared:dates.tomorrow')
+      } else if (isToday(value)) {
         return i18n.t('shared:dates.today')
       } else if (isYesterday(value)) {
         return i18n.t('shared:dates.yesterday')

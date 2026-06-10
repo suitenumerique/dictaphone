@@ -13,7 +13,10 @@
   "uploadButtonAriaLabel": "Upload recordings",
   "uploadInputAriaLabel": "Upload audio recordings",
   "metadata": {
-    "ariaLabel": "Recording metadata"
+    "ariaLabel": "Recording metadata",
+    "audioKeptUntil": "Audio recording is kept until {{value, formatDate}}",
+    "fileKeptUntil": "Transcript is kept until {{value, formatDate}}",
+    "dataPolicyTooltip": "Your recordings are kept on our servers for {{originalDataKeptFor}} days. The transcripts (text) are kept for {{transcriptDataKeptFor}} days."
   },
   "uploadTooltip": {
     "title": "Upload files",
@@ -131,9 +134,9 @@
     "copySuccess": "Transcript copied to clipboard",
     "copyError": "Failed to copy transcript to clipboard",
     "status": {
-      "pending": "Transcript is still being generated.",
-      "failed": "Transcript generation failed.",
-      "empty": "Transcript is empty."
+      "pending": "Transcript is still being generated",
+      "failed": "Transcript generation failed",
+      "empty": "Transcript is empty"
     },
     "statusPreview": {
       "pending": "Pending transcription",

@@ -13,13 +13,13 @@ import {
   Badge,
   Calendar2,
   Clock,
+  ClockArrowCirclepath,
   Copy,
-  Shared,
   useResponsive,
 } from '@gouvfr-lasuite/ui-kit'
 import { useTranslation } from 'react-i18next'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { useOpenInDocsMutation } from '@/features/ai-jobs/api/fetch.ts'
 import { useLocation } from 'wouter'
@@ -32,6 +32,7 @@ import {
   addToast,
   ToasterItem,
 } from '@/features/ui/components/toaster/Toaster.tsx'
+import { useConfig } from '@/api/useConfig'
 
 function OpenInDocsButton({
   lastAiJobTranscript,
@@ -61,9 +62,10 @@ function OpenInDocsButton({
       size="small"
       variant="secondary"
       disabled={
-        openInDocs.isPending ||
-        lastAiJobTranscript?.status !== 'success' ||
-        !lastAiJobTranscript?.docs_app_id
+        false
+        // openInDocs.isPending ||
+        // lastAiJobTranscript?.status !== 'success' ||
+        // !lastAiJobTranscript?.docs_app_id
       }
       aria-label={t('transcript.openInDocsCta')}
       icon={<ArrowUpRight />}
@@ -85,19 +87,9 @@ export default function RecordingPage({
     TranscriptViewSegment[]
   >([])
 
-  const numberOfParticipants = useMemo(() => {
-    if (transcriptSegments.length === 0) {
-      return null
-    } else {
-      const speakers = new Set<string>(
-        transcriptSegments.map((el) => el.speaker).filter(Boolean) as string[]
-      )
-      return speakers.size
-    }
-  }, [transcriptSegments])
-
   const recordingQ = useGetFile(recordingId)
   const recording = recordingQ.data
+  const { data } = useConfig()
 
   const { lastAiJobTranscript } = useMemo(
     () => getMainAiJobs(recordingQ.data?.ai_jobs),
@@ -196,75 +188,86 @@ export default function RecordingPage({
             />
           </div>
         </div>
-        <h1 className="recording-page__title">{recording.title}</h1>
-        <table
-          className="recording-page__metadata"
-          aria-label={t('metadata.ariaLabel')}
-        >
-          <tbody>
-            <tr>
-              <td>
-                <div className="recording-page__metadata__item">
-                  <Calendar2
+        <div className="recording-page__main-content">
+          <div className="recording-page__main-content__metadata">
+            <h1 className="recording-page__title">{recording.title}</h1>
+            <div
+              className="recording-page__metadata"
+              aria-label={t('metadata.ariaLabel')}
+            >
+              <p className="recording-page__metadata__item">
+                <Calendar2
+                  className="recording-page__metadata__item__icon"
+                  aria-hidden="true"
+                />
+                <span>
+                  {t('shared:utils.formatDate', {
+                    value: recording.created_at,
+                  })}
+                </span>
+              </p>
+              <p className="recording-page__metadata__item">
+                <Clock
+                  className="recording-page__metadata__item__icon"
+                  aria-hidden="true"
+                />
+                <span>
+                  {t('shared:utils.duration', {
+                    duration: intervalToDuration({
+                      start: 0,
+                      end: Math.max(recording.duration_seconds || 1, 1) * 1000,
+                    }),
+                  })}
+                </span>
+              </p>
+              <Tooltip
+                content={t('metadata.dataPolicyTooltip', {
+                  originalDataKeptFor:
+                    data?.data_policy?.original_file_data_delete_after_days,
+                  transcriptDataKeptFor:
+                    data?.data_policy?.file_auto_hard_delete_after_days,
+                })}
+              >
+                <p className="recording-page__metadata__item warning">
+                  <ClockArrowCirclepath
                     className="recording-page__metadata__item__icon"
                     aria-hidden="true"
                   />
                   <span>
-                    {t('shared:utils.formatDate', {
-                      value: recording.created_at,
-                    })}
+                    {recording.lifecycle_state === 'active'
+                      ? t('metadata.audioKeptUntil', {
+                          value: recording.original_file_file_delete_at,
+                        })
+                      : t('metadata.fileKeptUntil', {
+                          value: recording.will_auto_delete_at,
+                        })}
                   </span>
-                </div>
-              </td>
-              <td>
-                <div className="recording-page__metadata__item">
-                  <Clock
-                    className="recording-page__metadata__item__icon"
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {t('shared:utils.duration', {
-                      duration: intervalToDuration({
-                        start: 0,
-                        end:
-                          Math.max(recording.duration_seconds || 1, 1) * 1000,
-                      }),
-                    })}
-                  </span>
-                </div>
-              </td>
-              {numberOfParticipants !== null && (
-                <td>
-                  <div className="recording-page__metadata__item">
-                    <Shared
-                      className="recording-page__metadata__item__icon"
-                      aria-hidden="true"
-                    />
-                    <span>{numberOfParticipants}</span>
-                  </div>
-                </td>
-              )}
-            </tr>
-          </tbody>
-        </table>
-        <AudioPlayer
-          src={recording.url!}
-          ref={playerRef}
-          title={recording.title}
-          onTimeUpdate={setCurrentTime}
-          durationSecondsEstimate={recording.duration_seconds}
-          extraTitle={
-            recording.deleted_at ? (
-              <Badge type="warning">{t('deleted')}</Badge>
-            ) : undefined
-          }
-        />
-        <Transcript
-          lastAiJobTranscript={lastAiJobTranscript}
-          seekTo={seekTo}
-          currentTime={currentTime}
-          setTranscriptSegments={setTranscriptSegments}
-        />
+                </p>
+              </Tooltip>
+            </div>
+          </div>
+          {recording.lifecycle_state === 'active' && (
+            <AudioPlayer
+              src={recording.url!}
+              ref={playerRef}
+              title={recording.title}
+              onTimeUpdate={setCurrentTime}
+              durationSecondsEstimate={recording.duration_seconds}
+              extraTitle={
+                recording.deleted_at ? (
+                  <Badge type="warning">{t('deleted')}</Badge>
+                ) : undefined
+              }
+            />
+          )}
+
+          <Transcript
+            lastAiJobTranscript={lastAiJobTranscript}
+            seekTo={seekTo}
+            currentTime={currentTime}
+            setTranscriptSegments={setTranscriptSegments}
+          />
+        </div>
       </div>
     </ConnectedLayout>
   )

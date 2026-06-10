@@ -7,7 +7,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 .recording-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32px;
   padding-left: 1rem;
   padding-right: 1rem;
   padding-bottom: var(--c--globals--spacings--xl);
@@ -35,46 +35,57 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     }
   }
 
+  &__main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    &__metadata {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-left: 2px;
+    }
+  }
+
   &__title {
-    margin-top: 1.5rem;
-    font-size: 18px;
-    line-height: 24px;
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: bold;
+    margin: unset;
   }
 
   &__metadata {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-    border-spacing: 1px;
-    background: white; // border color between cells
-    border-radius: var(--c--globals--spacings--xxs);
-    overflow: hidden;
-
-    @media (max-width: $mobile) {
-      tr {
-        display: flex;
-        flex-direction: column;
-      }
-    }
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16px;
 
     &__item {
-      background: #f3f4f6;
-      padding: var(--c--globals--spacings--xs);
-      padding-top: var(--c--globals--spacings--xxs);
-      padding-bottom: var(--c--globals--spacings--xxs);
       white-space: nowrap;
-      text-align: center;
-      color: #4b5563;
+      text-align: left;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
+      gap: 4px;
+      margin: unset;
       line-height: 100%;
       font-size: 13px;
+      color: var(--c--contextuals--content--semantic--neutral--secondary);
+
+      &.warning {
+        color: var(--c--contextuals--content--semantic--warning--secondary);
+      }
+
+      span {
+        white-space: wrap;
+        flex-shrink: 10000;
+      }
 
       &__icon {
-        width: 16px;
-        height: 16px;
+        flex-grow: 1;
+        width: 16px !important;
+        height: 16px !important;
       }
     }
   }

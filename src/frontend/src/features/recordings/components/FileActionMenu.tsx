@@ -106,8 +106,7 @@ export function FileActionMenu({
     () => getMainAiJobs(file.ai_jobs),
     [file.ai_jobs]
   )
-
-  const isRetryDisabled = lastAiJobTranscript?.status === 'pending'
+  const isRetryPending = lastAiJobTranscript?.status === 'pending'
 
   const retryLanguages = useMemo(() => {
     return RETRY_LANGUAGES.map((language) => ({
@@ -121,8 +120,9 @@ export function FileActionMenu({
   }, [lastAiJobTranscript?.language, lastAiJobTranscript?.status, t])
 
   const canOpenRetryModal =
+    file.lifecycle_state === 'active' &&
     Boolean(lastAiJobTranscript?.id) &&
-    !isRetryDisabled &&
+    !isRetryPending &&
     !file.ai_jobs
       .filter((el) => el.type === 'transcript')
       .some((el) => el.status === 'pending')
@@ -390,9 +390,10 @@ export function FileActionMenu({
 
     if (lastAiJobTranscript?.id) {
       out.push({
-        label: isRetryDisabled
+        label: isRetryPending
           ? t('actions.retry.disabledPendingLabel')
           : t('actions.retry.label'),
+        isDisabled: file.lifecycle_state !== 'active' || isRetryPending,
         icon: <UndoCircle size="small" />,
         callback: canOpenRetryModal ? handleOpenRetryModal : () => undefined,
       })
@@ -485,11 +486,12 @@ export function FileActionMenu({
     file.abilities.destroy,
     file.abilities.restore,
     file.abilities.hard_delete,
+    file.lifecycle_state,
     file.id,
     handleOpenInDocs,
     handleCopyText,
     isCopyingText,
-    isRetryDisabled,
+    isRetryPending,
     canOpenRetryModal,
     handleOpenRetryModal,
     restoreFileMutation,

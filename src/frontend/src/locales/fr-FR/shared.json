@@ -13,6 +13,7 @@
     "duration": "{{duration, formatDuration}}"
   },
   "dates": {
+    "tomorrow": "Demain",
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "todayAt": "Aujourd'hui à",

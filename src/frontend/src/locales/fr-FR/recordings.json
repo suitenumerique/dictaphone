@@ -13,7 +13,10 @@
   "uploadButtonAriaLabel": "Importer des enregistrements",
   "uploadInputAriaLabel": "Importer des enregistrements audio",
   "metadata": {
-    "ariaLabel": "Métadonnées de l'enregistrement"
+    "ariaLabel": "Métadonnées de l'enregistrement",
+    "audioKeptUntil": "L'enregistrement audio est conservé jusqu'au {{value, formatDate}}",
+    "fileKeptUntil": "Ce transcript est conservé jusqu'au {{value, formatDate}}",
+    "dataPolicyTooltip": "Vos enregistrements sont conservés sur nos serveurs pendant {{originalDataKeptFor}} jours. Les transcriptions (textes) elles sont conservées pendant {{transcriptDataKeptFor}} jours."
   },
   "uploadTooltip": {
     "title": "Importer des fichiers",
@@ -132,9 +135,9 @@
     "copySuccess": "Transcript copié dans le presse-papiers",
     "copyError": "Échec de la copie du transcript dans le presse-papiers",
     "status": {
-      "pending": "La transcription est en cours de génération.",
-      "failed": "Échec de la génération de la transcription.",
-      "empty": "La transcription est vide."
+      "pending": "La transcription est en cours de génération",
+      "failed": "Échec de la génération de la transcription",
+      "empty": "La transcription est vide"
     },
     "statusPreview": {
       "pending": "Transcription en cours",

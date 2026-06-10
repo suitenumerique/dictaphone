@@ -8,6 +8,11 @@ export type ApiFileCreator = {
 
 export type ApiFileType = 'audio_recording'
 export type ApiFileUploadState = 'pending' | 'ready' | 'analyzing'
+export type ApiLifeCycleState =
+  | 'active'
+  | 'pending_original_data_deletion'
+  | 'original_data_deleted'
+  | 'pending_auto_hard_delete'
 
 export type ApiFileItem = {
   id: string // UUID
@@ -20,11 +25,14 @@ export type ApiFileItem = {
   hard_deleted_at: string | null
   filename: string
   upload_state: ApiFileUploadState
+  lifecycle_state: ApiLifeCycleState
   mimetype: string // e.g. "image/png"
   size: number // file size in bytes
   description: string | null
   duration_seconds: number
   ai_jobs: ApiAiJob[]
+  original_file_file_delete_at: string // ISO datetime string
+  will_auto_delete_at: string // ISO datetime string
   abilities: {
     destroy: boolean
     partial_update: boolean

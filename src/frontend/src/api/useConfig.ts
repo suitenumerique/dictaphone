@@ -19,6 +19,10 @@ export interface ApiConfig {
     ios_download_link: string
     android_download_link: string
   }
+  data_policy: {
+    file_auto_hard_delete_after_days: number
+    original_file_data_delete_after_days: number
+  }
 }
 
 const fetchConfig = (): Promise<ApiConfig> => {
