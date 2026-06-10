@@ -8,6 +8,7 @@ import {
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { TranscriptSegment } from '@/features/recordings/components/TranscriptSegment.tsx'
 import { useTranslation } from 'react-i18next'
+import { Badge } from '@gouvfr-lasuite/ui-kit'
 
 export function Transcript({
   lastAiJobTranscript,
@@ -84,23 +85,17 @@ export function Transcript({
       aria-label={t('transcript.title')}
     >
       {lastAiJobTranscript?.status === 'failed' && (
-        <div className="recording-page__state">
-          {t('transcript.status.failed')}
-        </div>
+        <Badge type="danger">{t('transcript.status.failed')}</Badge>
       )}
 
       {lastAiJobTranscript?.status === 'pending' && (
-        <div className="recording-page__state">
-          {t('transcript.status.pending')}
-        </div>
+        <Badge type="info">{t('transcript.status.pending')}</Badge>
       )}
 
       {transcriptQ.data &&
         transcriptSegments.length === 0 &&
         lastAiJobTranscript?.status === 'success' && (
-          <div className="recording-page__state">
-            {t('transcript.status.empty')}
-          </div>
+          <Badge type="warning">{t('transcript.status.empty')}</Badge>
         )}
 
       {transcriptSegments.length > 0 && (
