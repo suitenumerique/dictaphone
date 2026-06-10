@@ -176,11 +176,11 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
-    TRASHBIN_CUTOFF_DAYS = values.IntegerValue(
+    TRASHBIN_CUTOFF_DAYS = values.PositiveIntegerValue(
         default=30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
     )
     # Applies only to file that were manually deleted
-    PURGE_GRACE_DAYS = values.IntegerValue(
+    PURGE_GRACE_DAYS = values.PositiveIntegerValue(
         default=7, environ_name="PURGE_GRACE_DAYS", environ_prefix=None
     )
     FILE_UPLOAD_PATH = values.Value(
@@ -268,22 +268,22 @@ class Base(Configuration):
     )
 
     # Data conservation related
-    ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS = values.IntegerValue(
+    ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS = values.PositiveIntegerValue(
         31,
         environ_name="ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS",
         environ_prefix=None,
     )
-    ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS = values.IntegerValue(
+    ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS = values.PositiveIntegerValue(
         7,
         environ_name="ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS",
         environ_prefix=None,
     )
-    FILE_AUTO_HARD_DELETE_AFTER_DAYS = values.IntegerValue(
+    FILE_AUTO_HARD_DELETE_AFTER_DAYS = values.PositiveIntegerValue(
         365,
         environ_name="FILE_AUTO_HARD_DELETE_AFTER_DAYS",
         environ_prefix=None,
     )
-    FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS = values.IntegerValue(
+    FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS = values.PositiveIntegerValue(
         10,
         environ_name="FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS",
         environ_prefix=None,
@@ -559,7 +559,7 @@ class Base(Configuration):
     OIDC_USER_SUB_FIELD_IMMUTABLE = values.BooleanValue(
         default=True, environ_name="OIDC_USER_SUB_FIELD_IMMUTABLE", environ_prefix=None
     )
-    OIDC_TIMEOUT = values.IntegerValue(
+    OIDC_TIMEOUT = values.PositiveIntegerValue(
         5, environ_name="OIDC_TIMEOUT", environ_prefix=None
     )
     OIDC_PROXY = values.Value(None, environ_name="OIDC_PROXY", environ_prefix=None)
@@ -610,7 +610,7 @@ class Base(Configuration):
         environ_name="OIDC_PKCE_CODE_CHALLENGE_METHOD",
         environ_prefix=None,
     )
-    OIDC_PKCE_CODE_VERIFIER_SIZE = values.IntegerValue(
+    OIDC_PKCE_CODE_VERIFIER_SIZE = values.PositiveIntegerValue(
         default=64, environ_name="OIDC_PKCE_CODE_VERIFIER_SIZE", environ_prefix=None
     )
     # For Resource server integration
@@ -712,7 +712,7 @@ class Base(Configuration):
     )
 
     # Mobile App Handling & JWT
-    AUTH_PKCE_CACHE_TTL_SECONDS = values.IntegerValue(
+    AUTH_PKCE_CACHE_TTL_SECONDS = values.PositiveIntegerValue(
         default=120,
         environ_name="AUTH_PKCE_CACHE_TTL_SECONDS",
         environ_prefix=None,
@@ -760,14 +760,14 @@ class Base(Configuration):
             environ_prefix=None,
         ),
         "ACCESS_TOKEN_LIFETIME": timedelta(
-            seconds=values.IntegerValue(
+            seconds=values.PositiveIntegerValue(
                 default=10 * 60,
                 environ_name="JWT_ACCESS_TOKEN_LIFETIME_SECONDS",
                 environ_prefix=None,
             )
         ),
         "REFRESH_TOKEN_LIFETIME": timedelta(
-            seconds=values.IntegerValue(
+            seconds=values.PositiveIntegerValue(
                 default=7 * 24 * 60 * 60,
                 environ_name="JWT_REFRESH_TOKEN_LIFETIME_SECONDS",
                 environ_prefix=None,
