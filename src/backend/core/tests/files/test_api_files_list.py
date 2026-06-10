@@ -53,7 +53,7 @@ def test_api_files_list_authentificated_user_allowed_with_jwt():
     assert response.data == {"count": 0, "next": None, "previous": None, "results": []}
 
 
-def test_api_files_list_format():
+def test_api_files_list_format(settings):
     """Validate the format of files as returned by the list view."""
     user = factories.UserFactory()
     client = APIClient()
@@ -114,6 +114,18 @@ def test_api_files_list_format():
             "description": None,
             "deleted_at": None,
             "hard_deleted_at": None,
+            "original_file_file_delete_at": (
+                file.created_at
+                + timedelta(days=settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS)
+            )
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "will_auto_delete_at": (
+                file.created_at
+                + timedelta(days=settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS)
+            )
+            .isoformat()
+            .replace("+00:00", "Z"),
             "abilities": {
                 "destroy": True,
                 "hard_delete": False,

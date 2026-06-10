@@ -1,6 +1,7 @@
 """Client serializers for the Dictaphone core app."""
 
 import logging
+from datetime import timedelta
 from os.path import splitext
 from urllib.parse import quote
 
@@ -92,6 +93,9 @@ class ListFileSerializer(serializers.ModelSerializer):
     abilities = serializers.SerializerMethodField(read_only=True)
     ai_jobs = AiJobSerializer(many=True, read_only=True)
 
+    original_file_file_delete_at = serializers.SerializerMethodField(read_only=True)
+    will_auto_delete_at = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = models.File
         fields = [
@@ -114,6 +118,8 @@ class ListFileSerializer(serializers.ModelSerializer):
             "ai_jobs",
             "abilities",
             "source",
+            "original_file_file_delete_at",
+            "will_auto_delete_at",
         ]
         read_only_fields = [
             "id",
@@ -132,6 +138,8 @@ class ListFileSerializer(serializers.ModelSerializer):
             "ai_jobs",
             "abilities",
             "source",
+            "original_file_file_delete_at",
+            "will_auto_delete_at",
         ]
 
     def get_url(self, obj):
@@ -145,6 +153,18 @@ class ListFileSerializer(serializers.ModelSerializer):
             return None
 
         return f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}{quote(obj.file_key)}"
+
+    def get_original_file_file_delete_at(self, obj):
+        """Return the date and time when the original file data will be deleted."""
+        return obj.created_at + timedelta(
+            days=settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
+        )
+
+    def get_will_auto_delete_at(self, obj):
+        """Return the date and time when the file will be automatically deleted."""
+        return obj.created_at + timedelta(
+            days=settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS
+        )
 
     def get_abilities(self, file) -> dict:
         """Return abilities of the logged-in user on the instance."""

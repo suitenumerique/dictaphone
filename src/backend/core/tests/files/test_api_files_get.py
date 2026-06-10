@@ -2,6 +2,8 @@
 Tests for files API endpoint in dictaphone's core app: get
 """
 
+from datetime import timedelta
+
 import pytest
 from faker import Faker
 from rest_framework.test import APIClient
@@ -55,7 +57,7 @@ def test_api_files_get_authentificated_user_allowed():
     assert response.status_code == 200
 
 
-def test_api_files_get_format():
+def test_api_files_get_format(settings):
     """Validate the format of a file as returned by the retrieve view."""
     user = factories.UserFactory()
     client = APIClient()
@@ -93,6 +95,18 @@ def test_api_files_get_format():
         "description": None,
         "deleted_at": None,
         "hard_deleted_at": None,
+        "original_file_file_delete_at": (
+            file_obj.created_at
+            + timedelta(days=settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS)
+        )
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "will_auto_delete_at": (
+            file_obj.created_at
+            + timedelta(days=settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS)
+        )
+        .isoformat()
+        .replace("+00:00", "Z"),
         "abilities": {
             "destroy": True,
             "hard_delete": False,
