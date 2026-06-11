@@ -192,20 +192,21 @@ export default function RecordComponent() {
             options={audioInputOptions}
             isOpen={openInputSelection}
             onOpenChange={setOpenInputSelection}
-          />
-          <Button
-            color="neutral"
-            variant="tertiary"
-            size={'nano'}
-            disabled={audioInputOptions.length === 0}
-            onClick={() => setOpenInputSelection(!openInputSelection)}
-            aria-label={t('record:source.ariaLabel')}
           >
-            <span className="source-btn">
-              {selectedSourceLabel ?? t('record:source.noInputs')}
-            </span>
-            <ChevronDown size="small" />
-          </Button>
+            <Button
+              color="neutral"
+              variant="tertiary"
+              size={'nano'}
+              disabled={audioInputOptions.length === 0}
+              onClick={() => setOpenInputSelection(!openInputSelection)}
+              aria-label={t('record:source.ariaLabel')}
+            >
+              <span className="source-btn">
+                {selectedSourceLabel ?? t('record:source.noInputs')}
+              </span>
+              <ChevronDown size="small" />
+            </Button>
+          </DropdownMenu>
 
           {!isRecordingInProgress && (
             <Button
