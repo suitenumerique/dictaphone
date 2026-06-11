@@ -118,6 +118,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "ai_jobs",
             "abilities",
             "source",
+            "language",
             "original_file_file_delete_at",
             "will_auto_delete_at",
         ]
@@ -138,6 +139,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "ai_jobs",
             "abilities",
             "source",
+            "language",
             "original_file_file_delete_at",
             "will_auto_delete_at",
         ]
@@ -195,7 +197,7 @@ class CreateFileSerializer(ListFileSerializer):
             *(
                 field
                 for field in ListFileSerializer.Meta.read_only_fields
-                if field not in {"filename", "duration_seconds", "source"}
+                if field not in {"filename", "duration_seconds", "source", "language"}
             ),
             "policy",
         ]

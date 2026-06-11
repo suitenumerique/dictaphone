@@ -60,7 +60,33 @@ def test_api_files_create_authenticated_success():
     assert file.title == "my file"
     assert file.creator == user
     assert file.type == FileTypeChoices.AUDIO_RECORDING
+    assert file.language == "fr"
     assert file.upload_state == FileUploadStateChoices.PENDING
+
+
+def test_api_files_create_authenticated_with_custom_language():
+    """Authenticated users should be able to set file language at creation."""
+    user = factories.UserFactory()
+
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        "/api/v1.0/files/",
+        {
+            "title": "my file",
+            "filename": "my_file.ogg",
+            "duration_seconds": 1,
+            "type": FileTypeChoices.AUDIO_RECORDING,
+            "language": "en",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201, response.json()
+    file = File.objects.get()
+    assert file.language == "en"
+    assert response.json()["language"] == "en"
 
 
 def test_api_files_create_file_authenticated_no_filename():

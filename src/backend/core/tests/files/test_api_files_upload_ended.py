@@ -121,7 +121,7 @@ def test_api_file_upload_ended_success(mock_requests, settings):
     assert kwargs == {
         "headers": {"Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}"},
         "json": {
-            "language": "fr",
+            "language": file.language,
             "user_sub": file.creator.sub,
             "user_email": file.creator.email,
         },
@@ -154,6 +154,45 @@ def test_api_file_upload_ended_success(mock_requests, settings):
     assert AiFileJob.objects.filter(
         file=file, type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("core.tasks.file.session")
+def test_api_file_upload_ended_uses_file_language_for_transcription(
+    mock_requests, settings
+):
+    """Upload-ended should call transcription service with file configured language."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
+
+    create_response = client.post(
+        "/api/v1.0/files/",
+        {
+            "title": "my file",
+            "filename": "my_file.m4a",
+            "duration_seconds": 1,
+            "type": FileTypeChoices.AUDIO_RECORDING,
+            "language": "en",
+        },
+        format="json",
+    )
+    assert create_response.status_code == 201, create_response.json()
+    file_id = create_response.json()["id"]
+
+    file = models.File.objects.get(id=file_id)
+    assert file.language == "en"
+
+    default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+
+    response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
+    assert response.status_code == 200
+    assert mock_requests.post.call_count == 1
+
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["json"]["language"] == "en"
 
 
 @pytest.mark.django_db(transaction=True)

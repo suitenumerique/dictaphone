@@ -111,6 +111,7 @@ def test_api_files_list_format(settings):
             "duration_seconds": file.duration_seconds,
             "size": None,
             "source": "unknown",
+            "language": file.language,
             "description": None,
             "deleted_at": None,
             "hard_deleted_at": None,

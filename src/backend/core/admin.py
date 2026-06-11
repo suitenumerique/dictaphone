@@ -171,6 +171,7 @@ class FileAdmin(admin.ModelAdmin):
         "updated_at",
         "duration_seconds",
         "source",
+        "language",
         "lifecycle_state",
     )
     list_filter = (
@@ -208,6 +209,7 @@ class FileAdmin(admin.ModelAdmin):
         "file_key",
         "upload_state",
         "source",
+        "language",
         "lifecycle_state",
         "duration_seconds",
         "type",
@@ -225,6 +227,7 @@ class FileAdmin(admin.ModelAdmin):
                     "type",
                     "creator",
                     "filename",
+                    "language",
                     "upload_state",
                     "source",
                     "lifecycle_state",

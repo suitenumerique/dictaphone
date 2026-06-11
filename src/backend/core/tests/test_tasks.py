@@ -128,6 +128,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     file = factories.FileFactory(
         upload_bytes=b"hello",
         duration_seconds=max_duration_seconds - 1,
+        language="en",
     )
 
     response = Mock()
@@ -142,14 +143,14 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     assert kwargs["headers"] == {"Authorization": "Bearer test-ai-key"}
     assert kwargs["timeout"] == 10
     assert kwargs["json"]["user_sub"] == file.creator.sub
-    assert kwargs["json"]["language"] == "fr"
+    assert kwargs["json"]["language"] == "en"
     assert kwargs["json"]["cloud_storage_url"]
 
     ai_job = AiFileJob.objects.get(remote_job_id="remote-transcript-job-id")
     assert ai_job.file == file
     assert ai_job.type == AiJobTypeChoices.TRANSCRIPT
     assert ai_job.status == AiJobStatusChoices.PENDING
-    assert ai_job.language == "fr"
+    assert ai_job.language == "en"
 
 
 @patch("core.tasks.file.session.post")

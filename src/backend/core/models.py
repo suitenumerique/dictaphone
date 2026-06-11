@@ -299,6 +299,11 @@ class File(BaseModel):
     )
     mimetype = models.CharField(max_length=255, null=True, blank=True)
     size = models.BigIntegerField(null=True, blank=True)
+    language = models.CharField(
+        max_length=2,
+        choices=ISO_639_1_CHOICES,
+        default="fr",
+    )
     description = models.TextField(null=True, blank=True)
     malware_detection_info = models.JSONField(
         null=True,

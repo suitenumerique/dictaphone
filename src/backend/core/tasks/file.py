@@ -75,9 +75,11 @@ def process_original_file_data_deletion(file_id):
 
 
 @app.task
-def call_transcribe_service(file_id, language="fr"):
+def call_transcribe_service(file_id, language=None):
     """
     Call the transcribe service for a given file.
+
+    If language is not provided, it will use the file's language.
     """
     try:
         file = File.objects.get(id=file_id)
@@ -87,6 +89,9 @@ def call_transcribe_service(file_id, language="fr"):
 
     if file.lifecycle_state != FileLifecycleStateChoices.ACTIVE:
         raise ValueError("Cannot transcribe when file is not in active state")
+
+    if language is None:
+        language = file.language
 
     ai_transcribe_job = AiFileJob.objects.create(
         remote_job_id=None,

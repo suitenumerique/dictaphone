@@ -92,6 +92,7 @@ def test_api_files_get_format(settings):
         "duration_seconds": file_obj.duration_seconds,
         "size": None,
         "source": "unknown",
+        "language": file_obj.language,
         "description": None,
         "deleted_at": None,
         "hard_deleted_at": None,
