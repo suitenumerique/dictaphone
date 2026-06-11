@@ -409,6 +409,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: 500,
     gap: 8,
     width: '100%',
     paddingHorizontal: 8,
