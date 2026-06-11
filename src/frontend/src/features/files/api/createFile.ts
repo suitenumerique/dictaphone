@@ -2,6 +2,7 @@ import { fetchApi } from '@/api/fetchApi'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { keys } from '@/api/queryKeys.ts'
+import { TranscriptionLanguage } from '@/features/settings/settingsStore'
 
 /**
  * Upload a file, using XHR so we can report on progress through a handler.
@@ -52,11 +53,13 @@ export const createPendingAudioFile = async ({
   durationSeconds,
   createdAt,
   source,
+  language,
 }: {
   filename: string
   durationSeconds: number
   createdAt: string
   source: 'web_recording' | 'web_file_upload'
+  language: TranscriptionLanguage
 }) => {
   const pendingFile = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -66,6 +69,7 @@ export const createPendingAudioFile = async ({
       type: 'audio_recording',
       duration_seconds: durationSeconds,
       source,
+      language,
     }),
   })
 
@@ -96,18 +100,21 @@ export const createFile = async ({
   onProgress,
   createdAt,
   source,
+  language,
 }: {
   file: File
   durationSeconds: number
   onProgress: (progress: number) => void
   createdAt: string
   source: 'web_recording' | 'web_file_upload'
+  language: TranscriptionLanguage
 }): Promise<ApiFileItem> => {
   const pendingFile = await createPendingAudioFile({
     filename: file.name,
     durationSeconds,
     createdAt,
     source,
+    language,
   })
   await uploadFile(pendingFile.policy, file, onProgress)
   return markUploadEnded(pendingFile.id)

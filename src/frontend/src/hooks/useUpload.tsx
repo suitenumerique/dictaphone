@@ -11,6 +11,7 @@ import { useConfig } from '@/api/useConfig.ts'
 import prettyBytes from 'pretty-bytes'
 import { getAudioDuration } from '@/features/recordings/utils/getAudioDuration.ts'
 import { intervalToDuration } from 'date-fns'
+import { useSettingsStore } from '@/features/settings/settingsStore'
 
 export type FileUploadMeta = {
   file: File
@@ -121,6 +122,8 @@ export const useUploadZone = () => {
       dismissDragToast()
     },
     onDrop: async (acceptedFiles, fileRejections) => {
+      const selectedLanguage =
+        useSettingsStore.getState().newTranscriptionLanguage ?? 'fr'
       dismissDragToast()
 
       for (const rejection of fileRejections) {
@@ -237,6 +240,7 @@ export const useUploadZone = () => {
               createFile.mutate(
                 {
                   file,
+                  language: selectedLanguage,
                   createdAt: new Date().toISOString(),
                   durationSeconds: file.durationSeconds,
                   source: 'web_file_upload',

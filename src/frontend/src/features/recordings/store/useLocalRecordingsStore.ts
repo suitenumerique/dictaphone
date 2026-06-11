@@ -60,6 +60,7 @@ const uploadRecording = async (recordingId: string) => {
       durationSeconds: Math.max(0, recording.durationMs / 1000),
       createdAt: new Date(recording.createdAt).toISOString(),
       source: recording.source,
+      language: recording.language,
     })
 
     await uploadManager.uploadRecording({
@@ -212,6 +213,7 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
                   recording.status === 'paused'
                     ? 'exited'
                     : recording.status,
+                language: recording.language ?? 'fr',
               },
             ])
         )

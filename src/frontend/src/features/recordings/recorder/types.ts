@@ -1,3 +1,5 @@
+import { TranscriptionLanguage } from '@/features/settings/settingsStore'
+
 export type RecorderLifecycleState =
   | 'idle'
   | 'starting'
@@ -34,6 +36,7 @@ export type StoredRecording = {
   uploadProgress: number
   uploadError: string | null
   source: 'web_recording'
+  language: TranscriptionLanguage
 }
 
 export type StoredChunk = {

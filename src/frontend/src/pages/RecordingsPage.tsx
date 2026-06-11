@@ -5,14 +5,20 @@ import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
-import { FileUp, Warning } from '@gouvfr-lasuite/ui-kit/icons'
+import { ChevronDown, FileUp, Warning } from '@gouvfr-lasuite/ui-kit/icons'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { RecoverList } from '@/features/recordings/components/RecoverList'
 import { useConfig } from '@/api/useConfig.ts'
 import { formatFileSize } from '@/features/recordings/utils/formatFileSize.ts'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { intervalToDuration } from 'date-fns'
+import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-kit'
+import {
+  TRANSCRIPTION_LANGUAGES,
+  TranscriptionLanguage,
+  useSettingsStore,
+} from '@/features/settings/settingsStore'
 
 const PAGE_SIZE = 10
 
@@ -110,6 +116,42 @@ export default function RecordingsPage() {
     navigate('/new-recording')
   }
 
+  const { newTranscriptionLanguage, setNewTranscriptionLanguage } =
+    useSettingsStore()
+  useEffect(() => {
+    if (newTranscriptionLanguage === null && appConfig?.LANGUAGE_CODE) {
+      setNewTranscriptionLanguage(
+        appConfig.LANGUAGE_CODE.split('-')[0] as TranscriptionLanguage
+      )
+    }
+  }, [
+    appConfig?.LANGUAGE_CODE,
+    newTranscriptionLanguage,
+    setNewTranscriptionLanguage,
+  ])
+
+  const [openLangSelection, setOpenLangSelection] = useState(false)
+  const langOptions = useMemo<DropdownMenuOption[]>(
+    () =>
+      TRANSCRIPTION_LANGUAGES.map(
+        (input) =>
+          ({
+            value: input,
+            isChecked: input === newTranscriptionLanguage,
+            callback: () => setNewTranscriptionLanguage(input),
+            label: t(`actions.retryModal.languageOptions.${input}`),
+          }) satisfies DropdownMenuOption
+      ),
+    [newTranscriptionLanguage, t, setNewTranscriptionLanguage]
+  )
+  const selectedTranscriptionLanguage = useMemo(
+    () =>
+      t(
+        `actions.retryModal.languageOptions.${newTranscriptionLanguage ?? 'fr'}`
+      ),
+    [newTranscriptionLanguage, t]
+  )
+
   return (
     <ConnectedLayout
       {...dropZone.getRootProps({
@@ -160,9 +202,31 @@ export default function RecordingsPage() {
                 ></Button>
               </Tooltip>
             </div>
-            <div className="recordings-actions__warning">
-              <Warning size="small" />
-              &nbsp;{t('record:consentWarning')}
+            <div className="recordings-actions__meta">
+              <p className="recordings-actions__warning">
+                <Warning size="small" />
+                &nbsp;{t('record:consentWarning')}
+              </p>
+              <div className="recordings-actions__language">
+                <p>{t('record:transcriptionLanguage')}</p>
+                <DropdownMenu
+                  options={langOptions}
+                  isOpen={openLangSelection}
+                  onOpenChange={setOpenLangSelection}
+                >
+                  <Button
+                    color="neutral"
+                    variant="tertiary"
+                    size={'nano'}
+                    disabled={langOptions.length === 0}
+                    onClick={() => setOpenLangSelection(!openLangSelection)}
+                    aria-label={t('record:transcriptionLanguageAriaLabel')}
+                  >
+                    {selectedTranscriptionLanguage}
+                    <ChevronDown size="small" />
+                  </Button>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>

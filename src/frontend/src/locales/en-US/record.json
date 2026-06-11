@@ -2,6 +2,8 @@
   "title": "Audio recording",
   "newRecording": "New recording",
   "newRecordingAriaLabel": "Start a new recording",
+  "transcriptionLanguage": "Transcription language:",
+  "transcriptionLanguageAriaLabel": "Select transcription language",
   "consentWarning": "Recording requires participants' consent",
   "startRecording": "Start recording",
   "pauseRecording": "Pause",

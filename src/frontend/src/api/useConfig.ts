@@ -3,6 +3,7 @@ import { keys } from './queryKeys'
 import { useQuery } from '@tanstack/react-query'
 
 export interface ApiConfig {
+  LANGUAGE_CODE: string
   analytics?: {
     id: string
     host: string

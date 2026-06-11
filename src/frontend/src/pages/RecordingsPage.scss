@@ -48,7 +48,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
   .recordings-actions {
     display: flex;
     justify-content: center;
-    gap: var(--c--globals--spacings--xs);
+    gap: var(--c--globals--spacings--sm);
     flex-direction: column;
     align-items: center;
     border: 1px solid #dfe2ea;
@@ -72,15 +72,38 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
       gap: var(--c--globals--spacings--xs);
     }
 
+    &__meta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      p {
+        margin: unset;
+        font-size: 12px;
+        color: var(--c--globals--colors--gray-600);
+      }
+
+      button {
+        svg {
+          margin-top: 2px;
+        }
+        gap: 4px;
+      }
+    }
+
     &__warning {
       display: inline;
-      font-size: 12px;
-      color: var(--c--globals--colors--gray-600);
       text-align: center;
 
       svg {
         vertical-align: -4px;
       }
+    }
+
+    &__language {
+      display: flex;
+      align-items: center;
+      gap: var(--c--globals--spacings--xxxs);
     }
 
     .c__tooltip {

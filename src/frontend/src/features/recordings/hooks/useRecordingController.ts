@@ -9,6 +9,7 @@ import {
 import { useLocalRecordingsStore } from '@/features/recordings/store/useLocalRecordingsStore.ts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSettingsStore } from '@/features/settings/settingsStore'
 
 const PREFERRED_MIME_TYPES = [
   'audio/ogg;codecs=opus',
@@ -352,6 +353,7 @@ export const useRecordingController = (
       uploadError: null,
       filename: '',
       source: 'web_recording',
+      language: useSettingsStore.getState().newTranscriptionLanguage ?? 'fr',
     }
     useLocalRecordingsStore.getState().upsertRecording(initialRecording)
 
