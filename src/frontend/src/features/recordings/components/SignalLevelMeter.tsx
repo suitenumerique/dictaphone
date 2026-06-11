@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Tooltip } from '@gouvfr-lasuite/cunningham-react'
-import { Warning } from '@gouvfr-lasuite/ui-kit'
+import { Warning } from '@gouvfr-lasuite/ui-kit/icons'
 
 const UPDATE_INTERVAL_MS = 33
 const BAR_SPAWN_INTERVAL_MS = 100
@@ -156,6 +156,7 @@ export function SignalLevelMeter({
       zeroSinceRef.current = null
       lowSinceRef.current = null
       noiseFloorRef.current = 0
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSoundStatus(null)
       setMeterPercent(0)
       return

@@ -3,7 +3,7 @@ import RecordComponent from '@/features/recordings/components/RecordComponent.ts
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { Button, Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react'
-import { Download } from '@gouvfr-lasuite/ui-kit'
+import { Download } from '@gouvfr-lasuite/ui-kit/icons'
 import { useLocation } from 'wouter'
 
 const isMobile =

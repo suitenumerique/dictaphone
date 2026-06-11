@@ -16,7 +16,7 @@ import {
   FastForward,
   Pause,
   Play,
-} from '@gouvfr-lasuite/ui-kit'
+} from '@gouvfr-lasuite/ui-kit/icons'
 import { useTranslation } from 'react-i18next'
 
 export interface AudioPlayerHandle {
@@ -221,7 +221,6 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         audioRef.current.currentTime = 0
 
         // Reset state
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsPlaying(false)
         setCurrentTime(0)
         setDuration(0)

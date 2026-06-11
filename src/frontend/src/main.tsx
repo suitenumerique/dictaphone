@@ -1,4 +1,6 @@
+// @ts-expect-error For some reason this doesn't lint anymore
 import '@gouvfr-lasuite/ui-kit/style'
+// @ts-expect-error For some reason this doesn't lint anymore
 import '@gouvfr-lasuite/ui-kit/fonts/Marianne'
 import './styles/globals.scss'
 

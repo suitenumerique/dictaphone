@@ -6,11 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'wouter'
 import clsx from 'clsx'
-import {
-  ChevronDown,
-  DropdownMenu,
-  DropdownMenuOption,
-} from '@gouvfr-lasuite/ui-kit'
+import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-kit'
+import { ChevronDown } from '@gouvfr-lasuite/ui-kit/icons'
 
 const formatDuration = (durationMs: number) => {
   const totalSeconds = Math.floor(durationMs / 1000)

@@ -5,7 +5,7 @@ import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
-import { FileShare, Warning } from '@gouvfr-lasuite/ui-kit'
+import { FileUp, Warning } from '@gouvfr-lasuite/ui-kit/icons'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { RecoverList } from '@/features/recordings/components/RecoverList'
@@ -156,7 +156,7 @@ export default function RecordingsPage() {
                   }
                   variant="bordered"
                   color="neutral"
-                  icon={<FileShare />}
+                  icon={<FileUp />}
                 ></Button>
               </Tooltip>
             </div>

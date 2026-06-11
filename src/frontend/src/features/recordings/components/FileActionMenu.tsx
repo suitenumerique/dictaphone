@@ -1,13 +1,12 @@
+import { DropdownMenu, DropdownMenuProps } from '@gouvfr-lasuite/ui-kit'
 import {
   ArrowUpRight,
   Copy,
   Download,
-  DropdownMenu,
-  DropdownMenuProps,
   Edit,
   Trash,
   UndoCircle,
-} from '@gouvfr-lasuite/ui-kit'
+} from '@gouvfr-lasuite/ui-kit/icons'
 import {
   Button,
   Input,

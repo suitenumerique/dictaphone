@@ -50,8 +50,8 @@ export const useUser = (
     return opts.fetchUserOptions
   }, [opts, isConfigLoading])
 
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const query = useQuery({
-    // eslint-disable-next-line @tanstack/query/exhaustive-deps
     queryKey: [keys.user],
     queryFn: () => fetchUser(options),
     staleTime: Infinity,

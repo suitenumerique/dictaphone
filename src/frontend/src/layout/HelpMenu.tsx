@@ -1,10 +1,10 @@
+import { DropdownMenu } from '@gouvfr-lasuite/ui-kit'
 import {
   BubbleText,
   Building,
-  DocLink,
-  DropdownMenu,
+  ExternalLink,
   QuestionMark,
-} from '@gouvfr-lasuite/ui-kit'
+} from '@gouvfr-lasuite/ui-kit/icons'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -80,7 +80,7 @@ export function HelpMenu() {
             icon: <Building />,
             label: t('info.help.legalInfo'),
             children: legalKeys.map((key) => ({
-              icon: <DocLink />,
+              icon: <ExternalLink />,
               label: t(`legal.${key}`),
               callback: () => {
                 window.open(t(`legal.${key}Url`), '_blank')
@@ -93,14 +93,14 @@ export function HelpMenu() {
             callback: () => setOpenDownloadMobileAppPopUp(true),
           },
           {
-            icon: <DocLink />,
+            icon: <ExternalLink />,
             label: t('info.help.documentation'),
             callback: () => {
               window.open(t('info.documentationUrl'), '_blank')
             },
           },
           {
-            icon: <DocLink />,
+            icon: <ExternalLink />,
             label: 'FAQ',
             callback: () => {
               window.open(t('info.faqUrl'), '_blank')

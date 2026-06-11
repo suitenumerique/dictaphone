@@ -7,16 +7,15 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Transcript } from '@/features/recordings/components/Transcript.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { Badge, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import {
   ArrowLeft,
   ArrowUpRight,
-  Badge,
   Calendar2,
   Clock,
   ClockArrowCirclepath,
   Copy,
-  useResponsive,
-} from '@gouvfr-lasuite/ui-kit'
+} from '@gouvfr-lasuite/ui-kit/icons'
 import { useTranslation } from 'react-i18next'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'

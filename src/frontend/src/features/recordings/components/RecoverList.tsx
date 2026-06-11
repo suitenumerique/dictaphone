@@ -7,14 +7,11 @@ import { intervalToDuration } from 'date-fns'
 import { Fragment, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Download,
   DropdownMenu,
   HorizontalSeparator,
-  Retry,
   Spinner,
-  Trash,
-  Warning,
 } from '@gouvfr-lasuite/ui-kit'
+import { Download, Retry, Trash, Warning } from '@gouvfr-lasuite/ui-kit/icons'
 import { CircularProgress } from '@/features/ui/components/circular-progress/CircularProgress'
 
 const downloadFile = (file: File) => {

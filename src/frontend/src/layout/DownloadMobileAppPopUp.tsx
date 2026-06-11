@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { useConfig } from '@/api/useConfig'
 import clsx from 'clsx'
 import { Button } from '@gouvfr-lasuite/cunningham-react'
-import { XMark } from '@gouvfr-lasuite/ui-kit'
+import { XMark } from '@gouvfr-lasuite/ui-kit/icons'
 import { useTranslation } from 'react-i18next'
 
 export function DownloadMobileAppPopUp({

@@ -1,6 +1,7 @@
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
-import { HorizontalSeparator, Spinner, Warning } from '@gouvfr-lasuite/ui-kit'
+import { HorizontalSeparator, Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Warning } from '@gouvfr-lasuite/ui-kit/icons'
 import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
