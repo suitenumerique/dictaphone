@@ -16,6 +16,9 @@ export const mockedFiles: ApiFileItem[] = [
     size: 22000000,
     description: 'Synchronisation quotidienne de l’équipe',
     duration_seconds: 1800,
+    lifecycle_state: 'active',
+    will_auto_delete_at: '2027-04-28T09:30:00Z',
+    original_file_file_delete_at: '2026-05-28T10:05:00Z',
     ai_jobs: [
       {
         id: 'job-s1',
@@ -50,6 +53,9 @@ export const mockedFiles: ApiFileItem[] = [
     size: 48000000,
     description: 'Suivi hebdomadaire des projets',
     duration_seconds: 3600,
+    lifecycle_state: 'active',
+    will_auto_delete_at: '2027-04-28T09:30:00Z',
+    original_file_file_delete_at: '2026-05-28T10:05:00Z',
     ai_jobs: [
       {
         id: 'job-s2',
@@ -84,6 +90,9 @@ export const mockedFiles: ApiFileItem[] = [
     size: 8000000,
     description: 'Réunion en cours de traitement',
     duration_seconds: 720,
+    lifecycle_state: 'active',
+    will_auto_delete_at: '2027-04-28T09:30:00Z',
+    original_file_file_delete_at: '2026-05-28T10:05:00Z',
     ai_jobs: [
       {
         id: null,
@@ -119,6 +128,9 @@ export const mockedFiles: ApiFileItem[] = [
     size: 15000000,
     description: 'Réunion axée sur les arbitrages',
     duration_seconds: 1500,
+    lifecycle_state: 'active',
+    will_auto_delete_at: '2027-04-28T09:30:00Z',
+    original_file_file_delete_at: '2026-05-28T10:05:00Z',
     ai_jobs: [
       {
         id: 'job-s4',
@@ -153,6 +165,9 @@ export const mockedFiles: ApiFileItem[] = [
     size: 3000000,
     description: 'Décision rapide sur une priorité',
     duration_seconds: 240,
+    lifecycle_state: 'active',
+    will_auto_delete_at: '2027-04-28T09:30:00Z',
+    original_file_file_delete_at: '2026-05-28T10:05:00Z',
     ai_jobs: [
       {
         id: 'job-s5',
@@ -187,6 +202,9 @@ export const mockedFiles: ApiFileItem[] = [
     size: 52000000,
     description: 'Réunion de démarrage',
     duration_seconds: 3900,
+    lifecycle_state: 'active',
+    will_auto_delete_at: '2027-04-28T09:30:00Z',
+    original_file_file_delete_at: '2026-05-28T10:05:00Z',
     ai_jobs: [
       {
         id: 'job-s6',
