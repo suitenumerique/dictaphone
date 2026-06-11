@@ -1,0 +1,67 @@
+.record-pip-panel {
+  font-family: 'Marianne', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--c--globals--spacings--sm);
+  padding: var(--c--globals--spacings--md);
+  background: var(--c--globals--colors--white);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.record-pip-panel__meter {
+  width: 100%;
+}
+
+.record-pip-panel__meter .signal-level-meter {
+  width: 100%;
+  height: 1.75rem;
+}
+
+.record-pip-panel__meter .signal-level-meter__status {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--c--contextuals--content--semantic--neutral--secondary);
+}
+
+.record-pip-panel__timer {
+  font-weight: 700;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--c--contextuals--content--semantic--neutral--primary);
+  letter-spacing: 0.05em;
+}
+
+.record-pip-panel__field {
+  width: 100%;
+}
+
+.record-pip-panel__field select {
+  width: 100%;
+  border: 1px solid var(--c--globals--colors--gray-200);
+  border-radius: 4px;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  background: var(--c--globals--colors--white);
+  color: var(--c--contextuals--content--semantic--neutral--primary);
+  cursor: pointer;
+}
+
+.record-pip-panel__tab-audio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--c--globals--spacings--sm);
+}
+
+.record-pip-panel__tab-audio strong {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--c--contextuals--content--semantic--neutral--secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

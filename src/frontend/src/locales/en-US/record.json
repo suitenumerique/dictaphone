@@ -23,6 +23,16 @@
     "lowSound": "Very low sound!",
     "soundOk": "Sound is good!"
   },
+  "tabAudio": {
+    "add": "Add tab audio",
+    "remove": "Remove tab audio",
+    "activeLabel": "Tab audio: {{label}}"
+  },
+  "pip": {
+    "source": "Microphone source",
+    "tabAudio": "Tab audio",
+    "open": "Open mini recorder"
+  },
   "status": {
     "readyToRecord": "Ready to record",
     "requestingPermission": "Waiting for microphone permission",

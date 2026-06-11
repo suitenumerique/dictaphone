@@ -38,6 +38,10 @@ type RecordingControllerState = {
   analyserNode: AnalyserNode | null
   recordingError: string | null
   currentRecordingId: string | null
+  tabAudioRequested: boolean
+  tabAudioSupported: boolean
+  tabAudioActive: boolean
+  tabAudioLabel: string | null
 }
 
 type RecordingController = RecordingControllerState & {
@@ -48,6 +52,9 @@ type RecordingController = RecordingControllerState & {
   resumeRecording: () => Promise<void>
   stopAndDispose: () => Promise<void>
   switchAudioInput: (deviceId: string) => Promise<void>
+  setTabAudioRequested: (requested: boolean) => void
+  enableTabAudioCapture: () => Promise<void>
+  disableTabAudioCapture: () => Promise<void>
 }
 
 export const useRecordingController = (
@@ -74,6 +81,10 @@ export const useRecordingController = (
     analyserNode: null,
     recordingError: null,
     currentRecordingId: null,
+    tabAudioRequested: false,
+    tabAudioSupported: false,
+    tabAudioActive: false,
+    tabAudioLabel: null,
   })
 
   const ensureManagers = useCallback(() => {
@@ -181,7 +192,19 @@ export const useRecordingController = (
           recordingError: error.message,
         }))
       },
+      onTabAudioStateChange: ({ isActive, label }) => {
+        setState((current) => ({
+          ...current,
+          tabAudioActive: isActive,
+          tabAudioLabel: label,
+        }))
+      },
     })
+
+    setState((current) => ({
+      ...current,
+      tabAudioSupported: recorder.supportsTabAudioCapture(),
+    }))
 
     chunkStoreRef.current = chunkStore
     audioInputManagerRef.current = audioInputManager
@@ -386,6 +409,20 @@ export const useRecordingController = (
         analyserNode: recorder.getAnalyserNode(),
       }))
 
+      if (state.tabAudioRequested && recorder.supportsTabAudioCapture()) {
+        try {
+          await recorder.enableTabAudioCapture()
+        } catch (tabAudioError) {
+          setState((current) => ({
+            ...current,
+            recordingError:
+              tabAudioError instanceof Error
+                ? tabAudioError.message
+                : 'Failed to capture tab audio.',
+          }))
+        }
+      }
+
       const resolvedMimeType = recorder.getMimeType()
       if (!resolvedMimeType) {
         throw new Error('No supported MIME type found')
@@ -427,7 +464,7 @@ export const useRecordingController = (
         currentRecordingId: null,
       }))
     }
-  }, [ensureManagers, state.selectedAudioInputId, t])
+  }, [ensureManagers, state.selectedAudioInputId, state.tabAudioRequested, t])
 
   const autoStartedRef = useRef(false)
   useEffect(() => {
@@ -471,6 +508,50 @@ export const useRecordingController = (
     useLocalRecordingsStore.getState().updateRecording(recordingId, {
       status: 'recording',
     })
+  }, [])
+
+  const setTabAudioRequested = useCallback((requested: boolean) => {
+    setState((current) => ({
+      ...current,
+      tabAudioRequested: requested,
+    }))
+  }, [])
+
+  const enableTabAudioCapture = useCallback(async () => {
+    const recorder = recorderRef.current
+    if (!recorder || !recorder.supportsTabAudioCapture()) {
+      return
+    }
+
+    try {
+      await recorder.enableTabAudioCapture()
+      setState((current) => ({
+        ...current,
+        tabAudioRequested: true,
+        recordingError: null,
+      }))
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        recordingError:
+          error instanceof Error
+            ? error.message
+            : 'Failed to capture tab audio.',
+      }))
+    }
+  }, [])
+
+  const disableTabAudioCapture = useCallback(async () => {
+    const recorder = recorderRef.current
+    if (!recorder) {
+      return
+    }
+
+    await recorder.disableTabAudioCapture()
+    setState((current) => ({
+      ...current,
+      tabAudioRequested: false,
+    }))
   }, [])
 
   const switchAudioInput = useCallback(
@@ -647,10 +728,16 @@ export const useRecordingController = (
       resumeRecording,
       stopAndDispose,
       switchAudioInput,
+      setTabAudioRequested,
+      enableTabAudioCapture,
+      disableTabAudioCapture,
     }
   }, [
+    disableTabAudioCapture,
+    enableTabAudioCapture,
     pauseRecording,
     resumeRecording,
+    setTabAudioRequested,
     startRecording,
     state,
     stopAndDispose,

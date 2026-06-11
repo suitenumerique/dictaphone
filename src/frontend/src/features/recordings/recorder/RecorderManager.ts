@@ -1,4 +1,5 @@
 import { AudioInputManager } from '@/features/recordings/recorder/AudioInputManager.ts'
+import { TabAudioInputManager } from '@/features/recordings/recorder/TabAudioInputManager.ts'
 import {
   RecorderChunk,
   RecorderLifecycleState,
@@ -12,6 +13,10 @@ type RecorderManagerCallbacks = {
   onChunk?: (chunk: RecorderChunk) => Promise<void> | void
   onStateChange?: (state: RecorderLifecycleState) => void
   onError?: (error: Error) => void
+  onTabAudioStateChange?: (state: {
+    isActive: boolean
+    label: string | null
+  }) => void
 }
 
 type StartRecordingOptions = {
@@ -19,6 +24,8 @@ type StartRecordingOptions = {
   timesliceMs?: number
   deviceId?: string
 }
+
+type AudioSourceKind = 'microphone' | 'tab'
 
 const startAudio = new Audio('/assets/sounds/start_recording.ogg')
 const stopAudio = new Audio('/assets/sounds/stop_recording.ogg')
@@ -37,21 +44,19 @@ const resolveMimeType = (preferredMimeTypes: string[]) => {
   return FALLBACK_MIME_TYPE
 }
 
-/**
- * RecorderManager handles audio recording operations, including managing the lifecycle of a MediaRecorder,
- * ensuring an audio graph setup, and providing audio input switching capabilities.
- *
- * Mostly LLM geneated.
- */
 export class RecorderManager {
   private readonly audioInputManager: AudioInputManager
+  private readonly tabAudioInputManager = new TabAudioInputManager()
   private readonly callbacks: RecorderManagerCallbacks
   private audioContext: AudioContext | null = null
   private mediaDestination: MediaStreamAudioDestinationNode | null = null
   private inputGainNode: GainNode | null = null
   private analyserNode: AnalyserNode | null = null
-  private sourceNode: MediaStreamAudioSourceNode | null = null
-  private currentInputStream: MediaStream | null = null
+  private readonly sourceNodes = new Map<
+    AudioSourceKind,
+    MediaStreamAudioSourceNode
+  >()
+  private readonly sourceStreams = new Map<AudioSourceKind, MediaStream>()
   private readonly inputStreams = new Set<MediaStream>()
   private mediaRecorder: MediaRecorder | null = null
   private operationQueue = Promise.resolve()
@@ -61,6 +66,7 @@ export class RecorderManager {
   private timesliceMs = DEFAULT_TIMESLICE_MS
   private disposed = false
   private stopResolve: (() => void) | null = null
+  private tabAudioLabel: string | null = null
 
   private stopStreamTracks(stream: MediaStream | null) {
     if (!stream) {
@@ -91,6 +97,7 @@ export class RecorderManager {
   ) {
     this.audioInputManager = audioInputManager
     this.callbacks = callbacks
+    this.notifyTabAudioState()
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
   }
@@ -109,6 +116,18 @@ export class RecorderManager {
 
   public getAnalyserNode() {
     return this.analyserNode
+  }
+
+  public supportsTabAudioCapture() {
+    return this.tabAudioInputManager.isSupported()
+  }
+
+  public isTabAudioActive() {
+    return this.sourceStreams.has('tab')
+  }
+
+  public getTabAudioLabel() {
+    return this.tabAudioLabel
   }
 
   public requestDataFlush() {
@@ -145,6 +164,13 @@ export class RecorderManager {
     this.callbacks.onStateChange?.(nextState)
   }
 
+  private notifyTabAudioState() {
+    this.callbacks.onTabAudioStateChange?.({
+      isActive: this.isTabAudioActive(),
+      label: this.tabAudioLabel,
+    })
+  }
+
   private enqueue<T>(fn: () => Promise<T>) {
     const run = this.operationQueue.then(fn)
     this.operationQueue = run.then(
@@ -165,8 +191,7 @@ export class RecorderManager {
       return
     }
 
-    // We record from a MediaStreamDestination, not directly from the microphone stream.
-    // This lets us swap input streams without recreating MediaRecorder.
+    // We record from a MediaStreamDestination and mix sources in the audio graph.
     this.audioContext = new AudioContext()
     this.mediaDestination = this.audioContext.createMediaStreamDestination()
     this.inputGainNode = this.audioContext.createGain()
@@ -179,41 +204,73 @@ export class RecorderManager {
     this.inputGainNode.connect(this.mediaDestination)
   }
 
-  private async replaceInputStream(stream: MediaStream) {
+  private async replaceSourceStream(
+    kind: AudioSourceKind,
+    stream: MediaStream
+  ) {
     this.ensureNotDisposed()
     if (!this.audioContext || !this.inputGainNode) {
       throw new Error('Audio graph is not initialized')
     }
 
-    this.sourceNode?.disconnect()
-    this.sourceNode = null
-
-    if (this.currentInputStream) {
-      this.currentInputStream.getTracks().forEach((track) => {
-        track.onended = null
-        track.stop()
-      })
-    }
-
-    this.currentInputStream = stream
+    this.detachSource(kind, true)
+    this.sourceStreams.set(kind, stream)
     this.inputStreams.add(stream)
 
+    const onTrackEnded =
+      kind === 'microphone'
+        ? this.handleInputTrackEnded
+        : this.handleTabTrackEnded
     for (const track of stream.getAudioTracks()) {
-      track.onended = this.handleInputTrackEnded
+      track.onended = onTrackEnded
     }
 
     try {
-      this.sourceNode = this.audioContext.createMediaStreamSource(stream)
-      this.sourceNode.connect(this.inputGainNode)
+      const sourceNode = this.audioContext.createMediaStreamSource(stream)
+      sourceNode.connect(this.inputGainNode)
+      this.sourceNodes.set(kind, sourceNode)
     } catch (error) {
       this.stopStreamTracks(stream)
-      this.currentInputStream = null
+      this.sourceStreams.delete(kind)
       throw error
     }
 
-    const activeDeviceId = stream.getAudioTracks()[0]?.getSettings().deviceId
-    if (activeDeviceId) {
-      await this.audioInputManager.selectDevice(activeDeviceId)
+    if (kind === 'microphone') {
+      const activeDeviceId = stream.getAudioTracks()[0]?.getSettings().deviceId
+      if (activeDeviceId) {
+        await this.audioInputManager.selectDevice(activeDeviceId)
+      }
+      return
+    }
+
+    this.tabAudioLabel = stream.getAudioTracks()[0]?.label || null
+    this.notifyTabAudioState()
+  }
+
+  private detachSource(kind: AudioSourceKind, stopTracks: boolean) {
+    const sourceNode = this.sourceNodes.get(kind)
+    if (sourceNode) {
+      sourceNode.disconnect()
+      this.sourceNodes.delete(kind)
+    }
+
+    const stream = this.sourceStreams.get(kind)
+    if (!stream) {
+      return
+    }
+    this.sourceStreams.delete(kind)
+    if (stopTracks) {
+      this.stopStreamTracks(stream)
+    } else {
+      this.inputStreams.delete(stream)
+      stream.getTracks().forEach((track) => {
+        track.onended = null
+      })
+    }
+
+    if (kind === 'tab') {
+      this.tabAudioLabel = null
+      this.notifyTabAudioState()
     }
   }
 
@@ -237,7 +294,7 @@ export class RecorderManager {
       }
       try {
         const stream = await this.audioInputManager.acquireStream()
-        await this.replaceInputStream(stream)
+        await this.replaceSourceStream('microphone', stream)
       } catch (error) {
         this.callbacks.onError?.(
           error instanceof Error
@@ -245,6 +302,16 @@ export class RecorderManager {
             : new Error('Active microphone ended and could not be recovered')
         )
       }
+    })
+  }
+
+  private handleTabTrackEnded = () => {
+    void this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
+      this.detachSource('tab', true)
+      this.tabAudioInputManager.stopActiveStream()
     })
   }
 
@@ -258,6 +325,39 @@ export class RecorderManager {
     ) {
       void this.audioContext.resume()
     }
+  }
+
+  public async enableTabAudioCapture() {
+    if (this.disposed) {
+      return
+    }
+
+    await this.enqueue(async () => {
+      if (this.disposed) {
+        return
+      }
+      if (this.state !== 'recording' && this.state !== 'paused') {
+        throw new Error('Tab audio can only be enabled while recording.')
+      }
+
+      const stream = await this.tabAudioInputManager.requestStream()
+      if (this.disposed) {
+        this.stopStreamTracks(stream)
+        return
+      }
+      await this.replaceSourceStream('tab', stream)
+    })
+  }
+
+  public async disableTabAudioCapture() {
+    if (this.disposed) {
+      return
+    }
+
+    await this.enqueue(async () => {
+      this.detachSource('tab', true)
+      this.tabAudioInputManager.stopActiveStream()
+    })
   }
 
   public async start(options: StartRecordingOptions) {
@@ -284,7 +384,9 @@ export class RecorderManager {
           this.stopStreamTracks(inputStream)
           throw new Error('RecorderManager has been disposed')
         }
-        await this.replaceInputStream(inputStream)
+        await this.replaceSourceStream('microphone', inputStream)
+        this.detachSource('tab', true)
+        this.tabAudioInputManager.stopActiveStream()
 
         const mimeType = resolveMimeType(options.preferredMimeTypes)
         if (!this.mediaDestination) {
@@ -300,7 +402,6 @@ export class RecorderManager {
           if (!event.data || event.data.size === 0) {
             return
           }
-          // Clone the chunk before persistence to avoid browser-specific Blob lifecycle issues.
           const persistedChunkBlob = new Blob([event.data], {
             type: event.data.type || mimeType || FALLBACK_MIME_TYPE,
           })
@@ -386,7 +487,7 @@ export class RecorderManager {
         this.stopStreamTracks(nextStream)
         return
       }
-      await this.replaceInputStream(nextStream)
+      await this.replaceSourceStream('microphone', nextStream)
     })
   }
 
@@ -446,11 +547,12 @@ export class RecorderManager {
       }
       this.mediaRecorder = null
 
-      this.sourceNode?.disconnect()
-      this.sourceNode = null
-
       this.stopAllInputStreams()
-      this.currentInputStream = null
+      this.sourceNodes.clear()
+      this.sourceStreams.clear()
+      this.tabAudioInputManager.stopActiveStream()
+      this.tabAudioLabel = null
+      this.notifyTabAudioState()
 
       this.inputGainNode?.disconnect()
       this.inputGainNode = null
