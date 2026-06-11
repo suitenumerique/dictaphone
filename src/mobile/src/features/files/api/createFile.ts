@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { keys } from '@/api/queryKeys.ts'
 import { type UploadProgressCallback, uploadFileToS3 } from '@/utils/fileUpload'
+import { type TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 
 type FileSource = {
   name: string
@@ -38,12 +39,14 @@ export const createFile = async ({
   createdAt,
   onProgress,
   source,
+  language,
 }: {
   file: FileSource
   durationSeconds: number
   createdAt: string
   onProgress?: UploadProgressCallback
   source: 'mobile_recording' | 'mobile_file_upload'
+  language: TTranscriptionLanguage
 }): Promise<ApiFileItem> => {
   const res = await fetchApi<ApiFileItem>(`/files/`, {
     method: 'POST',
@@ -53,6 +56,7 @@ export const createFile = async ({
       duration_seconds: durationSeconds,
       created_at: createdAt,
       source,
+      language,
     }),
   })
   if (res.upload_state !== 'pending') {

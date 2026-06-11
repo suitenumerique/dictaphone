@@ -35,6 +35,7 @@ import PauseIcon from '@/assets/icons/pause-recording.svg' // @ts-expect-error S
 import StopIcon from '@/assets/icons/stop-recording.svg' // @ts-expect-error SVG
 import PlayIcon from '@/assets/icons/resume-recording.svg'
 import { useConfigStore } from '@/services/configStore'
+import { useSettingsStore } from '@/services/storage'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'playAndRecord',
@@ -283,6 +284,14 @@ export const AudioRecorder = () => {
   const maxDurationSeconds = useConfigStore(
     // We add a buffer to avoid the recording from being rejected due to timing issues
     (state) => Math.max(state.maxDurationSeconds - 60, 0)
+  )
+  const newTranscriptionLanguage = useSettingsStore(
+    (state) => state.newTranscriptionLanguage
+  )
+  const appLanguage = useSettingsStore((state) => state.settings.language)
+  const selectedTranscriptionLanguage = useMemo(
+    () => newTranscriptionLanguage ?? (appLanguage === 'en' ? 'en' : 'fr'),
+    [appLanguage, newTranscriptionLanguage]
   )
   const [recorderPhase, setRecorderPhase] = useState<RecorderPhase>('idle')
   const [shouldResetNavigation, setShouldResetNavigation] = useState(false)
@@ -816,6 +825,7 @@ export const AudioRecorder = () => {
           filePath: result.paths[0],
           title,
           id: uuid.v4(),
+          language: selectedTranscriptionLanguage,
           uploadingStatus: 'to_upload',
         })
 
@@ -838,6 +848,7 @@ export const AudioRecorder = () => {
     isCurrentLifecycle,
     setRecorderPhaseIfCurrent,
     setRecorderPhaseState,
+    selectedTranscriptionLanguage,
     t,
   ])
 

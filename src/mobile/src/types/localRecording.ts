@@ -1,4 +1,7 @@
 import { z } from 'zod/v4'
+import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
+
+export const transcriptionLanguageSchema = z.enum(TRANSCRIPTION_LANGUAGES)
 
 export const uploadingStatusSchema = z.enum([
   'to_upload',
@@ -12,6 +15,7 @@ export const recordingSchema = z.object({
   filePath: z.string(),
   id: z.string(),
   title: z.string(),
+  language: transcriptionLanguageSchema.default('fr'),
   uploadingStatus: uploadingStatusSchema,
   uploadProgress: z
     .object({

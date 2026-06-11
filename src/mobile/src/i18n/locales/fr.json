@@ -19,6 +19,7 @@
     "recordingName": "Enregistrement {{duration}}",
     "newRecording": "Enregistrer",
     "consentNotice": "L'enregistrement nécessite le consentement des participants.",
+    "pickLanguage": "Langue de l'enregistrement :",
     "recordingInProgress": "Enregistrement en cours",
     "recordingPaused": "Enregistrement en pause",
     "recordingSubtitle": "Vous pouvez mettre en pause l'enregistrement quand vous le souhaitez.",

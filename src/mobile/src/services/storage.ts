@@ -15,6 +15,7 @@ import {
   localRecordingFileExists,
 } from '@/utils/deleteLocalRecordingFile'
 import i18n from '@/i18n'
+import { type TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -86,7 +87,9 @@ export interface RecordingsStore {
 export interface SettingsStore {
   hasHydrated: boolean
   settings: AppSettings
+  newTranscriptionLanguage: TTranscriptionLanguage | null
   setSettings: (settings: AppSettings) => void
+  setNewTranscriptionLanguage: (language: TTranscriptionLanguage) => void
   resetSettings: () => void
 }
 
@@ -154,6 +157,7 @@ const triggerUpload = async (): Promise<void> => {
         uri: recordingToUpload.filePath,
       },
       source: 'mobile_recording',
+      language: recordingToUpload.language,
       onProgress: (progress) => {
         updateRecording(recordingToUpload.id, {
           uploadProgress: progress,
@@ -273,7 +277,10 @@ export const useSettingsStore = create<SettingsStore>()(
     (set) => ({
       hasHydrated: false,
       settings: { ...defaultSettings },
+      newTranscriptionLanguage: null,
       setSettings: (settings) => set({ settings }),
+      setNewTranscriptionLanguage: (newTranscriptionLanguage) =>
+        set({ newTranscriptionLanguage }),
       resetSettings: () => set({ settings: defaultSettings }),
     }),
     {
@@ -285,6 +292,8 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state) {
           const parsed = appSettingsSchema.safeParse(state.settings)
           state.settings = parsed.success ? parsed.data : { ...defaultSettings }
+          state.newTranscriptionLanguage =
+            state.newTranscriptionLanguage ?? 'fr'
           state.hasHydrated = true
         } else {
           useSettingsStore.setState({ hasHydrated: true })
