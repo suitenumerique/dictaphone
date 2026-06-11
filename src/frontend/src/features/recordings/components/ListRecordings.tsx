@@ -6,7 +6,7 @@ import { useLocation } from 'wouter'
 import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
 import { intervalToDuration } from 'date-fns'
 import { ApiFileItem } from '@/features/files/api/types.ts'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useRef } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
 
@@ -58,12 +58,39 @@ export function ListRecordings({
 }) {
   const [, navigate] = useLocation()
   const { t } = useTranslation(['recordings', 'shared'])
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const allFiles = useMemo(
     () => queryData.data?.pages.flatMap((page) => page.results) ?? [],
     [queryData.data]
   )
   const totalFilesCount = queryData.data?.pages[0]?.count ?? 0
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = queryData
+
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) {
+      return
+    }
+
+    const loadMoreElement = loadMoreRef.current
+    if (!loadMoreElement) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const isVisible = entries.some((entry) => entry.isIntersecting)
+        if (isVisible && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { rootMargin: '100px' }
+    )
+
+    observer.observe(loadMoreElement)
+
+    return () => observer.disconnect()
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
   return (
     <section aria-label={t('mySavedRecordings')}>
@@ -133,18 +160,14 @@ export function ListRecordings({
             </Fragment>
           ))}
 
-          {queryData.hasNextPage && (
-            <div className="recordings-list__footer">
+          {hasNextPage && (
+            <div className="recordings-list__footer" ref={loadMoreRef}>
               <Button
                 variant="secondary"
-                onClick={() => queryData.fetchNextPage()}
-                disabled={queryData.isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
               >
-                {t(
-                  queryData.isFetchingNextPage
-                    ? 'list.loadingMore'
-                    : 'list.loadMore'
-                )}
+                {t(isFetchingNextPage ? 'list.loadingMore' : 'list.loadMore')}
               </Button>
             </div>
           )}
