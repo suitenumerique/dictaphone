@@ -10,6 +10,7 @@ type AppTextVariant =
   | 'bodyBold'
   | 'muted'
   | 'button'
+  | 'mutedWarning'
 
 type AppTextSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
@@ -61,6 +62,11 @@ export const typography = StyleSheet.create({
     lineHeight: 18,
     color: colors.neutralSecondary,
   },
+  mutedWarning: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.warning,
+  },
   button: {
     marginTop: -3,
     fontSize: 18,
@@ -106,6 +112,7 @@ const variantStyles: Record<AppTextVariant, TextStyle> = {
   bodyMedium: typography.bodyMedium,
   bodyBold: typography.bodyBold,
   muted: typography.muted,
+  mutedWarning: typography.mutedWarning,
   button: typography.button,
 }
 

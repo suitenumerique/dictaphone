@@ -65,6 +65,13 @@
       "message": "Certains enregistrements locaux ont été supprimés car leurs fichiers audio ne sont plus disponibles sur cet appareil :\n{{files}}",
       "untitledFallback": "Enregistrement sans titre"
     },
+    "dataPolicy": {
+      "audioKeptUntil": "L'enregistrement audio est conservé jusqu'au {{value, formatDate}}",
+      "fileKeptUntil": "Ce transcript est conservé jusqu'au {{value, formatDate}}",
+      "alertTitle": "Politique de conservation des données",
+      "alertDescription": "Vos enregistrements sont conservés sur nos serveurs pendant {{originalDataKeptFor}} jours. Les transcriptions (textes) elles sont conservées pendant {{transcriptDataKeptFor}} jours.",
+      "alertAction": "Compris"
+    },
     "meta": {
       "loginToSync": "Se connecter pour synchroniser",
       "offline": "Synchronisera une fois en ligne",
@@ -158,6 +165,7 @@
       "fileSizeMb": "{{size, number(maximumFractionDigits: 2)}} Mo"
     },
     "dates": {
+      "tomorrow": "Demain",
       "today": "Aujourd'hui",
       "yesterday": "Hier",
       "todayAt": "Aujourd'hui à",

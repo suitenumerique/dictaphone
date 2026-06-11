@@ -5,6 +5,10 @@ import { mmkvStorage } from '@/services/index'
 import omit from '@/utils/omit'
 
 export const DEFAULT_MAX_RECORDING_DURATION_SECONDS = 60 * 60 * 3
+export const DEFAULT_DATA_POLICY = {
+  file_auto_hard_delete_after_days: 365,
+  original_file_data_delete_after_days: 30,
+} as const
 
 const apiConfigSchema = z.object({
   analytics: z
@@ -29,6 +33,13 @@ const apiConfigSchema = z.object({
     android_version: z.string(),
     android_min_version: z.string(),
   }),
+  data_policy: z
+    .object({
+      file_auto_hard_delete_after_days: z.number(),
+      original_file_data_delete_after_days: z.number(),
+      // adding default if missing during release
+    })
+    .default(DEFAULT_DATA_POLICY),
 })
 
 type ConfigStoreSchema = z.infer<typeof apiConfigSchema>

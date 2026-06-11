@@ -5,6 +5,7 @@ import {
   format,
   isThisYear,
   isToday,
+  isTomorrow,
   isYesterday,
   setDefaultOptions,
 } from 'date-fns'
@@ -93,7 +94,9 @@ if (!i18n.isInitialized) {
         return format(value, options?.formatStr ?? 'Pp')
       })
       i18n.services.formatter!.add('formatDate', (value, lng, options) => {
-        if (isToday(value)) {
+        if (isTomorrow(value)) {
+          return i18n.t('shared.dates.tomorrow')
+        } else if (isToday(value)) {
           return i18n.t('shared.dates.today')
         } else if (isYesterday(value)) {
           return i18n.t('shared.dates.yesterday')
@@ -101,9 +104,9 @@ if (!i18n.isInitialized) {
           // hacky way to remove the year for now, will not work for future locale
           // https://github.com/date-fns/date-fns/pull/3990
           let dateCleaned = format(value, 'PPP')
-          if (lng === 'fr-FR') {
+          if (lng === 'fr') {
             dateCleaned = dateCleaned.split(' ').slice(0, 2).join(' ')
-          } else if (lng === 'en-US') {
+          } else if (lng === 'en') {
             dateCleaned = dateCleaned.split(',')[0].trim()
           }
           return dateCleaned

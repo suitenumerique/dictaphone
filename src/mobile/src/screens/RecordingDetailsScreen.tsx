@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -32,6 +33,7 @@ import { InAppBrowser } from 'react-native-inappbrowser-reborn'
 import { AppText, typography } from '@/components/AppText'
 import { colors } from '@/components/colors'
 import { EnrichedMarkdownText } from 'react-native-enriched-markdown'
+import { DEFAULT_DATA_POLICY, useConfigStore } from '@/services/configStore'
 
 type RecordingDetailsRouteProp = RouteProp<
   RootStackParamList,
@@ -46,6 +48,37 @@ export default function RecordingDetailsScreen() {
   const { id } = route.params
   const { t } = useTranslation()
   const insets = useInsets()
+
+  const originalFileKeptDays = useConfigStore(
+    (state) =>
+      state.config?.data_policy?.original_file_data_delete_after_days ??
+      DEFAULT_DATA_POLICY.original_file_data_delete_after_days
+  )
+
+  const transcriptDataKeptFor = useConfigStore(
+    (state) =>
+      state.config?.data_policy?.file_auto_hard_delete_after_days ??
+      DEFAULT_DATA_POLICY.file_auto_hard_delete_after_days
+  )
+
+  const [openMetaInfo, setOpenMetaInfo] = useState(false)
+  useEffect(() => {
+    if (openMetaInfo) {
+      Alert.alert(
+        t('recordings.dataPolicy.alertTitle'),
+        t('recordings.dataPolicy.alertDescription', {
+          originalDataKeptFor: originalFileKeptDays,
+          transcriptDataKeptFor: transcriptDataKeptFor,
+        }),
+        [
+          {
+            text: t('recordings.dataPolicy.alertAction'),
+            onPress: () => setOpenMetaInfo(false),
+          },
+        ]
+      )
+    }
+  }, [openMetaInfo, originalFileKeptDays, t, transcriptDataKeptFor])
 
   const recordingQ = useGetFile(id)
   const recording = recordingQ.data
@@ -93,17 +126,6 @@ export default function RecordingDetailsScreen() {
     () => buildTranscriptViewSegments(transcriptQ.data),
     [transcriptQ.data]
   )
-
-  const numberOfParticipants = useMemo(() => {
-    if (transcriptSegments.length === 0) {
-      return null
-    } else {
-      const speakers = new Set<string>(
-        transcriptSegments.map((el) => el.speaker).filter(Boolean) as string[]
-      )
-      return speakers.size
-    }
-  }, [transcriptSegments])
 
   const transcriptMarkdown = useMemo(() => {
     if (transcriptSegments.length === 0) {
@@ -154,24 +176,26 @@ export default function RecordingDetailsScreen() {
         </AppText>
 
         {recording ? (
-          <RecordingMenu
-            fileId={recording.id}
-            currentTitle={recording.title}
-            aiJobs={recording.ai_jobs}
-            onDeleted={onDeleted}
-          />
+          <RecordingMenu recording={recording} onDeleted={onDeleted} />
         ) : (
           <View style={styles.iconButton} />
         )}
       </View>
 
       {recording && (
-        <View style={styles.metaRow}>
-          <View style={[styles.metaChip, { flexGrow: 1 }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.metaRow,
+            pressed && { backgroundColor: colors.backgroundSubtlePressed },
+          ]}
+          onPress={() => setOpenMetaInfo(true)}
+        >
+          <View style={styles.metaElement}>
             <Lucide
               name="calendar-days"
               size={16}
               color={colors.neutralSecondary}
+              style={styles.metaElementIcon}
             />
             <AppText
               variant="subtitle"
@@ -185,8 +209,13 @@ export default function RecordingDetailsScreen() {
             </AppText>
           </View>
 
-          <View style={styles.metaChip}>
-            <Lucide name="clock-3" size={16} color={colors.neutralSecondary} />
+          <View style={styles.metaElement}>
+            <Lucide
+              name="clock-3"
+              size={16}
+              color={colors.neutralSecondary}
+              style={styles.metaElementIcon}
+            />
             <AppText
               variant="subtitle"
               size="sm"
@@ -198,22 +227,31 @@ export default function RecordingDetailsScreen() {
                   end: recording.duration_seconds * 1000,
                 }),
               })}
-              {/*{formatDurationLabel(durationSeconds || 0)}*/}
             </AppText>
           </View>
-          {transcriptSegments.length > 0 && (
-            <View style={styles.metaChip}>
-              <Lucide name="users" size={16} color={colors.neutralSecondary} />
-              <AppText
-                variant="subtitle"
-                size="sm"
-                color={colors.neutralSecondary}
-              >
-                {numberOfParticipants ?? 0}
-              </AppText>
-            </View>
-          )}
-        </View>
+
+          <View style={styles.metaElement}>
+            <Lucide
+              name="history"
+              size={16}
+              color={colors.warning}
+              style={styles.metaElementIcon}
+            />
+
+            <AppText
+              variant="mutedWarning"
+              style={styles.warningDataPolicyText}
+            >
+              {recording.lifecycle_state === 'active'
+                ? t('recordings.dataPolicy.audioKeptUntil', {
+                    value: recording.original_file_file_delete_at,
+                  })
+                : t('recordings.dataPolicy.fileKeptUntil', {
+                    value: recording.will_auto_delete_at,
+                  })}
+            </AppText>
+          </View>
+        </Pressable>
       )}
 
       <ScrollView
@@ -327,27 +365,34 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     display: 'flex',
-    marginHorizontal: 8,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    rowGap: 8,
+    columnGap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 6,
-    marginBottom: 12,
-    overflow: 'hidden',
+    marginBottom: 8,
+    marginHorizontal: 8,
+    flexWrap: 'wrap',
     backgroundColor: colors.backgroundNeutralTertiary,
-    borderWidth: 1,
-    borderColor: colors.backgroundBase,
-  },
-  metaChip: {
     minHeight: 40,
-    flexGrow: 0.9,
+  },
+  metaElement: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRightWidth: 1,
-    borderRightColor: colors.backgroundBase,
   },
-  transcriptContainer: {
-    paddingTop: 2,
+  metaElementIcon: {
+    marginBottom: -2,
+  },
+  popover: { borderRadius: 12, position: 'static' },
+  transcriptContainer: {},
+  warningDataPolicyText: {
+    flexShrink: 1,
+    textAlign: 'center',
   },
   paragraph: {
     marginBottom: 18,

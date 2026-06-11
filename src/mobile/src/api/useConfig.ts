@@ -3,6 +3,7 @@ import { keys } from './queryKeys'
 import { useQuery } from '@tanstack/react-query'
 import {
   ConfigStore,
+  DEFAULT_DATA_POLICY,
   DEFAULT_MAX_RECORDING_DURATION_SECONDS,
   useConfigStore,
 } from '@/services/configStore'
@@ -29,6 +30,10 @@ export interface ApiConfig {
     android_version: string
     android_min_version: string
   }
+  data_policy: {
+    original_file_data_delete_after_days: number
+    file_auto_hard_delete_after_days: number
+  }
 }
 
 const fetchConfig = async (): Promise<ConfigStore['config']> => {
@@ -41,6 +46,14 @@ const fetchConfig = async (): Promise<ConfigStore['config']> => {
         max_duration_seconds:
           config.audio_recording.max_duration_seconds ??
           DEFAULT_MAX_RECORDING_DURATION_SECONDS,
+      },
+      data_policy: {
+        original_file_data_delete_after_days:
+          config.data_policy.original_file_data_delete_after_days ??
+          DEFAULT_DATA_POLICY.original_file_data_delete_after_days,
+        file_auto_hard_delete_after_days:
+          config.data_policy.file_auto_hard_delete_after_days ??
+          DEFAULT_DATA_POLICY.file_auto_hard_delete_after_days,
       },
     }
     useConfigStore.getState().setCachedConfig(cleanedConfig)

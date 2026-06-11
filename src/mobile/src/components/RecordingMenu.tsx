@@ -12,10 +12,7 @@ import {
 import Popover from 'react-native-popover-view'
 import { Lucide } from '@react-native-vector-icons/lucide'
 import { useTranslation } from 'react-i18next'
-import type {
-  ApiAiJob,
-  TTranscriptionLanguage,
-} from '@/features/ai-jobs/api/types'
+import type { TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 import { useRetryWithLanguageMutation } from '@/features/ai-jobs/api/fetch'
 import { useDeleteFile } from '@/features/files/api/deleteFile'
 import { usePartialUpdateFile } from '@/features/files/api/partialUpdateFile'
@@ -24,26 +21,27 @@ import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
 import { AppText } from './AppText'
 import { colors } from './colors'
+import { ApiFileItem } from '@/features/files/api/types'
 
 type RecordingMenuProps = {
-  fileId: string
-  currentTitle: string
-  aiJobs: ApiAiJob[]
+  recording: ApiFileItem
   onDeleted: () => void
 }
 
 export default function RecordingMenu({
-  fileId,
-  currentTitle,
-  aiJobs,
+  recording,
   onDeleted,
 }: RecordingMenuProps) {
   const { t } = useTranslation()
+  const aiJobs = recording.ai_jobs
+  const currentTitle = recording.title
+  const fileId = recording.id
   const [isPopoverVisible, setIsPopoverVisible] = useState(false)
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false)
   const [isRetryModalVisible, setIsRetryModalVisible] = useState(false)
   const [retryLanguage, setRetryLanguage] =
     useState<TTranscriptionLanguage | null>(null)
+
   const [draftTitle, setDraftTitle] = useState(currentTitle)
   const [pendingRename, setPendingRename] = useState(false)
   const [pendingRetry, setPendingRetry] = useState(false)
@@ -62,6 +60,7 @@ export default function RecordingMenu({
   )
   const isRetryDisabled = lastAiJobTranscript?.status === 'pending'
   const canRetry =
+    recording.lifecycle_state === 'active' &&
     Boolean(lastAiJobTranscript?.id) &&
     !isRetryDisabled &&
     !hasPendingTranscriptJob

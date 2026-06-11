@@ -65,6 +65,13 @@
       "message": "Some local recordings were removed because their audio files are no longer available on this device:\n{{files}}",
       "untitledFallback": "Untitled recording"
     },
+    "dataPolicy": {
+      "audioKeptUntil": "Audio recording is kept until {{value, formatDate}}",
+      "fileKeptUntil": "Transcript is kept until {{value, formatDate}}",
+      "alertTitle": "Data policy",
+      "alertDescription": "Your recordings are kept on our servers for {{originalDataKeptFor}} days. The transcripts (text) are kept for {{transcriptDataKeptFor}} days.",
+      "alertAction": "Understood"
+    },
     "meta": {
       "loginToSync": "Login to sync",
       "offline": "Will sync when online",
@@ -158,6 +165,7 @@
       "fileSizeMb": "{{size, number(maximumFractionDigits: 2)}} Mb"
     },
     "dates": {
+      "tomorrow": "Tomorrow",
       "today": "Today",
       "yesterday": "Yesterday",
       "todayAt": "Today at",
