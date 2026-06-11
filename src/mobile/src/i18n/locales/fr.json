@@ -83,9 +83,9 @@
     },
     "menu": {
       "rename": "Renommer",
-      "retry": "Régénérer",
+      "retry": "Changer la langue",
       "share": "Partager le fichier audio",
-      "retryPending": "Régénérer (en cours)",
+      "retryPending": "Changer la langue (en cours)",
       "renameTitle": "Renommer l'enregistrement",
       "renameDescription": "Choisissez un titre clair pour retrouver rapidement cet enregistrement.",
       "renamePlaceholder": "Titre de l'enregistrement",
@@ -98,7 +98,12 @@
       "retrySuccess": "Génération relancée",
       "retryModal": {
         "title": "Régénérer la transcription",
+        "titleChangeLanguage": "Changer la langue",
         "description": "Choisissez la langue pour la nouvelle génération.",
+        "descriptionChangeLanguage": "Choisissez la langue pour cette nouvelle transcription.",
+        "extra": "Le traitement prendra quelques minutes et remplacera le transcript actuel.",
+        "changeLanguageMainAction": "Transcrire",
+        "retryMainAction": "Relancer",
         "languageLabel": "Langue",
         "languageOptions": {
           "en": "Anglais",

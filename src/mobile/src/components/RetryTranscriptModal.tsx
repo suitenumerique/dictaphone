@@ -22,9 +22,11 @@ type RetryTranscriptModalProps = {
   disabledLanguages?: TTranscriptionLanguage[]
   onClose: () => void
   onRetry: (language: TTranscriptionLanguage) => void
+  mode: 'language' | 'retry'
 }
 
 export function RetryTranscriptModal({
+  mode,
   isVisible,
   isPending,
   selectedLanguage,
@@ -57,10 +59,16 @@ export function RetryTranscriptModal({
         >
           <View style={styles.modalCard}>
             <AppText variant="heading">
-              {t('recordings.menu.retryModal.title')}
+              {t(
+                mode === 'retry'
+                  ? 'recordings.menu.retryModal.title'
+                  : 'recordings.menu.retryModal.titleChangeLanguage'
+              )}
             </AppText>
             <AppText variant="subtitle" style={styles.modalDescription}>
-              {t('recordings.menu.retryModal.description')}
+              {mode === 'retry'
+                ? t('recordings.menu.retryModal.description')
+                : t('recordings.menu.retryModal.descriptionChangeLanguage')}
             </AppText>
             <AppText variant="subtitle" color={colors.textPrimary}>
               {t('recordings.menu.retryModal.languageLabel')}
@@ -105,6 +113,10 @@ export function RetryTranscriptModal({
               })}
             </View>
 
+            {mode === 'language' && (
+              <AppText>{t('recordings.menu.retryModal.extra')}</AppText>
+            )}
+
             <View style={styles.modalActions}>
               <Pressable
                 onPress={closeModal}
@@ -129,7 +141,11 @@ export function RetryTranscriptModal({
                 ]}
                 disabled={!selectedLanguage || isPending}
               >
-                <AppText variant="button">{t('recordings.menu.retry')}</AppText>
+                <AppText variant="button">
+                  {mode === 'retry'
+                    ? t('recordings.menu.retryModal.retryMainAction')
+                    : t('recordings.menu.retryModal.changeLanguageMainAction')}
+                </AppText>
               </Pressable>
             </View>
           </View>

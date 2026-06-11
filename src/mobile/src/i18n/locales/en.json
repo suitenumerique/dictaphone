@@ -83,9 +83,9 @@
     },
     "menu": {
       "rename": "Rename",
-      "retry": "Retry",
+      "retry": "Change language",
       "share": "Share audio file",
-      "retryPending": "Retry (in progress)",
+      "retryPending": "Change language (in progress)",
       "renameTitle": "Rename recording",
       "renameDescription": "Choose a clear title so you can find this recording quickly.",
       "renamePlaceholder": "Recording title",
@@ -98,7 +98,12 @@
       "retrySuccess": "Generation restarted",
       "retryModal": {
         "title": "Regenerate transcript",
+        "titleChangeLanguage": "Change language",
         "description": "Pick a language for the new generation.",
+        "descriptionChangeLanguage": "Pick a language to transcribe this recording in.",
+        "extra": "Reprocessing takes a few minutes and replaces the current transcript.",
+        "changeLanguageMainAction": "Transcribe",
+        "retryMainAction": "Retry",
         "languageLabel": "Language",
         "languageOptions": {
           "en": "English",

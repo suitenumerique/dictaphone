@@ -511,6 +511,7 @@ export function RecordingListItem({
         {card}
       </SwipeableRemoteRow>
       <RetryTranscriptModal
+        mode="retry"
         isVisible={isRetryModalVisible}
         isPending={retryWithLanguageMutation.isPending}
         selectedLanguage={retryLanguage}

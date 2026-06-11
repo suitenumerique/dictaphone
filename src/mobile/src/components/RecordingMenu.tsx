@@ -234,7 +234,7 @@ export default function RecordingMenu({
                 }}
                 disabled={!canRetry || isBusy}
               >
-                <Lucide name="rotate-cw" size={15} color={colors.textPrimary} />
+                <Lucide name="languages" size={15} color={colors.textPrimary} />
                 <AppText
                   variant="body"
                   color={colors.textPrimary}
@@ -331,6 +331,7 @@ export default function RecordingMenu({
         </View>
       </Modal>
       <RetryTranscriptModal
+        mode="language"
         isVisible={isRetryModalVisible}
         isPending={retryWithLanguageMutation.isPending}
         selectedLanguage={retryLanguage}
