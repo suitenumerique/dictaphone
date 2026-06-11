@@ -14,6 +14,12 @@
   "retryUpload": "Retry upload",
   "recordingPrefix": "Recording",
   "preventGoBackAlert": "You are about to leave the recording page. Your recording will be lost if you do so. Please terminate it properly!",
+  "mobileAlert": {
+    "title": "Recording can stop without warning",
+    "description": "On the mobile web version, recording may stop if you lock your phone or switch tabs / apps, and won't be notified. The mobile app records reliably, even with the screen locked.",
+    "downloadApp": "Download app",
+    "continueAnyways": "Continue in browser"
+  },
   "source": {
     "ariaLabel": "Select input source",
     "fallbackLabel": "Microphone {{index}}",

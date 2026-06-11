@@ -14,6 +14,12 @@
   "retryUpload": "Réessayer le transfert sur nos serveurs",
   "recordingPrefix": "Enregistrement",
   "preventGoBackAlert": "Vous êtes sur le point de quitter la page d'enregistrement. Votre enregistrement sera perdu si vous le faites. Veuillez le terminer correctement !",
+  "mobileAlert": {
+    "title": "L'enregistrement peut s'arrêter sans prévenir",
+    "description": "Sur la version web mobile, l'enregistrement peut s'arrêter si vous verrouillez votre téléphone ou basculez entre les onglets / applications, et vous ne serez pas averti. L'application mobile enregistre de manière fiable, même lorsque l'écran est verrouillé.",
+    "downloadApp": "Télécharger l'application",
+    "continueAnyways": "Continuer dans le navigateur"
+  },
   "source": {
     "ariaLabel": "Sélectionner la source d'entrée",
     "fallbackLabel": "Microphone {{index}}",
