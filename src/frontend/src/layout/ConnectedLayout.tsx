@@ -11,11 +11,13 @@ import { usePageTitle } from '@/layout/usePageTitle'
 export default function ConnectedLayout({
   children,
   pageTitle,
+  readonly = false,
   ...rest
 }: {
   children: React.ReactNode
   className?: string
   pageTitle: string
+  readonly?: boolean
 }) {
   const { t } = useTranslation('layout')
   const user = useUser()
@@ -33,15 +35,19 @@ export default function ConnectedLayout({
     <MainLayout
       hideLeftPanelOnDesktop={true}
       icon={
-        <Link
-          to="/recordings"
-          aria-label={t('home')}
-          style={{ textDecoration: 'none' }}
-        >
+        readonly ? (
           <LogoApp variant="multiline" height={42} alt="" />
-        </Link>
+        ) : (
+          <Link
+            to="/recordings"
+            aria-label={t('home')}
+            style={{ textDecoration: 'none' }}
+          >
+            <LogoApp variant="multiline" height={42} alt="" />
+          </Link>
+        )
       }
-      rightHeaderContent={<HeaderRight />}
+      rightHeaderContent={readonly ? <></> : <HeaderRight />}
       isLeftPanelOpen={false}
     >
       <div
