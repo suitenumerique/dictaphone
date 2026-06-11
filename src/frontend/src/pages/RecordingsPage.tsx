@@ -139,7 +139,7 @@ export default function RecordingsPage() {
             value: input,
             isChecked: input === newTranscriptionLanguage,
             callback: () => setNewTranscriptionLanguage(input),
-            label: t(`actions.retryModal.languageOptions.${input}`),
+            label: t(`actions.changeLanguageModal.languageOptions.${input}`),
           }) satisfies DropdownMenuOption
       ),
     [newTranscriptionLanguage, t, setNewTranscriptionLanguage]
@@ -147,7 +147,7 @@ export default function RecordingsPage() {
   const selectedTranscriptionLanguage = useMemo(
     () =>
       t(
-        `actions.retryModal.languageOptions.${newTranscriptionLanguage ?? 'fr'}`
+        `actions.changeLanguageModal.languageOptions.${newTranscriptionLanguage ?? 'fr'}`
       ),
     [newTranscriptionLanguage, t]
   )

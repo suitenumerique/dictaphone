@@ -88,6 +88,12 @@
       "error": "Échec de la relance de la génération",
       "disabledPendingLabel": "Régénérer (en cours)"
     },
+    "changeLanguage": {
+      "label": "Changer de langue",
+      "subLabel": "Retraite l'enregistrement",
+      "success": "Nouvelle transcription demandée avec succès",
+      "error": "Échec lors de la modification de la langue de la transcription"
+    },
     "export": {
       "label": "Exporter",
       "success": "Transcription exportée",
@@ -104,15 +110,22 @@
       "placeholder": "Entrez un nouveau nom"
     },
     "retryModal": {
-      "title": "Régénérer la transcription",
-      "description": "Choisissez la langue pour la nouvelle génération.",
-      "languageLabel": "Langue",
+      "title": "Regénérer un transcript",
+      "description": "Choisissez une langue pour cette nouvelle tentative de transcription.",
+      "mainAction": "Réessayer"
+    },
+    "changeLanguageModal": {
+      "title": "Changer la langue",
+      "description": "Choisissez la langue pour cette nouvelle transcription.",
+      "selectLangLabel": "Langue",
       "languageOptions": {
         "en": "Anglais",
         "fr": "Français",
         "de": "Allemand",
         "nl": "Néerlandais"
-      }
+      },
+      "extra": "Le traitement prendra quelques minutes et remplacera le transcript actuel.",
+      "mainAction": "Transcrire"
     },
     "exportModal": {
       "title": "Exporter la transcription",

@@ -87,6 +87,12 @@
       "error": "Failed to restart generation",
       "disabledPendingLabel": "Retry (in progress)"
     },
+    "changeLanguage": {
+      "label": "Change language",
+      "subLabel": "Reprocesses the recording",
+      "success": "New transcription requested successfully",
+      "error": "Failed to change the language of the transcription"
+    },
     "export": {
       "label": "Export",
       "success": "Transcript exported",
@@ -105,13 +111,20 @@
     "retryModal": {
       "title": "Regenerate transcript",
       "description": "Pick a language for the new generation.",
-      "languageLabel": "Language",
+      "mainAction": "Retry"
+    },
+    "changeLanguageModal": {
+      "title": "Change language",
+      "description": "Pick a language to transcribe this recording in.",
+      "selectLangLabel": "Language",
       "languageOptions": {
         "en": "English",
         "fr": "French",
         "de": "German",
         "nl": "Dutch"
-      }
+      },
+      "extra": "Reprocessing takes a few minutes and replaces the current transcript.",
+      "mainAction": "Transcribe"
     },
     "exportModal": {
       "title": "Export transcript",

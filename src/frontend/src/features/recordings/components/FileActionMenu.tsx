@@ -4,6 +4,7 @@ import {
   Copy,
   Download,
   Edit,
+  Language,
   Trash,
   UndoCircle,
 } from '@gouvfr-lasuite/ui-kit/icons'
@@ -86,7 +87,9 @@ export function FileActionMenu({
   const [title, setTitle] = useState(file.title)
   const [openRenameModal, setOpenRenameModal] = useState(false)
   const [openDeleteModal, setOpenDeleteModal] = useState(false)
-  const [openRetryModal, setOpenRetryModal] = useState(false)
+  const [openRetryModal, setOpenRetryModal] = useState<
+    false | 'retry' | 'changeLanguage'
+  >(false)
   const [openExportModal, setOpenExportModal] = useState(false)
   const [isCopyingText, setIsCopyingText] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -109,7 +112,7 @@ export function FileActionMenu({
 
   const retryLanguages = useMemo(() => {
     return RETRY_LANGUAGES.map((language) => ({
-      label: t(`actions.retryModal.languageOptions.${language}`),
+      label: t(`actions.changeLanguageModal.languageOptions.${language}`),
       value: language,
       disabled:
         lastAiJobTranscript?.status === 'success'
@@ -126,13 +129,16 @@ export function FileActionMenu({
       .filter((el) => el.type === 'transcript')
       .some((el) => el.status === 'pending')
 
-  const handleOpenRetryModal = useCallback(() => {
-    if (!canOpenRetryModal) {
-      return
-    }
-    setRetryLanguage(retryLanguages.find((el) => !el.disabled)!.value)
-    setOpenRetryModal(true)
-  }, [canOpenRetryModal, retryLanguages])
+  const handleOpenRetryModal = useCallback(
+    (mode: 'changeLanguage' | 'retry') => {
+      if (!canOpenRetryModal) {
+        return
+      }
+      setRetryLanguage(retryLanguages.find((el) => !el.disabled)!.value)
+      setOpenRetryModal(mode)
+    },
+    [canOpenRetryModal, retryLanguages]
+  )
 
   const handleRetry = useCallback(() => {
     if (!lastAiJobTranscript?.id || !retryLanguage) {
@@ -387,14 +393,28 @@ export function FileActionMenu({
 
     out.push({ type: 'separator' })
 
-    if (lastAiJobTranscript?.id) {
+    if (lastAiJobTranscript?.id && lastAiJobTranscript?.status === 'failed') {
       out.push({
         label: isRetryPending
           ? t('actions.retry.disabledPendingLabel')
           : t('actions.retry.label'),
         isDisabled: file.lifecycle_state !== 'active' || isRetryPending,
         icon: <UndoCircle size="small" />,
-        callback: canOpenRetryModal ? handleOpenRetryModal : () => undefined,
+        callback: canOpenRetryModal
+          ? () => handleOpenRetryModal('retry')
+          : () => undefined,
+      })
+    }
+
+    if (lastAiJobTranscript?.id && lastAiJobTranscript?.status === 'success') {
+      out.push({
+        label: t('actions.changeLanguage.label'),
+        subText: t('actions.changeLanguage.subLabel'),
+        isDisabled: file.lifecycle_state !== 'active' || isRetryPending,
+        icon: <Language size="small" />,
+        callback: canOpenRetryModal
+          ? () => handleOpenRetryModal('changeLanguage')
+          : () => undefined,
       })
     }
 
@@ -649,13 +669,22 @@ export function FileActionMenu({
         </div>
       </Modal>
       <Modal
-        size={ModalSize.MEDIUM}
-        isOpen={openRetryModal}
+        size={ModalSize.SMALL}
+        isOpen={openRetryModal !== false}
         onClose={() => setOpenRetryModal(false)}
         preventClose={retryWithLanguageMutation.isPending}
         closeOnEsc={!retryWithLanguageMutation.isPending}
         closeOnClickOutside={!retryWithLanguageMutation.isPending}
-        title={t('actions.retryModal.title')}
+        title={t(
+          openRetryModal === 'retry'
+            ? 'actions.retryModal.title'
+            : 'actions.changeLanguageModal.title'
+        )}
+        subtitle={t(
+          openRetryModal === 'retry'
+            ? 'actions.retryModal.description'
+            : 'actions.changeLanguageModal.description'
+        )}
         rightActions={
           <>
             <Button
@@ -675,9 +704,9 @@ export function FileActionMenu({
           </>
         }
       >
-        <p>{t('actions.retryModal.description')}</p>
+        <br />
         <Select
-          label={t('actions.retryModal.languageLabel')}
+          label={t('actions.changeLanguageModal.selectLangLabel')}
           value={retryLanguage ?? ''}
           onChange={(event) =>
             setRetryLanguage(event.target.value as TTranscriptionLanguage)
@@ -686,6 +715,9 @@ export function FileActionMenu({
           disabled={retryWithLanguageMutation.isPending}
           options={retryLanguages}
         />
+        {openRetryModal === 'changeLanguage' && (
+          <p>{t('actions.changeLanguageModal.extra')}</p>
+        )}
       </Modal>
     </div>
   )
