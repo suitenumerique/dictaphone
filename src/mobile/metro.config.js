@@ -1,4 +1,4 @@
-const { getDefaultConfig } = require('@react-native/metro-config');
+const { getDefaultConfig } = require('@expo/metro-config');
 
 /**
  * Metro configuration

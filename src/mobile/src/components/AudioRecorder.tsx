@@ -4,8 +4,6 @@ import {
   Alert,
   Button,
   Linking,
-  NativeModules,
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -13,18 +11,17 @@ import {
 import { useTranslation } from 'react-i18next'
 import { Lucide } from '@react-native-vector-icons/lucide'
 import {
-  AudioBuffer,
-  AudioContext,
-  AudioManager,
-  AudioRecorder as AudioRecorderApi,
-  FileDirectory,
-  FileFormat,
-  FilePreset,
-} from 'react-native-audio-api'
+  type PermissionResponse,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio'
 import { trigger as triggerHaptic } from 'react-native-haptic-feedback'
 import { formatDuration } from '@/features/recordings/utils/formatDuration'
 import { useNavigation, usePreventRemove } from '@react-navigation/core'
-import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types'
 import uuid from 'react-native-uuid'
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
 import { deleteLocalRecordingFile } from '@/utils/deleteLocalRecordingFile'
@@ -37,96 +34,10 @@ import PlayIcon from '@/assets/icons/resume-recording.svg'
 import { useConfigStore } from '@/services/configStore'
 import { useSettingsStore } from '@/services/storage'
 
-AudioManager.setAudioSessionOptions({
-  iosCategory: 'playAndRecord',
-  iosMode: 'default',
-  iosOptions: ['defaultToSpeaker'],
-})
-
-const audioRecorder = new AudioRecorderApi()
-const audioContext = new AudioContext()
-const startSound = 'start.wav'
-const endSound = 'end.wav'
-const { BundlePath } = NativeModules as {
-  BundlePath?: {
-    getBundlePath: () => Promise<string>
-  }
-}
-let iosBundlePathPromise: Promise<string | null> | null = null
-
-const cueSoundAssets = {
-  start: startSound,
-  end: endSound,
-} as const
-const cueSoundBuffers: Record<keyof typeof cueSoundAssets, AudioBuffer | null> =
-  {
-    start: null,
-    end: null,
-  }
-const cueSoundBufferPromises: Record<
-  keyof typeof cueSoundAssets,
-  Promise<AudioBuffer> | null
-> = {
-  start: null,
-  end: null,
-}
-
 const HEAVY_HAPTIC_INTERVAL_MS = 900
 const HAPTIC_OPTIONS = {
   enableVibrateFallback: true,
   ignoreAndroidSystemSettings: false,
-}
-const isAndroid = Platform.OS === 'android'
-const noopNotificationSubscription = { remove: () => {} }
-
-type RecordingNotificationManagerType =
-  typeof import('react-native-audio-api').RecordingNotificationManager
-let recordingNotificationManager: RecordingNotificationManagerType | null = null
-
-const getRecordingNotificationManager =
-  (): RecordingNotificationManagerType | null => {
-    if (!isAndroid) {
-      return null
-    }
-
-    if (!recordingNotificationManager) {
-      recordingNotificationManager =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('react-native-audio-api').RecordingNotificationManager
-    }
-
-    return recordingNotificationManager
-  }
-
-const showRecordingNotificationSafely = async (
-  ...args: Parameters<RecordingNotificationManagerType['show']>
-) => {
-  const manager = getRecordingNotificationManager()
-  if (!manager) {
-    return
-  }
-
-  await manager.show(...args)
-}
-
-const hideRecordingNotificationSafely = () => {
-  const manager = getRecordingNotificationManager()
-  if (!manager) {
-    return
-  }
-
-  void manager.hide()
-}
-
-const addRecordingNotificationListenerSafely = (
-  ...args: Parameters<RecordingNotificationManagerType['addEventListener']>
-) => {
-  const manager = getRecordingNotificationManager()
-  if (!manager) {
-    return noopNotificationSubscription
-  }
-
-  return manager.addEventListener(...args)
 }
 
 type RecorderPhase =
@@ -193,94 +104,17 @@ const wait = async (
   }
 }
 
-const getIosBundlePath = async (): Promise<string | null> => {
-  if (!BundlePath?.getBundlePath) {
-    return null
-  }
-
-  if (!iosBundlePathPromise) {
-    iosBundlePathPromise = BundlePath.getBundlePath()
-      .then((bundlePath) => bundlePath || null)
-      .catch((error) => {
-        console.error('Failed to resolve iOS bundle path:', error)
-        return null
-      })
-  }
-
-  return iosBundlePathPromise
-}
-
-const resolveCueSoundPath = async (soundFileName: string): Promise<string> => {
-  if (Platform.OS !== 'ios') {
-    return soundFileName
-  }
-
-  const bundlePath = await getIosBundlePath()
-  if (!bundlePath) {
-    return soundFileName
-  }
-
-  return `${bundlePath}/${soundFileName}`
-}
-
-const loadCueSoundBuffer = async (
-  soundName: keyof typeof cueSoundAssets
-): Promise<AudioBuffer> => {
-  const cachedSoundBuffer = cueSoundBuffers[soundName]
-  if (cachedSoundBuffer) {
-    return cachedSoundBuffer
-  }
-
-  const cachedSoundBufferPromise = cueSoundBufferPromises[soundName]
-  if (cachedSoundBufferPromise) {
-    return cachedSoundBufferPromise
-  }
-
-  const soundBufferPromise = resolveCueSoundPath(cueSoundAssets[soundName])
-    .then((cueSoundPath) => audioContext.decodeAudioData(cueSoundPath))
-    .then((soundBuffer) => {
-      cueSoundBuffers[soundName] = soundBuffer
-      return soundBuffer
-    })
-    .finally(() => {
-      cueSoundBufferPromises[soundName] = null
-    })
-
-  cueSoundBufferPromises[soundName] = soundBufferPromise
-  return soundBufferPromise
-}
-
-const playCueSound = async (
-  soundName: keyof typeof cueSoundAssets,
-  waitUntilFinished: boolean = false,
-  shouldContinue: () => boolean = () => true
-) => {
-  try {
-    const soundBuffer = await loadCueSoundBuffer(soundName)
-    if (!shouldContinue()) {
-      return
-    }
-
-    await audioContext.resume()
-    if (!shouldContinue()) {
-      return
-    }
-
-    const source = audioContext.createBufferSource()
-    source.buffer = soundBuffer
-    source.connect(audioContext.destination)
-    source.start()
-
-    if (waitUntilFinished) {
-      await wait(Math.ceil(soundBuffer.duration * 1000), shouldContinue)
-    }
-  } catch (error) {
-    console.error(`Failed to play ${soundName} cue sound:`, error)
-  }
-}
-
 export const AudioRecorder = () => {
   const { t } = useTranslation()
+  const audioRecorder = useAudioRecorder({
+    ...RecordingPresets.HIGH_QUALITY,
+    directory: 'document',
+  })
+  const recorderState = useAudioRecorderState(audioRecorder, 200)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const startCuePlayer = useAudioPlayer(require('../assets/sounds/start.wav'))
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const endCuePlayer = useAudioPlayer(require('../assets/sounds/end.wav'))
   const maxDurationSeconds = useConfigStore(
     // We add a buffer to avoid the recording from being rejected due to timing issues
     (state) => Math.max(state.maxDurationSeconds - 60, 0)
@@ -297,7 +131,7 @@ export const AudioRecorder = () => {
   const [shouldResetNavigation, setShouldResetNavigation] = useState(false)
   const [recordingTimeMs, setRecordingTimeMs] = useState(0)
   const [permissionStatus, setPermissionStatus] =
-    useState<PermissionStatus>('Undetermined')
+    useState<PermissionResponse['status']>('undetermined' as const)
   const { addRecording } = useLocalRecordings()
   const resetNavigationHistory = useResetNavigationHistory()
   const navigation = useNavigation()
@@ -321,10 +155,6 @@ export const AudioRecorder = () => {
     () => formatDuration(recordingTimeMs),
     [recordingTimeMs]
   )
-
-  const recordingDurationInterval = useRef<ReturnType<
-    typeof setInterval
-  > | null>(null)
 
   const stopAutoStopHaptics = useCallback(() => {
     if (autoStopHapticsInterval.current) {
@@ -372,60 +202,59 @@ export const AudioRecorder = () => {
     [isCurrentLifecycle, setRecorderPhaseState]
   )
 
+  const playCueSound = useCallback(
+    async (
+      cuePlayer: ReturnType<typeof useAudioPlayer>,
+      waitUntilFinished: boolean = false,
+      shouldContinue: () => boolean = () => true
+    ) => {
+      try {
+        await cuePlayer.seekTo(0)
+        if (!shouldContinue()) {
+          return
+        }
+
+        cuePlayer.play()
+        if (!shouldContinue()) {
+          return
+        }
+
+        if (waitUntilFinished) {
+          const cueDurationMs = Math.max(Math.ceil(cuePlayer.duration * 1000), 250)
+          await wait(cueDurationMs, shouldContinue)
+        }
+      } catch (error) {
+        console.error('Failed to play cue sound:', error)
+      }
+    },
+    []
+  )
+
   const deactivateAudioSession = useCallback(async () => {
     try {
-      await AudioManager.setAudioSessionActivity(false)
+      await setAudioModeAsync({ allowsRecording: false })
     } catch (error) {
       console.error('Failed to deactivate the audio session:', error)
     }
   }, [])
 
-  const enableRecorderFileOutput = useCallback(() => {
-    try {
-      const result = audioRecorder.enableFileOutput({
-        format: FileFormat.M4A,
-        preset: FilePreset.High,
-        directory: FileDirectory.Document,
-        subDirectory: 'Assistant Transcripts',
-      })
-
-      if (result.status === 'error') {
-        console.warn(result.message)
-      }
-    } catch (error) {
-      console.error('Failed to enable recorder file output:', error)
-    }
-  }, [])
-
-  const disableRecorderFileOutput = useCallback(() => {
-    try {
-      audioRecorder.disableFileOutput()
-    } catch (error) {
-      console.error('Failed to disable recorder file output:', error)
-    }
-  }, [])
-
   const stopRecorderIfNeeded = useCallback(
-    (options?: { force?: boolean; updateState?: boolean }) => {
+    async (options?: { force?: boolean; updateState?: boolean }) => {
       const force = options?.force ?? false
       const updateState = options?.updateState ?? true
       if (!force && !RECORDING_PHASES.has(recorderPhaseRef.current)) {
-        return []
+        return null
       }
 
       try {
-        const result = audioRecorder.stop()
-        if (
-          result.status === 'error' &&
-          !result.message.includes('Recorder is not in recording state.')
-        ) {
-          console.warn(result.message)
-          return []
+        await audioRecorder.stop()
+        return {
+          uri: audioRecorder.uri ?? recorderState.url,
+          durationSeconds: recorderState.durationMillis / 1000,
         }
-        return result.status === 'success' ? result.paths : []
       } catch (error) {
         console.error('Failed to stop recorder while clearing state:', error)
-        return []
+        return null
       } finally {
         if (updateState) {
           setRecorderPhaseState('idle')
@@ -434,7 +263,7 @@ export const AudioRecorder = () => {
         }
       }
     },
-    [setRecorderPhaseState]
+    [audioRecorder, recorderState.durationMillis, recorderState.url, setRecorderPhaseState]
   )
 
   const showMaxDurationAlert = useCallback(() => {
@@ -460,47 +289,23 @@ export const AudioRecorder = () => {
     )
   }, [stopAutoStopHaptics, t])
 
-  const showRecordingNotification = useCallback(
-    async (paused: boolean) => {
-      await showRecordingNotificationSafely({
-        title: t('home.recordingNotificationTitle'),
-        contentText: t(
-          paused
-            ? 'home.recordingNotificationPaused'
-            : 'home.recordingNotificationRecording'
-        ),
-        paused,
-        smallIconResourceName: 'logo',
-        pauseIconResourceName: 'pause',
-        resumeIconResourceName: 'resume',
-        color: 0xff6200,
-      })
-    },
-    [t]
-  )
-
   const clearRecording = useCallback(
     async (options?: { updateState?: boolean; clearFile?: boolean }) => {
       const updateState = options?.updateState ?? true
       invalidateLifecycle()
 
       await enqueueRecorderAction(async () => {
-        const stoppedRecordingPaths = stopRecorderIfNeeded({
+        const stoppedRecording = await stopRecorderIfNeeded({
           force: true,
           updateState,
         })
         stopAutoStopHaptics()
-        hideRecordingNotificationSafely()
         hasReachedMaxDuration.current = false
         recordingStartDateTime.current = null
-        if (recordingDurationInterval.current) {
-          clearInterval(recordingDurationInterval.current)
-          recordingDurationInterval.current = null
-        }
         if (updateState && isMountedRef.current) {
           setRecordingTimeMs(0)
         }
-        const localRecordingPath = stoppedRecordingPaths[0]
+        const localRecordingPath = stoppedRecording?.uri ?? null
         if (options?.clearFile && localRecordingPath) {
           try {
             await deleteLocalRecordingFile(localRecordingPath)
@@ -508,30 +313,20 @@ export const AudioRecorder = () => {
             console.error('Failed to delete local discarded recording:', error)
           }
         }
-        disableRecorderFileOutput()
         await deactivateAudioSession()
       })
     },
-    [
-      deactivateAudioSession,
-      disableRecorderFileOutput,
-      invalidateLifecycle,
-      stopAutoStopHaptics,
-      stopRecorderIfNeeded,
-    ]
+    [deactivateAudioSession, invalidateLifecycle, stopAutoStopHaptics, stopRecorderIfNeeded]
   )
 
   useEffect(() => {
     isMountedRef.current = true
-    AudioManager.requestRecordingPermissions()
-      .then((res) => {
+    requestRecordingPermissionsAsync()
+      .then(({ status }) => {
         if (!isMountedRef.current) {
           return
         }
-        setPermissionStatus(res)
-        if (res === 'Granted') {
-          enableRecorderFileOutput()
-        }
+        setPermissionStatus(status)
       })
       .catch((error) => {
         console.error('Failed to request recording permissions:', error)
@@ -542,7 +337,7 @@ export const AudioRecorder = () => {
       stopAutoStopHaptics()
       void clearRecording({ updateState: false })
     }
-  }, [clearRecording, enableRecorderFileOutput, stopAutoStopHaptics])
+  }, [clearRecording, stopAutoStopHaptics])
 
   usePreventRemove(isRecording, ({ data }) => {
     Alert.alert(
@@ -583,31 +378,10 @@ export const AudioRecorder = () => {
 
   useEffect(() => {
     if (!shouldPollRecordingDuration) {
-      if (recordingDurationInterval.current) {
-        clearInterval(recordingDurationInterval.current)
-        recordingDurationInterval.current = null
-      }
       return
     }
-
-    if (!recordingDurationInterval.current) {
-      recordingDurationInterval.current = setInterval(() => {
-        try {
-          const duration = audioRecorder.getCurrentDuration()
-          setRecordingTimeMs(duration * 1000)
-        } catch (error) {
-          console.error('Failed to get current recording duration:', error)
-        }
-      }, 200)
-    }
-
-    return () => {
-      if (recordingDurationInterval.current) {
-        clearInterval(recordingDurationInterval.current)
-        recordingDurationInterval.current = null
-      }
-    }
-  }, [shouldPollRecordingDuration])
+    setRecordingTimeMs(recorderState.durationMillis)
+  }, [recorderState.durationMillis, shouldPollRecordingDuration])
 
   const handleStartRecording = useCallback(async () => {
     if (recorderPhaseRef.current !== 'idle') {
@@ -621,50 +395,37 @@ export const AudioRecorder = () => {
         return
       }
 
-      let shouldDeactivateAudioSession = false
       try {
-        const permissions = await AudioManager.requestRecordingPermissions()
+        const permissionsResponse = await requestRecordingPermissionsAsync()
         if (!isCurrentLifecycle(lifecycleToken)) {
           return
         }
-        setPermissionStatus(permissions)
+        setPermissionStatus(permissionsResponse.status)
 
-        if (permissions !== 'Granted') {
+        if (!permissionsResponse.granted) {
           console.warn('Permissions are not granted')
           setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
           return
         }
 
-        const success = await AudioManager.setAudioSessionActivity(true)
-        if (!isCurrentLifecycle(lifecycleToken)) {
-          if (success) {
-            await deactivateAudioSession()
-          }
-          return
-        }
-        if (!success) {
-          console.warn('Could not activate the audio session')
-          setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
-          return
-        }
-        shouldDeactivateAudioSession = true
-
-        await playCueSound('start', true, () =>
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          allowsRecording: true,
+          allowsBackgroundRecording: true,
+        })
+        await playCueSound(startCuePlayer, true, () =>
           isCurrentLifecycle(lifecycleToken)
         )
         if (!isCurrentLifecycle(lifecycleToken)) {
           return
         }
 
-        const result = audioRecorder.start()
-        if (result.status === 'error') {
-          console.warn(result.message)
-          setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
-          return
-        }
-        await showRecordingNotification(false)
+        await audioRecorder.prepareToRecordAsync({
+          ...RecordingPresets.HIGH_QUALITY,
+          directory: 'document',
+        })
+        audioRecorder.record()
 
-        shouldDeactivateAudioSession = false
         hasReachedMaxDuration.current = false
         recordingStartDateTime.current = new Date()
 
@@ -672,30 +433,28 @@ export const AudioRecorder = () => {
           setRecordingTimeMs(0)
           setRecorderPhaseState('recording')
         } else {
-          stopRecorderIfNeeded({ force: true, updateState: false })
+          await stopRecorderIfNeeded({ force: true, updateState: false })
           await deactivateAudioSession()
         }
       } catch (error) {
         console.error('Failed to start recording:', error)
         setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
-      } finally {
-        if (shouldDeactivateAudioSession) {
-          await deactivateAudioSession()
-        }
       }
     })
   }, [
+    audioRecorder,
     beginLifecycleAction,
     deactivateAudioSession,
     isCurrentLifecycle,
+    playCueSound,
     setRecorderPhaseIfCurrent,
     setRecorderPhaseState,
-    showRecordingNotification,
+    startCuePlayer,
     stopRecorderIfNeeded,
   ])
 
   useEffect(() => {
-    if (permissionStatus === 'Granted' && !hasAutoStartedRef.current) {
+    if (permissionStatus === 'granted' && !hasAutoStartedRef.current) {
       hasAutoStartedRef.current = true
       void handleStartRecording()
     }
@@ -715,10 +474,9 @@ export const AudioRecorder = () => {
 
       try {
         audioRecorder.pause()
-        await playCueSound('end', true, () =>
+        await playCueSound(endCuePlayer, true, () =>
           isCurrentLifecycle(lifecycleToken)
         )
-        await showRecordingNotification(true)
         setRecorderPhaseIfCurrent(lifecycleToken, 'paused')
       } catch (error) {
         console.error('Failed to pause recording:', error)
@@ -726,10 +484,12 @@ export const AudioRecorder = () => {
       }
     })
   }, [
+    audioRecorder,
     beginLifecycleAction,
+    endCuePlayer,
     isCurrentLifecycle,
+    playCueSound,
     setRecorderPhaseIfCurrent,
-    showRecordingNotification,
   ])
 
   const onResumeRecord = useCallback(async () => {
@@ -745,15 +505,14 @@ export const AudioRecorder = () => {
       }
 
       try {
-        await playCueSound('start', true, () =>
+        await playCueSound(startCuePlayer, true, () =>
           isCurrentLifecycle(lifecycleToken)
         )
         if (!isCurrentLifecycle(lifecycleToken)) {
           return
         }
 
-        audioRecorder.resume()
-        await showRecordingNotification(false)
+        audioRecorder.record()
         setRecorderPhaseIfCurrent(lifecycleToken, 'recording')
       } catch (error) {
         console.error('Failed to resume recording:', error)
@@ -761,10 +520,12 @@ export const AudioRecorder = () => {
       }
     })
   }, [
+    audioRecorder,
     beginLifecycleAction,
     isCurrentLifecycle,
+    playCueSound,
     setRecorderPhaseIfCurrent,
-    showRecordingNotification,
+    startCuePlayer,
   ])
 
   const onStopRecord = useCallback(async () => {
@@ -787,20 +548,15 @@ export const AudioRecorder = () => {
           return false
         }
 
-        const result = audioRecorder.stop()
-        hideRecordingNotificationSafely()
-        if (result.status === 'error') {
-          if (result.message.includes('Recorder is not in recording state.')) {
-            setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
-          } else {
-            console.warn(result.message)
-            setRecorderPhaseIfCurrent(lifecycleToken, previousPhase)
-          }
+        await audioRecorder.stop()
+        const localRecordingPath = audioRecorder.uri ?? recorderState.url
+        if (!localRecordingPath) {
+          setRecorderPhaseIfCurrent(lifecycleToken, previousPhase)
           return false
         }
 
         if (!wasPaused) {
-          await playCueSound('end', true, () =>
+          await playCueSound(endCuePlayer, true, () =>
             isCurrentLifecycle(lifecycleToken)
           )
         }
@@ -821,8 +577,8 @@ export const AudioRecorder = () => {
         )}`
         addRecording({
           created_at: startedAt.toISOString(),
-          duration_seconds: result.duration,
-          filePath: result.paths[0],
+          duration_seconds: recorderState.durationMillis / 1000,
+          filePath: localRecordingPath,
           title,
           id: uuid.v4(),
           language: selectedTranscriptionLanguage,
@@ -843,9 +599,14 @@ export const AudioRecorder = () => {
     })
   }, [
     addRecording,
+    audioRecorder,
     beginLifecycleAction,
     deactivateAudioSession,
+    endCuePlayer,
     isCurrentLifecycle,
+    playCueSound,
+    recorderState.durationMillis,
+    recorderState.url,
     setRecorderPhaseIfCurrent,
     setRecorderPhaseState,
     selectedTranscriptionLanguage,
@@ -885,29 +646,7 @@ export const AudioRecorder = () => {
   ])
 
   useEffect(() => {
-    const pauseListener = addRecordingNotificationListenerSafely(
-      'recordingNotificationPause',
-      () => {
-        onPauseRecord()
-      }
-    )
-
-    const resumeListener = addRecordingNotificationListenerSafely(
-      'recordingNotificationResume',
-      () => {
-        onResumeRecord()
-      }
-    )
-
-    return () => {
-      pauseListener.remove()
-      resumeListener.remove()
-      hideRecordingNotificationSafely()
-    }
-  }, [onPauseRecord, onResumeRecord])
-
-  useEffect(() => {
-    if (permissionStatus === 'Denied') {
+    if (permissionStatus === 'denied') {
       Alert.alert(t('home.permissionDenied'), t('home.recordingDisabled'), [
         {
           text: t('home.permissionCancel'),
@@ -925,7 +664,7 @@ export const AudioRecorder = () => {
     }
   }, [resetNavigationHistory, permissionStatus, t])
 
-  if (permissionStatus === 'Denied') {
+  if (permissionStatus === 'denied') {
     return (
       <View style={styles.activeContainer}>
         <View style={styles.statusSection}>
