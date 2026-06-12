@@ -2020,7 +2020,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNAudioAPI (0.12.2):
+  - RNAudioAPI (0.11.7):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2041,10 +2041,9 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNAudioAPI/audioapi (= 0.12.2)
-    - RNWorklets
+    - RNAudioAPI/audioapi (= 0.11.7)
     - Yoga
-  - RNAudioAPI/audioapi (0.12.2):
+  - RNAudioAPI/audioapi (0.11.7):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2065,12 +2064,10 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNAudioAPI/audioapi/audioapi_dsp (= 0.12.2)
-    - RNAudioAPI/audioapi/ios (= 0.12.2)
-    - RNAudioAPI/audioapi/miniaudio_impl (= 0.12.2)
-    - RNWorklets
+    - RNAudioAPI/audioapi/audioapi_dsp (= 0.11.7)
+    - RNAudioAPI/audioapi/ios (= 0.11.7)
     - Yoga
-  - RNAudioAPI/audioapi/audioapi_dsp (0.12.2):
+  - RNAudioAPI/audioapi/audioapi_dsp (0.11.7):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2091,9 +2088,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNWorklets
     - Yoga
-  - RNAudioAPI/audioapi/ios (0.12.2):
+  - RNAudioAPI/audioapi/ios (0.11.7):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2114,30 +2110,6 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNWorklets
-    - Yoga
-  - RNAudioAPI/audioapi/miniaudio_impl (0.12.2):
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - RNWorklets
     - Yoga
   - RNBootSplash (7.3.1):
     - hermes-engine
@@ -2873,7 +2845,7 @@ SPEC CHECKSUMS:
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
   ReactNativeDependencies: bf34bd93d7090b42d88c90c597944e3843baae60
   ReactNativeEnrichedMarkdown: e6fea750b1ca4cbd853c1c78de9bd1ccb638ab77
-  RNAudioAPI: ea7f66f39572e9ca802c5ce98c75f48cc999683b
+  RNAudioAPI: 9f0145224e76e40396b77e502f462948d712bcf9
   RNBootSplash: c0d86dded541a26441dd35d927fae3f0855af499
   RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNGestureHandler: b633cb9b819ffb23661496af13bd6943d66f093c

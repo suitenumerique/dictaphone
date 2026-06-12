@@ -397,11 +397,11 @@ export const AudioRecorder = () => {
   }, [])
 
   const stopRecorderIfNeeded = useCallback(
-    (options?: { force?: boolean; updateState?: boolean }) => {
+    (options?: { force?: boolean; updateState?: boolean }): string | null => {
       const force = options?.force ?? false
       const updateState = options?.updateState ?? true
       if (!force && !RECORDING_PHASES.has(recorderPhaseRef.current)) {
-        return []
+        return null
       }
 
       try {
@@ -411,12 +411,12 @@ export const AudioRecorder = () => {
           !result.message.includes('Recorder is not in recording state.')
         ) {
           console.warn(result.message)
-          return []
+          return null
         }
-        return result.status === 'success' ? result.paths : []
+        return result.status === 'success' ? result.path : null
       } catch (error) {
         console.error('Failed to stop recorder while clearing state:', error)
-        return []
+        return null
       } finally {
         if (updateState) {
           setRecorderPhaseState('idle')
@@ -476,7 +476,7 @@ export const AudioRecorder = () => {
       invalidateLifecycle()
 
       await enqueueRecorderAction(async () => {
-        const stoppedRecordingPaths = stopRecorderIfNeeded({
+        const stoppedRecordingPath = stopRecorderIfNeeded({
           force: true,
           updateState,
         })
@@ -491,7 +491,7 @@ export const AudioRecorder = () => {
         if (updateState && isMountedRef.current) {
           setRecordingTimeMs(0)
         }
-        const localRecordingPath = stoppedRecordingPaths[0]
+        const localRecordingPath = stoppedRecordingPath
         if (options?.clearFile && localRecordingPath) {
           try {
             await deleteLocalRecordingFile(localRecordingPath)
@@ -813,7 +813,7 @@ export const AudioRecorder = () => {
         addRecording({
           created_at: startedAt.toISOString(),
           duration_seconds: result.duration,
-          filePath: result.paths[0],
+          filePath: result.path,
           title,
           id: uuid.v4(),
           uploadingStatus: 'to_upload',
