@@ -217,6 +217,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
       - name: Install dependencies
         run: cd src/frontend/ && npm ci
 
@@ -240,7 +247,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: yarn
           cache-dependency-path: src/mobile/yarn.lock
 

@@ -12,6 +12,9 @@
     "format": "prettier --write ./src",
     "check": "prettier --check ./src"
   },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "dependencies": {
     "@formatjs/intl-durationformat": "0.10.14",
     "@gouvfr-lasuite/cunningham-react": "4.3.0",
@@ -46,7 +49,7 @@
     "@tanstack/eslint-plugin-query": "5.101.0",
     "@tanstack/react-query-devtools": "5.101.0",
     "@types/humanize-duration": "3.27.4",
-    "@types/node": "22.16.0",
+    "@types/node": "^24.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "6.0.2",
