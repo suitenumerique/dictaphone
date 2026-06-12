@@ -134,6 +134,36 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
     resolver(fileExists)
   }
 
+  @objc func readBundledFileAsBase64(_ fileName: String,
+                                     resolver: @escaping RCTPromiseResolveBlock,
+                                     rejecter: @escaping RCTPromiseRejectBlock) {
+    let normalizedName = fileName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !normalizedName.isEmpty else {
+      rejecter("BUNDLE_FILE_READ_ERROR", "File name cannot be empty", nil)
+      return
+    }
+
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        let nsName = normalizedName as NSString
+        let resource = nsName.deletingPathExtension
+        let ext = nsName.pathExtension.isEmpty ? nil : nsName.pathExtension
+        let bundleUrl = Bundle.main.url(forResource: resource, withExtension: ext)
+          ?? Bundle.main.url(forResource: normalizedName, withExtension: nil)
+
+        guard let fileUrl = bundleUrl else {
+          rejecter("BUNDLE_FILE_NOT_FOUND", "Bundled file not found: \(normalizedName)", nil)
+          return
+        }
+
+        let data = try Data(contentsOf: fileUrl, options: [.mappedIfSafe])
+        resolver(data.base64EncodedString())
+      } catch {
+        rejecter("BUNDLE_FILE_READ_ERROR", "Unable to read bundled file: \(normalizedName)", error)
+      }
+    }
+  }
+
   override func supportedEvents() -> [String]! {
     [FileUploadModule.uploadProgressEvent]
   }

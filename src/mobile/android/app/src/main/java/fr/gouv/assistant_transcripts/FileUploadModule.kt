@@ -2,6 +2,7 @@ package fr.gouv.assistant_transcripts
 
 import android.content.ClipData
 import android.content.Intent
+import android.util.Base64
 import androidx.core.content.FileProvider
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
@@ -160,6 +161,36 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
                 promise.resolve(file.exists() && file.isFile)
             } catch (e: Exception) {
                 promise.reject("FILE_EXISTS_ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun readBundledFileAsBase64(fileName: String, promise: Promise) {
+        thread {
+            try {
+                val normalizedName = fileName.trim()
+                if (normalizedName.isEmpty()) {
+                    promise.reject("BUNDLE_FILE_READ_ERROR", "File name cannot be empty")
+                    return@thread
+                }
+
+                val baseName = normalizedName.substringBeforeLast('.')
+                val resourceName = if (baseName.isNotEmpty()) baseName else normalizedName
+                val resources = reactApplicationContext.resources
+                val packageName = reactApplicationContext.packageName
+                val resourceId = resources.getIdentifier(resourceName, "raw", packageName)
+
+                val bytes =
+                    if (resourceId != 0) {
+                        resources.openRawResource(resourceId).use { it.readBytes() }
+                    } else {
+                        reactApplicationContext.assets.open(normalizedName).use { it.readBytes() }
+                    }
+
+                promise.resolve(Base64.encodeToString(bytes, Base64.NO_WRAP))
+            } catch (e: Exception) {
+                promise.reject("BUNDLE_FILE_READ_ERROR", e.message, e)
             }
         }
     }
