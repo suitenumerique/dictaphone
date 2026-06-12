@@ -29,6 +29,16 @@
     "lowSound": "Son très faible !",
     "soundOk": "Le niveau du son est bon."
   },
+  "tabAudio": {
+    "add": "Ajouter l'audio d'un onglet",
+    "remove": "Retirer l'audio d'un onglet",
+    "activeLabel": "Audio onglet : {{label}}"
+  },
+  "pip": {
+    "source": "Source micro",
+    "tabAudio": "Audio onglet",
+    "open": "Ouvrir le mini enregistreur"
+  },
   "status": {
     "readyToRecord": "Prêt à enregistrer",
     "requestingPermission": "En attente de l'autorisation du micro",

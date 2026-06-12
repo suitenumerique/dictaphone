@@ -45,8 +45,12 @@ env.d/development/*
 !env.d/development/*.dist
 env.d/terraform
 
-# npm
+# npm / yarn / pnpm
 node_modules
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+pnpm-workspace.yaml
 
 # Swagger
 **/swagger.json

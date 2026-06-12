@@ -42,6 +42,27 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
     }
   }
 
+  .record-component__tab-audio-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--c--contextuals--content--semantic--neutral--primary);
+    width: 100%;
+    justify-content: center;
+  }
+
+  .record-component__tab-audio-label {
+    margin: 0;
+    color: var(--c--contextuals--content--semantic--neutral--secondary);
+    font-size: 0.75rem;
+    width: 100%;
+    text-align: center;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
   .record-component__status {
     margin: 0;
     display: inline-flex;
@@ -102,45 +123,6 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
     }
   }
 
-  .record-component__controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-    width: 100%;
-  }
-
-  .record-component__controls--single {
-    grid-template-columns: minmax(0, 1fr);
-    width: min(100%, 380px);
-  }
-
-  .record-component__button {
-    border: none;
-    border-radius: 6px;
-    min-height: 2.875rem;
-    padding: 0.625rem 0.875rem;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1.0625rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      color 150ms ease;
-
-    .material-icons {
-      font-size: 1.25rem;
-      line-height: 1;
-      color: currentcolor;
-    }
-
-    &:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
-    }
-  }
 
   .record-component__button--muted {
     background-color: var(--c--globals--colors--gray-150);
@@ -167,5 +149,49 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
     color: var(--c--globals--colors--red-500);
     font-size: 0.875rem;
     line-height: 1.4;
+  }
+}
+
+.record-pip-window {
+  margin: 0;
+}
+
+.record-component__controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.record-component__controls--single {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 380px);
+}
+
+.record-component__button {
+  border: none;
+  border-radius: 6px;
+  min-height: 2.875rem;
+  padding: 0.625rem 0.875rem;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+
+  .material-icons {
+    font-size: 1.25rem;
+    line-height: 1;
+    color: currentcolor;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 }
