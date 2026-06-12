@@ -15,12 +15,12 @@
 		21140A52DFCB427391FC2D8E /* Marianne-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70ECF5C2B2AF4DE793694795 /* Marianne-Medium.ttf */; };
 		2D7131C1D1994ACA86D3B442 /* Marianne-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F137D49634D9412E84656275 /* Marianne-ExtraBold.ttf */; };
 		3C2C21D82F98C91B00C7EC71 /* logo-app-assistant-transcript.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3C2C21D72F98C91B00C7EC71 /* logo-app-assistant-transcript.icon */; };
-		3CA118472F90C97900888295 /* BundlePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118462F90C97900888295 /* BundlePath.swift */; };
-		3CA118482F90C97900888295 /* BundlePath.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118492F90C97900888295 /* BundlePath.m */; };
 		3C8BE5AB2FCEFEFE006893EE /* end.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3C8BE5A92FCEFEFE006893EE /* end.wav */; };
 		3C8BE5AC2FCEFEFE006893EE /* start.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3C8BE5AA2FCEFEFE006893EE /* start.wav */; };
 		3CA118432F90C97500888295 /* FileUploadModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118422F90C97500888295 /* FileUploadModule.swift */; };
 		3CA118442F90C97500888295 /* FileUploadModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118412F90C97500888295 /* FileUploadModule.m */; };
+		3CA118472F90C97900888295 /* BundlePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118462F90C97900888295 /* BundlePath.swift */; };
+		3CA118482F90C97900888295 /* BundlePath.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CA118492F90C97900888295 /* BundlePath.m */; };
 		4519DF0B08B440398A18F497 /* Marianne-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3B758111E43646D4B8B937AD /* Marianne-BoldItalic.ttf */; };
 		5095DBADCC63462292CBD240 /* Marianne-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */; };
 		5AFF4A782CAA4D09AA51F853 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 9146F7905284416699041E5D /* BootSplash.storyboard */; };
@@ -51,9 +51,9 @@
 		3CA118402F90C97500888295 /* dictaphone-Briding-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "dictaphone-Briding-Header.h"; sourceTree = "<group>"; };
 		3CA118412F90C97500888295 /* FileUploadModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileUploadModule.m; sourceTree = "<group>"; };
 		3CA118422F90C97500888295 /* FileUploadModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUploadModule.swift; sourceTree = "<group>"; };
+		3CA118452F90C97800888295 /* AssistantTranscripts-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AssistantTranscripts-Bridging-Header.h"; sourceTree = "<group>"; };
 		3CA118462F90C97900888295 /* BundlePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundlePath.swift; sourceTree = "<group>"; };
 		3CA118492F90C97900888295 /* BundlePath.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BundlePath.m; sourceTree = "<group>"; };
-		3CA118452F90C97800888295 /* AssistantTranscripts-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AssistantTranscripts-Bridging-Header.h"; sourceTree = "<group>"; };
 		446E631AA34B4DA1A8709D22 /* Marianne-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Marianne-Thin.ttf"; path = "../assets/fonts/Marianne-Thin.ttf"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-AssistantTranscripts.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AssistantTranscripts.release.xcconfig"; path = "Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-AssistantTranscripts.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AssistantTranscripts.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -285,13 +285,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -328,13 +324,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-AssistantTranscripts/Pods-AssistantTranscripts-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

@@ -1,6 +1,21 @@
 import { NativeEventEmitter, NativeModules } from 'react-native'
+import { toByteArray } from 'react-native-quick-base64'
 
-const { FileUploadModule } = NativeModules
+type FileUploadNativeModule = {
+  addListener: (eventName: string) => void
+  removeListeners: (count: number) => void
+  uploadFile: (
+    filePath: string,
+    url: string,
+    contentType: string,
+    uploadId: string
+  ) => Promise<void>
+  readBundledFileAsBase64?: (fileName: string) => Promise<string>
+}
+
+const { FileUploadModule } = NativeModules as {
+  FileUploadModule?: FileUploadNativeModule
+}
 const uploadProgressEvent = 'FileUploadProgress'
 
 type NativeUploadProgress = {
@@ -64,4 +79,15 @@ export const uploadFileToS3 = async (
   } finally {
     subscription?.remove()
   }
+}
+
+export const readBundledFileAsArrayBuffer = async (
+  fileName: string
+): Promise<ArrayBuffer> => {
+  if (!FileUploadModule?.readBundledFileAsBase64) {
+    throw new Error('FileUploadModule.readBundledFileAsBase64 is not available')
+  }
+
+  const base64Payload = await FileUploadModule.readBundledFileAsBase64(fileName)
+  return new Uint8Array(toByteArray(base64Payload, true)).buffer
 }
