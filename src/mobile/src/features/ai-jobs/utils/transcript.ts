@@ -61,8 +61,10 @@ export function buildTranscriptViewSegments(
   if (!transcript) return []
 
   // We need to fix the speaker from WhisperX
-  const speakerMapped = new Map<string | null, string>()
+  const speakerMapped = new Map<string, string>()
   const getSpeaker = (speaker: string | null): string | null => {
+    if (!speaker) return null
+
     if (!speakerMapped.has(speaker)) {
       speakerMapped.set(speaker, String(speakerMapped.size + 1))
     }
