@@ -27,7 +27,7 @@ RUN set -e && \
     npx @posthog/cli@0.4.8 sourcemap inject --directory ./dist/assets
 
 # ---- Front-end image ----
-FROM nginxinc/nginx-unprivileged:alpine3.23 AS frontend-production
+FROM nginxinc/nginx-unprivileged:1.30.2-alpine3.23 AS frontend-production
 
 USER root
 RUN apk update && apk upgrade libssl3 \
