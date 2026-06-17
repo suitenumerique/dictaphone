@@ -28,7 +28,7 @@
     "posthog-react-native": "4.43.1",
     "react": "19.2.3",
     "react-i18next": "17.0.2",
-    "react-native": "0.84.1",
+    "react-native": "0.85.0",
     "react-native-audio-api": "0.11.7",
     "react-native-bootsplash": "7.3.1",
     "react-native-device-info": "15.0.2",
