@@ -3,9 +3,13 @@ Tests for files API endpoint in dictaphone's core app: list
 """
 
 from datetime import timedelta
+from math import ceil
 from unittest import mock
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 import pytest
 from faker import Faker
@@ -252,3 +256,197 @@ def test_api_files_list_pagination(
     for file in content["results"]:
         file_ids.remove(file["id"])
     assert file_ids == []
+
+
+def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_at():
+    """Pending AI jobs should include expected processing end datetimes."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    now = timezone.now()
+
+    pending_file_1 = factories.FileFactory(creator=user, duration_seconds=60)
+    pending_file_2 = factories.FileFactory(creator=user, duration_seconds=120)
+    pending_file_3 = factories.FileFactory(creator=user, duration_seconds=45)
+
+    pending_job_1 = factories.AiFileJobFactory(
+        file=pending_file_1,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+    pending_job_2 = factories.AiFileJobFactory(
+        file=pending_file_2,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+    pending_job_3 = factories.AiFileJobFactory(
+        file=pending_file_3,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+
+    models.AiFileJob.objects.filter(pk=pending_job_1.pk).update(created_at=now)
+    models.AiFileJob.objects.filter(pk=pending_job_2.pk).update(
+        created_at=now + timedelta(seconds=1)
+    )
+    models.AiFileJob.objects.filter(pk=pending_job_3.pk).update(
+        created_at=now + timedelta(seconds=2)
+    )
+
+    throughput_user = factories.UserFactory()
+    for index in range(4):
+        success_file = factories.FileFactory(
+            creator=throughput_user, duration_seconds=120
+        )
+        success_job = factories.AiFileJobFactory(
+            file=success_file,
+            status=models.AiJobStatusChoices.SUCCESS,
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        )
+        started_at = now - timedelta(minutes=5, seconds=index * 40 + 40)
+        finished_at = started_at + timedelta(seconds=60)
+        models.AiFileJob.objects.filter(pk=success_job.pk).update(
+            created_at=started_at,
+            updated_at=finished_at,
+        )
+
+    with mock.patch("core.api.serializers.timezone.now", return_value=now):
+        response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    ai_jobs = {
+        job["id"]: job
+        for file_data in response.json()["results"]
+        for job in file_data["ai_jobs"]
+    }
+
+    assert parse_datetime(
+        ai_jobs[str(pending_job_1.id)]["processing_expected_end_at"]
+    ) == now + timedelta(seconds=30)
+    assert parse_datetime(
+        ai_jobs[str(pending_job_2.id)]["processing_expected_end_at"]
+    ) == (now + timedelta(seconds=90))
+    assert parse_datetime(
+        ai_jobs[str(pending_job_3.id)]["processing_expected_end_at"]
+    ) == (now + timedelta(seconds=113))
+
+
+def test_api_files_list_ai_job_estimation_avoids_n_plus_one_queries():
+    """AI estimation should not issue one database query per file/job."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    now = timezone.now()
+    for index in range(5):
+        file = factories.FileFactory(
+            creator=user,
+            duration_seconds=50 + index * 10,
+        )
+        factories.AiFileJobFactory(
+            file=file,
+            status=models.AiJobStatusChoices.PENDING,
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        )
+
+    throughput_user = factories.UserFactory()
+    for index in range(4):
+        success_file = factories.FileFactory(
+            creator=throughput_user, duration_seconds=80
+        )
+        success_job = factories.AiFileJobFactory(
+            file=success_file,
+            status=models.AiJobStatusChoices.SUCCESS,
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        )
+        started_at = now - timedelta(minutes=3, seconds=index * 30 + 30)
+        models.AiFileJob.objects.filter(pk=success_job.pk).update(
+            created_at=started_at,
+            updated_at=started_at + timedelta(seconds=40),
+        )
+
+    with CaptureQueriesContext(connection) as context:
+        response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    ai_job_queries = [
+        query["sql"]
+        for query in context.captured_queries
+        if 'FROM "ai_job"' in query["sql"]
+    ]
+    assert len(ai_job_queries) <= 4
+
+
+def test_api_files_list_ai_job_estimation_applies_overdue_throughput_correction():
+    """Overdue pending jobs should reduce throughput and shift expected end dates."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    now = timezone.now()
+
+    pending_file_1 = factories.FileFactory(creator=user, duration_seconds=60)
+    pending_file_2 = factories.FileFactory(creator=user, duration_seconds=45)
+
+    pending_job_1 = factories.AiFileJobFactory(
+        file=pending_file_1,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+    pending_job_2 = factories.AiFileJobFactory(
+        file=pending_file_2,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+
+    models.AiFileJob.objects.filter(pk=pending_job_1.pk).update(
+        created_at=now - timedelta(seconds=200)
+    )
+    models.AiFileJob.objects.filter(pk=pending_job_2.pk).update(
+        created_at=now - timedelta(seconds=5)
+    )
+
+    throughput_user = factories.UserFactory()
+    for index in range(4):
+        success_file = factories.FileFactory(
+            creator=throughput_user, duration_seconds=120
+        )
+        success_job = factories.AiFileJobFactory(
+            file=success_file,
+            status=models.AiJobStatusChoices.SUCCESS,
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        )
+        started_at = now - timedelta(minutes=6, seconds=index * 60 + 60)
+        models.AiFileJob.objects.filter(pk=success_job.pk).update(
+            created_at=started_at,
+            updated_at=started_at + timedelta(seconds=60),
+        )
+
+    with mock.patch("core.api.serializers.timezone.now", return_value=now):
+        response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    ai_jobs = {
+        job["id"]: job
+        for file_data in response.json()["results"]
+        for job in file_data["ai_jobs"]
+    }
+    overdue_adjusted_throughput = pending_file_1.duration_seconds / (200 * 1.1)
+    expected_wait_seconds_for_first_job = int(
+        ceil(pending_file_1.duration_seconds / overdue_adjusted_throughput)
+    )
+
+    assert parse_datetime(
+        ai_jobs[str(pending_job_1.id)]["processing_expected_end_at"]
+    ) == (now + timedelta(seconds=expected_wait_seconds_for_first_job))
+    expected_wait_seconds_for_second_job = int(
+        ceil(
+            (pending_file_1.duration_seconds + pending_file_2.duration_seconds)
+            / overdue_adjusted_throughput
+        )
+    )
+
+    assert parse_datetime(
+        ai_jobs[str(pending_job_2.id)]["processing_expected_end_at"]
+    ) == (now + timedelta(seconds=expected_wait_seconds_for_second_job))

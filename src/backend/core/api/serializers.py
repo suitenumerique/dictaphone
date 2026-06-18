@@ -2,10 +2,12 @@
 
 import logging
 from datetime import timedelta
+from math import ceil
 from os.path import splitext
 from urllib.parse import quote
 
 from django.conf import settings
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -18,6 +20,91 @@ from core.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+AI_JOB_THROUGHPUT_SAMPLES = 4
+AI_JOB_DEFAULT_THROUGHPUT = 30  # 30s / s
+
+
+def _compute_ai_job_throughput(job_type: models.AiJobTypeChoices) -> float:
+    """Estimate processing throughput in media seconds per wall-clock second."""
+    success_queryset = (
+        models.AiFileJob.objects.filter(
+            status=models.AiJobStatusChoices.SUCCESS, type=job_type
+        )
+        .select_related("file")
+        .only("created_at", "updated_at", "file__duration_seconds")
+        .order_by("-updated_at")
+    )
+
+    sample_jobs = tuple(success_queryset[:AI_JOB_THROUGHPUT_SAMPLES])
+
+    weighted_media_seconds = 0.0
+    weighted_wall_clock_seconds = 0.0
+    sample_count = len(sample_jobs)
+    for index, ai_job in enumerate(sample_jobs):
+        duration_seconds = ai_job.file.duration_seconds
+        processing_seconds = (ai_job.updated_at - ai_job.created_at).total_seconds()
+        if duration_seconds <= 0 or processing_seconds <= 0:
+            continue
+        # Newer jobs appear first because of -updated_at ordering.
+        recency_weight = sample_count - index
+        weighted_media_seconds += duration_seconds * recency_weight
+        weighted_wall_clock_seconds += processing_seconds * recency_weight
+
+    if weighted_wall_clock_seconds <= 0:
+        return AI_JOB_DEFAULT_THROUGHPUT
+
+    return max(weighted_media_seconds / weighted_wall_clock_seconds, 1)
+
+
+def _build_processing_expected_end_at_by_pending_job_id() -> dict:
+    """Return processing expected-end-at estimates for all pending AI jobs."""
+    pending_jobs = (
+        models.AiFileJob.objects.filter(status=models.AiJobStatusChoices.PENDING)
+        .select_related("file")
+        .only("id", "type", "created_at", "file__duration_seconds")
+        .order_by("created_at", "id")
+    )
+    throughput_by_type = {}
+
+    processing_expected_end_at_by_job_id = {}
+    queued_media_seconds = 0.0
+    now = timezone.now()
+    for ai_job in pending_jobs:
+        if ai_job.type not in throughput_by_type:
+            throughput_by_type[ai_job.type] = _compute_ai_job_throughput(ai_job.type)
+        throughput = throughput_by_type[ai_job.type]
+        duration_seconds = ai_job.file.duration_seconds
+
+        waiting_seconds = int(
+            ceil((queued_media_seconds + duration_seconds) / throughput)
+        )
+        processing_expected_end_at_by_job_id[ai_job.id] = now + timedelta(
+            seconds=waiting_seconds
+        )
+        elapsed_seconds = max((now - ai_job.created_at).total_seconds(), 0.0)
+
+        if (
+            elapsed_seconds >= waiting_seconds
+            and queued_media_seconds + duration_seconds > 0
+        ):
+            overdue_adjusted_throughput = (queued_media_seconds + duration_seconds) / (
+                elapsed_seconds * 1.1
+            )
+            throughput = min(
+                throughput, overdue_adjusted_throughput
+            )  # rebind local var
+            throughput_by_type[ai_job.type] = throughput  # keep dict in sync
+            waiting_seconds = int(
+                ceil((queued_media_seconds + duration_seconds) / throughput)
+            )
+            processing_expected_end_at_by_job_id[ai_job.id] = now + timedelta(
+                seconds=waiting_seconds
+            )
+
+        queued_media_seconds += duration_seconds
+
+    return processing_expected_end_at_by_job_id
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -51,6 +138,23 @@ class UserLightSerializer(serializers.ModelSerializer):
 class AiJobSerializer(serializers.ModelSerializer):
     """Serialize AI job model for the API."""
 
+    processing_expected_end_at = serializers.SerializerMethodField(read_only=True)
+
+    def get_processing_expected_end_at(self, ai_job):
+        """Return estimated processing end datetime for pending jobs."""
+        if ai_job.status != models.AiJobStatusChoices.PENDING:
+            return None
+
+        expected_end_at_by_job_id = self.context.get(
+            "ai_job_processing_expected_end_at_by_id",
+            {},
+        )
+        estimate = expected_end_at_by_job_id.get(ai_job.id)
+        if estimate is not None:
+            return estimate
+
+        return _build_processing_expected_end_at_by_pending_job_id().get(ai_job.id)
+
     class Meta:
         model = models.AiFileJob
         fields = [
@@ -61,6 +165,7 @@ class AiJobSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "docs_app_id",
+            "processing_expected_end_at",
         ]
         read_only_fields = [
             "id",
@@ -70,6 +175,7 @@ class AiJobSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "docs_app_id",
+            "processing_expected_end_at",
         ]
 
 
@@ -143,6 +249,25 @@ class ListFileSerializer(serializers.ModelSerializer):
             "original_file_file_delete_at",
             "will_auto_delete_at",
         ]
+
+    def _ensure_ai_job_estimation_context(self):
+        """Compute AI queue metrics once and share them with nested serializers."""
+        if "ai_job_processing_expected_end_at_by_id" in self.context:
+            return
+
+        view = self.context.get("view")
+        if view and getattr(view, "action", None) not in {"list", "retrieve"}:
+            self.context["ai_job_processing_expected_end_at_by_id"] = {}
+            return
+
+        self.context["ai_job_processing_expected_end_at_by_id"] = (
+            _build_processing_expected_end_at_by_pending_job_id()
+        )
+
+    def to_representation(self, instance):
+        """Ensure pending AI jobs can access precomputed estimation data."""
+        self._ensure_ai_job_estimation_context()
+        return super().to_representation(instance)
 
     def get_url(self, obj):
         """Return the URL of the file."""
