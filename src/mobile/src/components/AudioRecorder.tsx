@@ -372,7 +372,10 @@ export const AudioRecorder = () => {
   }, [])
 
   const stopRecorderIfNeeded = useCallback(
-    (options?: { force?: boolean; updateState?: boolean }): string | null => {
+    async (options?: {
+      force?: boolean
+      updateState?: boolean
+    }): Promise<string | null> => {
       const force = options?.force ?? false
       const updateState = options?.updateState ?? true
       if (!force && !RECORDING_PHASES.has(recorderPhaseRef.current)) {
@@ -380,7 +383,7 @@ export const AudioRecorder = () => {
       }
 
       try {
-        const result = audioRecorder.stop()
+        const result = await audioRecorder.stop()
         if (
           result.status === 'error' &&
           !result.message.includes('Recorder is not in recording state.')
@@ -388,7 +391,7 @@ export const AudioRecorder = () => {
           console.warn(result.message)
           return null
         }
-        return result.status === 'success' ? result.path : null
+        return result.status === 'success' ? result.paths[0]! : null
       } catch (error) {
         console.error('Failed to stop recorder while clearing state:', error)
         return null
@@ -451,7 +454,7 @@ export const AudioRecorder = () => {
       invalidateLifecycle()
 
       await enqueueRecorderAction(async () => {
-        const stoppedRecordingPath = stopRecorderIfNeeded({
+        const stoppedRecordingPath = await stopRecorderIfNeeded({
           force: true,
           updateState,
         })
@@ -622,7 +625,7 @@ export const AudioRecorder = () => {
           return
         }
 
-        const result = audioRecorder.start()
+        const result = await audioRecorder.start()
         if (result.status === 'error') {
           console.warn(result.message)
           setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
@@ -638,7 +641,7 @@ export const AudioRecorder = () => {
           setRecordingTimeMs(0)
           setRecorderPhaseState('recording')
         } else {
-          stopRecorderIfNeeded({ force: true, updateState: false })
+          await { force: true, updateState: false }
           await deactivateAudioSession()
         }
       } catch (error) {
@@ -657,7 +660,6 @@ export const AudioRecorder = () => {
     setRecorderPhaseIfCurrent,
     setRecorderPhaseState,
     showRecordingNotification,
-    stopRecorderIfNeeded,
   ])
 
   useEffect(() => {
@@ -753,7 +755,7 @@ export const AudioRecorder = () => {
           return false
         }
 
-        const result = audioRecorder.stop()
+        const result = await audioRecorder.stop()
         hideRecordingNotificationSafely()
         if (result.status === 'error') {
           if (result.message.includes('Recorder is not in recording state.')) {
@@ -788,7 +790,7 @@ export const AudioRecorder = () => {
         addRecording({
           created_at: startedAt.toISOString(),
           duration_seconds: result.duration,
-          filePath: result.path,
+          filePath: result.paths[0]!,
           title,
           id: uuid.v4(),
           language: selectedTranscriptionLanguage,

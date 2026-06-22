@@ -1,6 +1,6 @@
 {
   "name": "assistanttranscripts",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "scripts": {
     "android": "react-native run-android --active-arch-only",
@@ -29,7 +29,7 @@
     "react": "19.2.3",
     "react-i18next": "17.0.2",
     "react-native": "0.84.1",
-    "react-native-audio-api": "0.11.7",
+    "react-native-audio-api": "0.13.0-nightly-2a16551-20260622",
     "react-native-bootsplash": "7.3.1",
     "react-native-device-info": "15.0.2",
     "react-native-enriched-markdown": "0.5.0",
