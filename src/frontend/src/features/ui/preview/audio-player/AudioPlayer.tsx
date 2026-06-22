@@ -63,6 +63,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(durationSecondsEstimate ?? 0)
+    const [playbackRate, setPlaybackRate] = useState(1)
 
     const seekTo = useCallback(
       (seconds: number) => {
@@ -104,8 +105,9 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     const handleLoadedMetadata = useCallback(() => {
       if (audioRef.current) {
         setDuration(audioRef.current.duration)
+        audioRef.current.playbackRate = playbackRate
       }
-    }, [])
+    }, [playbackRate])
 
     const handleTimeUpdate = useCallback(() => {
       if (audioRef.current) {
@@ -147,6 +149,16 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         onTimeUpdate?.(nextTime)
       }
     }, [currentTime, duration, onTimeUpdate])
+
+    const handlePlaybackRateChange = useCallback(() => {
+      setPlaybackRate((oldRate) => {
+        const rate = oldRate === 1 ? 1.5 : oldRate === 1.5 ? 2 : 1
+        if (audioRef.current) {
+          audioRef.current.playbackRate = rate
+        }
+        return rate
+      })
+    }, [])
 
     const handleDownload = useCallback(() => {
       let filename = title.trim()
@@ -198,6 +210,10 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
             event.preventDefault()
             handleForward10Seconds()
             break
+          case 'KeyS':
+            event.preventDefault()
+            handlePlaybackRateChange()
+            break
         }
       }
 
@@ -205,7 +221,12 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       return () => {
         document.removeEventListener('keydown', handleKeyDown)
       }
-    }, [togglePlayPause, handleRewind10Seconds, handleForward10Seconds])
+    }, [
+      togglePlayPause,
+      handleRewind10Seconds,
+      handleForward10Seconds,
+      handlePlaybackRateChange,
+    ])
 
     // Auto-play effect
     useEffect(() => {
@@ -219,11 +240,13 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       if (audioRef.current) {
         // Reset audio element
         audioRef.current.currentTime = 0
+        audioRef.current.playbackRate = 1
 
         // Reset state
         setIsPlaying(false)
         setCurrentTime(0)
         setDuration(0)
+        setPlaybackRate(1)
       }
     }, [src])
 
@@ -255,6 +278,40 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               className="audio-player__btn"
               icon={isPlaying ? <Pause /> : <Play />}
               aria-label={isPlaying ? t('player.pause') : t('player.play')}
+              size={'nano'}
+            />
+            <Button
+              variant="tertiary"
+              color="neutral"
+              onClick={() => handlePlaybackRateChange()}
+              className="audio-player__btn"
+              icon={
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  height="24px"
+                  viewBox="0 -960 960 960"
+                  width="24px"
+                  fill="currentColor"
+                >
+                  {/* No icons in the UI kit yet, and couldn't make material icons work here, so went for svg.*/}
+                  {playbackRate === 1 && (
+                    <path d="M240-280v-320h-80v-80h160v400h-80Zm174 0 126-212-114-188h94l66 110 68-110h92L634-492l126 212h-94l-80-134-80 134h-92Z" />
+                  )}
+                  {playbackRate === 1.5 && (
+                    <path d="M240-280v-80h80v80h-80Zm-120 0v-320H40v-80h160v400h-80Zm500 0 120-200-120-200h80l80 133 80-133h80L820-480l120 200h-80l-80-133-80 133h-80Zm-260 0v-80h140v-80H360v-240h220v80H440v80h60q33 0 56.5 23.5T580-440v80q0 33-23.5 56.5T500-280H360Z" />
+                  )}
+                  {playbackRate === 2 && (
+                    <path d="M200-280v-160q0-33 23.5-56.5T280-520h80v-80H200v-80h160q33 0 56.5 23.5T440-600v80q0 33-23.5 56.5T360-440h-80v80h160v80H200Zm280 0 120-200-120-200h80l80 133 80-133h80L680-480l120 200h-80l-80-133-80 133h-80Z" />
+                  )}
+                </svg>
+              }
+              aria-label={
+                playbackRate === 1
+                  ? t('player.speed15')
+                  : playbackRate === 1.5
+                    ? t('player.speed2')
+                    : t('player.speed1')
+              }
               size={'nano'}
             />
             <div className="audio-player__separator" />

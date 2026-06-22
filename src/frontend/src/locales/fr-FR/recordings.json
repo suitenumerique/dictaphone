@@ -181,6 +181,10 @@
     "pause": "Pause",
     "rewind": "Rembobiner",
     "forward": "Avancer",
+    "speed15": "Définir la vitesse de lecture à 1,5x (actuellement 1x)",
+    "speed2": "Définir la vitesse de lecture à 2x (actuellement 1,5x)",
+    "speed1": "Définir la vitesse de lecture à 1x (actuellement 2x)",
+
     "download": "Télécharger",
     "previous": "Précédent",
     "next": "Passer",
