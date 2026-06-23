@@ -104,26 +104,6 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
         processing_expected_end_at_by_job_id[ai_job.id] = now + timedelta(
             seconds=waiting_seconds
         )
-        elapsed_seconds = max((now - ai_job.created_at).total_seconds(), 0.0)
-
-        if (
-            elapsed_seconds >= waiting_seconds
-            and queued_media_seconds + duration_seconds > 0
-        ):
-            overdue_adjusted_throughput = (queued_media_seconds + duration_seconds) / (
-                elapsed_seconds * 1.1
-            )
-            throughput = min(
-                throughput, overdue_adjusted_throughput
-            )  # rebind local var
-            throughput_by_type[ai_job.type] = throughput  # keep dict in sync
-            waiting_seconds = int(
-                ceil((queued_media_seconds + duration_seconds) / throughput)
-            )
-            processing_expected_end_at_by_job_id[ai_job.id] = now + timedelta(
-                seconds=waiting_seconds
-            )
-
         queued_media_seconds += duration_seconds
 
     return processing_expected_end_at_by_job_id
