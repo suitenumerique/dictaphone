@@ -61,10 +61,9 @@ function OpenInDocsButton({
       size="small"
       variant="secondary"
       disabled={
-        false
-        // openInDocs.isPending ||
-        // lastAiJobTranscript?.status !== 'success' ||
-        // !lastAiJobTranscript?.docs_app_id
+        openInDocs.isPending ||
+        lastAiJobTranscript?.status !== 'success' ||
+        !lastAiJobTranscript?.docs_app_id
       }
       aria-label={t('transcript.openInDocsCta')}
       icon={<ArrowUpRight />}
