@@ -80,6 +80,7 @@
       "loginToSync": "Login to sync",
       "offline": "Will sync when online",
       "processing": "Processing",
+      "processingLong": "Processing ∼ {{value}}",
       "uploading": "Uploading",
       "waitingForUpload": "Waiting for upload",
       "processingFailed": "Processing failed"
@@ -168,6 +169,9 @@
       "formatDateTime": "{{value, formatDateTime}}",
       "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
       "duration": "{{duration, formatDuration}}",
+      "durationLong": "{{duration, formatDurationLong}}",
+      "durationHoursMinutes": "{{hours}}h {{mins}} min",
+      "durationHours": "{{hours}}h ",
       "durationMinsSeconds": "{{mins}} min {{secs}}",
       "durationMins": "{{mins}} min",
       "durationSeconds": "{{secs}} sec",

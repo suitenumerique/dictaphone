@@ -14,6 +14,7 @@ function createJob(
     updated_at: '2026-01-01T00:00:00.000Z',
     docs_app_id: null,
     language: 'fr',
+    processing_expected_end_at: null,
   }
 }
 

@@ -80,6 +80,7 @@
       "loginToSync": "Se connecter pour synchroniser",
       "offline": "Synchronisera une fois en ligne",
       "processing": "Traitement en cours",
+      "processingLong": "En traitement ∼ {{value}}",
       "uploading": "Envoi en cours",
       "waitingForUpload": "En attente d'envoi",
       "processingFailed": "Échec du traitement"
@@ -168,7 +169,10 @@
       "formatDateTime": "{{value, formatDateTime}}",
       "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
       "duration": "{{duration, formatDuration}}",
+      "durationLong": "{{duration, formatDurationLong}}",
       "durationMinsSeconds": "{{mins}} min {{secs}}",
+      "durationHoursMinutes": "{{hours}}h {{mins}} min",
+      "durationHours": "{{hours}}h ",
       "durationMins": "{{mins}} min",
       "durationSeconds": "{{secs}} sec",
       "fileSizeMb": "{{size, number(maximumFractionDigits: 2)}} Mo"

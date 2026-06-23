@@ -28,6 +28,9 @@ export const mockedFiles: ApiFileItem[] = [
         updated_at: '2026-04-28T10:04:30Z',
         docs_app_id: 'doc-s1',
         language: 'fr',
+        processing_expected_end_at: new Date(
+          Date.now() + 1000 * 60 * 60 * 24 * 3
+        ).toISOString(),
       },
     ],
     abilities: {
@@ -65,6 +68,7 @@ export const mockedFiles: ApiFileItem[] = [
         updated_at: '2026-04-27T15:09:40Z',
         docs_app_id: 'doc-s2',
         language: 'fr',
+        processing_expected_end_at: null,
       },
     ],
     abilities: {
@@ -102,6 +106,7 @@ export const mockedFiles: ApiFileItem[] = [
         updated_at: '2026-04-28T14:00:10Z',
         docs_app_id: null,
         language: 'fr',
+        processing_expected_end_at: null,
       },
     ],
     abilities: {
@@ -140,6 +145,7 @@ export const mockedFiles: ApiFileItem[] = [
         updated_at: '2026-04-26T11:24:40Z',
         docs_app_id: 'doc-s4',
         language: 'fr',
+        processing_expected_end_at: null,
       },
     ],
     abilities: {
@@ -177,6 +183,7 @@ export const mockedFiles: ApiFileItem[] = [
         updated_at: '2026-04-25T16:49:30Z',
         docs_app_id: 'doc-s5',
         language: 'fr',
+        processing_expected_end_at: null,
       },
     ],
     abilities: {
@@ -214,6 +221,7 @@ export const mockedFiles: ApiFileItem[] = [
         updated_at: '2026-04-24T11:09:10Z',
         docs_app_id: 'doc-s6',
         language: 'fr',
+        processing_expected_end_at: null,
       },
     ],
     abilities: {

@@ -8,6 +8,7 @@ export type ApiAiJob = {
   updated_at: string // ISO datetime string
   docs_app_id: string | null
   language: TTranscriptionLanguage
+  processing_expected_end_at: string | null // ISO datetime string
 }
 
 export type ApiOpenInDocsResponse = {

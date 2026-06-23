@@ -41,6 +41,7 @@ import { useTranslation } from 'react-i18next'
 import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
 import { shareLocalRecording } from '@/utils/shareLocalRecording'
+import useFormattedProcessingDuration from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 
 const OPEN_STATE_THRESHOLD = 60
 const DELETE_ACTION_WIDTH = 80
@@ -93,7 +94,8 @@ function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
 function formatRecordMeta(
   recording: LocalOrRemoteRecording,
   t: TFunction,
-  uploadBlockReason: UploadBlockReason
+  uploadBlockReason: UploadBlockReason,
+  formattedProcessingDuration: string | null
 ): string {
   if (recording.kind === 'fake') {
     return ''
@@ -137,6 +139,10 @@ function formatRecordMeta(
   }
   if (lastAiJobTranscript?.status === 'success') {
     return `${durationLabel} • ${dateLabel}`
+  }
+
+  if (formattedProcessingDuration) {
+    return `${durationLabel} • ${t('recordings.meta.processingLong', { value: formattedProcessingDuration })}`
   }
   return `${durationLabel} • ${dateLabel} • ${t('recordings.meta.processing')}`
 }
@@ -358,6 +364,10 @@ export function RecordingListItem({
     item.kind === 'local' &&
     (item.uploadingStatus === 'failed' || item.uploadingStatus === 'to_upload')
 
+  const formattedProcessingDuration = useFormattedProcessingDuration(
+    item.kind === 'remote' ? item : null
+  )
+
   const handleOpenRetryModal = useCallback((recording: RemoteRecording) => {
     const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
     if (!lastAiJobTranscript?.id || lastAiJobTranscript.status !== 'failed') {
@@ -450,7 +460,12 @@ export function RecordingListItem({
                 {item.title}
               </AppText>
               <AppText variant="muted" size="md" numberOfLines={1}>
-                {formatRecordMeta(item, t, uploadBlockReason)}
+                {formatRecordMeta(
+                  item,
+                  t,
+                  uploadBlockReason,
+                  formattedProcessingDuration
+                )}
               </AppText>
               {item.kind === 'local' &&
                 item.uploadingStatus === 'uploading' && (

@@ -66,6 +66,24 @@ if (!i18n.isInitialized) {
           return i18n.t('shared.utils.durationSeconds', { secs: seconds })
         }
       })
+      i18n.services.formatter!.add('formatDurationLong', (value: Duration) => {
+        // Proper duration formatting like on the web is harder to do, we are fallbacking to a simplier version
+        const hours = (value.hours ?? 0) + (value.days ?? 0) * 24
+        const minutes = value.minutes ?? 0
+
+        if (hours > 0) {
+          if (minutes > 0) {
+            return i18n.t('shared.utils.durationHoursMinutes', {
+              hours: hours,
+              mins: minutes,
+            })
+          } else {
+            return i18n.t('shared.utils.durationHours', { hours: hours })
+          }
+        } else {
+          return i18n.t('shared.utils.durationMins', { mins: minutes })
+        }
+      })
       i18n.services.formatter!.add(
         'formatDateTimeStatic',
         (value, _lng, options) => {
