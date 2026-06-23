@@ -88,8 +88,10 @@ export interface SettingsStore {
   hasHydrated: boolean
   settings: AppSettings
   newTranscriptionLanguage: TTranscriptionLanguage | null
+  androidBatteryWarningShown: boolean
   setSettings: (settings: AppSettings) => void
   setNewTranscriptionLanguage: (language: TTranscriptionLanguage) => void
+  setAndroidBatteryWarningShown: (shown: boolean) => void
   resetSettings: () => void
 }
 
@@ -278,9 +280,12 @@ export const useSettingsStore = create<SettingsStore>()(
       hasHydrated: false,
       settings: { ...defaultSettings },
       newTranscriptionLanguage: null,
+      androidBatteryWarningShown: false,
       setSettings: (settings) => set({ settings }),
       setNewTranscriptionLanguage: (newTranscriptionLanguage) =>
         set({ newTranscriptionLanguage }),
+      setAndroidBatteryWarningShown: (androidBatteryWarningShown) =>
+        set({ androidBatteryWarningShown }),
       resetSettings: () => set({ settings: defaultSettings }),
     }),
     {
@@ -295,6 +300,8 @@ export const useSettingsStore = create<SettingsStore>()(
           state.newTranscriptionLanguage =
             state.newTranscriptionLanguage ?? 'fr'
           state.hasHydrated = true
+          state.androidBatteryWarningShown =
+            state.androidBatteryWarningShown ?? false
         } else {
           useSettingsStore.setState({ hasHydrated: true })
         }

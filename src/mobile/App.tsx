@@ -12,7 +12,7 @@ import RecordingsScreen from './src/screens/RecordingsScreen'
 import {
   clearAuthState,
   exchangeCodeForTokens,
-} from './src/services/authService'
+} from '@/services/authService'
 import { queryClient } from '@/api/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import BootSplash from 'react-native-bootsplash'
@@ -27,6 +27,7 @@ import { logPosthogScreenChange } from '@/features/analytics/hooks/useAnalytics'
 import { UpdateModal } from '@/features/config/UpdateModal'
 import { useRecordingsStore } from '@/services/storage'
 import { useTranslation } from 'react-i18next'
+import { CheckBatteryOptimization } from '@/components/CheckBatteryOptimization'
 
 const RootStack = createNativeStackNavigator<RootStackParamList>()
 
@@ -75,7 +76,7 @@ function AuthCallbackScreen() {
 }
 
 function MissingFilesAlertHandler() {
-  const {t} = useTranslation()
+  const { t } = useTranslation()
   const missingFilesPending = useRecordingsStore(
     (state) => state.missingFilesPending
   )
@@ -119,6 +120,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AppInitialization>
           <MissingFilesAlertHandler />
+          <CheckBatteryOptimization />
           <StatusBar barStyle="dark-content" />
           <NavigationContainer
             onReady={() => {

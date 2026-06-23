@@ -38,7 +38,10 @@
     "discardRecordingConfirm": "Discard",
     "recordingMaxDurationTitle": "Maximum recording duration reached",
     "recordingMaxDurationMessage": "Recording stopped automatically.",
-    "recordingMaxDurationConfirm": "OK"
+    "recordingMaxDurationConfirm": "OK",
+    "batteryRestrictionsTitle": "Restrictions may apply",
+    "batteryOptimizationMessage": "To ensure recording is never silently stopped, please disable battery optimization for the app in your settings.",
+    "doNotShowAgain": "Ok, don't show again"
   },
   "recordings": {
     "emptyTitle": "No recordings yet",
