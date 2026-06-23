@@ -254,7 +254,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     const remainingTime = duration > 0 ? Math.max(duration - currentTime, 0) : 0
 
     return (
-      <div className={clsx('audio-player', className)}>
+      <div className={clsx('audio-player-custom', className)}>
         {/* Hidden audio element */}
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <audio
@@ -269,13 +269,13 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         />
 
         {/* Player interface */}
-        <div className="audio-player__container">
-          <div className="audio-player__controls">
+        <div className="audio-player-custom__container">
+          <div className="audio-player-custom__controls">
             <Button
               variant="tertiary"
               color="neutral"
               onClick={togglePlayPause}
-              className="audio-player__btn"
+              className="audio-player-custom__btn"
               icon={isPlaying ? <Pause /> : <Play />}
               aria-label={isPlaying ? t('player.pause') : t('player.play')}
               size={'nano'}
@@ -284,7 +284,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               variant="tertiary"
               color="neutral"
               onClick={() => handlePlaybackRateChange()}
-              className="audio-player__btn"
+              className="audio-player-custom__btn"
               icon={
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -314,12 +314,12 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               }
               size={'nano'}
             />
-            <div className="audio-player__separator" />
+            <div className="audio-player-custom__separator" />
             <Button
               variant="tertiary"
               color="neutral"
               onClick={handleRewind10Seconds}
-              className="audio-player__btn"
+              className="audio-player-custom__btn"
               icon={<FastBackward />}
               aria-label={t('player.rewind')}
               size={'nano'}
@@ -328,13 +328,15 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               variant="tertiary"
               color="neutral"
               onClick={handleForward10Seconds}
-              className="audio-player__btn"
+              className="audio-player-custom__btn"
               icon={<FastForward />}
               aria-label={t('player.forward')}
               size={'nano'}
             />
-            <div className="audio-player__separator" />
-            <div className="audio-player__time">{formatTime(currentTime)}</div>
+            <div className="audio-player-custom__separator" />
+            <div className="audio-player-custom__time">
+              {formatTime(currentTime)}
+            </div>
             <input
               type="range"
               min={0}
@@ -342,7 +344,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               value={currentTime}
               step={0.01}
               onChange={handleSeek}
-              className="audio-player__timeline"
+              className="audio-player-custom__timeline"
               aria-label={t('player.progressControl')}
               style={
                 {
@@ -350,15 +352,15 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                 } as React.CSSProperties
               }
             />
-            <div className="audio-player__time audio-player__time--remaining">
+            <div className="audio-player-custom__time audio-player-custom__time--remaining">
               -{formatTime(remainingTime)}
             </div>
-            <div className="audio-player__separator" />
+            <div className="audio-player-custom__separator" />
             <Button
               variant="tertiary"
               color="neutral"
               onClick={handleDownload}
-              className="audio-player__btn"
+              className="audio-player-custom__btn"
               icon={<Download />}
               aria-label={t('player.download')}
               size={'nano'}

@@ -1,4 +1,4 @@
-.audio-player {
+.audio-player-custom {
   width: 100%;
   transition: all 0.3s ease;
 
@@ -100,7 +100,7 @@
 
 // Responsive design
 @media (max-width: 768px) {
-  .audio-player {
+  .audio-player-custom {
     &__controls {
       gap: 2px;
     }
