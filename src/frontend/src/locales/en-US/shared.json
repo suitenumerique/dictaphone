@@ -10,7 +10,8 @@
     "formatDate": "{{value, formatDate}}",
     "formatDateTime": "{{value, formatDateTime}}",
     "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
-    "duration": "{{duration, formatDuration}}"
+    "duration": "{{duration, formatDuration}}",
+    "durationLong": "{{duration, formatDurationLong}}"
   },
   "dates": {
     "tomorrow": "Tomorrow",

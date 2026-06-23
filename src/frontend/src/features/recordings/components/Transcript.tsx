@@ -7,8 +7,10 @@ import {
 } from '@/features/ai-jobs/utils/transcript.ts'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { TranscriptSegment } from '@/features/recordings/components/TranscriptSegment.tsx'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { Badge } from '@gouvfr-lasuite/ui-kit'
+import { Skeleton } from '@/components/Skeleton'
+import { useFormattedProcessingDuration } from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 
 export function Transcript({
   lastAiJobTranscript,
@@ -79,6 +81,46 @@ export function Transcript({
     }
   }, [activeSegment?.id])
 
+  const formattedProcessingDurationRemaining =
+    useFormattedProcessingDuration(lastAiJobTranscript)
+
+  if (!lastAiJobTranscript || lastAiJobTranscript?.status === 'pending') {
+    return (
+      <div className="transcript-pending">
+        <div className="transcript-pending__skeletons">
+          <div className="transcript-pending__skeletons__row">
+            <Skeleton opacity={100} />
+            <Skeleton opacity={100} />
+          </div>
+          <Skeleton opacity={75} />
+          <Skeleton opacity={50} />
+        </div>
+        {formattedProcessingDurationRemaining ? (
+          <div className="transcript-pending__message" role="alert">
+            <img
+              width={32}
+              src="/assets/files/icons/pending-icon.svg"
+              aria-hidden={true}
+              alt={t('transcript.status.pending')}
+            />
+            <p>
+              <Trans
+                t={t}
+                i18nKey="transcript.status.processingLong"
+                values={{ value: formattedProcessingDurationRemaining }}
+              >
+                La transcription est en cours de génération et sera disponible
+                dans <strong>tbd</strong>.
+              </Trans>
+            </p>
+          </div>
+        ) : (
+          <Badge type="info">{t('transcript.status.pending')}</Badge>
+        )}
+      </div>
+    )
+  }
+
   return (
     <section
       className="recording-page__panel recording-page__panel--transcript"
@@ -86,10 +128,6 @@ export function Transcript({
     >
       {lastAiJobTranscript?.status === 'failed' && (
         <Badge type="danger">{t('transcript.status.failed')}</Badge>
-      )}
-
-      {lastAiJobTranscript?.status === 'pending' && (
-        <Badge type="info">{t('transcript.status.pending')}</Badge>
       )}
 
       {transcriptQ.data &&

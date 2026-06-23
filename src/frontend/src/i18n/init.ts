@@ -116,6 +116,15 @@ i18n
       }).format(value)
     })
     i18n.services.formatter!.add(
+      'formatDurationLong',
+      (value: Duration, lng) => {
+        // @ts-expect-error it's ok
+        return new Intl.DurationFormat((lng ?? 'en').split('-')[0]).format(
+          value
+        )
+      }
+    )
+    i18n.services.formatter!.add(
       'formatDateTimeStatic',
       (value, _lng, options) => {
         return format(value, options?.formatStr ?? 'Pp')

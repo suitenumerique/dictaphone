@@ -149,7 +149,9 @@
     "status": {
       "pending": "Transcript is still being generated",
       "failed": "Transcript generation failed",
-      "empty": "Transcript is empty"
+      "empty": "Transcript is empty",
+      "processing": "Processing ∼ {{value}}",
+      "processingLong": "Transcription is being generated and will be available in approximately <1>{{value}}</1>."
     },
     "statusPreview": {
       "pending": "Pending transcription",

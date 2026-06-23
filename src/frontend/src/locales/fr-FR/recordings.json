@@ -150,7 +150,9 @@
     "status": {
       "pending": "La transcription est en cours de génération",
       "failed": "Échec de la génération de la transcription",
-      "empty": "La transcription est vide"
+      "empty": "La transcription est vide",
+      "processing": "En traitement ∼ {{value}}",
+      "processingLong": "La transcription est en cours de génération et sera disponible dans environ <1>{{value}}</1>."
     },
     "statusPreview": {
       "pending": "Transcription en cours",

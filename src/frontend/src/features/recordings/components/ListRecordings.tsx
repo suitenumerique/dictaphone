@@ -9,6 +9,7 @@ import { ApiFileItem } from '@/features/files/api/types.ts'
 import { Fragment, useEffect, useMemo, useRef } from 'react'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
+import { useFormattedProcessingDuration } from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 
 function RecordingStatus({ recording }: { recording: ApiFileItem }) {
   const { t } = useTranslation('recordings')
@@ -46,6 +47,37 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
     <span role="status" aria-label={t('transcript.statusPreview.pending')}>
       <Spinner />
     </span>
+  )
+}
+
+function RecordingMetadata({ recording }: { recording: ApiFileItem }) {
+  const { t } = useTranslation(['recordings', 'shared'])
+
+  const durationFormatted = t('shared:utils.duration', {
+    duration: intervalToDuration({
+      start: 0,
+      end: Math.max(recording.duration_seconds || 1, 1) * 1000,
+    }),
+  })
+
+  const createdAtFormatted = t('shared:utils.formatDateTime', {
+    value: recording.created_at,
+  })
+
+  const formattedProcessingDurationRemaining =
+    useFormattedProcessingDuration(recording)
+
+  return (
+    <div className="recordings-list__item__metadata">
+      <span>{durationFormatted}</span>•
+      <span>
+        {formattedProcessingDurationRemaining
+          ? t('recordings:transcript.status.processing', {
+              value: formattedProcessingDurationRemaining,
+            })
+          : createdAtFormatted}
+      </span>
+    </div>
   )
 }
 
@@ -128,23 +160,7 @@ export function ListRecordings({
                       <span className="recordings-list__item__title">
                         {file.title || file.filename}
                       </span>
-                      <div className="recordings-list__item__metadata">
-                        <span>
-                          {t('shared:utils.duration', {
-                            duration: intervalToDuration({
-                              start: 0,
-                              end:
-                                Math.max(file.duration_seconds || 1, 1) * 1000,
-                            }),
-                          })}
-                        </span>
-                        •
-                        <span>
-                          {t('shared:utils.formatDateTime', {
-                            value: file.created_at,
-                          })}
-                        </span>
-                      </div>
+                      <RecordingMetadata recording={file} />
                     </div>
                   </div>
                 </button>

@@ -15,6 +15,7 @@
 @use './../features/recordings/components/SignalLevelMeter';
 @use './../features/recordings/components/RecoverList';
 @use './../components/ProgressBar';
+@use './../components/Skeleton';
 @use './../features/recordings/components/ListRecordings';
 @use './../features/recordings/components/Transcript';
 @use './../features/files/components/FileUploadToast';

@@ -84,3 +84,38 @@
 .transcript__word-whitespace {
   white-space: pre-wrap;
 }
+
+.transcript-pending {
+  &__skeletons {
+    display: flex;
+    gap: 6px;
+    flex-direction: column;
+
+    &__row {
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+
+      :first-child {
+        width: 100px;
+      }
+    }
+  }
+
+  &__message {
+    padding-top: 24px;
+    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--c--contextuals--content--semantic--neutral--secondary);
+
+    p {
+      text-align: center;
+      max-width: 300px;
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
+}
