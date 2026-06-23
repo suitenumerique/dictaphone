@@ -1,6 +1,7 @@
 """Client serializers for the Dictaphone core app."""
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
 from math import ceil
 from os.path import splitext
@@ -18,43 +19,64 @@ from core.models import (
     FileLifecycleStateChoices,
     get_original_file_data_cutoff_datetime,
 )
+from core.utils import floor_dt_to_bucket
 
 logger = logging.getLogger(__name__)
 
-AI_JOB_THROUGHPUT_SAMPLES = 4
 AI_JOB_DEFAULT_THROUGHPUT = 30  # 30s / s
 
+MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION = 4
+# We choose 5 minutes as the window size as with a max file duration of 3H
+# and per worker coefficient of 37 observed in production,
+# all files should be processed within 5 minutes
+# This should be parametrizable later.
+THROUGHPUT_WINDOW_SECONDS: int = 5 * 60  # 5 minutes
+N_THROUGHPUT_WINDOWS = 3
 
-def _compute_ai_job_throughput(job_type: models.AiJobTypeChoices) -> float:
+
+def compute_ai_job_throughput(job_type: models.AiJobTypeChoices) -> float:
     """Estimate processing throughput in media seconds per wall-clock second."""
+    now = timezone.now()
     success_queryset = (
         models.AiFileJob.objects.filter(
             status=models.AiJobStatusChoices.SUCCESS, type=job_type
         )
         .select_related("file")
-        .only("created_at", "updated_at", "file__duration_seconds")
+        .only("updated_at", "file__duration_seconds")
         .order_by("-updated_at")
     )
 
-    sample_jobs = tuple(success_queryset[:AI_JOB_THROUGHPUT_SAMPLES])
+    cutoff = now - timedelta(minutes=N_THROUGHPUT_WINDOWS * THROUGHPUT_WINDOW_SECONDS)
+    jobs = tuple(
+        success_queryset.filter(
+            updated_at__gte=cutoff,
+        )
+    )
+    if len(jobs) < MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION:
+        jobs = tuple(success_queryset[:MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION])
 
-    weighted_media_seconds = 0.0
-    weighted_wall_clock_seconds = 0.0
-    sample_count = len(sample_jobs)
-    for index, ai_job in enumerate(sample_jobs):
-        duration_seconds = ai_job.file.duration_seconds
-        processing_seconds = (ai_job.updated_at - ai_job.created_at).total_seconds()
-        if duration_seconds <= 0 or processing_seconds <= 0:
-            continue
-        # Newer jobs appear first because of -updated_at ordering.
-        recency_weight = sample_count - index
-        weighted_media_seconds += duration_seconds * recency_weight
-        weighted_wall_clock_seconds += processing_seconds * recency_weight
-
-    if weighted_wall_clock_seconds <= 0:
+    if len(jobs) == 0:
         return AI_JOB_DEFAULT_THROUGHPUT
 
-    return max(weighted_media_seconds / weighted_wall_clock_seconds, 1)
+    samples_by_bucket = defaultdict(list)
+    for job in jobs:
+        samples_by_bucket[
+            floor_dt_to_bucket(
+                job.updated_at,
+                THROUGHPUT_WINDOW_SECONDS,
+                reference_dt=now,
+            )
+        ].append(job)
+
+    throughput_by_bucket = {
+        k: (
+            sum(max(ai_job.file.duration_seconds, 1) for ai_job in bucket_samples)
+            / THROUGHPUT_WINDOW_SECONDS
+        )
+        for k, bucket_samples in samples_by_bucket.items()
+    }
+
+    return sum(throughput_by_bucket.values()) / len(throughput_by_bucket)
 
 
 def _build_processing_expected_end_at_by_pending_job_id() -> dict:
@@ -72,7 +94,7 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
     now = timezone.now()
     for ai_job in pending_jobs:
         if ai_job.type not in throughput_by_type:
-            throughput_by_type[ai_job.type] = _compute_ai_job_throughput(ai_job.type)
+            throughput_by_type[ai_job.type] = compute_ai_job_throughput(ai_job.type)
         throughput = throughput_by_type[ai_job.type]
         duration_seconds = ai_job.file.duration_seconds
 

@@ -7,6 +7,7 @@ Utils functions used in the core app
 import logging
 import mimetypes
 import string
+from datetime import datetime, timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
@@ -273,3 +274,27 @@ def update_url_query_params(url: str, query_parameters: dict[str, list[str]]) ->
             parsed_url.fragment,
         )
     )
+
+
+def floor_dt_to_bucket(
+    dt: datetime, bucket_seconds: int, *, reference_dt: datetime | None = None
+) -> datetime:
+    """
+    Floor a datetime to a relative bucket start anchored to ``reference_dt``.
+
+    Buckets are anchored on execution time:
+    - first bucket: ``[reference_dt - bucket_seconds, reference_dt]``
+    - second bucket: ``[reference_dt - 2 * bucket_seconds, reference_dt - bucket_seconds)``
+    """
+    if reference_dt is None:
+        reference_dt = datetime.now(tz=dt.tzinfo)
+
+    delta_us = int((dt - reference_dt).total_seconds() * 1_000_000)
+    bucket_us = bucket_seconds * 1_000_000
+
+    if delta_us == 0:
+        bucket_start_offset_us = -bucket_us
+    else:
+        bucket_start_offset_us = (delta_us // bucket_us) * bucket_us
+
+    return reference_dt + timedelta(microseconds=bucket_start_offset_us)

@@ -18,6 +18,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core import factories, models
+from core.api import serializers as api_serializers
 
 fake = Faker()
 pytestmark = pytest.mark.django_db
@@ -294,24 +295,13 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
         created_at=now + timedelta(seconds=2)
     )
 
-    throughput_user = factories.UserFactory()
-    for index in range(4):
-        success_file = factories.FileFactory(
-            creator=throughput_user, duration_seconds=120
-        )
-        success_job = factories.AiFileJobFactory(
-            file=success_file,
-            status=models.AiJobStatusChoices.SUCCESS,
-            type=models.AiJobTypeChoices.TRANSCRIPT,
-        )
-        started_at = now - timedelta(minutes=5, seconds=index * 40 + 40)
-        finished_at = started_at + timedelta(seconds=60)
-        models.AiFileJob.objects.filter(pk=success_job.pk).update(
-            created_at=started_at,
-            updated_at=finished_at,
-        )
-
-    with mock.patch("core.api.serializers.timezone.now", return_value=now):
+    with (
+        mock.patch("core.api.serializers.timezone.now", return_value=now),
+        mock.patch(
+            "core.api.serializers.compute_ai_job_throughput",
+            return_value=2,
+        ),
+    ):
         response = client.get("/api/v1.0/files/")
 
     assert response.status_code == 200
@@ -407,23 +397,13 @@ def test_api_files_list_ai_job_estimation_applies_overdue_throughput_correction(
         created_at=now - timedelta(seconds=5)
     )
 
-    throughput_user = factories.UserFactory()
-    for index in range(4):
-        success_file = factories.FileFactory(
-            creator=throughput_user, duration_seconds=120
-        )
-        success_job = factories.AiFileJobFactory(
-            file=success_file,
-            status=models.AiJobStatusChoices.SUCCESS,
-            type=models.AiJobTypeChoices.TRANSCRIPT,
-        )
-        started_at = now - timedelta(minutes=6, seconds=index * 60 + 60)
-        models.AiFileJob.objects.filter(pk=success_job.pk).update(
-            created_at=started_at,
-            updated_at=started_at + timedelta(seconds=60),
-        )
-
-    with mock.patch("core.api.serializers.timezone.now", return_value=now):
+    with (
+        mock.patch("core.api.serializers.timezone.now", return_value=now),
+        mock.patch(
+            "core.api.serializers.compute_ai_job_throughput",
+            return_value=2,
+        ),
+    ):
         response = client.get("/api/v1.0/files/")
 
     assert response.status_code == 200
@@ -450,3 +430,75 @@ def test_api_files_list_ai_job_estimation_applies_overdue_throughput_correction(
     assert parse_datetime(
         ai_jobs[str(pending_job_2.id)]["processing_expected_end_at"]
     ) == (now + timedelta(seconds=expected_wait_seconds_for_second_job))
+
+
+def test_compute_ai_job_throughput_returns_default_without_success_jobs():
+    """Throughput should fall back to the default when no successful jobs exist."""
+    throughput = api_serializers.compute_ai_job_throughput(
+        models.AiJobTypeChoices.TRANSCRIPT
+    )
+    assert throughput == api_serializers.AI_JOB_DEFAULT_THROUGHPUT
+
+
+def test_compute_ai_job_throughput_averages_bucket_throughputs():
+    """Throughput should be the average throughput across occupied time buckets."""
+    now = timezone.now().replace(microsecond=0)
+    job_type = models.AiJobTypeChoices.TRANSCRIPT
+
+    samples = [
+        (120, now - timedelta(seconds=10)),
+        (30, now - timedelta(seconds=20)),
+        (60, now - timedelta(seconds=80)),
+    ]
+    for duration_seconds, updated_at in samples:
+        file = factories.FileFactory(duration_seconds=duration_seconds)
+        job = factories.AiFileJobFactory(
+            file=file,
+            status=models.AiJobStatusChoices.SUCCESS,
+            type=job_type,
+        )
+        models.AiFileJob.objects.filter(pk=job.pk).update(
+            created_at=updated_at - timedelta(seconds=10),
+            updated_at=updated_at,
+        )
+
+    with (
+        mock.patch("core.api.serializers.timezone.now", return_value=now),
+        mock.patch("core.api.serializers.THROUGHPUT_WINDOW_SECONDS", 60),
+        mock.patch("core.api.serializers.N_THROUGHPUT_WINDOWS", 3),
+        mock.patch("core.api.serializers.MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION", 1),
+    ):
+        throughput = api_serializers.compute_ai_job_throughput(job_type)
+
+    assert throughput == pytest.approx((150 / 60 + 60 / 60) / 2)
+
+
+def test_compute_ai_job_throughput_falls_back_to_latest_min_samples():
+    """When window-filtered jobs are insufficient, latest samples should be used."""
+    now = timezone.now().replace(microsecond=0)
+    job_type = models.AiJobTypeChoices.TRANSCRIPT
+
+    durations_by_age = [50, 40, 30, 20, 10]
+    for index, duration_seconds in enumerate(durations_by_age):
+        updated_at = now - timedelta(hours=2, seconds=index + 1)
+        file = factories.FileFactory(duration_seconds=duration_seconds)
+        job = factories.AiFileJobFactory(
+            file=file,
+            status=models.AiJobStatusChoices.SUCCESS,
+            type=job_type,
+        )
+        models.AiFileJob.objects.filter(pk=job.pk).update(
+            created_at=now - timedelta(hours=1),
+            updated_at=updated_at,
+        )
+
+    th_window_seconds = 10
+    with (
+        mock.patch("core.api.serializers.timezone.now", return_value=now),
+        mock.patch("core.api.serializers.THROUGHPUT_WINDOW_SECONDS", th_window_seconds),
+        mock.patch("core.api.serializers.N_THROUGHPUT_WINDOWS", 0),
+        mock.patch("core.api.serializers.MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION", 4),
+    ):
+        throughput = api_serializers.compute_ai_job_throughput(job_type)
+
+    assert throughput == pytest.approx((50 + 40 + 30 + 20) / th_window_seconds)
