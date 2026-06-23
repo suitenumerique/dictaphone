@@ -26,12 +26,13 @@ logger = logging.getLogger(__name__)
 AI_JOB_DEFAULT_THROUGHPUT = 30  # 30s / s
 
 MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION = 4
-# We choose 5 minutes as the window size as with a max file duration of 3H
+# We choose 3 minutes as the window size as with it will
+# comfortably fit the average file duration
 # and per worker coefficient of 37 observed in production,
 # all files should be processed within 5 minutes
 # This should be parametrizable later.
-THROUGHPUT_WINDOW_SECONDS: int = 5 * 60  # 5 minutes
-N_THROUGHPUT_WINDOWS = 3
+THROUGHPUT_WINDOW_SECONDS: int = 3 * 60  # 3 minutes
+N_THROUGHPUT_WINDOWS = 5
 
 
 def compute_ai_job_throughput(job_type: models.AiJobTypeChoices) -> float:

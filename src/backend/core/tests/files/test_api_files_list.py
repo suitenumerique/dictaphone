@@ -1,12 +1,10 @@
 """
 Tests for files API endpoint in dictaphone's core app: list
 """
-import csv
-from datetime import timedelta, datetime
-from pathlib import Path
 
-from freezegun import freeze_time
-from math import ceil
+import csv
+from datetime import datetime, timedelta
+from pathlib import Path
 from unittest import mock
 
 from django.db import connection
@@ -16,6 +14,7 @@ from django.utils.dateparse import parse_datetime
 
 import pytest
 from faker import Faker
+from freezegun import freeze_time
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -326,7 +325,6 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
     ) == (now + timedelta(seconds=113))
 
 
-
 def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_at_real_case():
     """
     Pending AI jobs should include expected processing end datetimes using real case data.
@@ -336,7 +334,12 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
     client.force_login(user)
 
     data = list(
-        csv.DictReader((Path(__file__).parent.parent / "assets" / "export-throughput.csv").open("r"), delimiter=",")
+        csv.DictReader(
+            (Path(__file__).parent.parent / "assets" / "export-throughput.csv").open(
+                "r"
+            ),
+            delimiter=",",
+        )
     )
 
     for row in data:
@@ -368,11 +371,14 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
 
     with freeze_time("2026-06-23 17:31:19"):
         throughput = compute_ai_job_throughput(models.AiJobTypeChoices.TRANSCRIPT)
-        assert throughput == pytest.approx(31.9, rel=0.01)
+        assert throughput == pytest.approx(33.09, rel=0.01)
         response = client.get(f"/api/v1.0/files/{file.id}/")
 
     assert response.status_code == 200
-    assert response.json()["ai_jobs"][0]['processing_expected_end_at'] == '2026-06-23T17:31:23Z'
+    assert (
+        response.json()["ai_jobs"][0]["processing_expected_end_at"]
+        == "2026-06-23T17:31:23Z"
+    )
 
 
 def test_api_files_list_ai_job_estimation_avoids_n_plus_one_queries():
