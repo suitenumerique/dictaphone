@@ -526,7 +526,7 @@ export function FileActionMenu({
       >
         {largeTrigger ? (
           <Button
-            size="medium"
+            size="small"
             variant="secondary"
             color="brand"
             onClick={() => setIsOpen(!isOpen)}
