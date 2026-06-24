@@ -82,8 +82,8 @@ android {
         applicationId "fr.gouv.assistant_transcripts"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 17
-        versionName "1.3.0"
+        versionCode 19
+        versionName "1.4.0"
         manifestPlaceholders = [
             appAuthRedirectScheme: "fr-gouv-assistant-transcripts"
         ]
