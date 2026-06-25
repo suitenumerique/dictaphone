@@ -1652,17 +1652,17 @@
   resolved "https://registry.yarnpkg.com/@oxc-project/types/-/types-0.124.0.tgz#1dfd7b3fbb98febc2f91b505f48c940db73c8701"
   integrity sha512-VBFWMTBvHxS11Z5Lvlr3IWgrwhMTXV+Md+EQF0Xf60+wAdsGFTBx7X7K/hP4pi8N7dcm1RvcHwDxZ16Qx8keUg==
 
-"@posthog/core@1.27.1":
-  version "1.27.1"
-  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.27.1.tgz#236c6ca2e2b5303ced90ec2a8b4bb94a3081b3ed"
-  integrity sha512-130F5zAmGoY0KAqdT2FYfU79mk54z0wTWfCMkyzXmkKz2eg23694O2ofaAf4NuIdI8e6LFNHyaZ7aWbatUeW5A==
+"@posthog/core@1.29.1":
+  version "1.29.1"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.29.1.tgz#8934ab202d1a6ff4c8e067d2ba631c4ec03de0d7"
+  integrity sha512-q+/t/DZALr50YTE0dFgfGSS9EgwcyAlqsn+JS61wLkwdcDM5yu/YTDM8oMKmJupsyjSZlVkDuHZAMd4ab7AxzQ==
   dependencies:
-    "@posthog/types" "1.371.2"
+    "@posthog/types" "1.373.4"
 
-"@posthog/types@1.371.2":
-  version "1.371.2"
-  resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.371.2.tgz#6c76481f81b1d54a45c1d9743dabfaba12363194"
-  integrity sha512-Ak3kuGMPBTjuoK6Ki0kQbq9eROk7LRJ3GBkbQINCZBT9FPlHvlXRwQr0/OVsi4xYPSMSGxWjRDMPFsR9Px66Cg==
+"@posthog/types@1.373.4":
+  version "1.373.4"
+  resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.373.4.tgz#292806732ee7705cbe33c8c743208a4749791d12"
+  integrity sha512-n+0AbGRYYsbi+CQXQi2rF1lwTSyASlaogcw4YSkzB5KeMa4Y6nhNb7+TTnu9aVor+BycsQYCa2OsBrMMbaTekw==
 
 "@react-native-async-storage/async-storage@3.0.2":
   version "3.0.2"
@@ -6591,13 +6591,13 @@ postcss@^8.5.8:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
-posthog-react-native@4.43.1:
-  version "4.43.1"
-  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.43.1.tgz#adb8faf0bec4daab1f2a689ecd2a04d485c5d3b9"
-  integrity sha512-XGBoPLErLzqQ5ohc87HMeQO/0RJl76ZN+lLBiyeFEnpqbVte46b+lWuf6E/gsmYuW99OgMYZGpq8hBfmCeWMuw==
+posthog-react-native@4.45.5:
+  version "4.45.5"
+  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.45.5.tgz#8be6808f8a3ebe22e8ac3708fd8c1d188c4ad24e"
+  integrity sha512-2hudtmvO9N8URYGcl91voIp6OmTh6xXmoXY8POA1CzKFm0bI4B9IXjJZQrMpattOxIy3wVYdbd9txg2Pp0YkIw==
   dependencies:
-    "@posthog/core" "1.27.1"
-    "@posthog/types" "1.371.2"
+    "@posthog/core" "1.29.1"
+    "@posthog/types" "1.373.4"
 
 prelude-ls@^1.2.1:
   version "1.2.1"
