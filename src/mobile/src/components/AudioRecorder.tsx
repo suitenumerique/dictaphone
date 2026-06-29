@@ -44,6 +44,7 @@ AudioManager.setAudioSessionOptions({
 })
 
 const audioRecorder = new AudioRecorderApi()
+let audioRecorderIsStarting = false
 const audioContext = new AudioContext()
 const startSound = 'start.wav'
 const endSound = 'end.wav'
@@ -622,12 +623,24 @@ export const AudioRecorder = () => {
           return
         }
 
-        const result = audioRecorder.start()
-        if (result.status === 'error') {
-          console.warn(result.message)
-          setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
+        if (audioRecorderIsStarting) {
+          // Guard against concurrency to avoid issues with lib until version 0.13.0
+          console.warn('Audio recorder is already starting')
           return
         }
+        audioRecorderIsStarting = true
+
+        try {
+          const result = audioRecorder.start()
+          if (result.status === 'error') {
+            console.warn(result.message)
+            setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
+            return
+          }
+        } finally {
+          audioRecorderIsStarting = false
+        }
+        
         await showRecordingNotification(false)
 
         shouldDeactivateAudioSession = false
