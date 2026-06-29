@@ -142,7 +142,11 @@ export class RecorderManager {
 
   private setState(nextState: RecorderLifecycleState) {
     this.state = nextState
-    this.callbacks.onStateChange?.(nextState)
+    try {
+      this.callbacks.onStateChange?.(nextState)
+    } catch (e) {
+      console.error('Failed to notify recorder state change callback.', e)
+    }
   }
 
   private enqueue<T>(fn: () => Promise<T>) {
@@ -315,6 +319,7 @@ export class RecorderManager {
               await this.callbacks.onChunk?.(chunk)
             } catch (error) {
               console.error('Failed to persist recording chunk', error)
+              throw error
             }
           })
         }
