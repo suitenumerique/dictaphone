@@ -63,6 +63,12 @@
     "unkownError": "Recording stopped: an unknown error occurred."
   },
   "errors": {
+    "storageInitializationFailed": "Failed to initialize local recording storage.",
+    "microphonePermissionDenied": "Microphone access is denied. Please allow microphone permission in your browser settings.",
+    "microphonePermissionRequired": "Microphone access is required to start recording.",
+    "persistentStoragePermissionDenied": "Persistent storage access is denied. Please allow persistent storage permission in your browser settings.",
+    "persistentStoragePermissionRequired": "Persistent storage access is required to start recording.",
+    "stopRecordingFailed": "Failed to stop recording cleanly.",
     "recordingFailed": "Recording failed. Check your microphone permissions and try again.",
     "uploadFailed": "Upload failed. Please retry once."
   }

@@ -10,6 +10,8 @@ const BY_RECORDING_TIMESTAMP_INDEX = 'byRecordingTimestamp'
 
 type RecordingSequenceKey = [string, number]
 
+let persistantPermissionPrompted = false
+
 export interface RecorderDatabaseSchema extends DBSchema {
   [CHUNKS_STORE]: {
     key: number
@@ -47,6 +49,48 @@ export class IndexedDbChunkStore {
 
   public setActiveRecording(recordingId: string) {
     this.activeRecordingId = recordingId
+  }
+
+  /**
+   * Requests permission to persist data.
+   * @returns A promise that resolves to true if permission is granted (or unavailable), false otherwise.
+   */
+  public async requestPersistentPermission(): Promise<boolean> {
+    if (navigator.storage?.persist) {
+      try {
+        persistantPermissionPrompted = true
+        return navigator.storage.persist()
+      } catch (error) {
+        console.error('Error requesting persistant storage permission:', error)
+        return true
+      }
+    }
+    return true
+  }
+
+  /**
+   * Retrieves the current permission state for accessing the microphone.
+   * @returns A promise that resolves to the current permission state ('granted', 'denied', 'prompt', or 'unsupported').
+   */
+  public async getPersistentPermissionState(): Promise<
+    'granted' | 'denied' | 'prompt' | 'unsupported'
+  > {
+    if (!persistantPermissionPrompted) {
+      return 'prompt'
+    }
+    if (!navigator.storage?.persisted) {
+      return 'unsupported'
+    }
+    try {
+      const persisted = await navigator.storage.persisted()
+      if (persisted) {
+        return 'granted'
+      } else {
+        return 'denied'
+      }
+    } catch {
+      return 'unsupported'
+    }
   }
 
   public async openDatabase() {

@@ -63,6 +63,12 @@
     "unkownError": "Enregistrement arrêté : une erreur inconnue est survenue."
   },
   "errors": {
+    "storageInitializationFailed": "Impossible d'initialiser le stockage local de l'enregistrement.",
+    "microphonePermissionDenied": "L'accès au microphone est refusé. Autorisez le microphone dans les paramètres de votre navigateur.",
+    "microphonePermissionRequired": "L'accès au microphone est requis pour démarrer l'enregistrement.",
+    "persistentStoragePermissionDenied": "L'accès au stockage persistant est refusé. Autorisez le stockage persistant dans les paramètres de votre navigateur.",
+    "persistentStoragePermissionRequired": "L'accès au stockage persistant est requis pour démarrer l'enregistrement.",
+    "stopRecordingFailed": "Échec de l'arrêt propre de l'enregistrement.",
     "recordingFailed": "L'enregistrement a échoué. Vérifiez les permissions du micro puis réessayez.",
     "uploadFailed": "Le transfert sur nos serveurs a échoué. Veuillez réessayer une fois."
   }

@@ -278,7 +278,7 @@ export const useRecordingController = (
         console.error('Failed to open recordings IndexedDB database', error)
         setState((current) => ({
           ...current,
-          recordingError: 'Failed to initialize local recording storage.',
+          recordingError: t('record:errors.storageInitializationFailed'),
         }))
       }
     })()
@@ -317,7 +317,7 @@ export const useRecordingController = (
       void recorder?.dispose()
       audioInputManager?.dispose()
     }
-  }, [ensureManagers])
+  }, [ensureManagers, t])
 
   useEffect(() => {
     const flushCurrentChunk = () => {
@@ -376,21 +376,32 @@ export const useRecordingController = (
       recordingError: null,
     }))
 
-    const permissionState = await audioInputManager.getPermissionState()
+    const audioPermissionState = await audioInputManager.getPermissionState()
+    const persistentPermissionState =
+      await chunkStore.getPersistentPermissionState()
+    console.log(persistentPermissionState)
     if (isStaleRecorder()) {
       return
     }
-    if (permissionState === 'denied') {
+    if (audioPermissionState === 'denied') {
       setState((current) => ({
         ...current,
         recorderState: 'idle',
-        recordingError:
-          'Microphone access is denied. Please allow microphone permission in your browser settings.',
+        recordingError: t('record:errors.microphonePermissionDenied'),
       }))
       return
     }
 
-    if (permissionState !== 'granted') {
+    if (persistentPermissionState === 'denied') {
+      setState((current) => ({
+        ...current,
+        recorderState: 'idle',
+        recordingError: t('record:errors.persistentStoragePermissionDenied'),
+      }))
+      return
+    }
+
+    if (audioPermissionState === 'prompt') {
       const granted = await audioInputManager.requestPermission()
       if (isStaleRecorder()) {
         return
@@ -399,7 +410,26 @@ export const useRecordingController = (
         setState((current) => ({
           ...current,
           recorderState: 'idle',
-          recordingError: 'Microphone access is required to start recording.',
+          recordingError: t('record:errors.microphonePermissionRequired'),
+        }))
+        return
+      }
+    }
+
+    if (persistentPermissionState === 'prompt') {
+      const granted = await chunkStore.requestPersistentPermission()
+      console.log("granted", granted)
+
+      if (isStaleRecorder()) {
+        return
+      }
+      if (!granted) {
+        setState((current) => ({
+          ...current,
+          recorderState: 'idle',
+          recordingError: t(
+            'record:errors.persistentStoragePermissionRequired'
+          ),
         }))
         return
       }
@@ -637,10 +667,10 @@ export const useRecordingController = (
         recordingError:
           stopError instanceof Error
             ? stopError.message
-            : 'Failed to stop recording cleanly',
+            : t('record:errors.stopRecordingFailed'),
       }))
     }
-  }, [stopRecording])
+  }, [stopRecording, t])
 
   return useMemo(() => {
     const canPauseOrStop =
