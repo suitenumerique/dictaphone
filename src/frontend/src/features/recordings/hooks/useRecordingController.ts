@@ -110,21 +110,30 @@ export const useRecordingController = (
       return
     }
 
+    let remaining = MIN_FREE_BYTES * 2
     try {
       const { usage = 0, quota = 0 } = await navigator.storage.estimate()
-      const remaining = quota - usage
-
-      if (
-        remaining > 0 &&
-        remaining < MIN_FREE_BYTES &&
-        !lowStorageAlertShownRef.current
-      ) {
-        lowStorageAlertShownRef.current = true
-        await stopRecording()
-        window.alert(t('record:alerts.lowStorage'))
-      }
+      remaining = quota - usage
     } catch (error) {
       console.error('Failed to estimate storage.', error)
+      return
+    }
+
+    if (
+      remaining > 0 &&
+      remaining < MIN_FREE_BYTES &&
+      !lowStorageAlertShownRef.current
+    ) {
+      lowStorageAlertShownRef.current = true
+      window.setTimeout(() => {
+        void stopRecording().catch((error) => {
+          console.error(
+            'Failed to stop recording after low storage alert.',
+            error
+          )
+        })
+      }, 0)
+      window.alert(t('record:alerts.lowStorage'))
     }
   }, [stopRecording, t])
 
