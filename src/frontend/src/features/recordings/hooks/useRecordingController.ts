@@ -169,9 +169,11 @@ export const useRecordingController = (
           )
         } catch (error) {
           console.error('Error saving chunk to store', error)
+          await stopRecording()
           if (isQuotaExceededError(error)) {
-            await stopRecording()
             window.alert(t('record:alerts.storageQuotaExceeded'))
+          } else {
+            window.alert(t('record:alerts.unkownError'))
           }
           throw error
         }
@@ -418,7 +420,7 @@ export const useRecordingController = (
 
     if (persistentPermissionState === 'prompt') {
       const granted = await chunkStore.requestPersistentPermission()
-      console.log("granted", granted)
+      console.log('granted', granted)
 
       if (isStaleRecorder()) {
         return
