@@ -393,11 +393,11 @@ export const AudioRecorder = () => {
   }, [])
 
   const stopRecorderIfNeeded = useCallback(
-    (options?: { force?: boolean; updateState?: boolean }): string | null => {
+    (options?: { force?: boolean; updateState?: boolean }) => {
       const force = options?.force ?? false
       const updateState = options?.updateState ?? true
       if (!force && !RECORDING_PHASES.has(recorderPhaseRef.current)) {
-        return null
+        return []
       }
 
       try {
@@ -407,12 +407,12 @@ export const AudioRecorder = () => {
           !result.message.includes('Recorder is not in recording state.')
         ) {
           console.warn(result.message)
-          return null
+          return []
         }
-        return result.status === 'success' ? result.path : null
+        return result.status === 'success' ? result.paths : []
       } catch (error) {
         console.error('Failed to stop recorder while clearing state:', error)
-        return null
+        return []
       } finally {
         if (updateState) {
           setRecorderPhaseState('idle')
@@ -472,7 +472,7 @@ export const AudioRecorder = () => {
       invalidateLifecycle()
 
       await enqueueSerializedNativeAudioAction(async () => {
-        const stoppedRecordingPath = stopRecorderIfNeeded({
+        const stoppedRecordingPaths = stopRecorderIfNeeded({
           force: true,
           updateState,
         })
@@ -487,7 +487,7 @@ export const AudioRecorder = () => {
         if (updateState && isMountedRef.current) {
           setRecordingTimeMs(0)
         }
-        const localRecordingPath = stoppedRecordingPath
+        const localRecordingPath = stoppedRecordingPaths[0]
         if (options?.clearFile && localRecordingPath) {
           try {
             await deleteLocalRecordingFile(localRecordingPath)
@@ -830,7 +830,7 @@ export const AudioRecorder = () => {
         addRecording({
           created_at: startedAt.toISOString(),
           duration_seconds: result.duration,
-          filePath: result.path,
+          filePath: result.paths[0],
           title,
           id: uuid.v4(),
           language: selectedTranscriptionLanguage,
