@@ -58,7 +58,9 @@
   },
   "alerts": {
     "uploadFailedDownloaded": "The recording could not be uploaded after a retry. The file \"{{fileName}}\" has been downloaded and saved on your computer. You can reupload it later or notify the support team.",
-    "lowStorage": "Recording stopped: less than 5 MB of storage is available."
+    "lowStorage": "Recording stopped: less than 20 MB of storage is available.",
+    "storageQuotaExceeded": "Recording stopped: local storage quota was exceeded.",
+    "unkownError": "Recording stopped: an unknown error occurred."
   },
   "errors": {
     "recordingFailed": "Recording failed. Check your microphone permissions and try again.",

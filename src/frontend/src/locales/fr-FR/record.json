@@ -58,7 +58,9 @@
   },
   "alerts": {
     "uploadFailedDownloaded": "L'enregistrement n'a pas pu être transféré sur nos serveurs après un nouvel essai. Le fichier « {{fileName}} » a été téléchargé et enregistré sur votre ordinateur. Vous pouvez le transférer plus tard ou prévenir l'équipe support.",
-    "lowStorage": "Enregistrement arrêté : moins de 5 Mo d'espace de stockage disponible."
+    "lowStorage": "Enregistrement arrêté : moins de 20 Mo d'espace de stockage disponible.",
+    "storageQuotaExceeded": "Enregistrement arrêté : le quota de stockage local est dépassé.",
+    "unkownError": "Enregistrement arrêté : une erreur inconnue est survenue."
   },
   "errors": {
     "recordingFailed": "L'enregistrement a échoué. Vérifiez les permissions du micro puis réessayez.",

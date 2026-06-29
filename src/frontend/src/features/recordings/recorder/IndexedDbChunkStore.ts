@@ -26,6 +26,17 @@ type UpgradeDatabaseWithLegacySupport = IDBPDatabase<RecorderDatabaseSchema> & {
   objectStoreNames: DOMStringList
 }
 
+export const isQuotaExceededError = (error: unknown): boolean => {
+  if (!(error instanceof DOMException || error instanceof Error)) {
+    return false
+  }
+
+  return (
+    error.name === 'QuotaExceededError' ||
+    error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+  )
+}
+
 /**
  * IndexedDB-based chunk store for audio recordings.
  * Helps to keep memory usage low and data safe in regards to browser crashes, etc.

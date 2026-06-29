@@ -2,6 +2,7 @@ import { useConfig } from '@/api/useConfig.ts'
 import {
   AudioInputManager,
   IndexedDbChunkStore,
+  isQuotaExceededError,
   RecorderLifecycleState,
   RecorderManager,
   StoredRecording,
@@ -29,7 +30,7 @@ const getExtensionFromMimeType = (mimeType: string) => {
 }
 
 const RECORDING_CHUNK_TIMESLICE_MS = 10_000
-const MIN_FREE_BYTES = 5 * 1024 * 1024
+const MIN_FREE_BYTES = 20 * 1024 * 1024
 
 type RecordingControllerState = {
   recorderState: RecorderLifecycleState
@@ -77,6 +78,56 @@ export const useRecordingController = (
     currentRecordingId: null,
   })
 
+  const stopRecording = useCallback(async () => {
+    const recorder = recorderRef.current
+    const recordingId = activeRecordingIdRef.current
+    if (!recorder || !recordingId) {
+      return
+    }
+
+    await recorder.stop()
+
+    if (startedAtRef.current !== null) {
+      accumulatedDurationMsRef.current += Date.now() - startedAtRef.current
+      startedAtRef.current = null
+    }
+
+    useLocalRecordingsStore.getState().updateRecording(recordingId, {
+      status: 'stopped',
+      durationMs: accumulatedDurationMsRef.current,
+    })
+
+    activeRecordingIdRef.current = null
+    setState((current) => ({
+      ...current,
+      currentRecordingId: null,
+      analyserNode: null,
+    }))
+  }, [])
+
+  const checkAvailableStorage = useCallback(async () => {
+    if (!navigator.storage?.estimate) {
+      return
+    }
+
+    try {
+      const { usage = 0, quota = 0 } = await navigator.storage.estimate()
+      const remaining = quota - usage
+
+      if (
+        remaining > 0 &&
+        remaining < MIN_FREE_BYTES &&
+        !lowStorageAlertShownRef.current
+      ) {
+        lowStorageAlertShownRef.current = true
+        await stopRecording()
+        window.alert(t('record:alerts.lowStorage'))
+      }
+    } catch (error) {
+      console.error('Failed to estimate storage.', error)
+    }
+  }, [stopRecording, t])
+
   const ensureManagers = useCallback(() => {
     if (isUnmountedRef.current) {
       return
@@ -100,12 +151,21 @@ export const useRecordingController = (
           return
         }
 
-        await chunkStore.saveChunk(
-          chunk.blob,
-          chunk.sequenceNumber,
-          chunk.timestamp,
-          recordingId
-        )
+        try {
+          await chunkStore.saveChunk(
+            chunk.blob,
+            chunk.sequenceNumber,
+            chunk.timestamp,
+            recordingId
+          )
+        } catch (error) {
+          console.error('Error saving chunk to store', error)
+          if (isQuotaExceededError(error)) {
+            await stopRecording()
+            window.alert(t('record:alerts.storageQuotaExceeded'))
+          }
+          throw error
+        }
 
         useLocalRecordingsStore.getState().updateRecording(recordingId, {
           chunkCount: chunk.sequenceNumber + 1,
@@ -113,6 +173,8 @@ export const useRecordingController = (
             (useLocalRecordingsStore.getState().getRecordingById(recordingId)
               ?.totalBytes ?? 0) + chunk.blob.size,
         })
+
+        await checkAvailableStorage()
       },
       onStateChange: (recorderState) => {
         setState((current) => ({ ...current, recorderState }))
@@ -187,7 +249,7 @@ export const useRecordingController = (
     chunkStoreRef.current = chunkStore
     audioInputManagerRef.current = audioInputManager
     recorderRef.current = recorder
-  }, [])
+  }, [checkAvailableStorage, stopRecording, t])
 
   useEffect(() => {
     isUnmountedRef.current = false
@@ -497,33 +559,6 @@ export const useRecordingController = (
     [ensureManagers]
   )
 
-  const stopRecording = useCallback(async () => {
-    const recorder = recorderRef.current
-    const recordingId = activeRecordingIdRef.current
-    if (!recorder || !recordingId) {
-      return
-    }
-
-    await recorder.stop()
-
-    if (startedAtRef.current !== null) {
-      accumulatedDurationMsRef.current += Date.now() - startedAtRef.current
-      startedAtRef.current = null
-    }
-
-    useLocalRecordingsStore.getState().updateRecording(recordingId, {
-      status: 'stopped',
-      durationMs: accumulatedDurationMsRef.current,
-    })
-
-    activeRecordingIdRef.current = null
-    setState((current) => ({
-      ...current,
-      currentRecordingId: null,
-      analyserNode: null,
-    }))
-  }, [])
-
   const maxDurationMs = useMemo(() => {
     const maxDurationSeconds =
       appConfig?.audio_recording?.max_duration_seconds ??
@@ -532,44 +567,6 @@ export const useRecordingController = (
       ? maxDurationSeconds * 1000
       : Number.POSITIVE_INFINITY
   }, [appConfig?.audio_recording?.max_duration_seconds])
-
-  useEffect(() => {
-    if (state.recorderState !== 'recording') {
-      lowStorageAlertShownRef.current = false
-      return
-    }
-    const checkAvailableStorage = async () => {
-      if (!navigator.storage?.estimate) {
-        return
-      }
-
-      try {
-        const { usage = 0, quota = 0 } = await navigator.storage.estimate()
-        const remaining = quota - usage
-
-        if (
-          remaining > 0 &&
-          remaining < MIN_FREE_BYTES &&
-          !lowStorageAlertShownRef.current
-        ) {
-          lowStorageAlertShownRef.current = true
-          await stopRecording()
-          window.alert(t('record:alerts.lowStorage'))
-        }
-      } catch (error) {
-        console.error('Failed to estimate storage.', error)
-      }
-    }
-
-    void checkAvailableStorage()
-    const intervalId = window.setInterval(() => {
-      void checkAvailableStorage()
-    }, 5000)
-
-    return () => {
-      window.clearInterval(intervalId)
-    }
-  }, [state.recorderState, stopRecording, t])
 
   useEffect(() => {
     if (
