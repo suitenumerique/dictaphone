@@ -75,8 +75,8 @@
     },
     "recoverModal": {
       "title": "Recovering recordings",
-      "runningDescription": "Files are being recovered. Please wait.",
-      "doneDescription": "Recovered files were added to your recordings:",
+      "runningDescription": "The app likely exited while there was a recording in progress. Files are being recovered. Please wait.",
+      "doneDescription": "The app likely exited while there was a recording in progress. Recovered files were added to your recordings:",
       "close": "Close",
       "ok": "OK"
     },

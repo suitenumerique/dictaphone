@@ -75,8 +75,8 @@
     },
     "recoverModal": {
       "title": "Récupération des enregistrements",
-      "runningDescription": "Les fichiers sont en cours de récupération. Veuillez patienter.",
-      "doneDescription": "Les fichiers récupérés ont été ajoutés à vos enregistrements :",
+      "runningDescription": "L'application s'est probablement arrêtée pendant qu'un enregistrement était en cours. Les fichiers sont en cours de récupération. Veuillez patienter.",
+      "doneDescription": "L'application s'est probablement arrêtée pendant qu'un enregistrement était en cours. Les fichiers récupérés ont été ajoutés à vos enregistrements :",
       "close": "Fermer",
       "ok": "OK"
     },
