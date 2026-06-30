@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 import React
 import UIKit
 
@@ -132,6 +133,55 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
     let normalizedPath = normalizePath(filePath)
     let fileExists = FileManager.default.fileExists(atPath: normalizedPath)
     resolver(fileExists)
+  }
+
+  @objc func listDocumentM4AFiles(_ resolver: @escaping RCTPromiseResolveBlock,
+                                  rejecter: @escaping RCTPromiseRejectBlock) {
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        let fileManager = FileManager.default
+        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+          resolver([])
+          return
+        }
+
+        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .creationDateKey, .nameKey, .fileSizeKey]
+        guard let enumerator = fileManager.enumerator(
+          at: documentsDirectory,
+          includingPropertiesForKeys: Array(resourceKeys),
+          options: [.skipsHiddenFiles]
+        ) else {
+          resolver([])
+          return
+        }
+
+        var output: [[String: Any]] = []
+        for case let fileUrl as URL in enumerator {
+          let values = try fileUrl.resourceValues(forKeys: resourceKeys)
+          if values.isDirectory == true {
+            continue
+          }
+
+          let fileName = values.name ?? fileUrl.lastPathComponent
+          if !fileName.lowercased().hasSuffix(".m4a") {
+            continue
+          }
+
+          let createdAtMs = values.creationDate?.timeIntervalSince1970 ?? 0
+          output.append([
+            "path": fileUrl.path,
+            "name": fileName,
+            "createdAtMs": Int(createdAtMs * 1000),
+            "durationSeconds": self.getDurationSeconds(fileUrl),
+            "fileSizeBytes": values.fileSize ?? 0
+          ])
+        }
+
+        resolver(output)
+      } catch {
+        rejecter("LIST_DOCUMENT_FILES_ERROR", "Unable to list document flac files", error)
+      }
+    }
   }
 
   @objc func readBundledFileAsBase64(_ fileName: String,
@@ -270,6 +320,15 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate {
     let withExtension = fallback.lowercased().hasSuffix(".m4a") ? fallback : "\(fallback).m4a"
     let invalidCharacters = CharacterSet(charactersIn: "\\/:*?\"<>|")
     return withExtension.components(separatedBy: invalidCharacters).joined(separator: "_")
+  }
+
+  private func getDurationSeconds(_ fileURL: URL) -> Double {
+    let asset = AVURLAsset(url: fileURL)
+    let duration = CMTimeGetSeconds(asset.duration)
+    guard duration.isFinite, duration >= 0 else {
+      return 0
+    }
+    return duration
   }
 
   private func topViewController() -> UIViewController? {

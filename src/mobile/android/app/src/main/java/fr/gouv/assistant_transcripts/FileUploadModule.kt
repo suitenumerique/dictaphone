@@ -2,6 +2,9 @@ package fr.gouv.assistant_transcripts
 
 import android.content.ClipData
 import android.content.Intent
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMetadataRetriever
 import android.util.Base64
 import androidx.core.content.FileProvider
 import com.facebook.react.bridge.*
@@ -11,6 +14,9 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.concurrent.thread
 
 class FileUploadModule(reactContext: ReactApplicationContext) :
@@ -166,6 +172,36 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun listDocumentM4AFiles(promise: Promise) {
+        thread {
+            try {
+                // react-native-audio-api maps FileDirectory.Document to filesDir on Android
+                val documentsDir = reactApplicationContext.filesDir
+                if (!documentsDir.exists() || !documentsDir.isDirectory) {
+                    promise.resolve(Arguments.createArray())
+                    return@thread
+                }
+
+                val output = Arguments.createArray()
+                collectM4AFiles(documentsDir).forEach { file ->
+                    val fileMap =
+                        Arguments.createMap().apply {
+                            putString("path", file.absolutePath)
+                            putString("name", file.name)
+                            putDouble("createdAtMs", getCreatedAtMs(file).toDouble())
+                            putDouble("durationSeconds", getDurationSeconds(file))
+                            putDouble("fileSizeBytes", file.length().toDouble())
+                        }
+                    output.pushMap(fileMap)
+                }
+                promise.resolve(output)
+            } catch (e: Exception) {
+                promise.reject("LIST_DOCUMENT_FILES_ERROR", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
     fun readBundledFileAsBase64(fileName: String, promise: Promise) {
         thread {
             try {
@@ -234,6 +270,134 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         val trimmed = fileName.trim().ifEmpty { "recording.m4a" }
         val withExtension = if (trimmed.lowercase().endsWith(".m4a")) trimmed else "$trimmed.m4a"
         return withExtension.replace(Regex("""[\\/:*?"<>|]"""), "_")
+    }
+
+    private fun collectM4AFiles(root: File): List<File> {
+        val output = mutableListOf<File>()
+        val stack = ArrayDeque<File>()
+        stack.add(root)
+
+        while (stack.isNotEmpty()) {
+            val current = stack.removeLast()
+            val children = current.listFiles() ?: continue
+            children.forEach { child ->
+                if (child.isDirectory) {
+                    stack.add(child)
+                } else if (child.isFile && child.name.lowercase().endsWith(".m4a")) {
+                    output.add(child)
+                }
+            }
+        }
+
+        return output
+    }
+
+    private fun getCreatedAtMs(file: File): Long =
+        try {
+            val attrs = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+            attrs.creationTime().toMillis()
+        } catch (_: Exception) {
+            file.lastModified()
+        }
+
+    private fun getDurationSeconds(file: File): Double {
+        // Some flushed m4a files may miss container duration metadata.
+        // Use layered fallbacks to keep recovery robust.
+        val durationFromRetrieverMs = getDurationMsFromMetadataRetriever(file)
+        if (durationFromRetrieverMs > 0) {
+            return durationFromRetrieverMs / 1000.0
+        }
+
+        val durationFromExtractorTrackMs = getDurationMsFromExtractorTrackMetadata(file)
+        if (durationFromExtractorTrackMs > 0) {
+            return durationFromExtractorTrackMs / 1000.0
+        }
+
+        val durationFromExtractorSamplesMs = getDurationMsFromExtractorSamples(file)
+        return if (durationFromExtractorSamplesMs > 0) {
+            durationFromExtractorSamplesMs / 1000.0
+        } else {
+            0.0
+        }
+    }
+
+    private fun getDurationMsFromMetadataRetriever(file: File): Long {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?: 0L
+        } catch (_: Exception) {
+            0L
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun getDurationMsFromExtractorTrackMetadata(file: File): Long {
+        val extractor = MediaExtractor()
+        return try {
+            extractor.setDataSource(file.absolutePath)
+            var maxDurationUs = 0L
+            for (trackIndex in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(trackIndex)
+                if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                    val durationUs = format.getLong(MediaFormat.KEY_DURATION)
+                    if (durationUs > maxDurationUs) {
+                        maxDurationUs = durationUs
+                    }
+                }
+            }
+            maxDurationUs / 1000L
+        } catch (_: Exception) {
+            0L
+        } finally {
+            try {
+                extractor.release()
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun getDurationMsFromExtractorSamples(file: File): Long {
+        val extractor = MediaExtractor()
+        return try {
+            extractor.setDataSource(file.absolutePath)
+            var maxSampleTimeUs = 0L
+
+            for (trackIndex in 0 until extractor.trackCount) {
+                extractor.selectTrack(trackIndex)
+                val buffer = ByteBuffer.allocate(64 * 1024)
+
+                while (true) {
+                    val bytesRead = extractor.readSampleData(buffer, 0)
+                    if (bytesRead < 0) {
+                        break
+                    }
+
+                    val sampleTimeUs = extractor.sampleTime
+                    if (sampleTimeUs > maxSampleTimeUs) {
+                        maxSampleTimeUs = sampleTimeUs
+                    }
+                    if (!extractor.advance()) {
+                        break
+                    }
+                }
+
+                extractor.unselectTrack(trackIndex)
+                extractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            }
+
+            maxSampleTimeUs / 1000L
+        } catch (_: Exception) {
+            0L
+        } finally {
+            try {
+                extractor.release()
+            } catch (_: Exception) {}
+        }
     }
 
     private fun normalizePath(path: String): String {

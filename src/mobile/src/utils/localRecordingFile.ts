@@ -1,9 +1,18 @@
 import { NativeModules } from 'react-native'
 
+export type LocalDocumentM4AFile = {
+  path: string
+  name: string
+  createdAtMs: number
+  durationSeconds: number
+  fileSizeBytes: number
+}
+
 const { FileUploadModule } = NativeModules as {
   FileUploadModule?: {
     deleteLocalFile?: (filePath: string) => Promise<void>
     localFileExists?: (filePath: string) => Promise<boolean>
+    listDocumentM4AFiles?: () => Promise<LocalDocumentM4AFile[]>
   }
 }
 
@@ -25,4 +34,14 @@ export const deleteLocalRecordingFile = async (
   }
 
   await FileUploadModule.deleteLocalFile(filePath)
+}
+
+export const listDocumentM4AFiles = async (): Promise<
+  LocalDocumentM4AFile[]
+> => {
+  if (!FileUploadModule?.listDocumentM4AFiles) {
+    throw new Error('Document m4a listing is not available')
+  }
+
+  return FileUploadModule.listDocumentM4AFiles()
 }

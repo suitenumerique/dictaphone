@@ -13,7 +13,7 @@ import { useUserStore } from '@/services/userStore'
 import {
   deleteLocalRecordingFile,
   localRecordingFileExists,
-} from '@/utils/deleteLocalRecordingFile'
+} from '@/utils/localRecordingFile'
 import i18n from '@/i18n'
 import { type TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 
