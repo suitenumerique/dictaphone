@@ -151,6 +151,7 @@ const STOPPABLE_PHASES = new Set<RecorderPhase>(['recording', 'paused'])
 const DURATION_POLLING_PHASES = new Set<RecorderPhase>(['recording', 'pausing'])
 
 let recorderActionQueue: Promise<void> = Promise.resolve()
+let serializedNativeAudioActionDepth = 0
 
 const enqueueRecorderAction = <Result,>(
   action: () => Promise<Result>
@@ -161,6 +162,25 @@ const enqueueRecorderAction = <Result,>(
     () => undefined
   )
   return queuedAction
+}
+
+const enqueueSerializedNativeAudioAction = <Result,>(
+  action: () => Promise<Result> | Result
+): Promise<Result> => {
+  const runAction = async () => {
+    serializedNativeAudioActionDepth += 1
+    try {
+      return await action()
+    } finally {
+      serializedNativeAudioActionDepth -= 1
+    }
+  }
+
+  if (serializedNativeAudioActionDepth > 0) {
+    return runAction()
+  }
+
+  return enqueueRecorderAction(runAction)
 }
 
 const waitForNextFrame = () =>
@@ -219,31 +239,30 @@ const loadCueSoundBuffer = async (
 
 const playCueSound = async (
   soundName: keyof typeof cueSoundAssets,
-  waitUntilFinished: boolean = false,
   shouldContinue: () => boolean = () => true
 ) => {
-  try {
-    const soundBuffer = await loadCueSoundBuffer(soundName)
-    if (!shouldContinue()) {
-      return
-    }
+  return enqueueSerializedNativeAudioAction(async () => {
+    try {
+      const soundBuffer = await loadCueSoundBuffer(soundName)
+      if (!shouldContinue()) {
+        return
+      }
 
-    await audioContext.resume()
-    if (!shouldContinue()) {
-      return
-    }
+      await audioContext.resume()
+      if (!shouldContinue()) {
+        return
+      }
 
-    const source = audioContext.createBufferSource()
-    source.buffer = soundBuffer
-    source.connect(audioContext.destination)
-    source.start()
+      const source = audioContext.createBufferSource()
+      source.buffer = soundBuffer
+      source.connect(audioContext.destination)
+      source.start()
 
-    if (waitUntilFinished) {
       await wait(Math.ceil(soundBuffer.duration * 1000), shouldContinue)
+    } catch (error) {
+      console.error(`Failed to play ${soundName} cue sound:`, error)
     }
-  } catch (error) {
-    console.error(`Failed to play ${soundName} cue sound:`, error)
-  }
+  })
 }
 
 export const AudioRecorder = () => {
@@ -292,6 +311,7 @@ export const AudioRecorder = () => {
   const recordingDurationInterval = useRef<ReturnType<
     typeof setInterval
   > | null>(null)
+  const isDurationPollQueuedRef = useRef(false)
 
   const stopAutoStopHaptics = useCallback(() => {
     if (autoStopHapticsInterval.current) {
@@ -347,7 +367,7 @@ export const AudioRecorder = () => {
     }
   }, [])
 
-  const enableRecorderFileOutput = useCallback(() => {
+  const enableRecorderFileOutput = useCallback((id: string) => {
     try {
       const result = audioRecorder.enableFileOutput({
         format: FileFormat.M4A,
@@ -451,7 +471,7 @@ export const AudioRecorder = () => {
       const updateState = options?.updateState ?? true
       invalidateLifecycle()
 
-      await enqueueRecorderAction(async () => {
+      await enqueueSerializedNativeAudioAction(async () => {
         const stoppedRecordingPath = stopRecorderIfNeeded({
           force: true,
           updateState,
@@ -496,9 +516,6 @@ export const AudioRecorder = () => {
           return
         }
         setPermissionStatus(res)
-        if (res === 'Granted') {
-          enableRecorderFileOutput()
-        }
       })
       .catch((error) => {
         console.error('Failed to request recording permissions:', error)
@@ -509,7 +526,7 @@ export const AudioRecorder = () => {
       stopAutoStopHaptics()
       void clearRecording({ updateState: false })
     }
-  }, [clearRecording, enableRecorderFileOutput, stopAutoStopHaptics])
+  }, [clearRecording, stopAutoStopHaptics])
 
   usePreventRemove(isRecording, ({ data }) => {
     Alert.alert(
@@ -554,17 +571,35 @@ export const AudioRecorder = () => {
         clearInterval(recordingDurationInterval.current)
         recordingDurationInterval.current = null
       }
+      isDurationPollQueuedRef.current = false
       return
     }
 
     if (!recordingDurationInterval.current) {
       recordingDurationInterval.current = setInterval(() => {
-        try {
-          const duration = audioRecorder.getCurrentDuration()
-          setRecordingTimeMs(duration * 1000)
-        } catch (error) {
-          console.error('Failed to get current recording duration:', error)
+        if (isDurationPollQueuedRef.current) {
+          return
         }
+
+        isDurationPollQueuedRef.current = true
+        void enqueueSerializedNativeAudioAction(() => {
+          try {
+            if (!DURATION_POLLING_PHASES.has(recorderPhaseRef.current)) {
+              return
+            }
+
+            const duration = audioRecorder.getCurrentDuration()
+            if (!isMountedRef.current) {
+              return
+            }
+
+            setRecordingTimeMs(duration * 1000)
+          } catch (error) {
+            console.error('Failed to get current recording duration:', error)
+          } finally {
+            isDurationPollQueuedRef.current = false
+          }
+        })
       }, 200)
     }
 
@@ -573,6 +608,7 @@ export const AudioRecorder = () => {
         clearInterval(recordingDurationInterval.current)
         recordingDurationInterval.current = null
       }
+      isDurationPollQueuedRef.current = false
     }
   }, [shouldPollRecordingDuration])
 
@@ -583,7 +619,7 @@ export const AudioRecorder = () => {
 
     const lifecycleToken = beginLifecycleAction('starting')
 
-    await enqueueRecorderAction(async () => {
+    await enqueueSerializedNativeAudioAction(async () => {
       if (!isCurrentLifecycle(lifecycleToken)) {
         return
       }
@@ -601,7 +637,7 @@ export const AudioRecorder = () => {
           setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
           return
         }
-
+        enableRecorderFileOutput(uuid.v4())
         const success = await AudioManager.setAudioSessionActivity(true)
         if (!isCurrentLifecycle(lifecycleToken)) {
           if (success) {
@@ -616,9 +652,7 @@ export const AudioRecorder = () => {
         }
         shouldDeactivateAudioSession = true
 
-        await playCueSound('start', true, () =>
-          isCurrentLifecycle(lifecycleToken)
-        )
+        await playCueSound('start', () => isCurrentLifecycle(lifecycleToken))
         if (!isCurrentLifecycle(lifecycleToken)) {
           return
         }
@@ -640,7 +674,7 @@ export const AudioRecorder = () => {
         } finally {
           audioRecorderIsStarting = false
         }
-        
+
         await showRecordingNotification(false)
 
         shouldDeactivateAudioSession = false
@@ -666,6 +700,7 @@ export const AudioRecorder = () => {
   }, [
     beginLifecycleAction,
     deactivateAudioSession,
+    enableRecorderFileOutput,
     isCurrentLifecycle,
     setRecorderPhaseIfCurrent,
     setRecorderPhaseState,
@@ -687,16 +722,14 @@ export const AudioRecorder = () => {
 
     const lifecycleToken = beginLifecycleAction('pausing')
 
-    await enqueueRecorderAction(async () => {
+    await enqueueSerializedNativeAudioAction(async () => {
       if (!isCurrentLifecycle(lifecycleToken)) {
         return
       }
 
       try {
         audioRecorder.pause()
-        await playCueSound('end', true, () =>
-          isCurrentLifecycle(lifecycleToken)
-        )
+        await playCueSound('end', () => isCurrentLifecycle(lifecycleToken))
         await showRecordingNotification(true)
         setRecorderPhaseIfCurrent(lifecycleToken, 'paused')
       } catch (error) {
@@ -718,15 +751,13 @@ export const AudioRecorder = () => {
 
     const lifecycleToken = beginLifecycleAction('resuming')
 
-    await enqueueRecorderAction(async () => {
+    await enqueueSerializedNativeAudioAction(async () => {
       if (!isCurrentLifecycle(lifecycleToken)) {
         return
       }
 
       try {
-        await playCueSound('start', true, () =>
-          isCurrentLifecycle(lifecycleToken)
-        )
+        await playCueSound('start', () => isCurrentLifecycle(lifecycleToken))
         if (!isCurrentLifecycle(lifecycleToken)) {
           return
         }
@@ -755,7 +786,7 @@ export const AudioRecorder = () => {
     const wasPaused = previousPhase === 'paused'
     const lifecycleToken = beginLifecycleAction('stopping')
 
-    return enqueueRecorderAction(async () => {
+    return enqueueSerializedNativeAudioAction(async () => {
       if (!isCurrentLifecycle(lifecycleToken)) {
         return false
       }
@@ -779,9 +810,7 @@ export const AudioRecorder = () => {
         }
 
         if (!wasPaused) {
-          await playCueSound('end', true, () =>
-            isCurrentLifecycle(lifecycleToken)
-          )
+          await playCueSound('end', () => isCurrentLifecycle(lifecycleToken))
         }
         if (!isCurrentLifecycle(lifecycleToken)) {
           return false
