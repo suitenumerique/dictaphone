@@ -369,6 +369,7 @@ export const useRecordingController = (
       recorderRef.current !== recorder ||
       recorder.isDisposed()
 
+    lowStorageAlertShownRef.current = false
     accumulatedDurationMsRef.current = 0
     startedAtRef.current = null
     setState((current) => ({
