@@ -24,6 +24,7 @@ import {
   FILENAME_PREFIX_SEPARATOR,
 } from '@/features/recordings/utils/concatSubAudioFiles'
 import uuid from 'react-native-uuid'
+import { wait } from '@/utils/wait'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -358,12 +359,22 @@ type TRecoverableFiles = Map<
   [LocalDocumentM4AFile, ...LocalDocumentM4AFile[]]
 >
 
-const getFilesToRecover = async (
-  knownRecordings: LocalRecording[]
-): Promise<TRecoverableFiles> => {
-  const localM4AFiles = await listDocumentM4AFiles()
+const appStartTime = Date.now()
+
+const getFilesToRecover = async (): Promise<TRecoverableFiles> => {
+  let localM4AFiles = await listDocumentM4AFiles()
+  if (localM4AFiles.length === 0) {
+    console.info(
+      'No local M4A files found, waiting 1 second to double check in case of race condition'
+    )
+    await wait(1000)
+    localM4AFiles = await listDocumentM4AFiles()
+  }
   console.info('localM4AFiles', localM4AFiles)
   const rotatedFilesByFile: TRecoverableFiles = new Map()
+  // We make sure not to include files that were created after the start of the app to avoid
+  // including new recordings if the list takes time to create
+  localM4AFiles = localM4AFiles.filter((el) => el.createdAtMs < appStartTime)
 
   localM4AFiles.forEach((file) => {
     const [fileId] = file.name.split(FILENAME_PREFIX_SEPARATOR)
@@ -375,6 +386,7 @@ const getFilesToRecover = async (
     }
   })
 
+  const knownRecordings = useRecordingsStore.getState().recordings
   const storedFileNamesSet = new Set(
     knownRecordings.map((recording) =>
       getFileName(recording.filePath).toLowerCase()
@@ -468,7 +480,7 @@ export const runRecovery = async (state?: RecordingsStore) => {
   useRecordingsStore.setState({
     recoverFilesStatus: { status: 'init' } satisfies TRecoverFilesStatus,
   })
-  const orphanFiles = await getFilesToRecover(state.recordings)
+  const orphanFiles = await getFilesToRecover()
   if (orphanFiles.size > 0) {
     console.info('Orphan files detected', orphanFiles)
     useRecordingsStore.setState({
