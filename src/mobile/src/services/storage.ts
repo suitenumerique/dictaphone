@@ -12,10 +12,18 @@ import omit from '@/utils/omit'
 import { useUserStore } from '@/services/userStore'
 import {
   deleteLocalRecordingFile,
+  getFileName,
+  listDocumentM4AFiles,
+  LocalDocumentM4AFile,
   localRecordingFileExists,
 } from '@/utils/localRecordingFile'
 import i18n from '@/i18n'
 import { type TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
+import {
+  concatSubAudioFiles,
+  FILENAME_PREFIX_SEPARATOR,
+} from '@/features/recordings/utils/concatSubAudioFiles'
+import uuid from 'react-native-uuid'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -71,17 +79,23 @@ const removeMissingLocalRecordingsAfterHydration = async (
   }))
 }
 
+export type TRecoverFilesStatus =
+  | { status: 'to_run' }
+  | { status: 'init' }
+  | { status: 'running' }
+  | { status: 'done'; recovered: string[] }
+
 export interface RecordingsStore {
   hasHydrated: boolean
   recordings: LocalRecording[]
   missingFilesPending: string | null
+  recoverFilesStatus: TRecoverFilesStatus
   addRecording: (recording: LocalRecording) => void
-  deleteRecording: (recordingId: string) => void
+  deleteRecording: (recordingId: string) => Promise<void>
   updateRecording: (
     id: string,
     data: Partial<Omit<LocalRecording, 'id'>>
   ) => void
-  clearMissingFilesPending: () => void
 }
 
 export interface SettingsStore {
@@ -166,7 +180,7 @@ const triggerUpload = async (): Promise<void> => {
         })
       },
     })
-    deleteRecording(recordingToUpload.id)
+    await deleteRecording(recordingToUpload.id)
     await queryClient.invalidateQueries({ queryKey: [keys.files] })
   } catch (error) {
     console.error('Error creating file:', error)
@@ -185,8 +199,8 @@ export const setBypassWifiOnly = (value: boolean) => {
 }
 
 let isRecordingsUploadManagerStarted = false
-const startRecordingsUploadManager = () => {
-  console.log('Start recordings upload manager')
+export const startRecordingsUploadManager = () => {
+  console.info('Start recordings upload manager')
   if (isRecordingsUploadManagerStarted) {
     return
   }
@@ -211,9 +225,10 @@ export const useRecordingsStore = create<RecordingsStore>()(
       hasHydrated: false,
       recordings: [],
       missingFilesPending: null,
+      recoverFilesStatus: { status: 'to_run' },
       addRecording: (recording) =>
         set((state) => ({ recordings: [recording, ...state.recordings] })),
-      deleteRecording: (recordingId) => {
+      deleteRecording: async (recordingId) => {
         const recording = get().recordings.find(
           (item) => item.id === recordingId
         )
@@ -244,7 +259,11 @@ export const useRecordingsStore = create<RecordingsStore>()(
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
       partialize: (state) =>
-        omit(state, ['hasHydrated', 'missingFilesPending']),
+        omit(state, [
+          'hasHydrated',
+          'missingFilesPending',
+          'recoverFilesStatus',
+        ]),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
@@ -256,6 +275,7 @@ export const useRecordingsStore = create<RecordingsStore>()(
                 uploadProgress: undefined,
               }))
             : []
+          state.recoverFilesStatus = { status: 'to_run' }
           state.hasHydrated = true
 
           removeMissingLocalRecordingsAfterHydration(state.recordings).catch(
@@ -315,8 +335,6 @@ export const useUploadStore = create<UploadStore>()((set) => ({
   setBypassWifiOnly: (value) => set({ bypassWifiOnly: value }),
 }))
 
-startRecordingsUploadManager()
-
 useUserStore.subscribe((newState, oldState) => {
   if (newState.user && !oldState.user) {
     triggerUpload().catch(console.error)
@@ -334,3 +352,144 @@ useUserStore.subscribe((newState, oldState) => {
     triggerUpload().catch(console.error)
   }
 })
+
+type TRecoverableFiles = Map<
+  string,
+  [LocalDocumentM4AFile, ...LocalDocumentM4AFile[]]
+>
+
+const getFilesToRecover = async (
+  knownRecordings: LocalRecording[]
+): Promise<TRecoverableFiles> => {
+  const localM4AFiles = await listDocumentM4AFiles()
+  console.info('localM4AFiles', localM4AFiles)
+  const rotatedFilesByFile: TRecoverableFiles = new Map()
+
+  localM4AFiles.forEach((file) => {
+    const [fileId] = file.name.split(FILENAME_PREFIX_SEPARATOR)
+    const existingFiles = rotatedFilesByFile.get(fileId)
+    if (existingFiles) {
+      existingFiles.push(file)
+    } else {
+      rotatedFilesByFile.set(fileId, [file])
+    }
+  })
+
+  const storedFileNamesSet = new Set(
+    knownRecordings.map((recording) =>
+      getFileName(recording.filePath).toLowerCase()
+    )
+  )
+
+  // We remove files that are already in the recordings list
+  for (const [key, files] of rotatedFilesByFile) {
+    if (
+      files.length === 1 &&
+      storedFileNamesSet.has(getFileName(files[0].path))
+    ) {
+      rotatedFilesByFile.delete(key)
+    }
+  }
+
+  return rotatedFilesByFile
+}
+
+const recoverFile = async (
+  subFiles: [LocalDocumentM4AFile, ...LocalDocumentM4AFile[]]
+): Promise<string | null> => {
+  const recoveryLanguage: TTranscriptionLanguage =
+    i18n.language === 'en' ? 'en' : 'fr'
+
+  // We assume that the subfiles are sequentially ordered according to their name
+  subFiles.sort((a, b) => a.name.localeCompare(b.name))
+  const [concatenatedPath, usedSubFiles] = await concatSubAudioFiles(subFiles)
+  if (concatenatedPath === null) {
+    console.error('Failed to concatenate the audio files')
+    return null
+  }
+
+  const createdAtDate =
+    subFiles[0].createdAtMs > 0 ? new Date(subFiles[0].createdAtMs) : new Date()
+  const title = `${i18n.t('home.recordingPrefix')} ${i18n.t(
+    'shared.utils.formatDateTimeStatic',
+    { value: createdAtDate }
+  )}`
+
+  useRecordingsStore.getState().addRecording({
+    created_at: createdAtDate.toISOString(),
+    duration_seconds: usedSubFiles.reduce(
+      (acc, file) => acc + file.durationSeconds,
+      0
+    ),
+    filePath: concatenatedPath,
+    title,
+    id: uuid.v4().toString(),
+    language: recoveryLanguage,
+    uploadingStatus: 'to_upload' as const,
+  })
+  return title
+}
+
+const recoverFiles = async (
+  orphanedFiles: TRecoverableFiles
+): Promise<string[]> => {
+  const recovered = []
+
+  for (const [, subFiles] of orphanedFiles) {
+    try {
+      const recoveredTitle = await recoverFile(subFiles)
+      if (recoveredTitle === null) {
+        console.error('Failed to recover file, skipping, deleted. ', subFiles)
+        continue
+      }
+      recovered.push(recoveredTitle)
+    } catch (e) {
+      console.error(
+        `Failed to recover file, skipping. ${JSON.stringify(subFiles)}`,
+        e
+      )
+    }
+  }
+
+  return recovered
+}
+
+let restoreCheckHasRun = false
+export const runRecovery = async (state?: RecordingsStore) => {
+  if (!state) {
+    state = useRecordingsStore.getState()
+  }
+
+  if (restoreCheckHasRun) return
+  if (!state.hasHydrated) return
+  console.info('Running recovery')
+
+  restoreCheckHasRun = true
+  useRecordingsStore.setState({
+    recoverFilesStatus: { status: 'init' } satisfies TRecoverFilesStatus,
+  })
+  const orphanFiles = await getFilesToRecover(state.recordings)
+  if (orphanFiles.size > 0) {
+    console.info('Orphan files detected', orphanFiles)
+    useRecordingsStore.setState({
+      recoverFilesStatus: { status: 'running' } satisfies TRecoverFilesStatus,
+    })
+    const recovered = await recoverFiles(orphanFiles)
+    useRecordingsStore.setState({
+      recoverFilesStatus: {
+        status: 'done',
+        recovered,
+      } satisfies TRecoverFilesStatus,
+    })
+  } else {
+    console.info('No orphan files detected')
+    useRecordingsStore.setState({
+      recoverFilesStatus: {
+        status: 'done',
+        recovered: [],
+      } satisfies TRecoverFilesStatus,
+    })
+  }
+}
+
+useRecordingsStore.subscribe(runRecovery)

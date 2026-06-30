@@ -69,6 +69,17 @@
       "message": "Certains enregistrements locaux ont été supprimés car leurs fichiers audio ne sont plus disponibles sur cet appareil :\n{{files}}",
       "untitledFallback": "Enregistrement sans titre"
     },
+    "recoveredFiles": {
+      "title": "Enregistrements récupérés",
+      "message": "Certains fichiers audio locaux ont été trouvés sur cet appareil et réajoutés à vos enregistrements :\n{{files}}"
+    },
+    "recoverModal": {
+      "title": "Récupération des enregistrements",
+      "runningDescription": "Les fichiers sont en cours de récupération. Veuillez patienter.",
+      "doneDescription": "Les fichiers récupérés ont été ajoutés à vos enregistrements :",
+      "close": "Fermer",
+      "ok": "OK"
+    },
     "dataPolicy": {
       "audioKeptUntil": "L'enregistrement audio est conservé jusqu'au {{value, formatDate}}",
       "fileKeptUntil": "Ce transcript est conservé jusqu'au {{value, formatDate}}",

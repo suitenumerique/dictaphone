@@ -45,3 +45,6 @@ export const listDocumentM4AFiles = async (): Promise<
 
   return FileUploadModule.listDocumentM4AFiles()
 }
+
+export const getFileName = (path: string): string =>
+  path.split('/').pop() ?? path

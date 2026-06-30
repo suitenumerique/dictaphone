@@ -26,7 +26,7 @@ import { useNavigation, usePreventRemove } from '@react-navigation/core'
 import { PermissionStatus } from 'react-native-audio-api/lib/typescript/system/types'
 import uuid from 'react-native-uuid'
 import { useLocalRecordings } from '@/features/recordings/hooks/useLocalRecordings'
-import { deleteLocalRecordingFile } from '@/utils/deleteLocalRecordingFile'
+import { deleteLocalRecordingFile } from '@/utils/localRecordingFile'
 import { AppText } from './AppText'
 import { colors } from './colors'
 import { useResetNavigationHistory } from '@/navigation/useRestNavigationHistory' // @ts-expect-error SVG
@@ -36,6 +36,10 @@ import PlayIcon from '@/assets/icons/resume-recording.svg'
 import { useConfigStore } from '@/services/configStore'
 import { useSettingsStore } from '@/services/storage'
 import { readBundledFileAsArrayBuffer } from '@/utils/fileUpload'
+import {
+  concatSubAudioFiles,
+  FILENAME_PREFIX_SEPARATOR,
+} from '@/features/recordings/utils/concatSubAudioFiles'
 
 AudioManager.setAudioSessionOptions({
   iosCategory: 'playAndRecord',
@@ -374,13 +378,17 @@ export const AudioRecorder = () => {
         preset: FilePreset.High,
         directory: FileDirectory.Document,
         subDirectory: 'Assistant Transcripts',
+        rotateIntervalBytes: 750_000, // ~750 Ko ~ 40s
+        fileNamePrefix: `${id}${FILENAME_PREFIX_SEPARATOR}`,
       })
 
       if (result.status === 'error') {
-        console.warn(result.message)
+        console.error(result.message)
+        throw new Error(result.message)
       }
     } catch (error) {
       console.error('Failed to enable recorder file output:', error)
+      throw error
     }
   }, [])
 
@@ -487,12 +495,16 @@ export const AudioRecorder = () => {
         if (updateState && isMountedRef.current) {
           setRecordingTimeMs(0)
         }
-        const localRecordingPath = stoppedRecordingPaths[0]
-        if (options?.clearFile && localRecordingPath) {
-          try {
-            await deleteLocalRecordingFile(localRecordingPath)
-          } catch (error) {
-            console.error('Failed to delete local discarded recording:', error)
+        if (options?.clearFile && stoppedRecordingPaths.length > 0) {
+          for (const path of stoppedRecordingPaths) {
+            try {
+              await deleteLocalRecordingFile(path)
+            } catch (error) {
+              console.error(
+                'Failed to delete local discarded recording:',
+                error
+              )
+            }
           }
         }
         disableRecorderFileOutput()
@@ -827,12 +839,31 @@ export const AudioRecorder = () => {
           'shared.utils.formatDateTimeStatic',
           { value: startedAt }
         )}`
+
+        const paths = result.paths
+        if (paths.length === 0) {
+          return false
+        }
+        console.info('Recording is split in paths:', paths)
+
+        const id = uuid.v4()
+        const [concatenatedFilePath] = await concatSubAudioFiles(
+          paths.map((path) => ({ path })) as [
+            { path: string },
+            ...{ path: string }[],
+          ]
+        )
+        if (concatenatedFilePath === null) {
+          console.error('Failed to concatenate the audio files')
+          return false
+        }
+
         addRecording({
           created_at: startedAt.toISOString(),
           duration_seconds: result.duration,
-          filePath: result.paths[0],
+          filePath: concatenatedFilePath,
           title,
-          id: uuid.v4(),
+          id,
           language: selectedTranscriptionLanguage,
           uploadingStatus: 'to_upload',
         })

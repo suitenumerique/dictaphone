@@ -69,6 +69,17 @@
       "message": "Some local recordings were removed because their audio files are no longer available on this device:\n{{files}}",
       "untitledFallback": "Untitled recording"
     },
+    "recoveredFiles": {
+      "title": "Recovered recordings",
+      "message": "Some local audio files were found on this device and added back to your recordings:\n{{files}}"
+    },
+    "recoverModal": {
+      "title": "Recovering recordings",
+      "runningDescription": "Files are being recovered. Please wait.",
+      "doneDescription": "Recovered files were added to your recordings:",
+      "close": "Close",
+      "ok": "OK"
+    },
     "dataPolicy": {
       "audioKeptUntil": "Audio recording is kept until {{value, formatDate}}",
       "fileKeptUntil": "Transcript is kept until {{value, formatDate}}",
