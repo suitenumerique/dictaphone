@@ -382,7 +382,7 @@ export const useRecordingController = (
     const audioPermissionState = await audioInputManager.getPermissionState()
     const persistentPermissionState =
       await chunkStore.getPersistentPermissionState()
-    console.log(persistentPermissionState)
+
     if (isStaleRecorder()) {
       return
     }
@@ -421,7 +421,6 @@ export const useRecordingController = (
 
     if (persistentPermissionState === 'prompt') {
       const granted = await chunkStore.requestPersistentPermission()
-      console.log('granted', granted)
 
       if (isStaleRecorder()) {
         return
