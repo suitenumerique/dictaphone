@@ -1652,17 +1652,17 @@
   resolved "https://registry.yarnpkg.com/@oxc-project/types/-/types-0.124.0.tgz#1dfd7b3fbb98febc2f91b505f48c940db73c8701"
   integrity sha512-VBFWMTBvHxS11Z5Lvlr3IWgrwhMTXV+Md+EQF0Xf60+wAdsGFTBx7X7K/hP4pi8N7dcm1RvcHwDxZ16Qx8keUg==
 
-"@posthog/core@1.27.1":
-  version "1.27.1"
-  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.27.1.tgz#236c6ca2e2b5303ced90ec2a8b4bb94a3081b3ed"
-  integrity sha512-130F5zAmGoY0KAqdT2FYfU79mk54z0wTWfCMkyzXmkKz2eg23694O2ofaAf4NuIdI8e6LFNHyaZ7aWbatUeW5A==
+"@posthog/core@^1.39.1":
+  version "1.39.2"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.39.2.tgz#03962a910ffa6a75e6d5833ad9ac74e2d5f7dc87"
+  integrity sha512-G/TL5Xykl+9xCDtBwHHPRSToS/43UjzyxKOfhlTwu/hJHt3v39Q2OFu8hdum71Iu7+tuxxISGVcFMlIST7ksjA==
   dependencies:
-    "@posthog/types" "1.371.2"
+    "@posthog/types" "^1.392.0"
 
-"@posthog/types@1.371.2":
-  version "1.371.2"
-  resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.371.2.tgz#6c76481f81b1d54a45c1d9743dabfaba12363194"
-  integrity sha512-Ak3kuGMPBTjuoK6Ki0kQbq9eROk7LRJ3GBkbQINCZBT9FPlHvlXRwQr0/OVsi4xYPSMSGxWjRDMPFsR9Px66Cg==
+"@posthog/types@^1.392.0":
+  version "1.392.0"
+  resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.392.0.tgz#4b1ea567161912a2195e6785f4f8b0191b27a909"
+  integrity sha512-nctNujXL3FC1v99FktaTMSugSD9ZOZekEpahUSafkU2TSvW+XGKNkQZbokuJtiWvPBK208dwMJva8UfBkChqpw==
 
 "@react-native-async-storage/async-storage@3.0.2":
   version "3.0.2"
@@ -2310,17 +2310,17 @@
   dependencies:
     "@typescript-eslint/utils" "^8.58.1"
 
-"@tanstack/query-core@5.96.2":
-  version "5.96.2"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.96.2.tgz#766dab253476afd0b27959b66abb606d8d2dd9f5"
-  integrity sha512-hzI6cTVh4KNRk8UtoIBS7Lv9g6BnJPXvBKsvYH1aGWvv0347jT3BnSvztOE+kD76XGvZnRC/t6qdW1CaIfwCeA==
+"@tanstack/query-core@5.101.2":
+  version "5.101.2"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.101.2.tgz#c901fb76b68169ff5e1e44017404e7e2e90ce1af"
+  integrity sha512-hH5MLoJhF7KaIGd7q3xTXGXvslI+GYlM1Z/35aSHHWaCJWB7XvTSHYuV3eM7tw+aE0mT/xMro4M4Q9rCGHT0lw==
 
-"@tanstack/react-query@5.96.2":
-  version "5.96.2"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.96.2.tgz#a164abfb80eb5e7772bbcddfa7240f3fd8d0d7be"
-  integrity sha512-sYyzzJT4G0g02azzJ8o55VFFV31XvFpdUpG+unxS0vSaYsJnSPKGoI6WdPwUucJL1wpgGfwfmntNX/Ub1uOViA==
+"@tanstack/react-query@5.101.2":
+  version "5.101.2"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.101.2.tgz#d886331bcd29df84bc04c45d93192b8207d17c7f"
+  integrity sha512-seDkr6kzGzX1okaaTtZPtgA688CDPlXUz1C6xSg0ESqn04Vuc8tlrYms1s3de+znBqhPVxFRfpAfUf+6XvfPWg==
   dependencies:
-    "@tanstack/query-core" "5.96.2"
+    "@tanstack/query-core" "5.101.2"
 
 "@tybys/wasm-util@^0.10.1":
   version "0.10.1"
@@ -6591,13 +6591,13 @@ postcss@^8.5.8:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
-posthog-react-native@4.43.1:
-  version "4.43.1"
-  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.43.1.tgz#adb8faf0bec4daab1f2a689ecd2a04d485c5d3b9"
-  integrity sha512-XGBoPLErLzqQ5ohc87HMeQO/0RJl76ZN+lLBiyeFEnpqbVte46b+lWuf6E/gsmYuW99OgMYZGpq8hBfmCeWMuw==
+posthog-react-native@4.53.3:
+  version "4.53.3"
+  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.53.3.tgz#9aa3409f015b63c4152ac5c9c205e7fa9b4c611d"
+  integrity sha512-PQ4xSF/sKqbMZcXL1RUmCIiy4gso4UHdB63Yi5lc7iXLPM+yVYI/LvzIWvOys1wf1ELuqfqDwz/6q5ah2aXFmw==
   dependencies:
-    "@posthog/core" "1.27.1"
-    "@posthog/types" "1.371.2"
+    "@posthog/core" "^1.39.1"
+    "@posthog/types" "^1.392.0"
 
 prelude-ls@^1.2.1:
   version "1.2.1"
@@ -6858,10 +6858,10 @@ react-native-safe-area-context@5.7.0:
   resolved "https://registry.yarnpkg.com/react-native-safe-area-context/-/react-native-safe-area-context-5.7.0.tgz#035699d5ec17fefb98cc1fa44a9ec852c7d530d0"
   integrity sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==
 
-react-native-screens@4.24.0:
-  version "4.24.0"
-  resolved "https://registry.yarnpkg.com/react-native-screens/-/react-native-screens-4.24.0.tgz#dbe8f610b5d2e31f71425d2ea3caaff1b9a7e2de"
-  integrity sha512-SyoiGaDofiyGPFrUkn1oGsAzkRuX1JUvTD9YQQK3G1JGQ5VWkvHgYSsc1K9OrLsDQxN7NmV71O0sHCAh8cBetA==
+react-native-screens@4.25.2:
+  version "4.25.2"
+  resolved "https://registry.yarnpkg.com/react-native-screens/-/react-native-screens-4.25.2.tgz#f12c3d8d2cb9d69e1267af1bbba1b37d1d05452d"
+  integrity sha512-1Nj1fusFd+rIMKU/qC9yGKVG+3ofh11d3OdBQKL1iVvQfKvcB8vhvTGQf2TkfxW3bamxN+hCZIXmNuU0mRkyDg==
   dependencies:
     react-freeze "^1.0.0"
     warn-once "^0.1.0"
@@ -8319,7 +8319,12 @@ yocto-queue@^1.0.0:
   resolved "https://registry.yarnpkg.com/zod-validation-error/-/zod-validation-error-4.0.2.tgz#bc605eba49ce0fcd598c127fee1c236be3f22918"
   integrity sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==
 
-zod@4.3.6, "zod@^3.25.0 || ^4.0.0":
+zod@4.4.3:
+  version "4.4.3"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.4.3.tgz#b680f172885d18bbebf21a834ea25e55a1bbf356"
+  integrity sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==
+
+"zod@^3.25.0 || ^4.0.0":
   version "4.3.6"
   resolved "https://registry.yarnpkg.com/zod/-/zod-4.3.6.tgz#89c56e0aa7d2b05107d894412227087885ab112a"
   integrity sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==
