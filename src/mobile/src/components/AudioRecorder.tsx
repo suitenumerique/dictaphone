@@ -573,6 +573,7 @@ export const AudioRecorder = () => {
       return
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShouldResetNavigation(false)
     resetNavigationHistory('Main')
   }, [isRecording, resetNavigationHistory, shouldResetNavigation])

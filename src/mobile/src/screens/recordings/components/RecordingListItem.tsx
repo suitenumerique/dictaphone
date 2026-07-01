@@ -55,11 +55,7 @@ type StatusIndicatorProps = {
 }
 
 export type UploadBlockReason =
-  | 'not-logged-in'
-  | 'ok'
-  | 'offline'
-  | 'wifiOnly'
-  | 'other'
+  'not-logged-in' | 'ok' | 'offline' | 'wifiOnly' | 'other'
 
 function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
   if (item.kind === 'fake') {
