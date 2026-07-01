@@ -5,10 +5,13 @@ import android.content.Intent
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
+import android.os.SystemClock
 import android.util.Base64
 import androidx.core.content.FileProvider
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -17,21 +20,25 @@ import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 class FileUploadModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
+    private val listenerCount = AtomicInteger(0)
 
     override fun getName() = "FileUploadModule"
 
     @ReactMethod
     fun addListener(eventName: String) {
         // Required for NativeEventEmitter.
+        listenerCount.incrementAndGet()
     }
 
     @ReactMethod
     fun removeListeners(count: Int) {
         // Required for NativeEventEmitter.
+        listenerCount.updateAndGet { current -> (current - count).coerceAtLeast(0) }
     }
 
     @ReactMethod
@@ -44,7 +51,7 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     ) {
         thread {
             try {
-                val file = File(filePath)
+                val file = File(normalizePath(filePath))
                 val totalBytes = file.length()
                 val connection = URL(url).openConnection() as HttpURLConnection
 
@@ -53,24 +60,39 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
                 connection.setRequestProperty("X-amz-acl", "private")
                 connection.setRequestProperty("Content-Length", totalBytes.toString())
                 connection.doOutput = true
+                connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MS
                 connection.setFixedLengthStreamingMode(totalBytes) // true streaming
 
                 var lastEmittedProgress = -1
-                fun emitProgress(uploadedBytes: Long) {
+                var lastReportedBytes = 0L
+                var lastReportedAtMs = 0L
+                fun emitProgress(uploadedBytes: Long, force: Boolean = false) {
+                    if (!force) {
+                        val now = SystemClock.elapsedRealtime()
+                        val sentEnoughBytes =
+                            (uploadedBytes - lastReportedBytes) >= PROGRESS_BYTES_STEP
+                        val waitedEnoughTime = (now - lastReportedAtMs) >= PROGRESS_MIN_INTERVAL_MS
+                        if (!sentEnoughBytes && !waitedEnoughTime) {
+                            return
+                        }
+                    }
+
                     val currentProgress =
                         if (totalBytes > 0) ((uploadedBytes * 100) / totalBytes).toInt() else 0
 
                     if (currentProgress != lastEmittedProgress || uploadedBytes == totalBytes) {
                         lastEmittedProgress = currentProgress
+                        lastReportedBytes = uploadedBytes
+                        lastReportedAtMs = SystemClock.elapsedRealtime()
                         sendProgress(uploadId, uploadedBytes, totalBytes)
                     }
                 }
 
-                emitProgress(0)
+                emitProgress(0, force = true)
 
-                file.inputStream().use { input ->
-                    connection.outputStream.use { output ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                BufferedInputStream(file.inputStream(), UPLOAD_BUFFER_SIZE).use { input ->
+                    BufferedOutputStream(connection.outputStream, UPLOAD_BUFFER_SIZE).use { output ->
+                        val buffer = ByteArray(UPLOAD_BUFFER_SIZE)
                         var uploadedBytes = 0L
                         var bytesRead = input.read(buffer)
 
@@ -80,12 +102,17 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
                             emitProgress(uploadedBytes)
                             bytesRead = input.read(buffer)
                         }
+                        output.flush()
                     }
                 }
 
                 val status = connection.responseCode
-                if (status == 200) promise.resolve(null)
-                else promise.reject("UPLOAD_FAILED", "Status: $status")
+                if (status == 200) {
+                    emitProgress(totalBytes, force = true)
+                    promise.resolve(null)
+                } else {
+                    promise.reject("UPLOAD_FAILED", "Status: $status")
+                }
 
             } catch (e: Exception) {
                 promise.reject("UPLOAD_ERROR", e.message)
@@ -232,6 +259,10 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     }
 
     private fun sendProgress(uploadId: String, uploadedBytes: Long, totalBytes: Long) {
+        if (listenerCount.get() <= 0) {
+            return
+        }
+
         val params = Arguments.createMap().apply {
             putString("uploadId", uploadId)
             putDouble("uploadedBytes", uploadedBytes.toDouble())
@@ -250,6 +281,10 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     companion object {
         private const val UPLOAD_PROGRESS_EVENT = "FileUploadProgress"
         private const val DEFAULT_BUFFER_SIZE = 8192
+        private const val UPLOAD_BUFFER_SIZE = 256 * 1024
+        private const val PROGRESS_BYTES_STEP = 512 * 1024L
+        private const val PROGRESS_MIN_INTERVAL_MS = 200L
+        private const val HTTP_CONNECT_TIMEOUT_MS = 30_000
     }
 
     private fun copyFile(source: File, destination: File) {
