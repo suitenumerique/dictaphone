@@ -378,7 +378,7 @@ export const AudioRecorder = () => {
         preset: FilePreset.High,
         directory: FileDirectory.Document,
         subDirectory: 'Assistant Transcripts',
-        rotateIntervalBytes: 750_000, // ~750 Ko ~ 40s
+        rotateIntervalBytes: 250_000, // ~750 Ko ~ 40s
         fileNamePrefix: `${id}${FILENAME_PREFIX_SEPARATOR}`,
       })
 
@@ -401,7 +401,10 @@ export const AudioRecorder = () => {
   }, [])
 
   const stopRecorderIfNeeded = useCallback(
-    (options?: { force?: boolean; updateState?: boolean }) => {
+    async (options?: {
+      force?: boolean
+      updateState?: boolean
+    }): Promise<string[]> => {
       const force = options?.force ?? false
       const updateState = options?.updateState ?? true
       if (!force && !RECORDING_PHASES.has(recorderPhaseRef.current)) {
@@ -409,7 +412,7 @@ export const AudioRecorder = () => {
       }
 
       try {
-        const result = audioRecorder.stop()
+        const result = await audioRecorder.stop()
         if (
           result.status === 'error' &&
           !result.message.includes('Recorder is not in recording state.')
@@ -480,7 +483,7 @@ export const AudioRecorder = () => {
       invalidateLifecycle()
 
       await enqueueSerializedNativeAudioAction(async () => {
-        const stoppedRecordingPaths = stopRecorderIfNeeded({
+        const stoppedRecordingPaths = await stopRecorderIfNeeded({
           force: true,
           updateState,
         })
@@ -651,18 +654,7 @@ export const AudioRecorder = () => {
           return
         }
         enableRecorderFileOutput(uuid.v4())
-        const success = await AudioManager.setAudioSessionActivity(true)
-        if (!isCurrentLifecycle(lifecycleToken)) {
-          if (success) {
-            await deactivateAudioSession()
-          }
-          return
-        }
-        if (!success) {
-          console.warn('Could not activate the audio session')
-          setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
-          return
-        }
+        await AudioManager.setAudioSessionActivity(true)
         shouldDeactivateAudioSession = true
 
         await playCueSound('start', () => isCurrentLifecycle(lifecycleToken))
@@ -678,7 +670,7 @@ export const AudioRecorder = () => {
         audioRecorderIsStarting = true
 
         try {
-          const result = audioRecorder.start()
+          const result = await audioRecorder.start()
           if (result.status === 'error') {
             console.warn(result.message)
             setRecorderPhaseIfCurrent(lifecycleToken, 'idle')
@@ -698,7 +690,7 @@ export const AudioRecorder = () => {
           setRecordingTimeMs(0)
           setRecorderPhaseState('recording')
         } else {
-          stopRecorderIfNeeded({ force: true, updateState: false })
+          await stopRecorderIfNeeded({ force: true, updateState: false })
           await deactivateAudioSession()
         }
       } catch (error) {
@@ -810,7 +802,7 @@ export const AudioRecorder = () => {
           return false
         }
 
-        const result = audioRecorder.stop()
+        const result = await audioRecorder.stop()
         hideRecordingNotificationSafely()
         if (result.status === 'error') {
           if (result.message.includes('Recorder is not in recording state.')) {
