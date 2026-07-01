@@ -49,14 +49,14 @@
     "react-native-svg": "15.15.5",
     "react-native-uuid": "2.0.4",
     "react-native-worklets": "0.10.0",
-    "semver": "7.7.4",
+    "semver": "7.8.5",
     "zod": "4.4.3",
     "zustand": "5.0.14"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@babel/preset-env": "^7.29.7",
-    "@babel/runtime": "^7.29.7",
+    "@babel/core": "^8.0.0",
+    "@babel/preset-env": "^8.0.0",
+    "@babel/runtime": "^8.0.0",
     "@react-native-community/cli": "20.2.0",
     "@react-native-community/cli-platform-android": "20.2.0",
     "@react-native-community/cli-platform-ios": "20.2.0",
