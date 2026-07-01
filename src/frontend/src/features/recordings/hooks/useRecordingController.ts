@@ -380,9 +380,6 @@ export const useRecordingController = (
     }))
 
     const audioPermissionState = await audioInputManager.getPermissionState()
-    const persistentPermissionState =
-      await chunkStore.getPersistentPermissionState()
-
     if (isStaleRecorder()) {
       return
     }
@@ -391,15 +388,6 @@ export const useRecordingController = (
         ...current,
         recorderState: 'idle',
         recordingError: t('record:errors.microphonePermissionDenied'),
-      }))
-      return
-    }
-
-    if (persistentPermissionState === 'denied') {
-      setState((current) => ({
-        ...current,
-        recorderState: 'idle',
-        recordingError: t('record:errors.persistentStoragePermissionDenied'),
       }))
       return
     }
@@ -419,23 +407,7 @@ export const useRecordingController = (
       }
     }
 
-    if (persistentPermissionState === 'prompt') {
-      const granted = await chunkStore.requestPersistentPermission()
-
-      if (isStaleRecorder()) {
-        return
-      }
-      if (!granted) {
-        setState((current) => ({
-          ...current,
-          recorderState: 'idle',
-          recordingError: t(
-            'record:errors.persistentStoragePermissionRequired'
-          ),
-        }))
-        return
-      }
-    }
+    await chunkStore.ensurePersistentStorage()
 
     if (isStaleRecorder()) {
       return
