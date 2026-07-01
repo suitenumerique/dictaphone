@@ -279,7 +279,7 @@ export default function RecordingDetailsScreen() {
               markdown={transcriptSegments
                 .map(
                   (segment) =>
-                    `**${formatTimestamp(segment.start ?? -1)} · ${t('transcript.speaker')} ${segment.speaker}**  ${segment.text.trim()}`
+                    `**${formatTimestamp(segment.start ?? -1)}${segment.speaker ? ` · ${t('transcript.speaker')} ${segment.speaker}` : ''}**  ${segment.text.trim()}`
                 )
                 .join('\n\n')}
             />
