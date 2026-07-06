@@ -8,6 +8,7 @@ from django.core.files.storage import default_storage
 
 import pytest
 import requests
+from celery.exceptions import Retry
 
 from core import factories
 from core.models import (
@@ -25,6 +26,7 @@ from core.tasks.file import (
     process_original_file_data_deletion,
     store_summary,
 )
+from core.tasks.retry import build_retry_task_options
 
 pytestmark = pytest.mark.django_db
 
@@ -631,3 +633,66 @@ def test_task_create_document_in_docs_logs_and_raises_on_http_error(
     response.raise_for_status.assert_called_once_with()
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.docs_app_id is None
+
+
+def test_build_retry_task_options_uses_settings(settings):
+    """Retry options helper should use values configured in Django settings."""
+    settings.CELERY_TASK_RETRY_BACKOFF_SECONDS = 11
+    settings.CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS = 77
+    settings.CELERY_TASK_RETRY_MAX_RETRIES = 4
+    settings.CELERY_TASK_RETRY_JITTER = True
+
+    options = build_retry_task_options(autoretry_for=(requests.RequestException,))
+
+    assert options["autoretry_for"] == (requests.RequestException,)
+    assert options["retry_backoff"] == 11
+    assert options["retry_backoff_max"] == 77
+    assert options["retry_jitter"] is True
+    assert options["retry_kwargs"] == {"max_retries": 4}
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        call_transcribe_service,
+        handle_transcript_received,
+        store_summary,
+        create_document_in_docs,
+    ],
+)
+def test_network_tasks_share_retry_configuration(task, settings):
+    """Network tasks should all use the shared retry settings."""
+    assert task.autoretry_for == (requests.RequestException,)
+    assert task.retry_backoff == settings.CELERY_TASK_RETRY_BACKOFF_SECONDS
+    assert task.retry_backoff_max == settings.CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS
+    assert task.retry_jitter == settings.CELERY_TASK_RETRY_JITTER
+    assert task.retry_kwargs == {"max_retries": settings.CELERY_TASK_RETRY_MAX_RETRIES}
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_retries_on_request_error(mock_post, settings):
+    """Transcribe task should trigger Celery retry for request exceptions."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        duration_seconds=max_duration_seconds - 1,
+    )
+
+    response = Mock()
+    response.raise_for_status.side_effect = requests.HTTPError("transient failure")
+    mock_post.return_value = response
+
+    with patch.object(
+        call_transcribe_service,
+        "retry",
+        side_effect=Retry(),
+    ) as mock_retry:
+        with pytest.raises(Retry):
+            call_transcribe_service(file.id)
+
+    _, kwargs = mock_retry.call_args
+    assert isinstance(kwargs["exc"], requests.HTTPError)
+    assert kwargs["max_retries"] == settings.CELERY_TASK_RETRY_MAX_RETRIES

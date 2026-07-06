@@ -524,6 +524,20 @@ class Base(Configuration):
     CELERY_BROKER_URL = values.Value("redis://redis:6379/0", environ_prefix=None)
     CELERY_RESULT_BACKEND = values.Value("redis://redis:6379/0", environ_prefix=None)
     CELERY_BROKER_TRANSPORT_OPTIONS = values.DictValue({}, environ_prefix=None)
+    CELERY_TASK_RETRY_BACKOFF_SECONDS = values.PositiveIntegerValue(
+        10, environ_name="CELERY_TASK_RETRY_BACKOFF_SECONDS", environ_prefix=None
+    )
+    CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS = values.PositiveIntegerValue(
+        60 * 60,
+        environ_name="CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS",
+        environ_prefix=None,
+    )
+    CELERY_TASK_RETRY_MAX_RETRIES = values.PositiveIntegerValue(
+        10, environ_name="CELERY_TASK_RETRY_MAX_RETRIES", environ_prefix=None
+    )
+    CELERY_TASK_RETRY_JITTER = values.BooleanValue(
+        True, environ_name="CELERY_TASK_RETRY_JITTER", environ_prefix=None
+    )
 
     # Analytics
     POSTHOG_ENABLED = values.BooleanValue(False, environ_prefix=None)
@@ -944,6 +958,10 @@ class Test(Base):
     USE_SWAGGER = True
 
     CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_RETRY_BACKOFF_SECONDS = 1
+    CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS = 1
+    CELERY_TASK_RETRY_MAX_RETRIES = 1
+    CELERY_TASK_RETRY_JITTER = False
 
     def __init__(self):
         # pylint: disable=invalid-name

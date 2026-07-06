@@ -19,6 +19,7 @@ from core.models import (
     File,
     FileLifecycleStateChoices,
 )
+from core.tasks.retry import build_retry_task_options
 from core.utils import format_transcript, generate_download_file_url
 from core.webhook_models import WhisperXResponse
 
@@ -29,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 session = requests_lib.Session()
 session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
+
+NETWORK_RETRY_TASK_OPTIONS = build_retry_task_options(
+    autoretry_for=(requests_lib.RequestException,)
+)
 
 
 @app.task
@@ -74,7 +79,7 @@ def process_original_file_data_deletion(file_id):
     file.save(update_fields=["lifecycle_state"])
 
 
-@app.task
+@app.task(**NETWORK_RETRY_TASK_OPTIONS)
 def call_transcribe_service(file_id, language=None):
     """
     Call the transcribe service for a given file.
@@ -148,7 +153,7 @@ def call_transcribe_service(file_id, language=None):
     return ai_transcribe_job.id
 
 
-@app.task
+@app.task(**NETWORK_RETRY_TASK_OPTIONS)
 def handle_transcript_received(remote_job_id, url):
     """
     Store the transcript and call the summarize service for a given file.
@@ -230,7 +235,7 @@ def handle_transcript_received(remote_job_id, url):
     logger.info("Summary job created for file %s", file.id)
 
 
-@app.task
+@app.task(**NETWORK_RETRY_TASK_OPTIONS)
 def store_summary(remote_job_id, url):
     """
     Store the summary of a given file.
@@ -261,7 +266,7 @@ def store_summary(remote_job_id, url):
     ai_summary_job.save()
 
 
-@app.task
+@app.task(**NETWORK_RETRY_TASK_OPTIONS)
 def create_document_in_docs(ai_job_id):
     """
     Create a document in Docs for a given file.
