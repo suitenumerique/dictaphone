@@ -214,6 +214,7 @@ def handle_transcript_received(remote_job_id, url):
             settings.AI_SERVICE_URL + "async-jobs/summarize/",
             json={
                 "user_sub": file.creator.sub,
+                "user_email": file.creator.email,
                 "language": ai_transcript_job.language,
                 "content": format_transcript(transcript),
             },

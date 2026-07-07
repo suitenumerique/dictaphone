@@ -325,6 +325,7 @@ def test_task_store_transcript_and_call_summary_success(
     assert kwargs["timeout"] == 10
     assert kwargs["json"] == {
         "user_sub": ai_transcript_job.file.creator.sub,
+        "user_email": ai_transcript_job.file.creator.email,
         "language": "fr",
         "content": "\n\n**SPEAKER_00**: Bonjour",
     }
