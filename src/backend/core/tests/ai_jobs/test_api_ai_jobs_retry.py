@@ -9,7 +9,12 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
-from core.models import AiJobStatusChoices, AiJobTypeChoices, FileLifecycleStateChoices
+from core.models import (
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+    FileLifecycleStateChoices,
+    FileTypeChoices,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -262,5 +267,36 @@ def test_api_ai_jobs_retry_file_not_active_bad_request(mock_task):
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {
         "state": "Cannot retry when file is not in active state.",
+    }
+    mock_task.assert_not_called()
+
+
+@patch("core.api.viewsets.call_transcribe_service")
+def test_api_ai_jobs_retry_file_duration_above_limit_bad_request(mock_task, settings):
+    """Retry should return 400 when file duration is above allowed max duration."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__creator=user,
+        file__type=FileTypeChoices.AUDIO_RECORDING,
+        file__duration_seconds=max_duration_seconds + 1,
+    )
+
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/v1.0/ai-jobs/{ai_job.id}/retry/",
+        {"language": "fr"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "file": "Cannot retry the file duration is above the allowed max duration.",
     }
     mock_task.assert_not_called()

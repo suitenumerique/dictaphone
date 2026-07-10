@@ -726,6 +726,7 @@ class AiJobViewSet(
         serializer = serializers.AiJobRetrySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         language = serializer.validated_data["language"]
+        file = ai_job.file
 
         if ai_job.type != AiJobTypeChoices.TRANSCRIPT:
             raise drf_exceptions.ValidationError(
@@ -740,6 +741,24 @@ class AiJobViewSet(
                 },
                 code="ai_job_retry_same_language",
             )
+
+        if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+            config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
+            max_duration_seconds = config_for_file_type["max_duration_seconds"]
+
+            if (
+                file.duration_seconds is None
+                or file.duration_seconds > max_duration_seconds
+            ):
+                logger.warning(
+                    "File duration exceeds maximum allowed for type %s", file.type
+                )
+                raise drf_exceptions.ValidationError(
+                    {
+                        "file": "Cannot retry the file duration is above the allowed max duration."
+                    },
+                    code="file_too_long",
+                )
 
         has_pending_transcript_job = AiFileJob.objects.filter(
             file_id=ai_job.file_id,
