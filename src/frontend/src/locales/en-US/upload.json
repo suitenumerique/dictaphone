@@ -12,6 +12,7 @@
     "unsupportedExtension": "Unsupported file extension: {{extension}}",
     "tooLarge": "File size exceeds limit: {{value}}",
     "tooLong": "Audio duration ({{duration, formatDuration}}) exceeds limit ({{maxDuration, formatDuration}}).",
+    "unrecognizedAudio": "Audio file not recognized, it might be corrupted. You can try to convert it to ogg first (with ffmpeg for instance).",
     "uploadFailed": "Upload failed"
   },
   "uploader": {

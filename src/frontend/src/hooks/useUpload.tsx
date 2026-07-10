@@ -180,10 +180,16 @@ export const useUploadZone = () => {
         }
 
         const durationSeconds = await getAudioDuration(file)
-        if (
-          durationSeconds === null ||
-          durationSeconds > MAX_DURATION_SECONDS
-        ) {
+        if (durationSeconds === null) {
+          addToast(
+            <ToasterItem type="error">
+              <span>{t('errors.unrecognizedAudio')}</span>
+            </ToasterItem>
+          )
+          continue
+        }
+
+        if (durationSeconds > MAX_DURATION_SECONDS) {
           addToast(
             <ToasterItem type="error">
               <span>
@@ -194,7 +200,7 @@ export const useUploadZone = () => {
                   }),
                   duration: intervalToDuration({
                     start: 0,
-                    end: (durationSeconds ?? 0) * 1000,
+                    end: durationSeconds * 1000,
                   }),
                 })}
               </span>

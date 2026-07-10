@@ -12,6 +12,7 @@
     "unsupportedExtension": "Extension non supportée : {{extension}}",
     "tooLarge": "Taille maximale dépassée : {{value}}",
     "tooLong": "La durée audio ({{duration, formatDuration}}) dépasse la limite ({{maxDuration, formatDuration}}).",
+    "unrecognizedAudio": "Fichier audio non reconnu, il est peut-être corrompu. Vous pouvez essayer de le convertir en ogg d'abord (avec ffmpeg par exemple).",
     "uploadFailed": "Le transfert a échoué"
   },
   "uploader": {
