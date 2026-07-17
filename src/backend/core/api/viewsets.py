@@ -847,6 +847,7 @@ class AiJobViewSet(
                         ).total_seconds(),
                         "ai_file_job_id": ai_file_job.id,
                         "file_id": ai_file_job.file.id,
+                        "error_code": payload.error_code,
                     },
                 )
 
