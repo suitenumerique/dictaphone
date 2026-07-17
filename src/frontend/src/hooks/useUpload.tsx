@@ -259,7 +259,7 @@ export const useUploadZone = () => {
                           [pathNicefy(file.path!)]: {
                             file,
                             progress,
-                            status: progress >= 100 ? 'done' : 'uploading',
+                            status: 'uploading',
                           },
                         },
                       }
@@ -267,6 +267,21 @@ export const useUploadZone = () => {
                   },
                 },
                 {
+                  onSuccess: () => {
+                    setUploadingState((prev) => {
+                      return {
+                        ...prev,
+                        filesMeta: {
+                          ...prev.filesMeta,
+                          [pathNicefy(file.path!)]: {
+                            file,
+                            progress: 100,
+                            status: 'done',
+                          },
+                        },
+                      }
+                    })
+                  },
                   onError: () => {
                     addToast(
                       <ToasterItem type="error">
