@@ -4,12 +4,10 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from . import models
 from .tasks.file import call_transcribe_service, process_file_deletion
-from .utils import generate_download_file_url
 
 
 def hard_delete_file(file):
@@ -203,7 +201,6 @@ class FileAdmin(admin.ModelAdmin):
         "description",
         "malware_detection_info",
         "is_ready",
-        "preview_url",
         "extension",
         "key_base",
         "file_key",
@@ -263,21 +260,11 @@ class FileAdmin(admin.ModelAdmin):
                     "extension",
                     "key_base",
                     "file_key",
-                    "preview_url",
                 )
             },
         ),
         (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )
-
-    def preview_url(self, obj):
-        """Return a clickable preview URL for the file."""
-        if not obj.is_ready:
-            return "-"
-        url = generate_download_file_url(obj, expires_in=60 * 60)
-        return format_html(
-            '<a href="{}" target="_blank" rel="noopener noreferrer">Open File</a>', url
-        )
 
     def get_queryset(self, request):
         """Hide hard deleted files in admin listing and lookups."""
