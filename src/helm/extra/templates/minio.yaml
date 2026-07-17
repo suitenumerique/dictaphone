@@ -4,7 +4,7 @@ kind: Ingress
 metadata:
   name: minio
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetes.io/proxy-body-size: 1g
 spec:
   rules:
   - host: "minio-dictaphone.127.0.0.1.nip.io"
