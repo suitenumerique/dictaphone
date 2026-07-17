@@ -297,7 +297,28 @@ def test_task_store_transcript_and_call_summary_success(
             }
         ],
     }
-    transcript_content = b'{"transcript":"raw"}'
+    transcript_content = b"""{
+        "segments": [{
+            "start": 0.0,
+            "end": 1.0,
+            "text": "Bonjour",
+            "words": [{
+                "word": "Bonjour",
+                "start": 0.0,
+                "end": 1.0,
+                "score": 0.99,
+                "speaker": "SPEAKER_00"
+            }],
+            "speaker": "SPEAKER_00"
+        }],
+        "word_segments": [{
+            "word": "Bonjour",
+            "start": 0.0,
+            "end": 1.0,
+            "score": 0.99,
+            "speaker": "SPEAKER_00"
+        }]
+    }"""
 
     get_response = Mock()
     get_response.raise_for_status.return_value = None
@@ -350,6 +371,38 @@ def test_task_store_transcript_and_call_summary_success(
         AiFileJob.objects.get(remote_job_id="remote-summary-job-id").language
         == ai_transcript_job.language
     )
+
+
+@patch("core.tasks.file.create_document_in_docs.apply_async")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_empty_transcript_without_calling_summary(
+    mock_get, mock_post, mock_create_document_in_docs
+):
+    """A no-audio transcript should be stored without scheduling a summary."""
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    handle_transcript_received(remote_job_id=ai_transcript_job.remote_job_id, url=None)
+
+    mock_get.assert_not_called()
+    mock_post.assert_not_called()
+    mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
+
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
+    assert not AiFileJob.objects.filter(
+        file=ai_transcript_job.file,
+        type=AiJobTypeChoices.SUMMARIZE,
+    ).exists()
+
+    stored_obj = default_storage.connection.meta.client.get_object(
+        Bucket=default_storage.bucket_name,
+        Key=ai_transcript_job.key,
+    )
+    assert stored_obj["Body"].read() == b'{"segments": [], "word_segments": []}'
 
 
 @patch("core.tasks.file.session.post")
@@ -479,7 +532,16 @@ def test_task_store_transcript_and_call_summary_post_error(
 
     get_response = Mock()
     get_response.raise_for_status.return_value = None
-    get_response.content = b'{"transcript":"raw"}'
+    get_response.content = b"""{
+        "segments": [{
+            "start": 0.0,
+            "end": 1.0,
+            "text": "Bonjour",
+            "words": [],
+            "speaker": "SPEAKER_00"
+        }],
+        "word_segments": []
+    }"""
     get_response.json.return_value = {
         "segments": [
             {

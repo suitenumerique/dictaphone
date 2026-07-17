@@ -69,6 +69,32 @@ def test_api_files_transcribe_webhook_authenticated(mock_task, settings):
     ]
 
 
+def test_api_files_transcribe_webhook_no_audio_in_file(settings):
+    """An empty-audio failure should create an empty transcript."""
+    ai_file_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+    settings.AI_WEBHOOK_API_KEY = "good-key"
+
+    response = APIClient().post(
+        "/api/v1.0/ai-jobs/webhook/",
+        {
+            "job_id": ai_file_job.remote_job_id,
+            "type": "transcript",
+            "status": "failure",
+            "error_code": "no_audio_in_file",
+        },
+        headers={"Authorization": "Bearer good-key"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"message": "Event processed."}
+
+    ai_file_job.refresh_from_db()
+    assert ai_file_job.status == AiJobStatusChoices.SUCCESS
+
+
 def test_api_files_transcribe_webhook_authenticated_already_success(settings):
     """Calls for an AI job that is already successful shouldn't do anything"""
 

@@ -826,6 +826,11 @@ class AiJobViewSet(
             handle_transcript_received.apply_async(
                 args=[payload.job_id, payload.transcription_data_url]
             )
+        elif (
+            isinstance(payload, webhook_models.TranscribeWebhookFailurePayload)
+            and payload.error_code == "no_audio_in_file"
+        ):
+            handle_transcript_received.apply_async(args=[payload.job_id, None])
         elif isinstance(payload, webhook_models.SummarizeWebhookSuccessPayload):
             store_summary.apply_async(args=[payload.job_id, payload.summary_data_url])
         elif isinstance(

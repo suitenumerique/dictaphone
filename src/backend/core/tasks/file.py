@@ -2,6 +2,7 @@
 Tasks related to files.
 """
 
+import json
 import logging
 from urllib.parse import urljoin
 
@@ -154,7 +155,7 @@ def call_transcribe_service(file_id, language=None):
 
 
 @app.task(**NETWORK_RETRY_TASK_OPTIONS)
-def handle_transcript_received(remote_job_id, url):
+def handle_transcript_received(remote_job_id, url: str | None):
     """
     Store the transcript and call the summarize service for a given file.
     """
@@ -168,16 +169,21 @@ def handle_transcript_received(remote_job_id, url):
     file = ai_transcript_job.file
 
     logger.info("Storing transcript for file %s & url %s", file.id, url)
-    # could be streamed to S3 later
-    response = session.get(url, timeout=(10, 20))
-    response.raise_for_status()
-    transcript = WhisperXResponse(**response.json())
+    if url is None:
+        content = json.dumps({"segments": [], "word_segments": []}).encode("utf-8")
+    else:
+        # could be streamed to S3 later
+        response = session.get(url, timeout=(10, 20))
+        response.raise_for_status()
+        content = response.content
+
+    transcript = WhisperXResponse(**json.loads(content))
 
     s3_client = default_storage.connection.meta.client
     s3_client.put_object(
         Bucket=default_storage.bucket_name,
         Key=ai_transcript_job.key,
-        Body=response.content,
+        Body=content,
         ContentType="application/json",
     )
     logger.info("Transcript stored for file %s & url %s", file.id, url)
@@ -194,12 +200,16 @@ def handle_transcript_received(remote_job_id, url):
             "ai_file_job_id": ai_transcript_job.id,
             "language": ai_transcript_job.language,
             "file_id": ai_transcript_job.file.id,
-            "transcript_size": len(response.content),
+            "transcript_size": len(content),
             "file_duration_seconds": ai_transcript_job.file.duration_seconds,
         },
     )
 
     create_document_in_docs.apply_async(args=[ai_transcript_job.id])
+
+    if len(transcript.segments) == 0 and len(transcript.word_segments) == 0:
+        logger.info("Transcript is empty, skipping summary")
+        return
 
     ai_summary_job = AiFileJob.objects.create(
         remote_job_id=None,
