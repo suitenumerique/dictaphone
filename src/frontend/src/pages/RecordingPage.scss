@@ -7,7 +7,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 .recording-page {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 16px;
   padding-left: 1rem;
   padding-right: 1rem;
   padding-bottom: var(--c--globals--spacings--xl);
@@ -21,6 +21,16 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
     align-items: center;
     margin-top: 4rem;
     height: 100%;
+  }
+
+  &__header {
+    position: sticky;
+    top: 0;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: var(--c--globals--spacings--xxs);
   }
 
   &__actions-buttons {

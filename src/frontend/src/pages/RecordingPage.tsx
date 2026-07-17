@@ -147,46 +147,46 @@ export default function RecordingPage({
   return (
     <ConnectedLayout pageTitle={recording.title}>
       <div className="recording-page">
-        <div className="recording-page__actions-buttons">
-          <Button
-            aria-label={t('shared:actions.back')}
-            variant="bordered"
-            icon={<ArrowLeft />}
-            size="small"
-            onClick={() => navigate('/recordings')}
-          >
-            {t('shared:actions.back')}
-          </Button>
+        <div className="recording-page__header">
+          <div className="recording-page__actions-buttons">
+            <Button
+              aria-label={t('shared:actions.back')}
+              variant="bordered"
+              icon={<ArrowLeft />}
+              size="small"
+              onClick={() => navigate('/recordings')}
+            >
+              {t('shared:actions.back')}
+            </Button>
 
-          <div className="recording-page__actions-buttons__right">
-            {!isMobile && (
-              <>
-                <Button
-                  aria-label={t('shared:actions.copyText')}
-                  size="small"
-                  variant="tertiary"
-                  color="neutral"
-                  icon={<Copy />}
-                  disabled={
-                    lastAiJobTranscript?.status !== 'success' ||
-                    !transcriptMarkdown
-                  }
-                  children={t('shared:actions.copyText')}
-                  onClick={handleCopy}
-                />
-                <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
-              </>
-            )}
+            <div className="recording-page__actions-buttons__right">
+              {!isMobile && (
+                <>
+                  <Button
+                    aria-label={t('shared:actions.copyText')}
+                    size="small"
+                    variant="tertiary"
+                    color="neutral"
+                    icon={<Copy />}
+                    disabled={
+                      lastAiJobTranscript?.status !== 'success' ||
+                      !transcriptMarkdown
+                    }
+                    children={t('shared:actions.copyText')}
+                    onClick={handleCopy}
+                  />
+                  <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
+                </>
+              )}
 
-            <FileActionMenu
-              file={recording}
-              largeTrigger={isMobile}
-              showCopyText={isMobile}
-              showOpenInDocs={isMobile}
-            />
+              <FileActionMenu
+                file={recording}
+                largeTrigger={isMobile}
+                showCopyText={isMobile}
+                showOpenInDocs={isMobile}
+              />
+            </div>
           </div>
-        </div>
-        <div className="recording-page__main-content">
           <div className="recording-page__main-content__metadata">
             <h1 className="recording-page__title">{recording.title}</h1>
             <div
@@ -258,7 +258,8 @@ export default function RecordingPage({
               }
             />
           )}
-
+        </div>
+        <div className="recording-page__main-content">
           <Transcript
             lastAiJobTranscript={lastAiJobTranscript}
             seekTo={seekTo}
