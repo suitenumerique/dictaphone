@@ -1,7 +1,9 @@
 import { CheckIcon } from '@/features/ui/components/icon/CheckIcon'
+import { Spinner } from '@gouvfr-lasuite/ui-kit'
 
 interface CircularProgressProps {
   progress: number
+  status: 'uploading' | 'done' | 'error'
   size?: number
   strokeWidth?: number
   primaryColor?: string
@@ -11,6 +13,7 @@ interface CircularProgressProps {
 
 export const CircularProgress = ({
   progress,
+  status,
   primaryColor = '#1a237e',
   secondaryColor = '#f0f0f0',
   transitionDuration = 0.3,
@@ -34,7 +37,11 @@ export const CircularProgress = ({
   const dashOffset = circumference - (progress / 100) * circumference
 
   // Determine if we should show the check mark
-  const isComplete = progress >= 100
+  const isComplete = progress >= 100 && status === 'done'
+
+  if (status === 'uploading' && progress >= 100) {
+    return <Spinner size="md" />
+  }
 
   return (
     <div

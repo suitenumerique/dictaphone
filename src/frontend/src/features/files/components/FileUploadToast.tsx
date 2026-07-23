@@ -61,7 +61,10 @@ export const FileUploadToast = (
                     </span>
                   </div>
                   <div className="file-upload-toast__files__item__progress">
-                    <CircularProgress progress={meta.progress} />
+                    <CircularProgress
+                      progress={meta.progress}
+                      status={meta.status}
+                    />
                   </div>
                 </div>
               )

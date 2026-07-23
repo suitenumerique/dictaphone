@@ -84,7 +84,8 @@ export function RecoverList({ addEndSeparator }: { addEndSeparator: boolean }) {
                   <div className="recordings-recovery-alert__item-status">
                     {isUploading ? (
                       <CircularProgress
-                        progress={recording.uploadProgress * 0.8}
+                        progress={recording.uploadProgress}
+                        status={'uploading'}
                       />
                     ) : isPendingUpload ? (
                       <span
