@@ -344,8 +344,12 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
 
     for row in data:
         file = factories.FileFactory(duration_seconds=float(row["duration_seconds"]))
-        created_at = datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S")
-        updated_at = datetime.strptime(row["updated_at"], "%Y-%m-%d %H:%M:%S")
+        created_at = timezone.make_aware(
+            datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S")
+        )
+        updated_at = timezone.make_aware(
+            datetime.strptime(row["updated_at"], "%Y-%m-%d %H:%M:%S")
+        )
         job = factories.AiFileJobFactory(
             file=file,
             status=models.AiJobStatusChoices.SUCCESS,
@@ -357,8 +361,12 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
         )
 
     file = factories.FileFactory(duration_seconds=100, creator=user)
-    created_at = datetime.strptime("2026-06-23 17:20:19", "%Y-%m-%d %H:%M:%S")
-    updated_at = datetime.strptime("2026-06-23 17:20:19", "%Y-%m-%d %H:%M:%S")
+    created_at = timezone.make_aware(
+        datetime.strptime("2026-06-23 17:20:19", "%Y-%m-%d %H:%M:%S")
+    )
+    updated_at = timezone.make_aware(
+        datetime.strptime("2026-06-23 17:20:19", "%Y-%m-%d %H:%M:%S")
+    )
     job = factories.AiFileJobFactory(
         file=file,
         status=models.AiJobStatusChoices.PENDING,
