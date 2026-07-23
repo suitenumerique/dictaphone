@@ -253,7 +253,9 @@ class Base(Configuration):
                     "video/quicktime",
                     # MKV
                     "video/x-matroska",
+                    "video/matroska",
                     "audio/x-matroska",
+                    "audio/matroska",
                     # MP3
                     "audio/mpeg",
                     "audio/mpeg3",
