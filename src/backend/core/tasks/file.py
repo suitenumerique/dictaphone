@@ -32,10 +32,6 @@ logger = logging.getLogger(__name__)
 session = requests_lib.Session()
 session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 
-NETWORK_RETRY_TASK_OPTIONS = build_retry_task_options(
-    autoretry_for=(requests_lib.RequestException,)
-)
-
 
 @app.task
 def process_file_deletion(file_id):
@@ -80,7 +76,9 @@ def process_original_file_data_deletion(file_id):
     file.save(update_fields=["lifecycle_state"])
 
 
-@app.task(**NETWORK_RETRY_TASK_OPTIONS)
+# Build retry options separately for each task: Celery mutates the nested
+# ``retry_kwargs`` dictionary when it computes a backoff countdown.
+@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
 def call_transcribe_service(file_id, language=None):
     """
     Call the transcribe service for a given file.
@@ -154,7 +152,7 @@ def call_transcribe_service(file_id, language=None):
     return ai_transcribe_job.id
 
 
-@app.task(**NETWORK_RETRY_TASK_OPTIONS)
+@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
 def handle_transcript_received(remote_job_id, url: str | None):
     """
     Store the transcript and call the summarize service for a given file.
@@ -246,7 +244,7 @@ def handle_transcript_received(remote_job_id, url: str | None):
     logger.info("Summary job created for file %s", file.id)
 
 
-@app.task(**NETWORK_RETRY_TASK_OPTIONS)
+@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
 def store_summary(remote_job_id, url):
     """
     Store the summary of a given file.
@@ -277,7 +275,7 @@ def store_summary(remote_job_id, url):
     ai_summary_job.save()
 
 
-@app.task(**NETWORK_RETRY_TASK_OPTIONS)
+@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
 def create_document_in_docs(ai_job_id):
     """
     Create a document in Docs for a given file.

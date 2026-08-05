@@ -729,7 +729,19 @@ def test_network_tasks_share_retry_configuration(task, settings):
     assert task.retry_backoff == settings.CELERY_TASK_RETRY_BACKOFF_SECONDS
     assert task.retry_backoff_max == settings.CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS
     assert task.retry_jitter == settings.CELERY_TASK_RETRY_JITTER
-    assert task.retry_kwargs == {"max_retries": settings.CELERY_TASK_RETRY_MAX_RETRIES}
+    assert task.retry_kwargs["max_retries"] == settings.CELERY_TASK_RETRY_MAX_RETRIES
+
+
+def test_network_tasks_do_not_share_mutable_retry_state():
+    """A retry by one task should not change another task's retry kwargs."""
+    tasks = (
+        call_transcribe_service,
+        handle_transcript_received,
+        store_summary,
+        create_document_in_docs,
+    )
+
+    assert len({id(task.retry_kwargs) for task in tasks}) == len(tasks)
 
 
 @patch("core.tasks.file.session.post")
