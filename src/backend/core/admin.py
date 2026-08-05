@@ -4,6 +4,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
+from django.db.models import OuterRef, Subquery
 from django.utils.translation import gettext_lazy as _
 
 from . import models
@@ -56,6 +57,25 @@ class RetryTranscriptActionForm(ActionForm):
     """Admin action form used to choose the transcription language."""
 
     language = forms.ChoiceField(choices=models.ISO_639_1_CHOICES, required=True)
+
+
+class LatestTranscriptJobStatusFilter(admin.SimpleListFilter):
+    """Filter files by the status of their latest transcript job."""
+
+    title = _("latest transcript job status")
+    parameter_name = "latest_transcript_job_status"
+
+    def lookups(self, request, model_admin):
+        """Return transcript statuses and an option for files without a job."""
+        return (*models.AiJobStatusChoices.choices, ("none", _("No transcript job")))
+
+    def queryset(self, request, queryset):
+        """Filter using the latest transcript status annotation from FileAdmin."""
+        if self.value() == "none":
+            return queryset.filter(latest_transcript_job_status__isnull=True)
+        if self.value() in models.AiJobStatusChoices.values:
+            return queryset.filter(latest_transcript_job_status=self.value())
+        return queryset
 
 
 @admin.register(models.User)
@@ -155,7 +175,10 @@ class FileAdmin(admin.ModelAdmin):
 
     inlines = (AiFileJobInline,)
     action_form = RetryTranscriptActionForm
-    actions = ("retry_transcript_generation",)
+    actions = (
+        "retry_transcript_generation",
+        "retry_transcript_generation_with_latest_language",
+    )
 
     list_display = (
         "id",
@@ -163,6 +186,8 @@ class FileAdmin(admin.ModelAdmin):
         "type",
         "creator",
         "upload_state",
+        "latest_transcript_job_status",
+        "latest_transcript_job_created_at",
         "deleted_at",
         "hard_deleted_at",
         "created_at",
@@ -175,6 +200,7 @@ class FileAdmin(admin.ModelAdmin):
     list_filter = (
         "type",
         "upload_state",
+        LatestTranscriptJobStatusFilter,
         "lifecycle_state",
         "created_at",
         "updated_at",
@@ -268,7 +294,40 @@ class FileAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Hide hard deleted files in admin listing and lookups."""
-        return super().get_queryset(request).filter(hard_deleted_at__isnull=True)
+        latest_transcript_job = models.AiFileJob.objects.filter(
+            file=OuterRef("pk"),
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        ).order_by("-created_at")
+        return (
+            super()
+            .get_queryset(request)
+            .filter(hard_deleted_at__isnull=True)
+            .annotate(
+                latest_transcript_job_status=Subquery(
+                    latest_transcript_job.values("status")[:1]
+                ),
+                latest_transcript_job_created_at=Subquery(
+                    latest_transcript_job.values("created_at")[:1]
+                ),
+            )
+        )
+
+    @admin.display(
+        description=_("Latest transcript job status"),
+        ordering="latest_transcript_job_status",
+    )
+    def latest_transcript_job_status(self, obj):
+        """Display the localized status of the latest transcript job."""
+        status_labels = dict(models.AiJobStatusChoices.choices)
+        return status_labels.get(obj.latest_transcript_job_status, "-")
+
+    @admin.display(
+        description=_("Latest transcript job created on"),
+        ordering="latest_transcript_job_created_at",
+    )
+    def latest_transcript_job_created_at(self, obj):
+        """Display when the latest transcript job was created."""
+        return obj.latest_transcript_job_created_at or "-"
 
     def delete_model(self, request, obj):
         """Hard delete instead of calling model.delete()."""
@@ -300,6 +359,44 @@ class FileAdmin(admin.ModelAdmin):
             _("%(count)s transcript retry job(s) enqueued.")
             % {"count": queryset.count()},
         )
+
+    @admin.action(description=_("Retry transcript generation with latest job language"))
+    def retry_transcript_generation_with_latest_language(self, request, queryset):
+        """Retry transcripts using each file's latest transcript job language."""
+        latest_transcript_job = models.AiFileJob.objects.filter(
+            file=OuterRef("pk"),
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        ).order_by("-created_at")
+        files = queryset.annotate(
+            latest_transcript_job_language=Subquery(
+                latest_transcript_job.values("language")[:1]
+            )
+        )
+
+        enqueued_count = 0
+        skipped_count = 0
+        for file in files:
+            if file.latest_transcript_job_language is None:
+                skipped_count += 1
+                continue
+            call_transcribe_service.delay(
+                file.id,
+                language=file.latest_transcript_job_language,
+            )
+            enqueued_count += 1
+
+        self.message_user(
+            request,
+            _("%(count)s transcript retry job(s) enqueued.")
+            % {"count": enqueued_count},
+        )
+        if skipped_count:
+            self.message_user(
+                request,
+                _("%(count)s file(s) skipped because no transcript job was found.")
+                % {"count": skipped_count},
+                level=messages.WARNING,
+            )
 
 
 @admin.register(models.AiFileJob)
