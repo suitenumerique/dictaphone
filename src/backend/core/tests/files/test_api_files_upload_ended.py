@@ -7,6 +7,7 @@ from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from django.core.files.storage import default_storage
+from django.db import connections
 from django.utils import timezone
 
 import pytest
@@ -511,9 +512,12 @@ def test_api_file_upload_ended_concurrent_calls_are_serialized(settings):
     default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
 
     def call_upload_ended():
-        client = APIClient()
-        client.force_login(user)
-        return client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
+        try:
+            client = APIClient()
+            client.force_login(user)
+            return client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
+        finally:
+            connections.close_all()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [

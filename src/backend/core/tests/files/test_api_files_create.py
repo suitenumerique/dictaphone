@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
+from django.db import connections
 from django.utils import timezone
 
 import pytest
@@ -380,19 +381,22 @@ def test_api_files_create_file_race_condition():
     """
 
     def create_file(title):
-        user = factories.UserFactory()
-        client = APIClient()
-        client.force_login(user)
-        return client.post(
-            "/api/v1.0/files/",
-            {
-                "title": title,
-                "type": FileTypeChoices.AUDIO_RECORDING,
-                "duration_seconds": 1,
-                "filename": "my_file.ogg",
-            },
-            format="json",
-        )
+        try:
+            user = factories.UserFactory()
+            client = APIClient()
+            client.force_login(user)
+            return client.post(
+                "/api/v1.0/files/",
+                {
+                    "title": title,
+                    "type": FileTypeChoices.AUDIO_RECORDING,
+                    "duration_seconds": 1,
+                    "filename": "my_file.ogg",
+                },
+                format="json",
+            )
+        finally:
+            connections.close_all()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         future1 = executor.submit(create_file, "my item 1")
