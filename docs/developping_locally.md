@@ -76,7 +76,7 @@ make bootstrap FLUSH_ARGS='--no-input'
   - username: admin@example.com
   - password: admin
 
-The original `dictaphone` user and `dictaphone-media-storage` bucket remain available for testing the default and legacy configuration.
+The original `dictaphone` user and `dictaphone-media-storage` bucket remain available for testing the default configuration.
 
 The local stack also includes two domain-specific test users:
 
