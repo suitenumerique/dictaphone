@@ -1,12 +1,9 @@
 """Purge deleted files."""
 
-from datetime import timedelta
-
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Q
-from django.utils import timezone
 
+from core.configuration import filter_files_by_policy_cutoff
 from core.models import File
 from core.tasks.file import process_file_deletion
 
@@ -23,14 +20,18 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """Browse purgeable files and queue them through the file deletion task."""
 
-        is_hard_deleted = Q(hard_deleted_at__isnull=False)
-        is_purgeable = Q(
-            deleted_at__lte=timezone.now()
-            - timedelta(days=settings.TRASHBIN_CUTOFF_DAYS + settings.PURGE_GRACE_DAYS)
+        purgeable = filter_files_by_policy_cutoff(
+            File.objects.filter(hard_deleted_at__isnull=True),
+            policy="trashbin",
+            include_grace_period=True,
+            base_field="deleted_at",
+        )
+        files_to_purge = File.objects.filter(
+            Q(hard_deleted_at__isnull=False) | Q(pk__in=purgeable.values("pk"))
         )
 
         count = 0
-        for file in File.objects.filter(is_hard_deleted | is_purgeable).iterator():
+        for file in files_to_purge.iterator():
             if file.hard_deleted_at is None:
                 file.hard_delete()
 

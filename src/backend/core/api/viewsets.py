@@ -32,6 +32,7 @@ from rest_framework import (
 )
 
 from core import analytics, models, utils, webhook_models
+from core.configuration import filter_files_by_policy_cutoff
 from core.api.filters import ListFileFilter
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.tasks.file import (
@@ -46,7 +47,6 @@ from ..models import (
     AiJobStatusChoices,
     AiJobTypeChoices,
     FileSourceChoices,
-    get_file_hard_delete_cutoff_datetime,
 )
 from . import permissions, serializers
 
@@ -261,15 +261,16 @@ class FileViewSet(
             .exclude(
                 lifecycle_state=models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
             )
-            .filter(
-                created_at__gt=get_file_hard_delete_cutoff_datetime(
-                    include_grace_period=False
-                ),
-            )
             .select_related("creator")
             .prefetch_related(
                 Prefetch("ai_jobs", queryset=AiFileJob.objects.order_by("-created_at"))
             )
+        )
+        queryset = filter_files_by_policy_cutoff(
+            queryset,
+            policy="file_hard_delete",
+            include_grace_period=False,
+            comparison="gt",
         )
 
         if not user.is_authenticated:
@@ -648,12 +649,14 @@ class AiJobViewSet(
         if not user.is_authenticated:
             return queryset.none()
 
-        return queryset.filter(
-            file__creator=user,
-            file__hard_deleted_at__isnull=True,
-            file__created_at__gt=get_file_hard_delete_cutoff_datetime(
-                include_grace_period=False
+        return filter_files_by_policy_cutoff(
+            queryset.filter(
+                file__creator=user,
+                file__hard_deleted_at__isnull=True,
             ),
+            policy="file_hard_delete",
+            field_prefix="file__",
+            comparison="gt",
         ).exclude(
             file__lifecycle_state=models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
         )

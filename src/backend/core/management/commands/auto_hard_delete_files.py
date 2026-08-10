@@ -2,10 +2,10 @@
 
 from django.core.management.base import BaseCommand
 
+from core.configuration import filter_files_by_policy_cutoff
 from core.models import (
     File,
     FileLifecycleStateChoices,
-    get_file_hard_delete_cutoff_datetime,
 )
 from core.tasks.file import process_file_deletion
 
@@ -17,22 +17,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         pending_count = (
-            File.objects.filter(
-                hard_deleted_at__isnull=True,
-                created_at__lte=get_file_hard_delete_cutoff_datetime(
-                    include_grace_period=False
-                ),
+            filter_files_by_policy_cutoff(
+                File.objects.filter(hard_deleted_at__isnull=True),
+                policy="file_hard_delete",
             )
             .exclude(lifecycle_state=FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE)
             .update(lifecycle_state=FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE)
         )
 
-        eligible_files = File.objects.filter(
-            hard_deleted_at__isnull=True,
-            lifecycle_state=FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE,
-            created_at__lte=get_file_hard_delete_cutoff_datetime(
-                include_grace_period=True
+        eligible_files = filter_files_by_policy_cutoff(
+            File.objects.filter(
+                hard_deleted_at__isnull=True,
+                lifecycle_state=FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE,
             ),
+            policy="file_hard_delete",
+            include_grace_period=True,
         )
 
         hard_deleted_count = 0

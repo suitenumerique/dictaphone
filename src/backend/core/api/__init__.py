@@ -13,6 +13,8 @@ from rest_framework.decorators import api_view
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
+from core.configuration import get_profile_for_email
+
 
 def exception_handler(exc, context):
     """Handle Django ValidationError as an accepted exception.
@@ -40,6 +42,9 @@ def exception_handler(exc, context):
 @api_view(["GET"])
 def get_app_configuration(request):
     """Returns the configuration dict as configured in settings."""
+    profile = get_profile_for_email(
+        request.user.email if request.user.is_authenticated else None
+    )
     config = {
         "LANGUAGE_CODE": settings.LANGUAGE_CODE,
         "audio_recording": {
@@ -60,8 +65,8 @@ def get_app_configuration(request):
             ]["max_duration_seconds"],
         },
         "data_policy": {
-            "file_auto_hard_delete_after_days": settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS,
-            "original_file_data_delete_after_days": settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS,
+            "file_auto_hard_delete_after_days": profile.file_auto_hard_delete_after_days,
+            "original_file_data_delete_after_days": profile.original_file_data_delete_after_days,
         },
         "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
         "mobile_app": {

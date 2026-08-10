@@ -2,6 +2,12 @@
 
 from django.test import Client
 
+import pytest
+
+from core.factories import UserFactory
+
+pytestmark = pytest.mark.django_db
+
 
 def test_frontend_configuration_contains_mobile_apps(settings):
     """Frontend configuration should expose mobile app version settings."""
@@ -42,3 +48,26 @@ def test_frontend_configuration_exposes_base_settings(settings):
     }
     assert content["docs_integration_enabled"] is True
     assert content["feature_flags"] == {"new_editor": True}
+
+
+def test_frontend_configuration_uses_authenticated_user_domain_profile(settings):
+    """The frontend receives the policy selected for the logged-in user's domain."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "partner": {
+            "domains": ["partner.example"],
+            "bucket": "default",
+            "file_auto_hard_delete_after_days": 90,
+            "original_file_data_delete_after_days": 14,
+        },
+    }
+    client = Client()
+    client.force_login(UserFactory(email="person@partner.example"))
+
+    response = client.get("/api/v1.0/config/")
+
+    assert response.status_code == 200
+    assert response.json()["data_policy"] == {
+        "file_auto_hard_delete_after_days": 90,
+        "original_file_data_delete_after_days": 14,
+    }
