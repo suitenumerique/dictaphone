@@ -26,6 +26,8 @@ from configurations import Configuration, values
 from lasuite.configuration.values import SecretFileValue
 from sentry_sdk.integrations.django import DjangoIntegration
 
+from core.configuration import resolve_bucket_configurations, resolve_profiles
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = path.dirname(path.dirname(path.abspath(__file__)))
 
@@ -73,6 +75,8 @@ class Base(Configuration):
     * DB_USER
     * SIMPLE_JWT_SIGNING_KEY
     """
+
+    SKIP_STORAGE_CONFIGURATION = False
 
     DEBUG = False
     USE_SWAGGER = False
@@ -133,7 +137,7 @@ class Base(Configuration):
 
     STORAGES = {
         "default": {
-            "BACKEND": "storages.backends.s3.S3Storage",
+            "BACKEND": "core.storage.ConfiguredS3Storage",
         },
         "staticfiles": {
             "BACKEND": values.Value(
@@ -144,35 +148,26 @@ class Base(Configuration):
     }
 
     # Media
-    AWS_S3_ENDPOINT_URL = values.Value(
-        environ_name="AWS_S3_ENDPOINT_URL", environ_prefix=None
-    )
-    AWS_S3_ACCESS_KEY_ID = SecretFileValue(
-        environ_name="AWS_S3_ACCESS_KEY_ID", environ_prefix=None
-    )
-    AWS_S3_SECRET_ACCESS_KEY = SecretFileValue(
-        environ_name="AWS_S3_SECRET_ACCESS_KEY", environ_prefix=None
-    )
-    AWS_S3_REGION_NAME = values.Value(
-        environ_name="AWS_S3_REGION_NAME", environ_prefix=None
-    )
-    AWS_STORAGE_BUCKET_NAME = values.Value(
-        "dictaphone-media-storage",
-        environ_name="AWS_STORAGE_BUCKET_NAME",
-        environ_prefix=None,
-    )
-    AWS_S3_SIGNATURE_VERSION = values.Value(
-        "s3v4",
-        environ_name="AWS_S3_SIGNATURE_VERSION",
-        environ_prefix=None,
-    )
     AWS_S3_UPLOAD_POLICY_EXPIRATION = values.Value(
         60,  # 1 minute
         environ_name="AWS_S3_UPLOAD_POLICY_EXPIRATION",
         environ_prefix=None,
     )
-    AWS_S3_DOMAIN_REPLACE = values.Value(
-        environ_name="AWS_S3_DOMAIN_REPLACE",
+
+    S3_BUCKET_CONFIGURATIONS = values.DictValue(
+        {
+            "default": {
+                "bucket_name": "dictaphone-media-storage",
+                "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
+                "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
+            }
+        },
+        environ_name="S3_BUCKET_CONFIGURATIONS",
+        environ_prefix=None,
+    )
+    DATA_POLICY_CONFIGURATIONS = values.DictValue(
+        {"default": {"default": True, "bucket": "default"}},
+        environ_name="DATA_POLICY_CONFIGURATIONS",
         environ_prefix=None,
     )
 
@@ -874,6 +869,12 @@ class Base(Configuration):
                 "FILE_UPLOAD_TMP_PATH cannot be the same as FILE_UPLOAD_PATH"
             )
 
+        if not cls.SKIP_STORAGE_CONFIGURATION:
+            bucket_configurations = resolve_bucket_configurations(
+                cls.S3_BUCKET_CONFIGURATIONS
+            )
+            resolve_profiles(cls.DATA_POLICY_CONFIGURATIONS, cls, bucket_configurations)
+
         # The SENTRY_DSN setting should be available to activate sentry for an environment
         if cls.SENTRY_DSN is not None:
             sentry_sdk.init(
@@ -902,6 +903,7 @@ class Build(Base):
     """
 
     SECRET_KEY = values.Value("DummyKey")
+    SKIP_STORAGE_CONFIGURATION = True
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
