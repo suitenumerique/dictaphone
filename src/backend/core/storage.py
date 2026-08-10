@@ -44,6 +44,11 @@ def get_storage_for_bucket(bucket_configuration: str, bucket_name: str | None = 
     )
 
 
+def clear_storage_cache() -> None:
+    """Clear cached storage clients after a configuration change."""
+    get_storage_for_bucket.cache_clear()
+
+
 def get_storage_bucket_name(storage) -> str:
     """Return the configured bucket name from an S3 storage backend."""
     return storage.bucket_name

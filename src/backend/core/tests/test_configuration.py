@@ -1,5 +1,7 @@
 """Tests for domain-specific configuration resolution."""
 
+from unittest.mock import patch
+
 import pytest
 from pydantic import ValidationError
 
@@ -8,8 +10,10 @@ from core.configuration import (
     DataPolicyConfigurations,
     get_email_domain,
     get_profile_for_email,
+    get_profiles,
     normalize_email_domain,
     resolve_profiles,
+    resolve_runtime_configuration,
 )
 
 
@@ -61,6 +65,21 @@ def test_profiles_are_normalized_and_resolved(settings):
     assert profile.original_file_data_delete_after_days == (
         settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
     )
+
+
+def test_runtime_configuration_is_resolved_once(settings):
+    """Repeated lookups reuse the resolved configuration registry."""
+    settings.DATA_POLICY_CONFIGURATIONS = _profiles()
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+
+    with patch(
+        "core.configuration.resolve_runtime_configuration",
+        wraps=resolve_runtime_configuration,
+    ) as resolve_runtime:
+        get_profiles()
+        get_profile_for_email("user@example.com")
+
+    assert resolve_runtime.call_count == 1
 
 
 @pytest.mark.parametrize("email", [None, "user@unknown.example", "not-an-email"])

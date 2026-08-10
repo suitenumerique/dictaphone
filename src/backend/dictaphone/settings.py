@@ -26,7 +26,7 @@ from configurations import Configuration, values
 from lasuite.configuration.values import SecretFileValue
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from core.configuration import resolve_bucket_configurations, resolve_profiles
+from core.configuration import get_runtime_configuration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = path.dirname(path.dirname(path.abspath(__file__)))
@@ -870,10 +870,7 @@ class Base(Configuration):
             )
 
         if not cls.SKIP_STORAGE_CONFIGURATION:
-            bucket_configurations = resolve_bucket_configurations(
-                cls.S3_BUCKET_CONFIGURATIONS
-            )
-            resolve_profiles(cls.DATA_POLICY_CONFIGURATIONS, cls, bucket_configurations)
+            get_runtime_configuration()
 
         # The SENTRY_DSN setting should be available to activate sentry for an environment
         if cls.SENTRY_DSN is not None:
