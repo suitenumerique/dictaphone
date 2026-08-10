@@ -82,8 +82,8 @@ The local stack also includes two domain-specific test users:
 
 | Username | Email | Password | Storage bucket |
 | --- | --- | --- | --- |
-| `user-domain-alpha` | `user@alpha.test` | `password-domain-alpha` | `dictaphone-media-alpha` |
-| `user-domain-beta` | `user@beta.test` | `password-domain-beta` | `dictaphone-media-beta` |
+| `user-domain-alpha` | `user@alpha.example` | `password-domain-alpha` | `dictaphone-media-alpha` |
+| `user-domain-beta` | `user@beta.example` | `password-domain-beta` | `dictaphone-media-beta` |
 
 ---
 

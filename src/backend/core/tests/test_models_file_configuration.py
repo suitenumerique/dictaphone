@@ -18,7 +18,7 @@ def test_file_snapshots_creator_domain_configuration(settings):
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True},
         "alpha": {
-            "domains": ["alpha.test"],
+            "domains": ["alpha.example"],
             "bucket": "alpha",
             "file_auto_hard_delete_after_days": 10,
         },
@@ -35,7 +35,7 @@ def test_file_snapshots_creator_domain_configuration(settings):
             "secret_access_key_env": "S3_ALPHA_SECRET_ACCESS_KEY",
         },
     }
-    user = factories.UserFactory(email="user@alpha.test")
+    user = factories.UserFactory(email="user@alpha.example")
 
     file = factories.FileFactory(creator=user)
 
@@ -80,12 +80,12 @@ def test_soft_delete_persists_current_profile_trashbin_deadlines(settings):
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True},
         "alpha": {
-            "domains": ["alpha.test"],
+            "domains": ["alpha.example"],
             "trashbin_cutoff_days": 10,
             "purge_grace_days": 2,
         },
     }
-    user = factories.UserFactory(email="user@alpha.test")
+    user = factories.UserFactory(email="user@alpha.example")
     file = factories.FileFactory(creator=user)
 
     file.soft_delete()

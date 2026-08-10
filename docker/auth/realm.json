@@ -60,7 +60,7 @@
     },
     {
       "username": "user-domain-alpha",
-      "email": "user@alpha.test",
+      "email": "user@alpha.example",
       "firstName": "Domain",
       "lastName": "Alpha",
       "enabled": "true",
@@ -74,7 +74,7 @@
     },
     {
       "username": "user-domain-beta",
-      "email": "user@beta.test",
+      "email": "user@beta.example",
       "firstName": "Domain",
       "lastName": "Beta",
       "enabled": "true",
