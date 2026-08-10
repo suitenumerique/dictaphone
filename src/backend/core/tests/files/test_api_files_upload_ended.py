@@ -15,6 +15,7 @@ from freezegun import freeze_time
 from rest_framework.test import APIClient
 
 from core import factories, models
+from core.configuration import get_bucket_configurations
 from core.models import (
     AiFileJob,
     AiJobStatusChoices,
@@ -132,9 +133,9 @@ def test_api_file_upload_ended_success(mock_requests, settings):
     cloud_storage_parsed = urlparse(cloud_storage_url)
 
     assert cloud_storage_parsed.scheme == "http"
-    assert cloud_storage_parsed.netloc == settings.AWS_S3_ENDPOINT_URL.removeprefix(
-        "http://"
-    )
+    assert cloud_storage_parsed.netloc == get_bucket_configurations()[
+        "default"
+    ].endpoint_url.removeprefix("http://")
     assert (
         cloud_storage_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.txt"
     )
@@ -143,7 +144,7 @@ def test_api_file_upload_ended_success(mock_requests, settings):
 
     assert query_params.pop("X-Amz-Algorithm") == ["AWS4-HMAC-SHA256"]
     assert query_params.pop("X-Amz-Credential") == [
-        f"dictaphone/{now.strftime('%Y%m%d')}/us-east-1/s3/aws4_request"
+        f"dictaphone-default/{now.strftime('%Y%m%d')}/local/s3/aws4_request"
     ]
     assert query_params.pop("X-Amz-Date") == [now.strftime("%Y%m%dT%H%M%SZ")]
     assert query_params.pop("X-Amz-Expires") == ["86400"]

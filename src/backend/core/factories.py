@@ -6,12 +6,12 @@ from io import BytesIO
 
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
-from django.core.files.storage import default_storage
 
 import factory.fuzzy
 from faker import Faker
 
 from core import models
+from core.storage import get_storage_for_file
 
 fake = Faker()
 
@@ -71,7 +71,7 @@ class FileFactory(factory.django.DjangoModelFactory):
             self.size = len(content)
             self.save()
 
-            default_storage.save(self.file_key, BytesIO(content))
+            get_storage_for_file(self).save(self.file_key, BytesIO(content))
 
 
 class AiFileJobFactory(factory.django.DjangoModelFactory):

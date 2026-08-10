@@ -6,7 +6,6 @@ from logging import getLogger
 from urllib.parse import unquote, urljoin, urlparse
 
 from django.conf import settings
-from django.core.files.storage import default_storage
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
@@ -32,9 +31,10 @@ from rest_framework import (
 )
 
 from core import analytics, models, utils, webhook_models
-from core.configuration import filter_files_by_policy_cutoff
 from core.api.filters import ListFileFilter
 from core.authentication.webhooks import AiWebhookAuthentication
+from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
+from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.file import (
     call_transcribe_service,
     handle_transcript_received,
@@ -59,8 +59,10 @@ UUID_REGEX = (
     r"[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}"
 )
 FILE_EXT_REGEX = r"[\d\w]+"
+BUCKET_REGEX = r"[a-z0-9](?:[a-z0-9.-]{1,61}[a-z0-9])?"
 MEDIA_STORAGE_URL_PATTERN = re.compile(
     f"{settings.MEDIA_URL:s}"
+    rf"(?:(?P<bucket>{BUCKET_REGEX:s})/)?"
     rf"(?P<key>{FILE_FOLDER:s}/(?P<pk>{UUID_REGEX:s})\.{FILE_EXT_REGEX:s})$"
 )
 
@@ -355,7 +357,9 @@ class FileViewSet(
             )
         file.refresh_from_db()
 
-        s3_client = default_storage.connection.meta.client
+        storage = get_storage_for_file(file)
+        bucket_name = get_storage_bucket_name(storage)
+        s3_client = storage.connection.meta.client
         validation_error = None
 
         try:
@@ -364,17 +368,15 @@ class FileViewSet(
             # so the temporary file might still be updated after that.)
             # The temporary folders will need to be cleaned periodically
             s3_client.copy_object(
-                Bucket=default_storage.bucket_name,
+                Bucket=bucket_name,
                 Key=file.file_key,
                 CopySource={
-                    "Bucket": default_storage.bucket_name,
+                    "Bucket": bucket_name,
                     "Key": file.temporary_file_key,
                 },
             )
 
-            head_response = s3_client.head_object(
-                Bucket=default_storage.bucket_name, Key=file.file_key
-            )
+            head_response = s3_client.head_object(Bucket=bucket_name, Key=file.file_key)
             file_size = head_response["ContentLength"]
             # python-magic recommends using at least the first 2048 bytes
             # to reduce incorrect identification.
@@ -383,15 +385,15 @@ class FileViewSet(
             # of the file for mime type identification.
             if file_size > 2048:
                 range_response = s3_client.get_object(
-                    Bucket=default_storage.bucket_name,
+                    Bucket=bucket_name,
                     Key=file.file_key,
                     Range="bytes=0-2047",
                 )
                 file_head = range_response["Body"].read()
             else:
-                file_head = s3_client.get_object(
-                    Bucket=default_storage.bucket_name, Key=file.file_key
-                )["Body"].read()
+                file_head = s3_client.get_object(Bucket=bucket_name, Key=file.file_key)[
+                    "Body"
+                ].read()
 
             logger.info("upload_ended: detecting mimetype for file: %s", file.file_key)
             mimetype = utils.detect_mimetype(file_head, filename=file.filename)
@@ -458,10 +460,10 @@ class FileViewSet(
                         mimetype,
                     )
                     s3_client.copy_object(
-                        Bucket=default_storage.bucket_name,
+                        Bucket=bucket_name,
                         Key=file.file_key,
                         CopySource={
-                            "Bucket": default_storage.bucket_name,
+                            "Bucket": bucket_name,
                             "Key": file.file_key,
                         },
                         ContentType=mimetype,
@@ -591,6 +593,19 @@ class FileViewSet(
             logger.warning("File with ID '%s' does not exist", pk)
             raise drf_exceptions.PermissionDenied() from exc
 
+        expected_bucket = file.configuration.storage_bucket_name
+        requested_bucket = url_params.get("bucket")
+        if requested_bucket is None:
+            requested_bucket = get_bucket_configurations()["default"].bucket_name
+        if requested_bucket != expected_bucket:
+            logger.warning(
+                "Media URL bucket '%s' does not match file '%s' bucket '%s'",
+                requested_bucket,
+                file.id,
+                expected_bucket,
+            )
+            raise drf_exceptions.PermissionDenied()
+
         user_abilities = file.get_abilities(request.user)
         if not user_abilities.get(self.action, False):
             logger.warning(
@@ -623,7 +638,9 @@ class FileViewSet(
             raise drf_exceptions.PermissionDenied()
 
         # Generate S3 authorization headers using the extracted URL parameters
-        request = utils.generate_s3_authorization_headers(f"{url_params.get('key'):s}")
+        request = utils.generate_s3_authorization_headers(
+            file, f"{url_params.get('key'):s}"
+        )
 
         return drf_response.Response("authorized", headers=request.headers, status=200)
 
@@ -672,10 +689,11 @@ class AiJobViewSet(
                 code="ai_job_not_completed",
             )
 
-        if not default_storage.exists(ai_job.key):
+        storage = get_storage_for_file(ai_job.file)
+        if not storage.exists(ai_job.key):
             raise drf_exceptions.NotFound()
 
-        with default_storage.open(ai_job.key, "rb") as result_file:
+        with storage.open(ai_job.key, "rb") as result_file:
             content = result_file.read()
 
         return HttpResponse(content=content, content_type=content_type, status=200)

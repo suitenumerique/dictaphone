@@ -7,7 +7,6 @@ import logging
 from urllib.parse import urljoin
 
 from django.conf import settings
-from django.core.files.storage import default_storage
 from django.utils import timezone
 
 import requests as requests_lib
@@ -20,6 +19,7 @@ from core.models import (
     File,
     FileLifecycleStateChoices,
 )
+from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.retry import build_retry_task_options
 from core.utils import format_transcript, generate_download_file_url
 from core.webhook_models import WhisperXResponse
@@ -56,7 +56,7 @@ def process_file_deletion(file_id):
         ai_job.delete()
 
     logger.info("Deleting file %s", file.file_key)
-    default_storage.delete(file.file_key)
+    get_storage_for_file(file).delete(file.file_key)
 
     file.delete()
 
@@ -71,7 +71,7 @@ def process_original_file_data_deletion(file_id):
         logger.error("Item %s does not exist", file_id)
         return
 
-    default_storage.delete(file.file_key)
+    get_storage_for_file(file).delete(file.file_key)
     file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     file.save(update_fields=["lifecycle_state"])
 
@@ -177,9 +177,11 @@ def handle_transcript_received(remote_job_id, url: str | None):
 
     transcript = WhisperXResponse(**json.loads(content))
 
-    s3_client = default_storage.connection.meta.client
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
+    s3_client = storage.connection.meta.client
     s3_client.put_object(
-        Bucket=default_storage.bucket_name,
+        Bucket=bucket_name,
         Key=ai_transcript_job.key,
         Body=content,
         ContentType="application/json",
@@ -263,9 +265,11 @@ def store_summary(remote_job_id, url):
     response = session.get(url, timeout=(10, 20))
     response.raise_for_status()
 
-    s3_client = default_storage.connection.meta.client
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
+    s3_client = storage.connection.meta.client
     s3_client.put_object(
-        Bucket=default_storage.bucket_name,
+        Bucket=bucket_name,
         Key=ai_summary_job.key,
         Body=response.content,
         ContentType="text/plain",

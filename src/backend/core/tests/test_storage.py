@@ -1,0 +1,42 @@
+"""Tests for per-file object storage selection."""
+
+import pytest
+
+from core import factories
+from core.storage import get_storage_bucket_name, get_storage_for_file
+
+pytestmark = pytest.mark.django_db
+
+
+def test_file_storage_uses_the_creator_domain_bucket(settings, monkeypatch):
+    """Files created by a configured domain use its bucket backend."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "partner": {
+            "domains": ["partner.example"],
+            "bucket": "partner",
+        },
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = {
+        "default": {
+            "bucket_name": "dictaphone-media-storage",
+            "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
+            "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
+        },
+        "partner": {
+            "bucket_name": "dictaphone-media-partner",
+            "access_key_id_env": "S3_PARTNER_ACCESS_KEY_ID",
+            "secret_access_key_env": "S3_PARTNER_SECRET_ACCESS_KEY",
+        },
+    }
+    monkeypatch.setenv("S3_PARTNER_ACCESS_KEY_ID", "partner-access")
+    monkeypatch.setenv("S3_PARTNER_SECRET_ACCESS_KEY", "partner-secret")
+    file = factories.FileFactory(
+        creator=factories.UserFactory(email="person@partner.example")
+    )
+
+    storage = get_storage_for_file(file)
+
+    assert get_storage_bucket_name(storage) == "dictaphone-media-partner"
+    assert storage.access_key == "partner-access"  # pylint: disable=no-member
+    assert storage.secret_key == "partner-secret"  # pylint: disable=no-member

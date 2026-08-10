@@ -5,7 +5,6 @@ Test file uploads API endpoint for users in dictaphone's core app.
 from io import BytesIO
 from urllib.parse import quote, urlparse
 
-from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
@@ -15,6 +14,7 @@ from freezegun import freeze_time
 from rest_framework.test import APIClient
 
 from core import factories, models
+from core.configuration import get_bucket_configurations
 
 pytestmark = pytest.mark.django_db
 
@@ -71,10 +71,9 @@ def test_api_files_media_get_own():
     )
     assert response["X-Amz-Date"] == now.strftime("%Y%m%dT%H%M%SZ")
 
-    s3_url = urlparse(settings.AWS_S3_ENDPOINT_URL)
-    file_url = (
-        f"{settings.AWS_S3_ENDPOINT_URL:s}/dictaphone-media-storage/{file.file_key:s}"
-    )
+    endpoint_url = get_bucket_configurations()["default"].endpoint_url
+    s3_url = urlparse(endpoint_url)
+    file_url = f"{endpoint_url:s}/dictaphone-media-storage/{file.file_key:s}"
     response = requests.get(
         file_url,
         headers={

@@ -11,18 +11,39 @@ from datetime import datetime, timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
-from django.core.files.storage import default_storage
 
 import boto3
 import botocore
 import magic
 
+from core.storage import (
+    get_bucket_configuration_for_file,
+    get_storage_bucket_name,
+    get_storage_for_file,
+)
 from core.webhook_models import WhisperXResponse
 
 logger = logging.getLogger(__name__)
 
 
-def generate_s3_authorization_headers(key):
+def _get_s3_client(file, storage, *, override_domain: bool):
+    """Return an S3 client using the file's bucket credentials."""
+    configuration = get_bucket_configuration_for_file(file)
+    if configuration.domain_replace and override_domain:
+        return boto3.client(
+            "s3",
+            aws_access_key_id=configuration.access_key_id.get_secret_value(),
+            aws_secret_access_key=configuration.secret_access_key.get_secret_value(),
+            endpoint_url=configuration.domain_replace,
+            config=botocore.client.Config(
+                region_name=configuration.region_name,
+                signature_version=configuration.signature_version,
+            ),
+        )
+    return storage.connection.meta.client
+
+
+def generate_s3_authorization_headers(file, key):
     """
     Generate authorization headers for an s3 object.
     These headers can be used as an alternative to signed urls with many benefits:
@@ -33,15 +54,17 @@ def generate_s3_authorization_headers(key):
     - the object storage service does not need to be exposed on internet
     """
 
-    url = default_storage.unsigned_connection.meta.client.generate_presigned_url(
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
+    url = storage.unsigned_connection.meta.client.generate_presigned_url(
         "get_object",
         ExpiresIn=0,
-        Params={"Bucket": default_storage.bucket_name, "Key": key},
+        Params={"Bucket": bucket_name, "Key": key},
     )
 
     request = botocore.awsrequest.AWSRequest(method="get", url=url)
 
-    s3_client = default_storage.connection.meta.client
+    s3_client = storage.connection.meta.client
     # pylint: disable=protected-access
     credentials = s3_client._request_signer._credentials  # noqa: SLF001
     frozen_credentials = credentials.get_frozen_credentials()
@@ -128,6 +151,8 @@ def generate_upload_policy(file):
     """
 
     key = file.temporary_file_key
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
 
     # This settings should be used if the backend application and the frontend application
     # can't connect to the object storage with the same domain. This is the case in the
@@ -136,24 +161,12 @@ def generate_upload_policy(file):
     # service name declared in the docker compose stack.
     # This is needed because the domain name is used to compute the signature. So it can't be
     # changed dynamically by the frontend application.
-    if settings.AWS_S3_DOMAIN_REPLACE:
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_S3_SECRET_ACCESS_KEY,
-            endpoint_url=settings.AWS_S3_DOMAIN_REPLACE,
-            config=botocore.client.Config(
-                region_name=settings.AWS_S3_REGION_NAME,
-                signature_version=settings.AWS_S3_SIGNATURE_VERSION,
-            ),
-        )
-    else:
-        s3_client = default_storage.connection.meta.client
+    s3_client = _get_s3_client(file, storage, override_domain=True)
 
     # Generate the policy
     policy = s3_client.generate_presigned_url(
         ClientMethod="put_object",
-        Params={"Bucket": default_storage.bucket_name, "Key": key, "ACL": "private"},
+        Params={"Bucket": bucket_name, "Key": key, "ACL": "private"},
         ExpiresIn=settings.AWS_S3_UPLOAD_POLICY_EXPIRATION,
     )
 
@@ -166,6 +179,8 @@ def generate_download_file_url(file, *, expires_in: int, override_domain: bool =
     """
 
     key = file.file_key
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
 
     # This settings should be used if the backend application and the frontend application
     # can't connect to the object storage with the same domain. This is the case in the
@@ -174,23 +189,15 @@ def generate_download_file_url(file, *, expires_in: int, override_domain: bool =
     # service name declared in the docker compose stack.
     # This is needed because the domain name is used to compute the signature. So it can't be
     # changed dynamically by the frontend application.
-    if settings.AWS_S3_DOMAIN_REPLACE and override_domain:
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_S3_SECRET_ACCESS_KEY,
-            endpoint_url=settings.AWS_S3_DOMAIN_REPLACE,
-            config=botocore.client.Config(
-                region_name=settings.AWS_S3_REGION_NAME,
-                signature_version=settings.AWS_S3_SIGNATURE_VERSION,
-            ),
-        )
-    else:
-        s3_client = default_storage.connection.meta.client
+    s3_client = _get_s3_client(
+        file,
+        storage,
+        override_domain=override_domain,
+    )
 
     return s3_client.generate_presigned_url(
         ClientMethod="get_object",
-        Params={"Bucket": default_storage.bucket_name, "Key": key},
+        Params={"Bucket": bucket_name, "Key": key},
         ExpiresIn=expires_in,
     )
 

@@ -155,7 +155,7 @@ def test_api_files_create_file_authenticated_success():
 
     assert query_params.pop("X-Amz-Algorithm") == ["AWS4-HMAC-SHA256"]
     assert query_params.pop("X-Amz-Credential") == [
-        f"dictaphone/{now.strftime('%Y%m%d')}/us-east-1/s3/aws4_request"
+        f"dictaphone-default/{now.strftime('%Y%m%d')}/local/s3/aws4_request"
     ]
     assert query_params.pop("X-Amz-Date") == [now.strftime("%Y%m%dT%H%M%SZ")]
     assert query_params.pop("X-Amz-Expires") == ["60"]
