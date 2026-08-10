@@ -277,24 +277,23 @@ class ListFileSerializer(serializers.ModelSerializer):
         if (
             not obj.is_ready
             or obj.lifecycle_state != FileLifecycleStateChoices.ACTIVE
-            or obj.created_at
-            < get_original_file_data_cutoff_datetime(include_grace_period=False)
+            or timezone.now()
+            >= get_original_file_data_cutoff_datetime(obj, include_grace_period=False)
         ):
             return None
 
-        return f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}{quote(obj.file_key)}"
+        return (
+            f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
+            f"{quote(obj.configuration.storage_bucket_name)}/{quote(obj.file_key)}"
+        )
 
     def get_original_file_file_delete_at(self, obj):
         """Return the date and time when the original file data will be deleted."""
-        return obj.created_at + timedelta(
-            days=settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
-        )
+        return obj.configuration.original_file_data_delete_at
 
     def get_will_auto_delete_at(self, obj):
         """Return the date and time when the file will be automatically deleted."""
-        return obj.created_at + timedelta(
-            days=settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS
-        )
+        return obj.configuration.file_auto_hard_delete_at
 
     def get_abilities(self, file) -> dict:
         """Return abilities of the logged-in user on the instance."""

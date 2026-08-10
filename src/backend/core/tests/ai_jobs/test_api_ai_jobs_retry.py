@@ -4,6 +4,8 @@ from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.utils import timezone
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -55,7 +57,8 @@ def test_api_ai_jobs_retry_file_past_deadline_not_found(settings):
         file__creator=user,
     )
     ai_job.file.created_at = ai_job.file.created_at - timedelta(days=11)
-    ai_job.file.save(update_fields=["created_at"])
+    ai_job.file.file_auto_hard_delete_at = timezone.now() - timedelta(days=1)
+    ai_job.file.save(update_fields=["created_at", "file_auto_hard_delete_at"])
 
     client = APIClient()
     client.force_login(user)

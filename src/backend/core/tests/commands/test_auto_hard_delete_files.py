@@ -27,15 +27,16 @@ def test_auto_hard_delete_files_success(settings):
     pending_file = factories.FileFactory(upload_bytes=b"pending")
     delete_file = factories.FileFactory(upload_bytes=b"delete")
 
-    models.File.objects.filter(pk=recent_file.pk).update(
-        created_at=now - timedelta(days=9)
-    )
-    models.File.objects.filter(pk=pending_file.pk).update(
-        created_at=now - timedelta(days=11)
-    )
-    models.File.objects.filter(pk=delete_file.pk).update(
-        created_at=now - timedelta(days=13)
-    )
+    for file, age in (
+        (recent_file, 9),
+        (pending_file, 11),
+        (delete_file, 13),
+    ):
+        models.File.objects.filter(pk=file.pk).update(
+            created_at=now - timedelta(days=age),
+            file_auto_hard_delete_at=now - timedelta(days=age - 10),
+            file_auto_hard_delete_at_with_grace_period=now - timedelta(days=age - 12),
+        )
 
     out = StringIO()
     with patch(

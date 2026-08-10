@@ -238,6 +238,13 @@ class FileAdmin(admin.ModelAdmin):
         "type",
         "mimetype",
         "size",
+        "storage_bucket_name",
+        "original_file_data_delete_at",
+        "original_file_data_delete_at_with_grace_period",
+        "file_auto_hard_delete_at",
+        "file_auto_hard_delete_at_with_grace_period",
+        "trashbin_purge_at",
+        "trashbin_purge_at_with_grace_period",
     )
     autocomplete_fields = ("creator",)
     fieldsets = (
@@ -275,6 +282,20 @@ class FileAdmin(admin.ModelAdmin):
                 "fields": (
                     "deleted_at",
                     "hard_deleted_at",
+                )
+            },
+        ),
+        (
+            _("Storage and retention"),
+            {
+                "fields": (
+                    "storage_bucket_name",
+                    "original_file_data_delete_at",
+                    "original_file_data_delete_at_with_grace_period",
+                    "file_auto_hard_delete_at",
+                    "file_auto_hard_delete_at_with_grace_period",
+                    "trashbin_purge_at",
+                    "trashbin_purge_at_with_grace_period",
                 )
             },
         ),

@@ -49,6 +49,28 @@ def test_file_admin_displays_latest_transcript_job_status():
     )
 
 
+def test_file_admin_displays_new_storage_and_retention_fields_as_read_only():
+    """New storage and retention fields should be visible but not editable."""
+    admin_instance = FileAdmin(File, Mock())
+    fields = {
+        field
+        for fieldset in admin_instance.fieldsets
+        for field in fieldset[1]["fields"]
+    }
+    new_fields = {
+        "storage_bucket_name",
+        "original_file_data_delete_at",
+        "original_file_data_delete_at_with_grace_period",
+        "file_auto_hard_delete_at",
+        "file_auto_hard_delete_at_with_grace_period",
+        "trashbin_purge_at",
+        "trashbin_purge_at_with_grace_period",
+    }
+
+    assert new_fields <= fields
+    assert new_fields <= set(admin_instance.readonly_fields)
+
+
 @pytest.mark.parametrize(
     ("filter_value", "expected_file_index"),
     [

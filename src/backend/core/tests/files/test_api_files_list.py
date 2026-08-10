@@ -160,6 +160,7 @@ def test_api_files_list_excludes_files_past_hard_delete_deadline(settings):
     excluded_file = factories.FileFactory(creator=user)
     models.File.objects.filter(pk=excluded_file.pk).update(
         created_at=timezone.now() - timedelta(days=11),
+        file_auto_hard_delete_at=timezone.now() - timedelta(days=1),
     )
 
     response = client.get("/api/v1.0/files/")

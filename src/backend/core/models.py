@@ -5,7 +5,6 @@ Declare and configure the models for the Dictaphone core application
 
 # pylint: disable=too-many-lines
 import uuid
-from datetime import timedelta
 from logging import getLogger
 from os.path import splitext
 from typing import List
@@ -15,48 +14,37 @@ from django.contrib.auth import models as auth_models
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core import mail, validators
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
 from django.db import models, transaction
+from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from timezone_field import TimeZoneField
 
+from core.configuration import (
+    get_profile_for_email,
+    get_profile_for_file,
+)
 from core.enums import ISO_639_1_CHOICES
+from core.storage import get_storage_for_file
 from core.utils import format_transcript_for_markdown
 from core.webhook_models import WhisperXResponse
 
 logger = getLogger(__name__)
 
 
-def get_trashbin_cutoff():
-    """
-    Calculate the cutoff datetime for soft-deleted files based on the retention policy.
-
-    The function returns the current datetime minus the number of days specified in
-    the TRASHBIN_CUTOFF_DAYS setting, indicating the oldest date for files that can
-    remain in the trash bin.
-
-    Returns:
-        datetime: The cutoff datetime for soft-deleted files.
-    """
-    return timezone.now() - timedelta(days=settings.TRASHBIN_CUTOFF_DAYS)
+def get_trashbin_cutoff(file: File):
+    """Return the absolute purge deadline for a soft-deleted file."""
+    return file.configuration.trashbin_purge_at
 
 
-def get_original_file_data_cutoff_datetime(*, include_grace_period: bool = False):
+def get_original_file_data_cutoff_datetime(
+    file: File, *, include_grace_period: bool = False
+):
     """Return cutoff datetime for original file data availability."""
-    days = settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
     if include_grace_period:
-        days += settings.ORIGINAL_FILE_DATA_DELETE_AFTER_GRACE_PERIOD_DAYS
-    return timezone.now() - timedelta(days=days)
-
-
-def get_file_hard_delete_cutoff_datetime(*, include_grace_period: bool = False):
-    """Return cutoff datetime for file hard deletion."""
-    days = settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS
-    if include_grace_period:
-        days += settings.FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS
-    return timezone.now() - timedelta(days=days)
+        return file.configuration.original_file_data_delete_at_with_grace_period
+    return file.configuration.original_file_data_delete_at
 
 
 class BaseModel(models.Model):
@@ -316,6 +304,17 @@ class File(BaseModel):
         choices=FileSourceChoices.choices,
         default=FileSourceChoices.UNKNOWN,
     )
+    storage_bucket_name = models.CharField(max_length=63, null=True, blank=True)
+    original_file_data_delete_at = models.DateTimeField(null=True, blank=True)
+    original_file_data_delete_at_with_grace_period = models.DateTimeField(
+        null=True, blank=True
+    )
+    file_auto_hard_delete_at = models.DateTimeField(null=True, blank=True)
+    file_auto_hard_delete_at_with_grace_period = models.DateTimeField(
+        null=True, blank=True
+    )
+    trashbin_purge_at = models.DateTimeField(null=True, blank=True)
+    trashbin_purge_at_with_grace_period = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "file"
@@ -326,6 +325,110 @@ class File(BaseModel):
             models.Index(fields=["creator", "type", "-created_at"]),
             # To ease with the deletion queries
             models.Index(fields=["-created_at"]),
+            models.Index(
+                fields=["storage_bucket_name", "created_at"],
+                name="file_bucket_created_at_idx",
+            ),
+            models.Index(
+                fields=["storage_bucket_name", "deleted_at"],
+                name="file_bucket_deleted_at_idx",
+            ),
+            models.Index(
+                fields=["original_file_data_delete_at"],
+                name="file_original_delete_at_idx",
+            ),
+            models.Index(
+                fields=["original_file_data_delete_at_with_grace_period"],
+                name="file_original_delete_grace_idx",
+            ),
+            models.Index(
+                fields=["file_auto_hard_delete_at"],
+                name="file_hard_delete_at_idx",
+            ),
+            models.Index(
+                fields=["file_auto_hard_delete_at_with_grace_period"],
+                name="file_hard_delete_grace_idx",
+            ),
+            models.Index(
+                fields=["trashbin_purge_at"],
+                name="file_trashbin_purge_at_idx",
+            ),
+            models.Index(
+                fields=["trashbin_purge_at_with_grace_period"],
+                name="file_trashbin_purge_grace_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(storage_bucket_name__isnull=True)
+                        & Q(original_file_data_delete_at__isnull=True)
+                        & Q(original_file_data_delete_at_with_grace_period__isnull=True)
+                        & Q(file_auto_hard_delete_at__isnull=True)
+                        & Q(file_auto_hard_delete_at_with_grace_period__isnull=True)
+                    )
+                    | (
+                        Q(storage_bucket_name__isnull=False)
+                        & Q(original_file_data_delete_at__isnull=False)
+                        & Q(
+                            original_file_data_delete_at_with_grace_period__isnull=False
+                        )
+                        & Q(file_auto_hard_delete_at__isnull=False)
+                        & Q(file_auto_hard_delete_at_with_grace_period__isnull=False)
+                    )
+                ),
+                name="file_snapshot_complete",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(trashbin_purge_at__isnull=True)
+                    & Q(trashbin_purge_at_with_grace_period__isnull=True)
+                )
+                | (
+                    Q(trashbin_purge_at__isnull=False)
+                    & Q(trashbin_purge_at_with_grace_period__isnull=False)
+                ),
+                name="file_trashbin_deadlines",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(original_file_data_delete_at__isnull=True)
+                        & Q(original_file_data_delete_at_with_grace_period__isnull=True)
+                    )
+                    | Q(
+                        original_file_data_delete_at__lte=(
+                            F("original_file_data_delete_at_with_grace_period")
+                        )
+                    )
+                ),
+                name="file_original_deadline_order",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(file_auto_hard_delete_at__isnull=True)
+                        & Q(file_auto_hard_delete_at_with_grace_period__isnull=True)
+                    )
+                    | Q(
+                        file_auto_hard_delete_at__lte=F(
+                            "file_auto_hard_delete_at_with_grace_period"
+                        )
+                    )
+                ),
+                name="file_hard_delete_deadline_order",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(trashbin_purge_at__isnull=True)
+                        & Q(trashbin_purge_at_with_grace_period__isnull=True)
+                    )
+                    | Q(trashbin_purge_at__lte=F("trashbin_purge_at_with_grace_period"))
+                ),
+                name="file_trashbin_deadline_order",
+            ),
         ]
 
     def __str__(self):
@@ -334,11 +437,34 @@ class File(BaseModel):
     def save(self, *args, **kwargs):
         """Set the upload state to pending if it's the first save and it's a file."""
 
-        if self.created_at is None:
+        is_new = self._state.adding
+        if is_new:
             self.upload_state = FileUploadStateChoices.PENDING
             self.lifecycle_state = FileLifecycleStateChoices.ACTIVE
 
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
+        if is_new and self.creator_id:
+            self._set_configuration_snapshot()
+            super().save(
+                update_fields=[
+                    "storage_bucket_name",
+                    "original_file_data_delete_at",
+                    "original_file_data_delete_at_with_grace_period",
+                    "file_auto_hard_delete_at",
+                    "file_auto_hard_delete_at_with_grace_period",
+                ]
+            )
+
+    def _set_configuration_snapshot(self):
+        """Persist the configuration selected by the creator's email domain."""
+        profile = get_profile_for_email(self.creator.email if self.creator_id else None)
+        for field, value in profile.as_file_snapshot(self.created_at).items():
+            setattr(self, field, value)
+
+    @property
+    def configuration(self):
+        """Return this file's persisted policy and storage configuration."""
+        return get_profile_for_file(self)
 
     def delete(self, using=None, keep_parents=False):
         if self.deleted_at is None:
@@ -439,7 +565,16 @@ class File(BaseModel):
             raise RuntimeError("This file is already deleted.")
 
         self.deleted_at = timezone.now()
-        self.save(update_fields=["deleted_at"])
+        profile = get_profile_for_email(self.creator.email if self.creator_id else None)
+        for field, value in profile.as_trashbin_snapshot(self.deleted_at).items():
+            setattr(self, field, value)
+        self.save(
+            update_fields=[
+                "deleted_at",
+                "trashbin_purge_at",
+                "trashbin_purge_at_with_grace_period",
+            ]
+        )
 
     def hard_delete(self):
         """
@@ -483,7 +618,7 @@ class File(BaseModel):
                 }
             )
 
-        if self.deleted_at < get_trashbin_cutoff():
+        if timezone.now() > get_trashbin_cutoff(self):
             raise ValidationError(
                 {
                     "deleted_at": ValidationError(
@@ -495,8 +630,16 @@ class File(BaseModel):
 
         # Restore the current item
         self.deleted_at = None
+        self.trashbin_purge_at = None
+        self.trashbin_purge_at_with_grace_period = None
 
-        self.save(update_fields=["deleted_at"])
+        self.save(
+            update_fields=[
+                "deleted_at",
+                "trashbin_purge_at",
+                "trashbin_purge_at_with_grace_period",
+            ]
+        )
 
 
 class AiJobStatusChoices(models.TextChoices):
@@ -555,7 +698,8 @@ class AiFileJob(BaseModel):
         )
         key = self.key
         result = super().delete(using=using, keep_parents=keep_parents)
-        transaction.on_commit(lambda: default_storage.delete(key))
+        storage = get_storage_for_file(self.file)
+        transaction.on_commit(lambda: storage.delete(key))
         return result
 
     @property
@@ -572,7 +716,7 @@ class AiFileJob(BaseModel):
         if self.status != AiJobStatusChoices.SUCCESS:
             raise ValueError(f"Job status is not success: {self.status}")
 
-        with default_storage.open(self.key, "rb") as result_file:
+        with get_storage_for_file(self.file).open(self.key, "rb") as result_file:
             content = result_file.read()
 
         if self.type == AiJobTypeChoices.TRANSCRIPT:
