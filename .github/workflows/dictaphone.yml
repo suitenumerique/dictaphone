@@ -137,9 +137,14 @@ jobs:
       DB_PORT: 5432
       REDIS_URL: redis://localhost:6379/1
       STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
-      AWS_S3_ENDPOINT_URL: http://localhost:9000
-      AWS_S3_ACCESS_KEY_ID: dictaphone
-      AWS_S3_SECRET_ACCESS_KEY: password
+      S3_DEFAULT_ACCESS_KEY_ID: dictaphone-default
+      S3_DEFAULT_SECRET_ACCESS_KEY: password-default
+      S3_ALPHA_ACCESS_KEY_ID: dictaphone-alpha
+      S3_ALPHA_SECRET_ACCESS_KEY: password-alpha
+      S3_BETA_ACCESS_KEY_ID: dictaphone-beta
+      S3_BETA_SECRET_ACCESS_KEY: password-beta
+      S3_BUCKET_CONFIGURATIONS: '{"default":{"bucket_name":"dictaphone-media-storage","access_key_id_env":"S3_DEFAULT_ACCESS_KEY_ID","secret_access_key_env":"S3_DEFAULT_SECRET_ACCESS_KEY","endpoint_url":"http://localhost:9000","region_name":"local","signature_version":"s3v4"},"alpha":{"bucket_name":"dictaphone-media-alpha","access_key_id_env":"S3_ALPHA_ACCESS_KEY_ID","secret_access_key_env":"S3_ALPHA_SECRET_ACCESS_KEY","endpoint_url":"http://localhost:9000","region_name":"local","signature_version":"s3v4"},"beta":{"bucket_name":"dictaphone-media-beta","access_key_id_env":"S3_BETA_ACCESS_KEY_ID","secret_access_key_env":"S3_BETA_SECRET_ACCESS_KEY","endpoint_url":"http://localhost:9000","region_name":"local","signature_version":"s3v4"}}'
+      DATA_POLICY_CONFIGURATIONS: '{"default":{"default":True,"bucket":"default"},"alpha":{"domains":["alpha.test"],"bucket":"alpha","file_auto_hard_delete_after_days":14,"original_file_data_delete_after_days":7},"beta":{"domains":["beta.test"],"bucket":"beta","file_auto_hard_delete_after_days":30,"original_file_data_delete_after_days":14}}'
       OIDC_RS_CLIENT_ID: dictaphone
       OIDC_RS_CLIENT_SECRET: ThisIsAnExampleKeyForDevPurposeOnly
       OIDC_OP_INTROSPECTION_ENDPOINT: https://oidc.example.com/introspect
@@ -167,8 +172,8 @@ jobs:
           docker pull minio/minio
           docker run -d --name minio \
             -p 9000:9000 \
-            -e "MINIO_ACCESS_KEY=dictaphone" \
-            -e "MINIO_SECRET_KEY=password" \
+            -e "MINIO_ROOT_USER=dictaphone" \
+            -e "MINIO_ROOT_PASSWORD=password" \
             -v /data/media:/data \
             minio/minio server --console-address :9001 /data
 
@@ -183,11 +188,25 @@ jobs:
 
       - name: Configure MinIO
         run: |
-          MINIO=$(docker ps | grep minio/minio | sed -E 's/.*\s+([a-zA-Z0-9_-]+)$/\1/')
-          docker exec ${MINIO} sh -c \
-            "mc alias set dictaphone http://localhost:9000 dictaphone password && \
-            mc alias ls && \
-            mc mb dictaphone/dictaphone-media-storage"
+          docker pull minio/mc
+          docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
+            "until mc alias set dictaphone http://localhost:9000 dictaphone password; do sleep 1; done && \
+            until mc ready dictaphone; do sleep 1; done && \
+            mc mb --ignore-existing dictaphone/dictaphone-media-storage && \
+            mc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
+            mc mb --ignore-existing dictaphone/dictaphone-media-beta && \
+            mc admin user add dictaphone dictaphone-default password-default && \
+            mc admin user add dictaphone dictaphone-alpha password-alpha && \
+            mc admin user add dictaphone dictaphone-beta password-beta && \
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-storage\",\"arn:aws:s3:::dictaphone-media-storage/*\"]}]}' >/tmp/default-policy.json && \
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-alpha\",\"arn:aws:s3:::dictaphone-media-alpha/*\"]}]}' >/tmp/alpha-policy.json && \
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-beta\",\"arn:aws:s3:::dictaphone-media-beta/*\"]}]}' >/tmp/beta-policy.json && \
+            mc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json && \
+            mc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json && \
+            mc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json && \
+            mc admin policy attach dictaphone default-bucket-policy --user dictaphone-default && \
+            mc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha && \
+            mc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta"
 
       - name: Install Python
         uses: actions/setup-python@v6
