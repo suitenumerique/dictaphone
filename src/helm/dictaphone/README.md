@@ -37,7 +37,7 @@
 | `ingressMediaFiles.enabled`                                                       | whether to enable the Ingress or not                   | `false`                                                          |
 | `ingressMediaFiles.className`                                                     | IngressClass to use for the Ingress                    | `nil`                                                            |
 | `ingressMediaFiles.host`                                                          | Host for the Ingress                                   | `dictaphone.example.com`                                         |
-| `ingressMediaFiles.path`                                                          | Path to use for the Ingress                            | `/media/files/(.*)`                                              |
+| `ingressMediaFiles.path`                                                          | Path to use for the Ingress                            | `/media/(.*)`                                                    |
 | `ingressMediaFiles.hosts`                                                         | Additional host to configure for the Ingress           | `[]`                                                             |
 | `ingressMediaFiles.tls.enabled`                                                   | Weather to enable TLS for the Ingress                  | `true`                                                           |
 | `ingressMediaFiles.tls.secretName`                                                | Secret name for TLS config                             | `nil`                                                            |

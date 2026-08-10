@@ -109,7 +109,21 @@ spec:
           - -c
           - |
             /usr/bin/mc alias set dictaphone http://minio:9000 dictaphone password && \
-            /usr/bin/mc mb dictaphone/dictaphone-media-storage && \
+            /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-storage && \
+            /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
+            /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-beta && \
+            /usr/bin/mc admin user add dictaphone dictaphone-default password-default || true; \
+            /usr/bin/mc admin user add dictaphone dictaphone-alpha password-alpha || true; \
+            /usr/bin/mc admin user add dictaphone dictaphone-beta password-beta || true; \
+            printf '%s' '{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::dictaphone-media-storage","arn:aws:s3:::dictaphone-media-storage/*"]}]}' >/tmp/default-policy.json && \
+            printf '%s' '{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::dictaphone-media-alpha","arn:aws:s3:::dictaphone-media-alpha/*"]}]}' >/tmp/alpha-policy.json && \
+            printf '%s' '{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::dictaphone-media-beta","arn:aws:s3:::dictaphone-media-beta/*"]}]}' >/tmp/beta-policy.json && \
+            /usr/bin/mc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json || true; \
+            /usr/bin/mc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json || true; \
+            /usr/bin/mc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json || true; \
+            /usr/bin/mc admin policy attach dictaphone default-bucket-policy --user dictaphone-default || true; \
+            /usr/bin/mc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha || true; \
+            /usr/bin/mc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta || true; \
             exit 0
       restartPolicy: Never
   backoffLimit: 3

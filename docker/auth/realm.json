@@ -59,6 +59,34 @@
       "realmRoles": ["user"]
     },
     {
+      "username": "user-domain-alpha",
+      "email": "user@alpha.test",
+      "firstName": "Domain",
+      "lastName": "Alpha",
+      "enabled": "true",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password-domain-alpha"
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "user-domain-beta",
+      "email": "user@beta.test",
+      "firstName": "Domain",
+      "lastName": "Beta",
+      "enabled": "true",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password-domain-beta"
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
       "username": "user-e2e-chromium",
       "email": "user@chromium.e2e",
       "firstName": "E2E",

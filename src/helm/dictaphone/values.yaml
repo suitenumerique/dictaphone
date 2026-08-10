@@ -80,7 +80,7 @@ ingressMediaFiles:
   enabled: false
   className: null
   host: dictaphone.example.com
-  path: /media/files/(.*)
+  path: /media/(.*)
   ## @param ingressMediaFiles.hosts Additional host to configure for the Ingress
   hosts: []
   #  - chart-example.local
