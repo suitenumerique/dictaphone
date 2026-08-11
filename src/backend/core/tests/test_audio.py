@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from celery.exceptions import Retry
 
-from core import factories
+from core import analytics, factories
 from core.audio import (
     AudioExtractionError,
     AudioExtractionRetryableError,
@@ -106,6 +106,33 @@ def test_extract_audio_marks_done_and_queues_transcription(
     mock_transcribe.assert_called_once_with(file.id)
 
 
+def test_extract_audio_records_success_analytics_and_warns_on_duration_difference(
+    caplog,
+):
+    """Successful extraction records timing and flags suspicious duration changes."""
+    file = factories.FileFactory(upload_bytes=b"source", duration_seconds=100)
+
+    with (
+        patch("core.tasks.file.extract_audio_to_storage", return_value=120),
+        patch("core.tasks.file.call_transcribe_service.delay"),
+        patch("core.tasks.file.monotonic", side_effect=[10, 14]),
+        patch("core.tasks.file.analytics.capture_event") as capture_event,
+    ):
+        extract_audio(file.id)
+
+    assert "Suspicious audio duration difference" in caplog.text
+    capture_event.assert_called_once_with(
+        analytics.EventName.AUDIO_EXTRACTION_SUCCESS,
+        user=file.creator,
+        properties={
+            "preprocessing_time_seconds": 4,
+            "file_id": file.id,
+            "input_file_type": file.type,
+            "audio_duration_seconds": 120,
+        },
+    )
+
+
 @patch("core.tasks.file.call_transcribe_service.delay")
 @patch(
     "core.tasks.file.extract_audio_to_storage",
@@ -130,6 +157,35 @@ def test_extract_audio_marks_failed_and_does_not_transcribe(
     assert not storage.exists(file.audio_file_key)
     mock_extract.assert_called_once_with(file)
     mock_transcribe.assert_not_called()
+
+
+def test_extract_audio_records_failure_analytics():
+    """Failed extraction records timing, context, and the exception details."""
+    file = factories.FileFactory(upload_bytes=b"invalid")
+
+    with (
+        patch(
+            "core.tasks.file.extract_audio_to_storage",
+            side_effect=AudioExtractionError("invalid audio"),
+        ),
+        patch("core.tasks.file.monotonic", side_effect=[10, 13]),
+        patch("core.tasks.file.analytics.capture_event") as capture_event,
+        pytest.raises(AudioExtractionError),
+    ):
+        extract_audio(file.id)
+
+    capture_event.assert_called_once_with(
+        analytics.EventName.AUDIO_EXTRACTION_FAILURE,
+        user=file.creator,
+        properties={
+            "preprocessing_time_seconds": 3,
+            "file_id": file.id,
+            "input_file_type": file.type,
+            "error_type": "AudioExtractionError",
+            "error_message": "invalid audio",
+            "retryable": False,
+        },
+    )
 
 
 @patch("core.tasks.file.call_transcribe_service.delay")
@@ -173,7 +229,11 @@ def test_extract_audio_retries_transient_failure(mock_extract):
     """Infrastructure failures retry without marking a valid file as bad."""
     file = factories.FileFactory(upload_bytes=b"source")
 
-    with patch.object(extract_audio, "retry", side_effect=Retry()) as retry:
+    with (
+        patch.object(extract_audio, "retry", side_effect=Retry()) as retry,
+        patch("core.tasks.file.monotonic", side_effect=[10, 12]),
+        patch("core.tasks.file.analytics.capture_event") as capture_event,
+    ):
         with pytest.raises(Retry):
             extract_audio(file.id)
 
@@ -185,6 +245,18 @@ def test_extract_audio_retries_transient_failure(mock_extract):
     assert extract_audio.autoretry_for == (AudioExtractionRetryableError,)
     retry.assert_called_once()
     assert retry.call_args.kwargs["max_retries"] > 0
+    capture_event.assert_called_once_with(
+        analytics.EventName.AUDIO_EXTRACTION_FAILURE,
+        user=file.creator,
+        properties={
+            "preprocessing_time_seconds": 2,
+            "file_id": file.id,
+            "input_file_type": file.type,
+            "error_type": "AudioExtractionRetryableError",
+            "error_message": "temporary S3 failure",
+            "retryable": True,
+        },
+    )
     mock_extract.assert_called_once_with(file)
 
 

@@ -16,6 +16,8 @@ class EventName(StrEnum):
     FILE_SOFT_DELETED = "file_soft_deleted"
     TRANSCRIPT_GENERATION_SUCCESS = "transcript_generation_success"
     TRANSCRIPT_GENERATION_FAILURE = "transcript_generation_failure"
+    AUDIO_EXTRACTION_SUCCESS = "audio_extraction_success"
+    AUDIO_EXTRACTION_FAILURE = "audio_extraction_failure"
 
 
 def capture_event(event_name: EventName, *, user: User, properties=None) -> None:

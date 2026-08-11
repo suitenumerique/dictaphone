@@ -4,6 +4,7 @@ Tasks related to files.
 
 import json
 import logging
+from time import monotonic
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -108,6 +109,55 @@ def _delete_extracted_audio(  # pylint: disable=broad-exception-caught
         logger.warning("Could not clean extracted audio for file %s", file.id)
 
 
+def _capture_audio_extraction_event(
+    event_name,
+    file,
+    preprocessing_time_seconds,
+    *,
+    duration_seconds=None,
+    error=None,
+):
+    """Capture an audio extraction outcome with timing and file context."""
+    properties = {
+        "preprocessing_time_seconds": preprocessing_time_seconds,
+        "file_id": file.id,
+        "input_file_type": file.type,
+    }
+    if duration_seconds is not None:
+        properties["audio_duration_seconds"] = duration_seconds
+    if error is not None:
+        properties.update(
+            {
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "retryable": isinstance(error, AudioExtractionRetryableError),
+            }
+        )
+
+    analytics.capture_event(event_name, user=file.creator, properties=properties)
+
+
+def _log_suspicious_duration(file, extracted_duration_seconds):
+    """Warn when extraction changes the declared duration substantially."""
+    input_duration_seconds = file.duration_seconds
+    if input_duration_seconds is None or input_duration_seconds <= 0:
+        return
+
+    relative_difference = (
+        abs(extracted_duration_seconds - input_duration_seconds)
+        / input_duration_seconds
+    )
+    if relative_difference > 0.15:
+        logger.warning(
+            "Suspicious audio duration difference for file %s: "
+            "input=%s seconds, extracted=%s seconds, difference=%.1f%%",
+            file.id,
+            input_duration_seconds,
+            extracted_duration_seconds,
+            relative_difference * 100,
+        )
+
+
 def _queue_transcription(file_id, *, ai_job_id=None, language=None):
     """Queue transcription with or without an already-created AI job."""
     if ai_job_id is None:
@@ -184,9 +234,17 @@ def extract_audio(file_id, ai_job_id=None, language=None):
         )
         return result if handled else None
 
+    preprocessing_started_at = monotonic()
     try:
         duration_seconds = extract_audio_to_storage(file)
-    except AudioExtractionRetryableError:
+    except AudioExtractionRetryableError as error:
+        preprocessing_time_seconds = monotonic() - preprocessing_started_at
+        _capture_audio_extraction_event(
+            analytics.EventName.AUDIO_EXTRACTION_FAILURE,
+            file,
+            preprocessing_time_seconds,
+            error=error,
+        )
         logger.warning(
             "Transient audio extraction failure for file %s; retrying",
             file.id,
@@ -196,7 +254,13 @@ def extract_audio(file_id, ai_job_id=None, language=None):
             audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
         )
         raise
-    except AudioExtractionError:
+    except AudioExtractionError as error:
+        _capture_audio_extraction_event(
+            analytics.EventName.AUDIO_EXTRACTION_FAILURE,
+            file,
+            monotonic() - preprocessing_started_at,
+            error=error,
+        )
         logger.exception("Audio extraction failed for file %s", file.id)
         _delete_extracted_audio(file)
         File.objects.filter(pk=file.pk).update(
@@ -204,7 +268,13 @@ def extract_audio(file_id, ai_job_id=None, language=None):
         )
         _mark_transcription_job_failed(ai_job_id)
         raise
-    except Exception:
+    except Exception as error:
+        _capture_audio_extraction_event(
+            analytics.EventName.AUDIO_EXTRACTION_FAILURE,
+            file,
+            monotonic() - preprocessing_started_at,
+            error=error,
+        )
         logger.exception("Unexpected audio extraction failure for file %s", file.id)
         _delete_extracted_audio(file)
         File.objects.filter(pk=file.pk).update(
@@ -213,8 +283,15 @@ def extract_audio(file_id, ai_job_id=None, language=None):
         _mark_transcription_job_failed(ai_job_id)
         raise
 
+    _log_suspicious_duration(file, duration_seconds)
     File.objects.filter(pk=file.pk).update(
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        duration_seconds=duration_seconds,
+    )
+    _capture_audio_extraction_event(
+        analytics.EventName.AUDIO_EXTRACTION_SUCCESS,
+        file,
+        monotonic() - preprocessing_started_at,
         duration_seconds=duration_seconds,
     )
 
