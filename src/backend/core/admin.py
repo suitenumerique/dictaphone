@@ -4,6 +4,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
+from django.core.exceptions import ValidationError
 from django.db.models import OuterRef, Subquery
 from django.utils.translation import gettext_lazy as _
 
@@ -57,6 +58,52 @@ class RetryTranscriptActionForm(ActionForm):
     """Admin action form used to choose the transcription language."""
 
     language = forms.ChoiceField(choices=models.ISO_639_1_CHOICES, required=True)
+
+
+class FileAdminForm(forms.ModelForm):
+    """Allow admins to reset extraction without manually completing it."""
+
+    class Meta:
+        model = models.File
+        fields = (
+            "type",
+            "title",
+            "creator",
+            "deleted_at",
+            "hard_deleted_at",
+            "filename",
+            "duration_seconds",
+            "upload_state",
+            "audio_extraction_state",
+            "lifecycle_state",
+            "mimetype",
+            "size",
+            "language",
+            "description",
+            "malware_detection_info",
+            "source",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        pending_state = models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        current_state = self.instance.audio_extraction_state
+        state_labels = dict(models.FileAudioExtractionStateChoices.choices)
+        choices = [(current_state, state_labels[current_state])]
+        if current_state != pending_state:
+            choices.append((pending_state, state_labels[pending_state]))
+        self.fields["audio_extraction_state"].choices = choices
+
+    def clean_audio_extraction_state(self):
+        """Reject manually setting extraction to any non-pending state."""
+        state = self.cleaned_data["audio_extraction_state"]
+        current_state = self.instance.audio_extraction_state
+        pending_state = models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        if state not in {current_state, pending_state}:
+            raise ValidationError(
+                _("Audio extraction can only be reset to pending by an admin.")
+            )
+        return state
 
 
 class LatestTranscriptJobStatusFilter(admin.SimpleListFilter):
@@ -173,6 +220,7 @@ class UserAdmin(auth_admin.UserAdmin):
 class FileAdmin(admin.ModelAdmin):
     """Admin class for the File model."""
 
+    form = FileAdminForm
     inlines = (AiFileJobInline,)
     action_form = RetryTranscriptActionForm
     actions = (
@@ -186,6 +234,7 @@ class FileAdmin(admin.ModelAdmin):
         "type",
         "creator",
         "upload_state",
+        "audio_extraction_status",
         "latest_transcript_job_status",
         "latest_transcript_job_created_at",
         "deleted_at",
@@ -200,6 +249,7 @@ class FileAdmin(admin.ModelAdmin):
     list_filter = (
         "type",
         "upload_state",
+        "audio_extraction_state",
         LatestTranscriptJobStatusFilter,
         "lifecycle_state",
         "created_at",
@@ -259,6 +309,7 @@ class FileAdmin(admin.ModelAdmin):
                     "filename",
                     "language",
                     "upload_state",
+                    "audio_extraction_state",
                     "source",
                     "lifecycle_state",
                 )
@@ -341,6 +392,14 @@ class FileAdmin(admin.ModelAdmin):
         """Display the localized status of the latest transcript job."""
         status_labels = dict(models.AiJobStatusChoices.choices)
         return status_labels.get(obj.latest_transcript_job_status, "-")
+
+    @admin.display(
+        description=_("Audio extraction status"),
+        ordering="audio_extraction_state",
+    )
+    def audio_extraction_status(self, obj):
+        """Display the localized audio extraction state."""
+        return obj.get_audio_extraction_state_display()
 
     @admin.display(
         description=_("Latest transcript job created on"),
