@@ -172,6 +172,31 @@ add_header Content-Disposition "attachment";
 | `celeryBackend.extraVolumes`                                | Additional volumes to mount on the celeryBackend.                                        | `[]`                                                                                           |
 | `celeryBackend.pdb.enabled`                                 | Enable pdb on celeryBackend                                                              | `false`                                                                                        |
 
+### celeryAudioExtractor
+
+| Name                        | Description                                                    | Value                                                                                       |
+| --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `celeryAudioExtractor.dpAnnotations` | Annotations to add to the audio worker Deployment       | `{}`                                                                                        |
+| `celeryAudioExtractor.command`       | Command used by the audio extraction worker             | `["celery","-A","dictaphone.celery_app","worker","--loglevel=info","-Q","dictaphone-audio"]` |
+| `celeryAudioExtractor.args`          | Additional audio worker arguments                        | `[]`                                                                                        |
+| `celeryAudioExtractor.replicas`      | Amount of audio worker replicas                         | `1`                                                                                         |
+| `celeryAudioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
+| `celeryAudioExtractor.sidecars`      | Add sidecars containers to audio worker deployment       | `[]`                                                                                        |
+| `celeryAudioExtractor.securityContext` | Configure audio worker container security context     | `nil`                                                                                       |
+| `celeryAudioExtractor.envVars`       | Configure audio worker environment variables            | `undefined`                                                                                 |
+| `celeryAudioExtractor.podAnnotations` | Annotations to add to the audio worker Pod             | `{}`                                                                                        |
+| `celeryAudioExtractor.resources`      | Resource requirements for the audio worker container    | `{}`                                                                                        |
+| `celeryAudioExtractor.nodeSelector`   | Node selector for the audio worker Pod                  | `{}`                                                                                        |
+| `celeryAudioExtractor.tolerations`    | Tolerations for the audio worker Pod                    | `[]`                                                                                        |
+| `celeryAudioExtractor.affinity`       | Affinity for the audio worker Pod                       | `{}`                                                                                        |
+| `celeryAudioExtractor.persistence`   | Additional volumes to create and mount on the audio worker. Used for debugging purposes | `{}` |
+| `celeryAudioExtractor.persistence.volume-name.size` | Size of the additional volume | |
+| `celeryAudioExtractor.persistence.volume-name.type` | Type of the additional volume, persistentVolumeClaim or emptyDir | |
+| `celeryAudioExtractor.persistence.volume-name.mountPath` | Path where the volume should be mounted to | |
+| `celeryAudioExtractor.extraVolumeMounts` | Additional volumes to mount on the audio worker. | `[]` |
+| `celeryAudioExtractor.extraVolumes`    | Additional volumes to mount on the audio worker. | `[]` |
+| `celeryAudioExtractor.pdb.enabled`    | Enable pdb on the audio worker | `false` |
+
 ### frontend
 
 | Name                                                   | Description                                                                         | Value                         |

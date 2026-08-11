@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from core.storage import get_storage_for_file
+from core.storage import get_storage_bucket_name, get_storage_for_file
 
 
 class AudioExtractionError(RuntimeError):
@@ -159,7 +159,7 @@ def extract_audio_to_storage(file) -> float:
             s3_client = storage.connection.meta.client
             s3_client.upload_file(
                 str(output_path),
-                storage.bucket_name,
+                get_storage_bucket_name(storage),
                 file.audio_file_key,
                 ExtraArgs={"ContentType": "audio/ogg"},
             )

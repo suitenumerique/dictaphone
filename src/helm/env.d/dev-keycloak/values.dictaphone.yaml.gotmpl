@@ -70,7 +70,6 @@ backend:
     DOCS_BASE_URL: "True"
     DOCS_BASE_URL: https://impress-staging.beta.numerique.gouv.fr/
 
-
   migrate:
     command:
       - "/bin/sh"
@@ -108,6 +107,30 @@ backend:
         items:
         - key: cacert.pem
           path: cacert.pem
+
+celeryBackend:
+  replicas: 1
+  command:
+    - "celery"
+    - "-A"
+    - "dictaphone.celery_app"
+    - "worker"
+    - "--loglevel=info"
+    - "--concurrency=1"
+    - "-Q"
+    - "dictaphone-backend"
+
+celeryAudioExtractor:
+  replicas: 1
+  command:
+    - "celery"
+    - "-A"
+    - "dictaphone.celery_app"
+    - "worker"
+    - "--loglevel=info"
+    - "--concurrency=1"
+    - "-Q"
+    - "dictaphone-audio"
 
 frontend:
   envVars:

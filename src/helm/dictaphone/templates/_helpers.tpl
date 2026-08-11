@@ -168,6 +168,15 @@ Requires top level scope
 {{- end }}
 
 {{/*
+Full name for the audio extraction worker
+
+Requires top level scope
+*/}}
+{{- define "dictaphone.celeryAudioExtractor.fullname" -}}
+{{ include "dictaphone.fullname" . }}-celery-audio-extractor
+{{- end }}
+
+{{/*
 Usage : {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.path.to.the.image1) }}
 */}}
 {{- define "dictaphone.secret.dockerconfigjson.name" }}

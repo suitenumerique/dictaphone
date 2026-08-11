@@ -397,6 +397,72 @@ celeryBackend:
   pdb:
     enabled: false
 
+## @section celeryAudioExtractor
+celeryAudioExtractor:
+  ## @param celeryAudioExtractor.dpAnnotations Annotations to add to the audio worker Deployment
+  dpAnnotations: {}
+
+  ## @param celeryAudioExtractor.command Command used by the audio extraction worker
+  command:
+    - "celery"
+    - "-A"
+    - "dictaphone.celery_app"
+    - "worker"
+    - "--loglevel=info"
+    - "-Q"
+    - "dictaphone-audio"
+
+  ## @param celeryAudioExtractor.args Additional audio worker arguments
+  args: []
+
+  ## @param celeryAudioExtractor.replicas Amount of audio worker replicas
+  replicas: 1
+
+  ## @param celeryAudioExtractor.shareProcessNamespace Enable share process namespace between containers
+  shareProcessNamespace: false
+
+  ## @param celeryAudioExtractor.sidecars Add sidecars containers to audio worker deployment
+  sidecars: []
+
+  ## @param celeryAudioExtractor.securityContext Configure audio worker container security context
+  securityContext: null
+
+  ## @param celeryAudioExtractor.envVars Configure audio worker environment variables
+  ## @skip celeryAudioExtractor.envVars
+  envVars:
+    <<: *commonEnvVars
+
+  ## @param celeryAudioExtractor.podAnnotations Annotations to add to the audio worker Pod
+  podAnnotations: {}
+
+  ## @param celeryAudioExtractor.resources Resource requirements for the audio worker container
+  resources: {}
+
+  ## @param celeryAudioExtractor.nodeSelector Node selector for the audio worker Pod
+  nodeSelector: {}
+
+  ## @param celeryAudioExtractor.tolerations Tolerations for the audio worker Pod
+  tolerations: []
+
+  ## @param celeryAudioExtractor.affinity Affinity for the audio worker Pod
+  affinity: {}
+
+  ## @param celeryAudioExtractor.persistence Additional volumes to create and mount on the audio worker. Used for debugging purposes
+  ## @extra celeryAudioExtractor.persistence.volume-name.size Size of the additional volume
+  ## @extra celeryAudioExtractor.persistence.volume-name.type Type of the additional volume, persistentVolumeClaim or emptyDir
+  ## @extra celeryAudioExtractor.persistence.volume-name.mountPath Path where the volume should be mounted to
+  persistence: {}
+
+  ## @param celeryAudioExtractor.extraVolumeMounts Additional volumes to mount on the audio worker.
+  extraVolumeMounts: []
+
+  ## @param celeryAudioExtractor.extraVolumes Additional volumes to mount on the audio worker.
+  extraVolumes: []
+
+  ## @param celeryAudioExtractor.pdb.enabled Enable pdb on the audio worker
+  pdb:
+    enabled: false
+
 ## @section frontend
 
 frontend:

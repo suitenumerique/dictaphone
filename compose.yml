@@ -94,7 +94,23 @@ services:
   celery-dev:
     user: ${DOCKER_USER:-1000}
     image: dictaphone:backend-development
-    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "DEBUG"]
+    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "dictaphone-backend"]
+    environment:
+      - DJANGO_CONFIGURATION=Development
+    env_file:
+      - env.d/development/common
+      - env.d/development/postgresql
+    volumes:
+      - ./src/backend:/app
+      - ./data/static:/data/static
+      - /app/.venv
+    depends_on:
+      - app-dev
+
+  celery-audio-dev:
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:backend-development
+    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "dictaphone-audio"]
     environment:
       - DJANGO_CONFIGURATION=Development
     env_file:
@@ -128,7 +144,19 @@ services:
   celery:
     user: ${DOCKER_USER:-1000}
     image: dictaphone:backend-production
-    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "INFO"]
+    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "INFO", "--concurrency=1", "-Q", "dictaphone-backend"]
+    environment:
+      - DJANGO_CONFIGURATION=Demo
+    env_file:
+      - env.d/development/common
+      - env.d/development/postgresql
+    depends_on:
+      - app
+
+  celery-audio:
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:backend-production
+    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "INFO", "--concurrency=1", "-Q", "dictaphone-audio"]
     environment:
       - DJANGO_CONFIGURATION=Demo
     env_file:

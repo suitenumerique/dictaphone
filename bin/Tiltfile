@@ -58,6 +58,7 @@ k8s_yaml(local('cd ../src/helm && helmfile -n dictaphone -e ${DEV_ENV:-dev} temp
 
 k8s_resource('minio-bucket', resource_deps=['minio'])
 k8s_resource('dictaphone-celery-backend', resource_deps=['redis'])
+k8s_resource('dictaphone-celery-audio-extractor', resource_deps=['redis'])
 k8s_resource('dictaphone-backend', resource_deps=['postgresql', 'minio', 'redis'])
 k8s_resource('dictaphone-backend-migrate', resource_deps=['dictaphone-backend'])
 k8s_resource('keycloak', resource_deps=['kc-postgresql'])
