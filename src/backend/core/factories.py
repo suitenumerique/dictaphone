@@ -47,6 +47,9 @@ class FileFactory(factory.django.DjangoModelFactory):
         "pyfloat", positive=True, right_digits=2, max_value=3600
     )
     upload_state = None
+    audio_extraction_state = (
+        models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+    )
     lifecycle_state = models.FileLifecycleStateChoices.ACTIVE
     size = None
 
@@ -71,7 +74,13 @@ class FileFactory(factory.django.DjangoModelFactory):
             self.size = len(content)
             self.save()
 
-            get_storage_for_file(self).save(self.file_key, BytesIO(content))
+            storage = get_storage_for_file(self)
+            storage.save(self.file_key, BytesIO(content))
+            if (
+                self.audio_extraction_state
+                == models.FileAudioExtractionStateChoices.EXTRACTION_DONE
+            ):
+                storage.save(self.audio_file_key, BytesIO(content))
 
 
 class AiFileJobFactory(factory.django.DjangoModelFactory):

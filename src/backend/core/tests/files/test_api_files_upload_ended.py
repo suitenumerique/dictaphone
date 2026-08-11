@@ -4,7 +4,6 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlparse
 
 from django.core.files.storage import default_storage
 from django.db import connections
@@ -15,7 +14,6 @@ from freezegun import freeze_time
 from rest_framework.test import APIClient
 
 from core import factories, models
-from core.configuration import get_bucket_configurations
 from core.models import (
     AiFileJob,
     AiJobStatusChoices,
@@ -71,8 +69,8 @@ def test_api_file_upload_ended_on_wrong_upload_state():
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("core.tasks.file.session")
-def test_api_file_upload_ended_success(mock_requests, settings):
+@patch("core.api.viewsets.queue_audio_extraction")
+def test_api_file_upload_ended_success(mock_queue, settings):
     """
     Users should be able to end an upload on files that are files and in the UPLOADING upload state.
     """
@@ -123,55 +121,17 @@ def test_api_file_upload_ended_success(mock_requests, settings):
 
     assert response.json()["mimetype"] == "text/plain"
 
-    # Transcribe service call check
-    assert mock_requests.post.call_count == 1
-    args, kwargs = mock_requests.post.call_args
-    cloud_storage_url = kwargs["json"].pop("cloud_storage_url")
-    assert kwargs == {
-        "headers": {"Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}"},
-        "json": {
-            "language": file.language,
-            "user_sub": file.creator.sub,
-            "user_email": file.creator.email,
-        },
-        "timeout": 10,
-    }
+    mock_queue.assert_called_once_with(file.id)
 
-    cloud_storage_parsed = urlparse(cloud_storage_url)
-    default_bucket_configuration = get_bucket_configurations()["default"]
-
-    assert cloud_storage_parsed.scheme == "http"
-    assert default_bucket_configuration.domain_replace is None
-    assert (
-        cloud_storage_parsed.netloc
-        == urlparse(default_bucket_configuration.endpoint_url).netloc
-    )
-    assert (
-        cloud_storage_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.txt"
-    )
-
-    query_params = parse_qs(cloud_storage_parsed.query)
-
-    assert query_params.pop("X-Amz-Algorithm") == ["AWS4-HMAC-SHA256"]
-    assert query_params.pop("X-Amz-Credential") == [
-        f"dictaphone-default/{now.strftime('%Y%m%d')}/local/s3/aws4_request"
-    ]
-    assert query_params.pop("X-Amz-Date") == [now.strftime("%Y%m%dT%H%M%SZ")]
-    assert query_params.pop("X-Amz-Expires") == ["86400"]
-    assert query_params.pop("X-Amz-SignedHeaders") == ["host"]
-    assert query_params.pop("X-Amz-Signature") is not None
-
-    assert len(query_params) == 0
-
-    assert AiFileJob.objects.filter(
-        file=file, type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+    assert not AiFileJob.objects.filter(
+        file=file, type=AiJobTypeChoices.TRANSCRIPT
     ).exists()
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("core.tasks.file.session")
+@patch("core.api.viewsets.queue_audio_extraction")
 def test_api_file_upload_ended_uses_file_language_for_transcription(
-    mock_requests, settings
+    mock_queue, settings
 ):
     """Upload-ended should call transcription service with file configured language."""
     user = factories.UserFactory()
@@ -201,10 +161,7 @@ def test_api_file_upload_ended_uses_file_language_for_transcription(
 
     response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
     assert response.status_code == 200
-    assert mock_requests.post.call_count == 1
-
-    _, kwargs = mock_requests.post.call_args
-    assert kwargs["json"]["language"] == "en"
+    mock_queue.assert_called_once_with(file.id)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -247,7 +204,7 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
     assert not default_storage.exists(file.file_key)
 
 
-@patch("core.tasks.file.session.post")
+@patch("core.api.viewsets.queue_audio_extraction")
 def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     mock_post, settings
 ):
@@ -277,7 +234,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
 
     assert response.status_code == 200
-    assert mock_post.call_count == 1
+    mock_post.assert_called_once_with(file.id)
 
     file.refresh_from_db()
     assert file.upload_state == FileUploadStateChoices.READY
@@ -290,7 +247,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
 @patch(
     "core.api.viewsets.utils.detect_mimetype", return_value="audio/webm; codecs=opus"
 )
-@patch("core.tasks.file.session.post")
+@patch("core.api.viewsets.queue_audio_extraction")
 def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     mock_post, mock_detect_mimetype, settings
 ):
@@ -323,7 +280,7 @@ def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
 
     assert response.status_code == 200
-    assert mock_post.call_count == 1
+    mock_post.assert_called_once_with(file.id)
     assert mock_detect_mimetype.call_count == 1
 
     file.refresh_from_db()
@@ -334,7 +291,7 @@ def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     assert response.json()["mimetype"] == "audio/webm; codecs=opus"
 
 
-@patch("core.tasks.file.session.post")
+@patch("core.api.viewsets.queue_audio_extraction")
 def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     mock_post, settings, caplog
 ):
@@ -387,7 +344,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
         " updating from text/html to application/pdf" in caplog.text
     )
     assert response.status_code == 200
-    assert mock_post.call_count == 1
+    mock_post.assert_called_once_with(file.id)
 
     file.refresh_from_db()
 
@@ -402,7 +359,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
 
 @pytest.mark.parametrize("declared_content_type", ["audio/mp4", "audio/x-m4a"])
 @patch("core.api.viewsets.utils.detect_mimetype", return_value="video/mp4")
-@patch("core.tasks.file.session.post")
+@patch("core.api.viewsets.queue_audio_extraction")
 def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     mock_post, mock_detect_mimetype, settings, caplog, declared_content_type
 ):
@@ -441,7 +398,7 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
         response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
 
     assert response.status_code == 200
-    assert mock_post.call_count == 1
+    mock_post.assert_called_once_with(file.id)
     assert mock_detect_mimetype.call_count == 1
     assert (
         f"upload_ended: detected mimetype for file {file.file_key} is video/mp4 "

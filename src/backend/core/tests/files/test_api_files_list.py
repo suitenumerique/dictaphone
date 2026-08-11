@@ -118,6 +118,7 @@ def test_api_files_list_format(settings):
             "filename": file.filename,
             "duration_seconds": file.duration_seconds,
             "size": None,
+            "audio_extraction_state": file.audio_extraction_state,
             "source": "unknown",
             "language": file.language,
             "description": None,
@@ -271,9 +272,21 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
 
     now = timezone.now()
 
-    pending_file_1 = factories.FileFactory(creator=user, duration_seconds=60)
-    pending_file_2 = factories.FileFactory(creator=user, duration_seconds=120)
-    pending_file_3 = factories.FileFactory(creator=user, duration_seconds=45)
+    pending_file_1 = factories.FileFactory(
+        creator=user,
+        duration_seconds=60,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    pending_file_2 = factories.FileFactory(
+        creator=user,
+        duration_seconds=120,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    pending_file_3 = factories.FileFactory(
+        creator=user,
+        duration_seconds=45,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
 
     pending_job_1 = factories.AiFileJobFactory(
         file=pending_file_1,
@@ -326,6 +339,45 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
     ) == (now + timedelta(seconds=113))
 
 
+def test_api_files_list_has_no_transcription_eta_before_audio_extraction():
+    """Pending extraction jobs do not pretend to be in the transcription queue."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    pending_file = factories.FileFactory(
+        creator=user,
+        duration_seconds=120,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
+    )
+    extracting_file = factories.FileFactory(
+        creator=user,
+        duration_seconds=120,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTING_AUDIO,
+    )
+    pending_jobs = [
+        factories.AiFileJobFactory(
+            file=file,
+            status=models.AiJobStatusChoices.PENDING,
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        )
+        for file in (pending_file, extracting_file)
+    ]
+
+    response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    ai_jobs = {
+        job["id"]: job
+        for file_data in response.json()["results"]
+        for job in file_data["ai_jobs"]
+    }
+    assert all(
+        ai_jobs[str(job.id)]["processing_expected_end_at"] is None
+        for job in pending_jobs
+    )
+
+
 def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_at_real_case():
     """
     Pending AI jobs should include expected processing end datetimes using real case data.
@@ -344,7 +396,10 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
     )
 
     for row in data:
-        file = factories.FileFactory(duration_seconds=float(row["duration_seconds"]))
+        file = factories.FileFactory(
+            duration_seconds=float(row["duration_seconds"]),
+            audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        )
         created_at = timezone.make_aware(
             datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S")
         )
@@ -361,7 +416,11 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
             updated_at=updated_at,
         )
 
-    file = factories.FileFactory(duration_seconds=100, creator=user)
+    file = factories.FileFactory(
+        duration_seconds=100,
+        creator=user,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
     created_at = timezone.make_aware(
         datetime.strptime("2026-06-23 17:20:19", "%Y-%m-%d %H:%M:%S")
     )
@@ -401,6 +460,7 @@ def test_api_files_list_ai_job_estimation_avoids_n_plus_one_queries():
         file = factories.FileFactory(
             creator=user,
             duration_seconds=50 + index * 10,
+            audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
         )
         factories.AiFileJobFactory(
             file=file,

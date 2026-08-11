@@ -1,7 +1,7 @@
 """Tests for delete_original_file_data management command."""
 
 from datetime import timedelta
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 
 from django.core.files.storage import default_storage
@@ -26,6 +26,7 @@ def test_delete_original_files_data_success(settings):
     recent_file = factories.FileFactory(upload_bytes=b"recent")
     pending_file = factories.FileFactory(upload_bytes=b"pending")
     delete_file = factories.FileFactory(upload_bytes=b"delete")
+    default_storage.save(delete_file.audio_file_key, BytesIO(b"extracted delete"))
 
     for file, age in (
         (recent_file, 9),
@@ -65,6 +66,7 @@ def test_delete_original_files_data_success(settings):
     assert default_storage.exists(recent_file.file_key)
     assert default_storage.exists(pending_file.file_key)
     assert not default_storage.exists(delete_file.file_key)
+    assert not default_storage.exists(delete_file.audio_file_key)
 
 
 @pytest.mark.django_db(transaction=True)

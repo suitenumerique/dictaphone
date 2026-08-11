@@ -64,6 +64,11 @@ def test_purge_deleted_files_success(settings):
     hard_deleted_file.soft_delete()
     hard_deleted_file.hard_delete()
 
+    default_storage.save(purgeable_file.audio_file_key, BytesIO(b"purgeable audio"))
+    default_storage.save(
+        hard_deleted_file.audio_file_key, BytesIO(b"hard deleted audio")
+    )
+
     purgeable_file_ai_job = factories.AiFileJobFactory(file=purgeable_file)
     hard_deleted_file_ai_job = factories.AiFileJobFactory(file=hard_deleted_file)
     default_storage.save(purgeable_file_ai_job.key, BytesIO(b"purgeable"))
@@ -91,5 +96,7 @@ def test_purge_deleted_files_success(settings):
     assert default_storage.exists(not_purgeable_file.file_key)
     assert not default_storage.exists(purgeable_file.file_key)
     assert not default_storage.exists(hard_deleted_file.file_key)
+    assert not default_storage.exists(purgeable_file.audio_file_key)
+    assert not default_storage.exists(hard_deleted_file.audio_file_key)
     assert not default_storage.exists(purgeable_file_ai_job.key)
     assert not default_storage.exists(hard_deleted_file_ai_job.key)

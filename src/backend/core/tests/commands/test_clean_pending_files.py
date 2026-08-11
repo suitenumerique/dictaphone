@@ -1,6 +1,7 @@
 """Tests for the clean_pending_files management command."""
 
 from datetime import timedelta
+from io import BytesIO
 
 from django.core.files.storage import default_storage
 from django.core.management import call_command
@@ -42,12 +43,14 @@ def test_clean_pending_files_old_pending_deleted():
         upload_bytes=b"hello",
     )
     assert default_storage.exists(file.file_key)
+    default_storage.save(file.audio_file_key, BytesIO(b"extracted audio"))
     models.File.objects.filter(pk=file.pk).update(created_at=old_date)
 
     call_command("clean_pending_files")
 
     assert not models.File.objects.filter(pk=file.pk).exists()
     assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)
 
 
 def test_clean_pending_files_old_non_pending_not_deleted():
@@ -58,6 +61,7 @@ def test_clean_pending_files_old_non_pending_not_deleted():
         update_upload_state=models.FileUploadStateChoices.READY,
     )
     models.File.objects.filter(pk=file.pk).update(created_at=old_date)
+    default_storage.save(file.audio_file_key, BytesIO(b"extracted audio"))
 
     call_command("clean_pending_files")
 
@@ -88,3 +92,4 @@ def test_clean_pending_files_custom_hours():
 
     assert not models.File.objects.filter(pk=file.pk).exists()
     assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)

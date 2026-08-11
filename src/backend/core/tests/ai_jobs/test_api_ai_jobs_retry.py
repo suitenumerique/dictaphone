@@ -14,6 +14,7 @@ from core import factories
 from core.models import (
     AiJobStatusChoices,
     AiJobTypeChoices,
+    FileAudioExtractionStateChoices,
     FileLifecycleStateChoices,
     FileTypeChoices,
 )
@@ -275,6 +276,62 @@ def test_api_ai_jobs_retry_file_not_active_bad_request(mock_task):
 
 
 @patch("core.api.viewsets.call_transcribe_service")
+def test_api_ai_jobs_retry_audio_extraction_failed_bad_request(mock_task):
+    """A failed audio extraction must block transcript retries."""
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__creator=user,
+        file__audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED,
+    )
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/v1.0/ai-jobs/{ai_job.id}/retry/",
+        {"language": "fr"},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "state": "Cannot retry when audio extraction has failed."
+    }
+    mock_task.assert_not_called()
+
+
+@patch("core.tasks.file.queue_audio_extraction")
+def test_api_ai_jobs_retry_pending_audio_extraction_queues_processing(mock_queue):
+    """Retry should extract first when the audio is not yet validated."""
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__creator=user,
+        file__duration_seconds=120,
+        file__audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
+    )
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/v1.0/ai-jobs/{ai_job.id}/retry/",
+        {"language": "fr"},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED, response.json()
+    new_job_id = response.json()["id"]
+    new_job = ai_job.file.ai_jobs.get(id=new_job_id)
+    assert new_job.status == AiJobStatusChoices.PENDING
+    assert response.json()["processing_expected_end_at"] is None
+    mock_queue.assert_called_once_with(
+        ai_job.file_id,
+        ai_job_id=new_job.id,
+        language="fr",
+    )
+
+
+@patch("core.api.viewsets.call_transcribe_service")
 def test_api_ai_jobs_retry_file_duration_above_limit_bad_request(mock_task, settings):
     """Retry should return 400 when file duration is above allowed max duration."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
@@ -287,6 +344,7 @@ def test_api_ai_jobs_retry_file_duration_above_limit_bad_request(mock_task, sett
         status=AiJobStatusChoices.FAILED,
         file__creator=user,
         file__type=FileTypeChoices.AUDIO_RECORDING,
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         file__duration_seconds=max_duration_seconds + 1,
     )
 

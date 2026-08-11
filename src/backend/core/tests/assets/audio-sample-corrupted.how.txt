@@ -1,0 +1,154 @@
+From ChatGPT exhange if someone needs to recreate it:
+
+Yes. A reliable approach is to generate a **valid M4A/MP4 container with valid metadata**, then corrupt only the encoded AAC payload inside the `mdat` atom.
+
+That way:
+
+* container/segment metadata remains readable;
+* duration, codec, etc. can still be discovered from `moov`;
+* actual AAC decoding is broken;
+* FFmpeg fails when forced to treat decoding errors as fatal with `-xerror`.
+
+```python
+#!/usr/bin/env python3
+
+import random
+import struct
+import subprocess
+from pathlib import Path
+
+
+VALID_FILE = Path("valid.m4a")
+CORRUPTED_FILE = Path("corrupted.m4a")
+
+
+def generate_valid_audio(path: Path) -> None:
+    """
+    Generate a perfectly valid 10-second M4A/AAC file.
+    """
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=10",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-metadata",
+            "title=Valid metadata but corrupted audio",
+            "-metadata",
+            "artist=Test",
+            str(path),
+        ],
+        check=True,
+    )
+
+
+def corrupt_mdat(input_path: Path, output_path: Path) -> None:
+    """
+    Preserve the MP4/M4A structure, including the moov atom,
+    but replace the actual encoded media payload in `mdat`
+    with garbage.
+    """
+    data = bytearray(input_path.read_bytes())
+
+    offset = 0
+    found_mdat = False
+
+    while offset + 8 <= len(data):
+        size = struct.unpack(">I", data[offset : offset + 4])[0]
+        atom_type = bytes(data[offset + 4 : offset + 8])
+
+        header_size = 8
+
+        if size == 1:
+            # 64-bit extended atom size
+            if offset + 16 > len(data):
+                break
+
+            size = struct.unpack(">Q", data[offset + 8 : offset + 16])[0]
+            header_size = 16
+
+        elif size == 0:
+            size = len(data) - offset
+
+        if size < header_size:
+            raise ValueError(
+                f"Invalid MP4 atom at offset {offset}: size={size}"
+            )
+
+        if atom_type == b"mdat":
+            payload_start = offset + header_size
+            payload_end = offset + size
+
+            print(
+                f"Found mdat: offset={offset}, "
+                f"payload={payload_end - payload_start} bytes"
+            )
+
+            # Replace encoded AAC data with deterministic garbage.
+            rng = random.Random(42)
+
+            for i in range(payload_start, payload_end):
+                data[i] = rng.randrange(256)
+
+            found_mdat = True
+
+        offset += size
+
+    if not found_mdat:
+        raise RuntimeError("No mdat atom found")
+
+    output_path.write_bytes(data)
+
+
+def main() -> None:
+    generate_valid_audio(VALID_FILE)
+    corrupt_mdat(VALID_FILE, CORRUPTED_FILE)
+
+    print()
+    print(f"Created: {CORRUPTED_FILE}")
+    print()
+    print("Metadata should still be readable:")
+    print(f"  ffprobe -v error -show_format -show_streams {CORRUPTED_FILE}")
+    print()
+    print("Decoding should fail:")
+    print(
+        f"  ffmpeg -xerror -v error "
+        f"-i {CORRUPTED_FILE} -f null -"
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### What this produces
+
+For example, `ffprobe` should still see something along these lines:
+
+```text
+codec_name=aac
+codec_type=audio
+duration=10.000000
+TAG:title=Valid metadata but corrupted audio
+TAG:artist=Test
+```
+
+because those values live primarily in the MP4 `moov` metadata rather than inside the actual encoded audio packets.
+
+But:
+
+```bash
+ffmpeg -xerror -i corrupted.m4a -f null -
+```
+
+should encounter AAC decoder errors and terminate unsuccessfully.
+
+One important detail is **`-xerror`**. Without it, FFmpeg is deliberately resilient and may print lots of decoding errors while nevertheless returning exit code `0` after skipping broken packets.
+
+If you're testing your Transcripts file-validation pipeline, this is probably a particularly good fixture because **container inspection succeeds while actual decoding/conversion fails**, which is a different failure class from something simplistic like truncating the file or destroying its `moov` atom.

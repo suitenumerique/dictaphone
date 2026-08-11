@@ -16,6 +16,7 @@ from core.models import (
     AiJobStatusChoices,
     AiJobTypeChoices,
     File,
+    FileAudioExtractionStateChoices,
     FileLifecycleStateChoices,
 )
 from core.tasks.file import (
@@ -50,6 +51,7 @@ def test_task_process_file_deletion_file_not_hard_deleted():
 def test_task_process_file_deletion_success():
     """A hard-deleted file should be removed from storage and database."""
     file = factories.FileFactory(upload_bytes=b"hello")
+    default_storage.save(file.audio_file_key, BytesIO(b"validated audio"))
     file.soft_delete()
     file.hard_delete()
 
@@ -73,6 +75,7 @@ def test_task_process_file_deletion_success():
     assert not AiFileJob.objects.filter(id=ai_transcript_job.id).exists()
     assert not AiFileJob.objects.filter(id=ai_summary_job.id).exists()
     assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)
     assert not default_storage.exists(ai_transcript_job.key)
     assert not default_storage.exists(ai_summary_job.key)
 
@@ -80,13 +83,16 @@ def test_task_process_file_deletion_success():
 def test_task_process_original_file_data_deletion_success():
     """Original source data deletion should keep file row and set lifecycle state."""
     file = factories.FileFactory(upload_bytes=b"hello")
+    default_storage.save(file.audio_file_key, BytesIO(b"validated audio"))
 
     assert default_storage.exists(file.file_key)
+    assert default_storage.exists(file.audio_file_key)
     process_original_file_data_deletion(file.id)
 
     file.refresh_from_db()
     assert file.lifecycle_state == FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)
 
 
 def test_task_process_original_file_data_deletion_missing_file():
@@ -129,6 +135,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     ]
     file = factories.FileFactory(
         upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds - 1,
         language="en",
     )
@@ -159,7 +166,10 @@ def test_task_call_transcribe_service_success(mock_post, settings):
 def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
     """Transcribe task should pass explicit language to AI service."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
-    file = factories.FileFactory(upload_bytes=b"hello")
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
 
     response = Mock()
     response.raise_for_status.return_value = None
@@ -184,6 +194,7 @@ def test_task_call_transcribe_service_http_error(mock_post, settings):
     ]
     file = factories.FileFactory(
         upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds - 1,
     )
 
@@ -214,6 +225,7 @@ def test_task_call_transcribe_service_fails_on_invalid_duration(
 
     file = factories.FileFactory(
         upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=duration_seconds,
     )
 
@@ -753,6 +765,7 @@ def test_task_call_transcribe_service_retries_on_request_error(mock_post, settin
     ]
     file = factories.FileFactory(
         upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds - 1,
     )
 

@@ -91,6 +91,7 @@ def test_api_files_get_format(settings):
         "filename": file_obj.filename,
         "duration_seconds": file_obj.duration_seconds,
         "size": None,
+        "audio_extraction_state": file_obj.audio_extraction_state,
         "source": "unknown",
         "language": file_obj.language,
         "description": None,
