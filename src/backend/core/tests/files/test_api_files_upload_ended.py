@@ -87,6 +87,13 @@ def test_api_file_upload_ended_success(mock_requests, settings):
             "allowed_mimetypes": ["text/html", "text/plain"],
         },
     }
+    bucket_configurations = {
+        name: dict(configuration)
+        for name, configuration in settings.S3_BUCKET_CONFIGURATIONS.items()
+    }
+    default_bucket_configuration = bucket_configurations["default"]
+    default_bucket_configuration.pop("domain_replace", None)
+    settings.S3_BUCKET_CONFIGURATIONS = bucket_configurations
 
     file = factories.FileFactory(
         type=FileTypeChoices.AUDIO_RECORDING,
@@ -131,11 +138,13 @@ def test_api_file_upload_ended_success(mock_requests, settings):
     }
 
     cloud_storage_parsed = urlparse(cloud_storage_url)
+    default_bucket_configuration = get_bucket_configurations()["default"]
 
     assert cloud_storage_parsed.scheme == "http"
-    assert cloud_storage_parsed.netloc == get_bucket_configurations()[
-        "default"
-    ].endpoint_url.removeprefix("http://")
+    assert default_bucket_configuration.domain_replace is None
+    assert cloud_storage_parsed.netloc == urlparse(
+        default_bucket_configuration.endpoint_url
+    ).netloc
     assert (
         cloud_storage_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.txt"
     )
