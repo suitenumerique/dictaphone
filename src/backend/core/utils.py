@@ -8,6 +8,8 @@ import logging
 import mimetypes
 import string
 from datetime import datetime, timedelta
+from functools import lru_cache
+from threading import Lock
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
@@ -16,6 +18,7 @@ import boto3
 import botocore
 import magic
 
+from core.configuration import register_configuration_cache_clearer
 from core.storage import (
     get_bucket_configuration_for_file,
     get_storage_bucket_name,
@@ -25,20 +28,67 @@ from core.webhook_models import WhisperXResponse
 
 logger = logging.getLogger(__name__)
 
+_s3_client_cache_lock = Lock()
+
+
+@lru_cache(maxsize=32)
+def _create_cached_s3_client(
+    access_key_id: str,
+    secret_access_key: str,
+    endpoint_url: str,
+    region_name: str | None,
+    signature_version: str,
+):
+    """Create an S3 client for one complete set of connection parameters."""
+    session = boto3.session.Session(
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        region_name=region_name,
+    )
+    return session.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        config=botocore.client.Config(signature_version=signature_version),
+    )
+
+
+def _get_cached_s3_client(
+    access_key_id: str,
+    secret_access_key: str,
+    endpoint_url: str,
+    region_name: str | None,
+    signature_version: str,
+):
+    """Return a cached S3 client, serializing first creation per cache."""
+    with _s3_client_cache_lock:
+        return _create_cached_s3_client(
+            access_key_id,
+            secret_access_key,
+            endpoint_url,
+            region_name,
+            signature_version,
+        )
+
+
+def clear_s3_client_cache() -> None:
+    """Clear clients created for domain-overridden S3 endpoints."""
+    with _s3_client_cache_lock:
+        _create_cached_s3_client.cache_clear()
+
+
+register_configuration_cache_clearer(clear_s3_client_cache)
+
 
 def _get_s3_client(file, storage, *, override_domain: bool):
     """Return an S3 client using the file's bucket credentials."""
     configuration = get_bucket_configuration_for_file(file)
     if configuration.domain_replace and override_domain:
-        return boto3.client(
-            "s3",
-            aws_access_key_id=configuration.access_key_id.get_secret_value(),
-            aws_secret_access_key=configuration.secret_access_key.get_secret_value(),
-            endpoint_url=configuration.domain_replace,
-            config=botocore.client.Config(
-                region_name=configuration.region_name,
-                signature_version=configuration.signature_version,
-            ),
+        return _get_cached_s3_client(
+            configuration.access_key_id.get_secret_value(),
+            configuration.secret_access_key.get_secret_value(),
+            configuration.domain_replace,
+            configuration.region_name,
+            configuration.signature_version,
         )
     return storage.connection.meta.client
 

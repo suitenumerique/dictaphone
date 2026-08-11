@@ -142,9 +142,10 @@ def test_api_file_upload_ended_success(mock_requests, settings):
 
     assert cloud_storage_parsed.scheme == "http"
     assert default_bucket_configuration.domain_replace is None
-    assert cloud_storage_parsed.netloc == urlparse(
-        default_bucket_configuration.endpoint_url
-    ).netloc
+    assert (
+        cloud_storage_parsed.netloc
+        == urlparse(default_bucket_configuration.endpoint_url).netloc
+    )
     assert (
         cloud_storage_parsed.path == f"/dictaphone-media-storage/files/{file.id!s}.txt"
     )

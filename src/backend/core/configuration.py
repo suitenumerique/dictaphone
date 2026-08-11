@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -43,6 +43,7 @@ RetentionPolicy = Literal["trashbin", "original_file_data", "file_hard_delete"]
 CutoffComparison = Literal["lte", "gt"]
 RetentionBaseField = Literal["created_at", "deleted_at"]
 ModelT = TypeVar("ModelT", bound=Model)
+_configuration_cache_clearers: list[Callable[[], None]] = []
 RETENTION_DEADLINE_FIELDS: dict[RetentionPolicy, tuple[str, str]] = {
     "trashbin": ("trashbin_purge_at", "trashbin_purge_at_with_grace_period"),
     "original_file_data": (
@@ -446,6 +447,13 @@ def clear_configuration_cache() -> None:
     """Clear resolved configuration caches, primarily for tests."""
     get_runtime_configuration.cache_clear()
     get_email_domain.cache_clear()
+    for clear_cache in _configuration_cache_clearers:
+        clear_cache()
+
+
+def register_configuration_cache_clearer(clear_cache: Callable[[], None]) -> None:
+    """Register a cache that should be cleared with runtime configuration."""
+    _configuration_cache_clearers.append(clear_cache)
 
 
 def get_bucket_configurations() -> Mapping[str, ResolvedBucketConfiguration]:
