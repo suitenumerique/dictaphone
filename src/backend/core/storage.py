@@ -17,7 +17,7 @@ class ConfiguredS3Storage(S3Storage):  # pylint: disable=abstract-method
     def __init__(self, **kwargs):
         configuration = get_bucket_configurations()["default"]
         super().__init__(
-            bucket_name=configuration.bucket_name,
+            bucket_name=configuration.storage_bucket_name,
             access_key=configuration.access_key_id.get_secret_value(),
             secret_key=configuration.secret_access_key.get_secret_value(),
             endpoint_url=configuration.endpoint_url,
@@ -37,7 +37,7 @@ def get_storage_for_bucket(bucket_configuration: str, bucket_name: str | None = 
         )
 
     configuration = get_bucket_configurations()[bucket_configuration]
-    bucket_name = bucket_name or configuration.bucket_name
+    bucket_name = bucket_name or configuration.storage_bucket_name
 
     return S3Storage(
         bucket_name=bucket_name,
@@ -79,11 +79,11 @@ def get_storage_for_file(file):
 
     profile = file.configuration
     return get_storage_for_bucket(
-        profile.bucket_name,
+        bucket_configuration=profile.bucket_configuration_key,
         bucket_name=file.storage_bucket_name or profile.storage_bucket_name,
     )
 
 
 def get_bucket_configuration_for_file(file):
     """Return the resolved S3 configuration selected by a file."""
-    return get_bucket_configurations()[file.configuration.bucket_name]
+    return get_bucket_configurations()[file.configuration.bucket_configuration_key]

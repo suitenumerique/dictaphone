@@ -21,7 +21,7 @@ def test_bucket_storage_requires_s3_backend(monkeypatch):
     monkeypatch.setattr("core.storage.default_storage", filesystem_storage)
 
     with pytest.raises(ImproperlyConfigured, match="S3Storage"):
-        get_storage_for_bucket("default")
+        get_storage_for_bucket(bucket_configuration="default")
 
     with pytest.raises(ImproperlyConfigured, match="S3Storage"):
         get_storage_bucket_name(filesystem_storage)

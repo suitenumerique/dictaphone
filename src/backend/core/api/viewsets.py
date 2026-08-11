@@ -596,7 +596,9 @@ class FileViewSet(
         expected_bucket = file.configuration.storage_bucket_name
         requested_bucket = url_params.get("bucket")
         if requested_bucket is None:
-            requested_bucket = get_bucket_configurations()["default"].bucket_name
+            requested_bucket = get_bucket_configurations()[
+                "default"
+            ].storage_bucket_name
         if requested_bucket != expected_bucket:
             logger.warning(
                 "Media URL bucket '%s' does not match file '%s' bucket '%s'",

@@ -199,8 +199,8 @@ class ResolvedBucketConfiguration(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    name: str
-    bucket_name: str
+    bucket_configuration_key: str
+    storage_bucket_name: str
     access_key_id: SecretStr
     secret_access_key: SecretStr
     endpoint_url: str | None
@@ -266,7 +266,7 @@ class ResolvedFileConfiguration(BaseModel):
 
     name: str
     default: bool
-    bucket_name: str
+    bucket_configuration_key: str
     storage_bucket_name: str
     original_file_data_delete_at: datetime
     original_file_data_delete_at_with_grace_period: datetime
@@ -348,8 +348,8 @@ def resolve_bucket_configurations(
     parsed = BucketConfigurations.model_validate(raw_buckets or {})
     resolved_buckets = {
         name: ResolvedBucketConfiguration(
-            name=name,
-            bucket_name=(_get_environment_value(bucket.bucket_name_env)),
+            bucket_configuration_key=name,
+            storage_bucket_name=(_get_environment_value(bucket.bucket_name_env)),
             access_key_id=_get_environment_secret(bucket.access_key_id_env),
             secret_access_key=_get_environment_secret(bucket.secret_access_key_env),
             endpoint_url=(
@@ -363,7 +363,7 @@ def resolve_bucket_configurations(
         )
         for name, bucket in parsed.buckets.items()
     }
-    bucket_names = [bucket.bucket_name for bucket in resolved_buckets.values()]
+    bucket_names = [bucket.storage_bucket_name for bucket in resolved_buckets.values()]
     if len(bucket_names) != len(set(bucket_names)):
         raise ValueError("S3 bucket names must be unique")
 
@@ -392,7 +392,7 @@ def _resolve_profile(
         default=profile.default,
         domains=tuple(profile.domains),
         bucket=profile.bucket,
-        storage_bucket_name=bucket.bucket_name,
+        storage_bucket_name=bucket.storage_bucket_name,
         **{
             key: value if value is not None else getattr(defaults, key)
             for key, value in values.items()
@@ -426,7 +426,7 @@ def resolve_runtime_configuration(settings_obj) -> RuntimeConfiguration:
     return RuntimeConfiguration(
         buckets=MappingProxyType(buckets),
         buckets_by_physical_name=MappingProxyType(
-            {bucket.bucket_name: name for name, bucket in buckets.items()}
+            {bucket.storage_bucket_name: name for name, bucket in buckets.items()}
         ),
         profiles=profiles,
         profiles_by_domain=MappingProxyType(
@@ -502,7 +502,7 @@ def get_profile_for_file(file) -> ResolvedFileConfiguration:
         return ResolvedFileConfiguration.model_construct(
             name="snapshot",
             default=False,
-            bucket_name=logical_bucket_name,
+            bucket_configuration_key=logical_bucket_name,
             storage_bucket_name=storage_bucket_name,
             **{
                 field: getattr(file, field)
@@ -521,7 +521,7 @@ def get_profile_for_file(file) -> ResolvedFileConfiguration:
     return ResolvedFileConfiguration.model_construct(
         name="default",
         default=True,
-        bucket_name=logical_bucket_name,
+        bucket_configuration_key=logical_bucket_name,
         **file_snapshot,
         **trashbin_snapshot,
     )

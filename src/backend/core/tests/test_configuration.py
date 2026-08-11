@@ -179,5 +179,5 @@ def test_bucket_name_and_endpoint_url_are_resolved_from_environment(monkeypatch)
         }
     )
 
-    assert buckets["default"].bucket_name == "default-bucket"
+    assert buckets["default"].storage_bucket_name == "default-bucket"
     assert buckets["default"].endpoint_url == "http://minio:9000"

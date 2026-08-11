@@ -48,7 +48,7 @@ def test_file_snapshots_creator_domain_configuration(settings, monkeypatch):
     }
     clear_configuration_cache()
     file.refresh_from_db()
-    assert file.configuration.bucket_name == "alpha"
+    assert file.configuration.bucket_configuration_key == "alpha"
     assert file.configuration.file_auto_hard_delete_at == file.file_auto_hard_delete_at
 
 
@@ -72,7 +72,7 @@ def test_default_file_uses_default_configuration(settings, monkeypatch):
     profile = get_profile_for_file(file)
 
     assert profile.name == "default"
-    assert profile.bucket_name == "default"
+    assert profile.bucket_configuration_key == "default"
     assert profile.storage_bucket_name == "default-bucket"
     assert profile.file_auto_hard_delete_at == file.created_at + timedelta(days=12)
 
