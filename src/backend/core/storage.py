@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
+from django.test.signals import setting_changed
 
 from storages.backends.s3 import S3Storage
 
@@ -48,9 +49,15 @@ def get_storage_for_bucket(bucket_configuration: str, bucket_name: str | None = 
     )
 
 
-def clear_storage_cache() -> None:
+def clear_storage_cache(_sender=None, **_kwargs) -> None:
     """Clear cached storage clients after a configuration change."""
     get_storage_for_bucket.cache_clear()
+
+
+setting_changed.connect(
+    clear_storage_cache,
+    dispatch_uid="core.storage.clear_storage_cache",
+)
 
 
 def get_storage_bucket_name(storage) -> str:
