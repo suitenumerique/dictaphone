@@ -10,6 +10,9 @@ pytestmark = pytest.mark.django_db
 
 def test_file_storage_uses_the_creator_domain_bucket(settings, monkeypatch):
     """Files created by a configured domain use its bucket backend."""
+    monkeypatch.setenv("S3_DEFAULT_BUCKET_NAME", "dictaphone-media-storage")
+    monkeypatch.setenv("S3_PARTNER_BUCKET_NAME", "dictaphone-media-partner")
+
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True},
         "partner": {
@@ -19,12 +22,12 @@ def test_file_storage_uses_the_creator_domain_bucket(settings, monkeypatch):
     }
     settings.S3_BUCKET_CONFIGURATIONS = {
         "default": {
-            "bucket_name": "dictaphone-media-storage",
+            "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
             "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
         },
         "partner": {
-            "bucket_name": "dictaphone-media-partner",
+            "bucket_name_env": "S3_PARTNER_BUCKET_NAME",
             "access_key_id_env": "S3_PARTNER_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_PARTNER_SECRET_ACCESS_KEY",
         },

@@ -13,8 +13,9 @@ from core.configuration import clear_configuration_cache, get_profile_for_file
 pytestmark = pytest.mark.django_db
 
 
-def test_file_snapshots_creator_domain_configuration(settings):
+def test_file_snapshots_creator_domain_configuration(settings, monkeypatch):
     """New files should retain the profile selected at creation time."""
+    monkeypatch.setenv("S3_ALPHA_BUCKET_NAME", "alpha-bucket")
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True},
         "alpha": {
@@ -25,12 +26,12 @@ def test_file_snapshots_creator_domain_configuration(settings):
     }
     settings.S3_BUCKET_CONFIGURATIONS = {
         "default": {
-            "bucket_name": "default-bucket",
+            "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
             "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
         },
         "alpha": {
-            "bucket_name": "alpha-bucket",
+            "bucket_name_env": "S3_ALPHA_BUCKET_NAME",
             "access_key_id_env": "S3_ALPHA_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_ALPHA_SECRET_ACCESS_KEY",
         },
@@ -51,15 +52,16 @@ def test_file_snapshots_creator_domain_configuration(settings):
     assert file.configuration.file_auto_hard_delete_at == file.file_auto_hard_delete_at
 
 
-def test_default_file_uses_default_configuration(settings):
+def test_default_file_uses_default_configuration(settings, monkeypatch):
     """Rows without snapshots should continue using global settings."""
     file = factories.FileFactory(creator=None)
+    monkeypatch.setenv("S3_DEFAULT_BUCKET_NAME", "default-bucket")
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True, "bucket": "default"}
     }
     settings.S3_BUCKET_CONFIGURATIONS = {
         "default": {
-            "bucket_name": "default-bucket",
+            "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
             "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
         }

@@ -39,12 +39,12 @@ def test_email_domains_are_normalized_and_validated_by_email_validator():
 def _buckets():
     return {
         "default": {
-            "bucket_name": "default-bucket",
+            "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
             "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
         },
         "alpha": {
-            "bucket_name": "alpha-bucket",
+            "bucket_name_env": "S3_ALPHA_BUCKET_NAME",
             "access_key_id_env": "S3_ALPHA_ACCESS_KEY_ID",
             "secret_access_key_env": "S3_ALPHA_SECRET_ACCESS_KEY",
         },
@@ -61,7 +61,7 @@ def test_profiles_are_normalized_and_resolved(settings):
     assert profile.name == "alpha"
     assert profile.domains == ("example.com",)
     assert profile.bucket == "alpha"
-    assert profile.storage_bucket_name == "alpha-bucket"
+    assert profile.storage_bucket_name == "dictaphone-media-alpha"
     assert profile.file_auto_hard_delete_after_days == 10
     assert profile.original_file_data_delete_after_days == (
         settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
@@ -134,7 +134,7 @@ def test_bucket_configuration_requires_default():
         BucketConfigurations.model_validate(
             {
                 "alpha": {
-                    "bucket_name": "alpha-bucket",
+                    "bucket_name_env": "S3_ALPHA_BUCKET_NAME",
                     "access_key_id_env": "S3_ALPHA_ACCESS_KEY_ID",
                     "secret_access_key_env": "S3_ALPHA_SECRET_ACCESS_KEY",
                 }
@@ -144,16 +144,16 @@ def test_bucket_configuration_requires_default():
 
 def test_bucket_configuration_requires_unique_physical_bucket_names():
     """Logical bucket configurations cannot share a physical bucket name."""
-    with pytest.raises(ValidationError, match="bucket names must be unique"):
-        BucketConfigurations.model_validate(
+    with pytest.raises(ValueError, match="bucket names must be unique"):
+        resolve_bucket_configurations(
             {
                 "default": {
-                    "bucket_name": "shared-bucket",
+                    "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
                     "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
                     "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
                 },
                 "alpha": {
-                    "bucket_name": "shared-bucket",
+                    "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
                     "access_key_id_env": "S3_ALPHA_ACCESS_KEY_ID",
                     "secret_access_key_env": "S3_ALPHA_SECRET_ACCESS_KEY",
                 },
@@ -161,8 +161,9 @@ def test_bucket_configuration_requires_unique_physical_bucket_names():
         )
 
 
-def test_bucket_endpoint_url_is_resolved_from_environment(monkeypatch):
-    """Bucket endpoint URLs should be resolved from their configured env vars."""
+def test_bucket_name_and_endpoint_url_are_resolved_from_environment(monkeypatch):
+    """Bucket names and endpoint URLs should resolve from configured env vars."""
+    monkeypatch.setenv("S3_BUCKET_NAME", "default-bucket")
     monkeypatch.setenv("S3_ACCESS_KEY_ID", "access-key")
     monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret-key")
     monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
@@ -170,7 +171,7 @@ def test_bucket_endpoint_url_is_resolved_from_environment(monkeypatch):
     buckets = resolve_bucket_configurations(
         {
             "default": {
-                "bucket_name": "default-bucket",
+                "bucket_name_env": "S3_BUCKET_NAME",
                 "access_key_id_env": "S3_ACCESS_KEY_ID",
                 "secret_access_key_env": "S3_SECRET_ACCESS_KEY",
                 "endpoint_url_env": "S3_ENDPOINT_URL",
@@ -178,4 +179,5 @@ def test_bucket_endpoint_url_is_resolved_from_environment(monkeypatch):
         }
     )
 
+    assert buckets["default"].bucket_name == "default-bucket"
     assert buckets["default"].endpoint_url == "http://minio:9000"

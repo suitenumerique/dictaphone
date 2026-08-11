@@ -139,12 +139,15 @@ jobs:
       STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
       S3_DEFAULT_ACCESS_KEY_ID: dictaphone-default
       S3_DEFAULT_SECRET_ACCESS_KEY: password-default
+      S3_DEFAULT_BUCKET_NAME: dictaphone-media-storage
       S3_ALPHA_ACCESS_KEY_ID: dictaphone-alpha
       S3_ALPHA_SECRET_ACCESS_KEY: password-alpha
+      S3_ALPHA_BUCKET_NAME: dictaphone-media-alpha
       S3_BETA_ACCESS_KEY_ID: dictaphone-beta
       S3_BETA_SECRET_ACCESS_KEY: password-beta
+      S3_BETA_BUCKET_NAME: dictaphone-media-beta
       S3_ENDPOINT_URL: http://localhost:9000
-      S3_BUCKET_CONFIGURATIONS: '{"default":{"bucket_name":"dictaphone-media-storage","access_key_id_env":"S3_DEFAULT_ACCESS_KEY_ID","secret_access_key_env":"S3_DEFAULT_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"},"alpha":{"bucket_name":"dictaphone-media-alpha","access_key_id_env":"S3_ALPHA_ACCESS_KEY_ID","secret_access_key_env":"S3_ALPHA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"},"beta":{"bucket_name":"dictaphone-media-beta","access_key_id_env":"S3_BETA_ACCESS_KEY_ID","secret_access_key_env":"S3_BETA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"}}'
+      S3_BUCKET_CONFIGURATIONS: '{"default":{"bucket_name_env":"S3_DEFAULT_BUCKET_NAME","access_key_id_env":"S3_DEFAULT_ACCESS_KEY_ID","secret_access_key_env":"S3_DEFAULT_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"},"alpha":{"bucket_name_env":"S3_ALPHA_BUCKET_NAME","access_key_id_env":"S3_ALPHA_ACCESS_KEY_ID","secret_access_key_env":"S3_ALPHA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"},"beta":{"bucket_name_env":"S3_BETA_BUCKET_NAME","access_key_id_env":"S3_BETA_ACCESS_KEY_ID","secret_access_key_env":"S3_BETA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"}}'
       DATA_POLICY_CONFIGURATIONS: '{"default":{"default":True,"bucket":"default"},"alpha":{"domains":["alpha.example"],"bucket":"alpha","file_auto_hard_delete_after_days":14,"original_file_data_delete_after_days":7},"beta":{"domains":["beta.example"],"bucket":"beta","file_auto_hard_delete_after_days":30,"original_file_data_delete_after_days":14}}'
       OIDC_RS_CLIENT_ID: dictaphone
       OIDC_RS_CLIENT_SECRET: ThisIsAnExampleKeyForDevPurposeOnly

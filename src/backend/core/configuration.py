@@ -87,21 +87,13 @@ class BucketConfiguration(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    bucket_name: str
+    bucket_name_env: str
     access_key_id_env: str
     secret_access_key_env: str
     endpoint_url_env: str | None = None
     region_name: str | None = None
     signature_version: str = "s3v4"
     domain_replace: str | None = None
-
-    @field_validator("bucket_name")
-    @classmethod
-    def validate_bucket_name(cls, bucket_name: str) -> str:
-        """Validate the physical S3 bucket name."""
-        if not BUCKET_PATTERN.fullmatch(bucket_name):
-            raise ValueError(f"Invalid S3 bucket name: {bucket_name!r}")
-        return bucket_name
 
     @field_validator("access_key_id_env", "secret_access_key_env", "endpoint_url_env")
     @classmethod
@@ -129,9 +121,6 @@ class BucketConfigurations(RootModel[dict[str, BucketConfiguration]]):
         """Require an explicit default bucket configuration."""
         if "default" not in self.root:
             raise ValueError("A default bucket configuration is required")
-        bucket_names = [bucket.bucket_name for bucket in self.root.values()]
-        if len(bucket_names) != len(set(bucket_names)):
-            raise ValueError("S3 bucket names must be unique")
         return self
 
 
@@ -352,10 +341,10 @@ def resolve_bucket_configurations(
 ) -> dict[str, ResolvedBucketConfiguration]:
     """Validate and resolve all named S3 bucket configurations."""
     parsed = BucketConfigurations.model_validate(raw_buckets or {})
-    return {
+    resolved_buckets = {
         name: ResolvedBucketConfiguration(
             name=name,
-            bucket_name=bucket.bucket_name,
+            bucket_name=(_get_environment_value(bucket.bucket_name_env)),
             access_key_id=_get_environment_secret(bucket.access_key_id_env),
             secret_access_key=_get_environment_secret(bucket.secret_access_key_env),
             endpoint_url=(
@@ -369,6 +358,15 @@ def resolve_bucket_configurations(
         )
         for name, bucket in parsed.buckets.items()
     }
+    bucket_names = [bucket.bucket_name for bucket in resolved_buckets.values()]
+    if len(bucket_names) != len(set(bucket_names)):
+        raise ValueError("S3 bucket names must be unique")
+
+    for bucket_name in bucket_names:
+        if bucket_name is None or not BUCKET_PATTERN.fullmatch(bucket_name):
+            raise ValueError(f"Invalid S3 bucket name: {bucket_name!r}")
+
+    return resolved_buckets
 
 
 def _resolve_profile(
