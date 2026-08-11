@@ -97,6 +97,12 @@ def test_soft_delete_persists_current_profile_trashbin_deadlines(settings):
         days=12
     )
 
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True, "trashbin_cutoff_days": 1}
+    }
+    clear_configuration_cache()
+    assert file.configuration.trashbin_purge_at == file.trashbin_purge_at
+
     file.restore()
     assert file.deleted_at is None
     assert file.trashbin_purge_at is None
