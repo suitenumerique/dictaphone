@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 
 from core import factories, models
 from core.configuration import get_bucket_configurations
+from core.storage import get_storage_for_file
 
 pytestmark = pytest.mark.django_db
 
@@ -49,7 +50,7 @@ def test_api_files_media_get_own():
     client = APIClient()
     client.force_login(user)
 
-    default_storage.save(
+    get_storage_for_file(file).save(
         file.file_key,
         BytesIO(b"my prose"),
     )
@@ -71,9 +72,12 @@ def test_api_files_media_get_own():
     )
     assert response["X-Amz-Date"] == now.strftime("%Y%m%dT%H%M%SZ")
 
-    endpoint_url = get_bucket_configurations()["default"].endpoint_url
+    bucket_configuration = get_bucket_configurations()["default"]
+    endpoint_url = bucket_configuration.endpoint_url
     s3_url = urlparse(endpoint_url)
-    file_url = f"{endpoint_url:s}/dictaphone-media-storage/{file.file_key:s}"
+    file_url = (
+        f"{endpoint_url:s}/{bucket_configuration.storage_bucket_name}/{file.file_key:s}"
+    )
     response = requests.get(
         file_url,
         headers={
