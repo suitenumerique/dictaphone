@@ -39,6 +39,7 @@ from core.tasks.file import (
     call_transcribe_service,
     handle_transcript_received,
     process_file_deletion,
+    queue_audio_extraction,
     store_summary,
 )
 
@@ -481,7 +482,7 @@ class FileViewSet(
 
         serializer = self.get_serializer(file)
 
-        call_transcribe_service.delay(file.id)
+        queue_audio_extraction(file.id)
 
         analytics.capture_event(
             analytics.EventName.FILE_UPLOADED,
@@ -765,7 +766,20 @@ class AiJobViewSet(
                 code="ai_job_retry_same_language",
             )
 
-        if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+        if (
+            file.audio_extraction_state
+            == models.FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+        ):
+            raise drf_exceptions.ValidationError(
+                {"state": "Cannot retry when audio extraction has failed."},
+                code="ai_job_retry_audio_extraction_failed",
+            )
+
+        if (
+            settings.FILE_UPLOAD_APPLY_RESTRICTIONS
+            and file.audio_extraction_state
+            == models.FileAudioExtractionStateChoices.EXTRACTION_DONE
+        ):
             config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
             max_duration_seconds = config_for_file_type["max_duration_seconds"]
 

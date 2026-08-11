@@ -94,10 +94,23 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
     queued_media_seconds = 0.0
     now = timezone.now()
     for ai_job in pending_jobs:
+        if (
+            ai_job.file.audio_extraction_state
+            != models.FileAudioExtractionStateChoices.EXTRACTION_DONE
+        ):
+            # The transcription queue does not contain this job yet. Its
+            # duration is also not authoritative until extraction completes.
+            processing_expected_end_at_by_job_id[ai_job.id] = None
+            continue
+
         if ai_job.type not in throughput_by_type:
             throughput_by_type[ai_job.type] = compute_ai_job_throughput(ai_job.type)
         throughput = throughput_by_type[ai_job.type]
         duration_seconds = ai_job.file.duration_seconds
+
+        if duration_seconds is None:
+            processing_expected_end_at_by_job_id[ai_job.id] = None
+            continue
 
         waiting_seconds = int(
             ceil((queued_media_seconds + duration_seconds) / throughput)
@@ -219,6 +232,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "filename",
             "duration_seconds",
             "upload_state",
+            "audio_extraction_state",
             "lifecycle_state",
             "mimetype",
             "size",
@@ -241,6 +255,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "filename",
             "duration_seconds",
             "upload_state",
+            "audio_extraction_state",
             "lifecycle_state",
             "mimetype",
             "size",
