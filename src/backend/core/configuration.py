@@ -90,7 +90,7 @@ class BucketConfiguration(BaseModel):
     bucket_name: str
     access_key_id_env: str
     secret_access_key_env: str
-    endpoint_url: str | None = None
+    endpoint_url_env: str | None = None
     region_name: str | None = None
     signature_version: str = "s3v4"
     domain_replace: str | None = None
@@ -103,12 +103,14 @@ class BucketConfiguration(BaseModel):
             raise ValueError(f"Invalid S3 bucket name: {bucket_name!r}")
         return bucket_name
 
-    @field_validator("access_key_id_env", "secret_access_key_env")
+    @field_validator("access_key_id_env", "secret_access_key_env", "endpoint_url_env")
     @classmethod
-    def validate_environment_variable_name(cls, name: str) -> str:
-        """Validate a credential environment variable name."""
+    def validate_environment_variable_name(cls, name: str | None) -> str | None:
+        """Validate an environment variable name."""
+        if name is None:
+            return None
         if not ENVIRONMENT_VARIABLE_PATTERN.fullmatch(name):
-            raise ValueError(f"Invalid credential environment variable name: {name!r}")
+            raise ValueError(f"Invalid environment variable name: {name!r}")
         return name
 
 
@@ -335,6 +337,16 @@ def _get_environment_secret(environment_variable: str) -> SecretStr:
         ) from exc
 
 
+def _get_environment_value(environment_variable: str) -> str:
+    """Resolve a non-secret value from an environment variable."""
+    try:
+        return environ[environment_variable]
+    except KeyError as exc:
+        raise ValueError(
+            f"Environment variable {environment_variable!r} is not set"
+        ) from exc
+
+
 def resolve_bucket_configurations(
     raw_buckets: Any,
 ) -> dict[str, ResolvedBucketConfiguration]:
@@ -346,7 +358,11 @@ def resolve_bucket_configurations(
             bucket_name=bucket.bucket_name,
             access_key_id=_get_environment_secret(bucket.access_key_id_env),
             secret_access_key=_get_environment_secret(bucket.secret_access_key_env),
-            endpoint_url=bucket.endpoint_url,
+            endpoint_url=(
+                _get_environment_value(bucket.endpoint_url_env)
+                if bucket.endpoint_url_env
+                else None
+            ),
             region_name=bucket.region_name,
             signature_version=bucket.signature_version,
             domain_replace=bucket.domain_replace,

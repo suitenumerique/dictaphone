@@ -12,6 +12,7 @@ from core.configuration import (
     get_profile_for_email,
     get_profiles,
     normalize_email_domain,
+    resolve_bucket_configurations,
     resolve_profiles,
     resolve_runtime_configuration,
 )
@@ -158,3 +159,23 @@ def test_bucket_configuration_requires_unique_physical_bucket_names():
                 },
             }
         )
+
+
+def test_bucket_endpoint_url_is_resolved_from_environment(monkeypatch):
+    """Bucket endpoint URLs should be resolved from their configured env vars."""
+    monkeypatch.setenv("S3_ACCESS_KEY_ID", "access-key")
+    monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret-key")
+    monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
+
+    buckets = resolve_bucket_configurations(
+        {
+            "default": {
+                "bucket_name": "default-bucket",
+                "access_key_id_env": "S3_ACCESS_KEY_ID",
+                "secret_access_key_env": "S3_SECRET_ACCESS_KEY",
+                "endpoint_url_env": "S3_ENDPOINT_URL",
+            }
+        }
+    )
+
+    assert buckets["default"].endpoint_url == "http://minio:9000"
