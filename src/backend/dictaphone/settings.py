@@ -159,7 +159,7 @@ class Base(Configuration):
     S3_BUCKET_CONFIGURATIONS = JsonDictValue(
         {
             "default": {
-                "bucket_name": "dictaphone-media-storage",
+                "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
                 "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
                 "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
             }

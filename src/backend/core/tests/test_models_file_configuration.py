@@ -107,14 +107,11 @@ def test_file_configuration_fields_must_be_complete():
     """Creation and trash-bin snapshots must not be partially populated."""
     file = factories.FileFactory(creator=None)
     file.storage_bucket_name = "bucket"
-
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="file_snapshot_complete"):
         file.full_clean()
-
     file.storage_bucket_name = None
     file.trashbin_purge_at = timezone.now()
-
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="file_trashbin_deadlines"):
         file.full_clean()
 
 

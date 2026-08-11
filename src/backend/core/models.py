@@ -434,6 +434,7 @@ class File(BaseModel):
     def __str__(self):
         return str(self.title)
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         """Set the upload state to pending if it's the first save and it's a file."""
 

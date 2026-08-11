@@ -95,7 +95,12 @@ class BucketConfiguration(BaseModel):
     signature_version: str = "s3v4"
     domain_replace: str | None = None
 
-    @field_validator("access_key_id_env", "secret_access_key_env", "endpoint_url_env")
+    @field_validator(
+        "bucket_name_env",
+        "access_key_id_env",
+        "secret_access_key_env",
+        "endpoint_url_env",
+    )
     @classmethod
     def validate_environment_variable_name(cls, name: str | None) -> str | None:
         """Validate an environment variable name."""

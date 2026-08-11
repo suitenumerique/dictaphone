@@ -1,11 +1,32 @@
 """Tests for per-file object storage selection."""
 
+from django.core.exceptions import ImproperlyConfigured
+from django.core.files.storage import FileSystemStorage
+
 import pytest
 
 from core import factories
-from core.storage import get_storage_bucket_name, get_storage_for_file
+from core.storage import (
+    get_storage_bucket_name,
+    get_storage_for_bucket,
+    get_storage_for_file,
+)
 
 pytestmark = pytest.mark.django_db
+
+
+def test_bucket_storage_requires_s3_backend(monkeypatch):
+    """S3-specific storage helpers fail clearly with filesystem storage."""
+    filesystem_storage = FileSystemStorage()
+    monkeypatch.setattr("core.storage.default_storage", filesystem_storage)
+
+    with pytest.raises(ImproperlyConfigured, match="S3Storage"):
+        get_storage_for_bucket("default")
+
+    with pytest.raises(ImproperlyConfigured, match="S3Storage"):
+        get_storage_bucket_name(filesystem_storage)
+
+    assert get_storage_for_file(None) is filesystem_storage
 
 
 def test_file_storage_uses_the_creator_domain_bucket(settings, monkeypatch):

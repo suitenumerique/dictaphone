@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
 
 from storages.backends.s3 import S3Storage
@@ -29,7 +30,10 @@ class ConfiguredS3Storage(S3Storage):  # pylint: disable=abstract-method
 def get_storage_for_bucket(bucket_configuration: str, bucket_name: str | None = None):
     """Return a storage backend configured for one bucket."""
     if not isinstance(default_storage, S3Storage):
-        return default_storage
+        raise ImproperlyConfigured(
+            "S3Storage is required to select a configured bucket, but "
+            f"{default_storage.__class__.__name__} is configured as the default storage."
+        )
 
     configuration = get_bucket_configurations()[bucket_configuration]
     bucket_name = bucket_name or configuration.bucket_name
@@ -51,11 +55,21 @@ def clear_storage_cache() -> None:
 
 def get_storage_bucket_name(storage) -> str:
     """Return the configured bucket name from an S3 storage backend."""
+    if not isinstance(storage, S3Storage):
+        raise ImproperlyConfigured(
+            "S3Storage is required for bucket-specific operations, but "
+            f"{storage.__class__.__name__} is configured as the storage backend."
+        )
     return storage.bucket_name
 
 
 def get_storage_for_file(file):
     """Return the storage backend selected by a file's persisted configuration."""
+    # Build and Demo use FileSystemStorage, which remains valid for regular file
+    # operations even though bucket-specific routing is unavailable.
+    if not isinstance(default_storage, S3Storage):
+        return default_storage
+
     profile = file.configuration
     return get_storage_for_bucket(
         profile.bucket_name,
