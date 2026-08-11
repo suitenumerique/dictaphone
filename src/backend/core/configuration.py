@@ -496,7 +496,10 @@ def get_profile_for_file(file) -> ResolvedFileConfiguration:
             # Rows deleted before trash-bin deadlines were introduced need a
             # deterministic fallback until they are restored or deleted again.
             trashbin_snapshot = default_profile.as_trashbin_snapshot(file.deleted_at)
-        return ResolvedFileConfiguration(
+        # These values are persisted on the file or derived from the already
+        # validated runtime configuration, so revalidating them on every
+        # property access is unnecessary.
+        return ResolvedFileConfiguration.model_construct(
             name="snapshot",
             default=False,
             bucket_name=logical_bucket_name,
@@ -515,7 +518,7 @@ def get_profile_for_file(file) -> ResolvedFileConfiguration:
         if file.deleted_at is not None
         else dict.fromkeys(TRASHBIN_DEADLINE_FIELDS)
     )
-    return ResolvedFileConfiguration(
+    return ResolvedFileConfiguration.model_construct(
         name="default",
         default=True,
         bucket_name=logical_bucket_name,
