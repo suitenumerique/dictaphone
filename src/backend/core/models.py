@@ -225,6 +225,15 @@ class FileUploadStateChoices(models.TextChoices):
     READY = "ready", _("Ready")
 
 
+class FileAudioExtractionStateChoices(models.TextChoices):
+    """Possible states of the validated audio representation of a file."""
+
+    PENDING_AUDIO_EXTRACTION = "pending_audio_extraction", _("Pending audio extraction")
+    EXTRACTING_AUDIO = "extracting_audio", _("Extracting audio")
+    EXTRACTION_DONE = "extraction_done", _("Audio extraction done")
+    AUDIO_EXTRACTION_FAILED = "audio_extraction_failed", _("Audio extraction failed")
+
+
 class FileLifecycleStateChoices(models.TextChoices):
     """Possible lifecycle states of a file."""
 
@@ -279,6 +288,11 @@ class File(BaseModel):
     upload_state = models.CharField(
         max_length=25,
         choices=FileUploadStateChoices.choices,
+    )
+    audio_extraction_state = models.CharField(
+        max_length=30,
+        choices=FileAudioExtractionStateChoices.choices,
+        default=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
     )
     lifecycle_state = models.CharField(
         max_length=30,
@@ -526,6 +540,11 @@ class File(BaseModel):
         """Temporary key used to upload the file before it is finalized."""
         _, extension = splitext(self.filename)
         return f"{self.temporary_key_base}{extension!s}"
+
+    @property
+    def audio_file_key(self):
+        """Key used to store the validated OGG audio representation."""
+        return f"{self.key_base}.audio.ogg"
 
     def get_abilities(self, user):
         """

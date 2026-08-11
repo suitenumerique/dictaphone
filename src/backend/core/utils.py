@@ -223,12 +223,14 @@ def generate_upload_policy(file):
     return policy
 
 
-def generate_download_file_url(file, *, expires_in: int, override_domain: bool = True):
+def generate_download_file_url(
+    file, *, expires_in: int, override_domain: bool = True, key=None
+):
     """
     Generate a S3 signed download url for a given file.
     """
 
-    key = file.file_key
+    key = key or file.file_key
     storage = get_storage_for_file(file)
     bucket_name = get_storage_bucket_name(storage)
 

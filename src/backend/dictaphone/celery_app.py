@@ -21,3 +21,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
+# The file tasks live in a module below the conventional ``tasks.py`` name.
+# Import it explicitly so every worker, including the dedicated audio worker,
+# registers the extraction task.
+app.conf.imports = ("core.tasks.file",)

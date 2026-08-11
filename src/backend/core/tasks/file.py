@@ -12,11 +12,17 @@ from django.utils import timezone
 import requests as requests_lib
 
 from core import analytics
+from core.audio import (
+    AudioExtractionError,
+    AudioExtractionRetryableError,
+    extract_audio_to_storage,
+)
 from core.models import (
     AiFileJob,
     AiJobStatusChoices,
     AiJobTypeChoices,
     File,
+    FileAudioExtractionStateChoices,
     FileLifecycleStateChoices,
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
@@ -31,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 session = requests_lib.Session()
 session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
+
+AUDIO_EXTRACTION_QUEUE = "dictaphone-audio"
 
 
 @app.task
@@ -56,7 +64,9 @@ def process_file_deletion(file_id):
         ai_job.delete()
 
     logger.info("Deleting file %s", file.file_key)
-    get_storage_for_file(file).delete(file.file_key)
+    storage = get_storage_for_file(file)
+    storage.delete(file.file_key)
+    storage.delete(file.audio_file_key)
 
     file.delete()
 
@@ -71,15 +81,175 @@ def process_original_file_data_deletion(file_id):
         logger.error("Item %s does not exist", file_id)
         return
 
-    get_storage_for_file(file).delete(file.file_key)
+    storage = get_storage_for_file(file)
+    storage.delete(file.file_key)
+    storage.delete(file.audio_file_key)
     file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     file.save(update_fields=["lifecycle_state"])
 
 
 # Build retry options separately for each task: Celery mutates the nested
 # ``retry_kwargs`` dictionary when it computes a backoff countdown.
+def _mark_transcription_job_failed(ai_job_id):
+    """Mark a pending transcription job failed when preparation cannot complete."""
+    if ai_job_id is not None:
+        AiFileJob.objects.filter(
+            id=ai_job_id, status=AiJobStatusChoices.PENDING
+        ).update(status=AiJobStatusChoices.FAILED)
+
+
+def _delete_extracted_audio(  # pylint: disable=broad-exception-caught
+    file,
+):
+    """Remove an extracted object without hiding the original task failure."""
+    try:
+        get_storage_for_file(file).delete(file.audio_file_key)
+    except Exception:  # noqa: BLE001 - cleanup must not mask the root cause
+        logger.warning("Could not clean extracted audio for file %s", file.id)
+
+
+def _queue_transcription(file_id, *, ai_job_id=None, language=None):
+    """Queue transcription with or without an already-created AI job."""
+    if ai_job_id is None:
+        call_transcribe_service.delay(file_id)
+    else:
+        call_transcribe_service.delay(file_id, language=language, ai_job_id=ai_job_id)
+    return ai_job_id
+
+
+def _queue_transcription_if_ready(file, *, ai_job_id=None, language=None):
+    """Queue transcription when extraction is complete, returning handled/result."""
+    if (
+        file.audio_extraction_state
+        == FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+    ):
+        _mark_transcription_job_failed(ai_job_id)
+        return True, None
+
+    if file.audio_extraction_state != FileAudioExtractionStateChoices.EXTRACTION_DONE:
+        return False, None
+
+    if not get_storage_for_file(file).exists(file.audio_file_key):
+        return False, None
+
+    return True, _queue_transcription(
+        file.id,
+        ai_job_id=ai_job_id,
+        language=language,
+    )
+
+
+@app.task(**build_retry_task_options(autoretry_for=(AudioExtractionRetryableError,)))
+def extract_audio(file_id, ai_job_id=None, language=None):
+    """Validate, convert, and store a file's audio representation."""
+    try:
+        file = File.objects.get(id=file_id)
+    except File.DoesNotExist:
+        logger.error("Item %s does not exist", file_id)
+        _mark_transcription_job_failed(ai_job_id)
+        return None
+
+    handled, result = _queue_transcription_if_ready(
+        file,
+        ai_job_id=ai_job_id,
+        language=language,
+    )
+    if handled:
+        return result
+
+    if file.audio_extraction_state == FileAudioExtractionStateChoices.EXTRACTION_DONE:
+        File.objects.filter(pk=file.pk).update(
+            audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        )
+        file.audio_extraction_state = (
+            FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        )
+
+    if (
+        file.audio_extraction_state
+        != FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+    ):
+        return None
+
+    claimed = File.objects.filter(
+        pk=file.pk,
+        audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
+    ).update(audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTING_AUDIO)
+    if claimed != 1:
+        file.refresh_from_db()
+        handled, result = _queue_transcription_if_ready(
+            file,
+            ai_job_id=ai_job_id,
+            language=language,
+        )
+        return result if handled else None
+
+    try:
+        duration_seconds = extract_audio_to_storage(file)
+    except AudioExtractionRetryableError:
+        logger.warning(
+            "Transient audio extraction failure for file %s; retrying",
+            file.id,
+            exc_info=True,
+        )
+        File.objects.filter(pk=file.pk).update(
+            audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        )
+        raise
+    except AudioExtractionError:
+        logger.exception("Audio extraction failed for file %s", file.id)
+        _delete_extracted_audio(file)
+        File.objects.filter(pk=file.pk).update(
+            audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+        )
+        _mark_transcription_job_failed(ai_job_id)
+        raise
+    except Exception:
+        logger.exception("Unexpected audio extraction failure for file %s", file.id)
+        _delete_extracted_audio(file)
+        File.objects.filter(pk=file.pk).update(
+            audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+        )
+        _mark_transcription_job_failed(ai_job_id)
+        raise
+
+    File.objects.filter(pk=file.pk).update(
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        duration_seconds=duration_seconds,
+    )
+
+    return _queue_transcription(
+        file_id,
+        ai_job_id=ai_job_id,
+        language=language,
+    )
+
+
+def queue_audio_extraction(file_id, *, ai_job_id=None, language=None):
+    """Queue extraction on the worker reserved for media processing."""
+    extract_audio.apply_async(
+        args=[file_id],
+        kwargs={"ai_job_id": ai_job_id, "language": language},
+        queue=AUDIO_EXTRACTION_QUEUE,
+    )
+
+
+def _duration_is_allowed(file):
+    """Return whether the validated or declared duration meets upload restrictions."""
+    if not settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+        return True
+
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS[file.type][
+        "max_duration_seconds"
+    ]
+    return (
+        file.duration_seconds is not None
+        and file.duration_seconds <= max_duration_seconds
+    )
+
+
 @app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
-def call_transcribe_service(file_id, language=None):
+def call_transcribe_service(file_id, language=None, ai_job_id=None):
     """
     Call the transcribe service for a given file.
 
@@ -94,31 +264,53 @@ def call_transcribe_service(file_id, language=None):
     if file.lifecycle_state != FileLifecycleStateChoices.ACTIVE:
         raise ValueError("Cannot transcribe when file is not in active state")
 
+    if (
+        file.audio_extraction_state
+        == FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+    ):
+        _mark_transcription_job_failed(ai_job_id)
+        raise ValueError("Cannot transcribe when audio extraction has failed")
+
     if language is None:
         language = file.language
 
-    ai_transcribe_job = AiFileJob.objects.create(
-        remote_job_id=None,
-        file=file,
-        type=AiJobTypeChoices.TRANSCRIPT,
-        status=AiJobStatusChoices.PENDING,
-        language=language,
+    if ai_job_id is None:
+        ai_transcribe_job = AiFileJob.objects.create(
+            remote_job_id=None,
+            file=file,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            status=AiJobStatusChoices.PENDING,
+            language=language,
+        )
+    else:
+        ai_transcribe_job = AiFileJob.objects.get(
+            id=ai_job_id, type=AiJobTypeChoices.TRANSCRIPT
+        )
+
+    extraction_done = (
+        file.audio_extraction_state == FileAudioExtractionStateChoices.EXTRACTION_DONE
+        and get_storage_for_file(file).exists(file.audio_file_key)
     )
-
-    if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
-        config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
-        max_duration_seconds = config_for_file_type["max_duration_seconds"]
-
+    if not extraction_done:
         if (
-            file.duration_seconds is None
-            or file.duration_seconds > max_duration_seconds
+            file.audio_extraction_state
+            == FileAudioExtractionStateChoices.EXTRACTING_AUDIO
         ):
-            ai_transcribe_job.status = AiJobStatusChoices.FAILED
-            logger.warning(
-                "File duration exceeds maximum allowed for type %s", file.type
+            File.objects.filter(pk=file.pk).update(
+                audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
             )
-            ai_transcribe_job.save()
-            return ai_transcribe_job.id
+        queue_audio_extraction(
+            file.id,
+            ai_job_id=ai_transcribe_job.id,
+            language=language,
+        )
+        return ai_transcribe_job.id
+
+    if not _duration_is_allowed(file):
+        ai_transcribe_job.status = AiJobStatusChoices.FAILED
+        logger.warning("File duration exceeds maximum allowed for type %s", file.type)
+        ai_transcribe_job.save(update_fields=["status"])
+        return ai_transcribe_job.id
 
     try:
         response = session.post(
@@ -128,7 +320,10 @@ def call_transcribe_service(file_id, language=None):
                 "user_email": file.creator.email,
                 "language": language,
                 "cloud_storage_url": generate_download_file_url(
-                    file, expires_in=60 * 60 * 24, override_domain=False
+                    file,
+                    expires_in=60 * 60 * 24,
+                    override_domain=False,
+                    key=file.audio_file_key,
                 ),
             },
             headers={
