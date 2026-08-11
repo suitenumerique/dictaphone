@@ -28,6 +28,8 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from core.configuration import get_runtime_configuration
 
+from dictaphone.values import JsonDictValue
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = path.dirname(path.dirname(path.abspath(__file__)))
 
@@ -154,7 +156,7 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
-    S3_BUCKET_CONFIGURATIONS = values.DictValue(
+    S3_BUCKET_CONFIGURATIONS = JsonDictValue(
         {
             "default": {
                 "bucket_name": "dictaphone-media-storage",
@@ -165,7 +167,7 @@ class Base(Configuration):
         environ_name="S3_BUCKET_CONFIGURATIONS",
         environ_prefix=None,
     )
-    DATA_POLICY_CONFIGURATIONS = values.DictValue(
+    DATA_POLICY_CONFIGURATIONS = JsonDictValue(
         {"default": {"default": True, "bucket": "default"}},
         environ_name="DATA_POLICY_CONFIGURATIONS",
         environ_prefix=None,
@@ -189,7 +191,7 @@ class Base(Configuration):
         default=True, environ_name="FILE_UPLOAD_APPLY_RESTRICTIONS", environ_prefix=None
     )
 
-    FILE_UPLOAD_RESTRICTIONS = values.DictValue(
+    FILE_UPLOAD_RESTRICTIONS = JsonDictValue(
         {
             "audio_recording": {
                 "max_size": 1 * GB,
@@ -484,7 +486,7 @@ class Base(Configuration):
 
     # Frontend
     FRONTEND_CONFIGURATION = {
-        "analytics": values.DictValue(
+        "analytics": JsonDictValue(
             {}, environ_name="FRONTEND_ANALYTICS", environ_prefix=None
         ),
     }
@@ -520,7 +522,7 @@ class Base(Configuration):
     CELERY_TASK_DEFAULT_QUEUE = values.Value("dictaphone-backend", environ_prefix=None)
     CELERY_BROKER_URL = values.Value("redis://redis:6379/0", environ_prefix=None)
     CELERY_RESULT_BACKEND = values.Value("redis://redis:6379/0", environ_prefix=None)
-    CELERY_BROKER_TRANSPORT_OPTIONS = values.DictValue({}, environ_prefix=None)
+    CELERY_BROKER_TRANSPORT_OPTIONS = JsonDictValue({}, environ_prefix=None)
     CELERY_TASK_RETRY_BACKOFF_SECONDS = values.PositiveIntegerValue(
         10, environ_name="CELERY_TASK_RETRY_BACKOFF_SECONDS", environ_prefix=None
     )
@@ -606,7 +608,7 @@ class Base(Configuration):
         None, environ_name="OIDC_OP_LOGOUT_ENDPOINT", environ_prefix=None
     )
     OIDC_OP_URL = values.Value(None, environ_name="OIDC_OP_URL", environ_prefix=None)
-    OIDC_AUTH_REQUEST_EXTRA_PARAMS = values.DictValue(
+    OIDC_AUTH_REQUEST_EXTRA_PARAMS = JsonDictValue(
         {}, environ_name="OIDC_AUTH_REQUEST_EXTRA_PARAMS", environ_prefix=None
     )
     OIDC_RP_SCOPES = values.Value(
@@ -936,7 +938,7 @@ class Development(Base):
 class Test(Base):
     """Test environment settings"""
 
-    LOGGING = values.DictValue(
+    LOGGING = JsonDictValue(
         {
             "version": 1,
             "disable_existing_loggers": False,
