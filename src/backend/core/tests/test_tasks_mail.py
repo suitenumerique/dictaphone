@@ -46,7 +46,7 @@ def test_send_transcription_ready_email_skips_non_successful_job():
 
     send_transcription_ready_email(job.id)
 
-    assert mail.outbox == []
+    assert not mail.outbox
 
 
 def test_send_transcription_ready_email_skips_creator_without_email():
@@ -59,4 +59,4 @@ def test_send_transcription_ready_email_skips_creator_without_email():
 
     send_transcription_ready_email(job.id)
 
-    assert mail.outbox == []
+    assert not mail.outbox
