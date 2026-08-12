@@ -37,6 +37,7 @@ from core.configuration import filter_files_by_policy_cutoff, get_bucket_configu
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.file import (
     call_transcribe_service,
+    create_document_in_docs,
     handle_transcript_received,
     process_file_deletion,
     queue_audio_extraction,
@@ -741,6 +742,39 @@ class AiJobViewSet(
 
         return drf_response.Response(
             {"doc_url": urljoin(settings.DOCS_BASE_URL, f"docs/{ai_job.docs_app_id}/")}
+        )
+
+    @decorators.action(detail=True, methods=["post"], url_path="create-in-docs")
+    def create_in_docs(self, request, *args, **kwargs):
+        """Create the transcript document in Docs synchronously."""
+        ai_job = self.get_object()
+        if ai_job.type != AiJobTypeChoices.TRANSCRIPT:
+            raise drf_exceptions.ValidationError(
+                {"type": "Only transcript jobs can create a Docs document."},
+                code="ai_job_create_in_docs_invalid_type",
+            )
+
+        if ai_job.status != AiJobStatusChoices.SUCCESS:
+            raise drf_exceptions.ValidationError(
+                {"status": "AI job is not completed yet."},
+                code="ai_job_not_completed",
+            )
+
+        if ai_job.docs_app_id:
+            raise drf_exceptions.ValidationError(
+                {"docs_app_id": "AI job is already associated with a document."},
+                code="document_already_exists",
+            )
+
+        create_document_in_docs(ai_job.id)
+        ai_job.refresh_from_db()
+        if ai_job.docs_app_id is None:
+            raise RuntimeError(
+                "ai_file_job.docs_app_id cannot be None after a successful creation"
+            )
+        return drf_response.Response(
+            {"doc_url": urljoin(settings.DOCS_BASE_URL, f"docs/{ai_job.docs_app_id}/")},
+            status=drf_status.HTTP_201_CREATED,
         )
 
     @decorators.action(detail=True, methods=["post"], url_path="retry")
