@@ -19,6 +19,7 @@ from core.audio import (
 )
 from core.models import (
     AiJobStatusChoices,
+    AiJobTypeChoices,
     FileAudioExtractionStateChoices,
 )
 from core.storage import get_storage_for_file
@@ -273,6 +274,38 @@ def test_extract_audio_retries_transient_failure(mock_extract):
             "retryable": True,
         },
     )
+    mock_extract.assert_called_once_with(file)
+
+
+@patch(
+    "core.tasks.file.extract_audio_to_storage",
+    side_effect=AudioExtractionRetryableError("persistent S3 failure"),
+)
+def test_extract_audio_marks_retry_exhaustion_terminal(mock_extract):
+    """Exhausted infrastructure failures terminate extraction and its transcript."""
+    file = factories.FileFactory(upload_bytes=b"source")
+    ai_job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    with (
+        patch.object(
+            extract_audio.request, "retries", extract_audio.retry_kwargs["max_retries"]
+        ),
+        patch.object(extract_audio, "retry", side_effect=Retry()),
+        pytest.raises(Retry),
+    ):
+        extract_audio(file.id, ai_job_id=ai_job.id)
+
+    file.refresh_from_db()
+    ai_job.refresh_from_db()
+    assert (
+        file.audio_extraction_state
+        == FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+    )
+    assert ai_job.status == AiJobStatusChoices.FAILED
     mock_extract.assert_called_once_with(file)
 
 

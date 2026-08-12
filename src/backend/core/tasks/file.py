@@ -109,6 +109,27 @@ def _delete_extracted_audio(  # pylint: disable=broad-exception-caught
         logger.warning("Could not clean extracted audio for file %s", file.id)
 
 
+def _handle_retryable_audio_extraction_failure(file, ai_job_id):
+    """Persist the retryable failure state according to Celery retry availability."""
+    if extract_audio.request.retries >= extract_audio.retry_kwargs["max_retries"]:
+        logger.exception("Audio extraction retries exhausted for file %s", file.id)
+        _delete_extracted_audio(file)
+        File.objects.filter(pk=file.pk).update(
+            audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+        )
+        _mark_transcription_job_failed(ai_job_id)
+        return
+
+    logger.warning(
+        "Transient audio extraction failure for file %s; retrying",
+        file.id,
+        exc_info=True,
+    )
+    File.objects.filter(pk=file.pk).update(
+        audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+    )
+
+
 def _capture_audio_extraction_event(
     event_name,
     file,
@@ -245,14 +266,7 @@ def extract_audio(file_id, ai_job_id=None, language=None):
             preprocessing_time_seconds,
             error=error,
         )
-        logger.warning(
-            "Transient audio extraction failure for file %s; retrying",
-            file.id,
-            exc_info=True,
-        )
-        File.objects.filter(pk=file.pk).update(
-            audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-        )
+        _handle_retryable_audio_extraction_failure(file, ai_job_id)
         raise
     except AudioExtractionError as error:
         _capture_audio_extraction_event(
