@@ -52,9 +52,8 @@ def test_file_snapshots_creator_domain_configuration(settings, monkeypatch):
     assert file.configuration.file_auto_hard_delete_at == file.file_auto_hard_delete_at
 
 
-def test_default_file_uses_default_configuration(settings, monkeypatch):
-    """Rows without snapshots should continue using global settings."""
-    file = factories.FileFactory(creator=None)
+def test_default_file_persists_default_configuration(settings, monkeypatch):
+    """Files without a creator should persist the default configuration."""
     monkeypatch.setenv("S3_DEFAULT_BUCKET_NAME", "default-bucket")
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True, "bucket": "default"}
@@ -68,10 +67,11 @@ def test_default_file_uses_default_configuration(settings, monkeypatch):
     }
     settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS = 12
 
+    file = factories.FileFactory(creator=None)
     file.refresh_from_db()
     profile = get_profile_for_file(file)
 
-    assert profile.name == "default"
+    assert profile.name == "snapshot"
     assert profile.bucket_configuration_key == "default"
     assert profile.storage_bucket_name == "default-bucket"
     assert profile.file_auto_hard_delete_at == file.created_at + timedelta(days=12)
@@ -109,13 +109,9 @@ def test_soft_delete_persists_current_profile_trashbin_deadlines(settings):
     assert file.trashbin_purge_at_with_grace_period is None
 
 
-def test_file_configuration_fields_must_be_complete():
-    """Creation and trash-bin snapshots must not be partially populated."""
+def test_trashbin_configuration_fields_must_be_complete():
+    """Trash-bin snapshots must not be partially populated."""
     file = factories.FileFactory(creator=None)
-    file.storage_bucket_name = "bucket"
-    with pytest.raises(ValidationError, match="file_snapshot_complete"):
-        file.full_clean()
-    file.storage_bucket_name = None
     file.trashbin_purge_at = timezone.now()
     with pytest.raises(ValidationError, match="file_trashbin_deadlines"):
         file.full_clean()
@@ -124,11 +120,6 @@ def test_file_configuration_fields_must_be_complete():
 @pytest.mark.parametrize(
     ("deadline_field", "grace_deadline_field"),
     [
-        (
-            "original_file_data_delete_at",
-            "original_file_data_delete_at_with_grace_period",
-        ),
-        ("file_auto_hard_delete_at", "file_auto_hard_delete_at_with_grace_period"),
         ("trashbin_purge_at", "trashbin_purge_at_with_grace_period"),
     ],
 )

@@ -318,15 +318,11 @@ class File(BaseModel):
         choices=FileSourceChoices.choices,
         default=FileSourceChoices.UNKNOWN,
     )
-    storage_bucket_name = models.CharField(max_length=63, null=True, blank=True)
-    original_file_data_delete_at = models.DateTimeField(null=True, blank=True)
-    original_file_data_delete_at_with_grace_period = models.DateTimeField(
-        null=True, blank=True
-    )
-    file_auto_hard_delete_at = models.DateTimeField(null=True, blank=True)
-    file_auto_hard_delete_at_with_grace_period = models.DateTimeField(
-        null=True, blank=True
-    )
+    storage_bucket_name = models.CharField(max_length=63)
+    original_file_data_delete_at = models.DateTimeField()
+    original_file_data_delete_at_with_grace_period = models.DateTimeField()
+    file_auto_hard_delete_at = models.DateTimeField()
+    file_auto_hard_delete_at_with_grace_period = models.DateTimeField()
     trashbin_purge_at = models.DateTimeField(null=True, blank=True)
     trashbin_purge_at_with_grace_period = models.DateTimeField(null=True, blank=True)
 
@@ -375,27 +371,6 @@ class File(BaseModel):
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    (
-                        Q(storage_bucket_name__isnull=True)
-                        & Q(original_file_data_delete_at__isnull=True)
-                        & Q(original_file_data_delete_at_with_grace_period__isnull=True)
-                        & Q(file_auto_hard_delete_at__isnull=True)
-                        & Q(file_auto_hard_delete_at_with_grace_period__isnull=True)
-                    )
-                    | (
-                        Q(storage_bucket_name__isnull=False)
-                        & Q(original_file_data_delete_at__isnull=False)
-                        & Q(
-                            original_file_data_delete_at_with_grace_period__isnull=False
-                        )
-                        & Q(file_auto_hard_delete_at__isnull=False)
-                        & Q(file_auto_hard_delete_at_with_grace_period__isnull=False)
-                    )
-                ),
-                name="file_snapshot_complete",
-            ),
-            models.CheckConstraint(
-                condition=(
                     Q(trashbin_purge_at__isnull=True)
                     & Q(trashbin_purge_at_with_grace_period__isnull=True)
                 )
@@ -407,11 +382,7 @@ class File(BaseModel):
             ),
             models.CheckConstraint(
                 condition=(
-                    (
-                        Q(original_file_data_delete_at__isnull=True)
-                        & Q(original_file_data_delete_at_with_grace_period__isnull=True)
-                    )
-                    | Q(
+                    Q(
                         original_file_data_delete_at__lte=(
                             F("original_file_data_delete_at_with_grace_period")
                         )
@@ -421,11 +392,7 @@ class File(BaseModel):
             ),
             models.CheckConstraint(
                 condition=(
-                    (
-                        Q(file_auto_hard_delete_at__isnull=True)
-                        & Q(file_auto_hard_delete_at_with_grace_period__isnull=True)
-                    )
-                    | Q(
+                    Q(
                         file_auto_hard_delete_at__lte=F(
                             "file_auto_hard_delete_at_with_grace_period"
                         )
@@ -456,9 +423,13 @@ class File(BaseModel):
         if is_new:
             self.upload_state = FileUploadStateChoices.PENDING
             self.lifecycle_state = FileLifecycleStateChoices.ACTIVE
+            # The snapshot fields are required at the database level. Populate
+            # provisional values before the insert; they are recalculated below
+            # once auto_now_add has assigned created_at.
+            self._set_configuration_snapshot(timezone.now())
 
         super().save(*args, **kwargs)
-        if is_new and self.creator_id:
+        if is_new:
             self._set_configuration_snapshot()
             super().save(
                 update_fields=[
@@ -470,10 +441,11 @@ class File(BaseModel):
                 ]
             )
 
-    def _set_configuration_snapshot(self):
+    def _set_configuration_snapshot(self, reference_time=None):
         """Persist the configuration selected by the creator's email domain."""
         profile = get_profile_for_email(self.creator.email if self.creator_id else None)
-        for field, value in profile.as_file_snapshot(self.created_at).items():
+        reference_time = reference_time or self.created_at
+        for field, value in profile.as_file_snapshot(reference_time).items():
             setattr(self, field, value)
 
     @property
