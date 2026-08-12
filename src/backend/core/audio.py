@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from django.conf import settings
+
 from core.storage import get_storage_bucket_name, get_storage_for_file
 
 
@@ -29,6 +31,7 @@ def _run_checked(
             stdout=subprocess.PIPE if capture_stdout else subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
+            timeout=settings.MEDIA_COMMAND_TIMEOUT_SECONDS,
         )
     except (FileNotFoundError, OSError) as exc:
         raise AudioExtractionRetryableError(
@@ -39,6 +42,8 @@ def _run_checked(
         raise AudioExtractionError(
             f"Media processing failed{f': {details}' if details else ''}"
         ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise AudioExtractionError("Media processing timed out") from exc
 
 
 def _probe_output(  # pylint: disable=too-many-boolean-expressions

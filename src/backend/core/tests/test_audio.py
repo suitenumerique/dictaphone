@@ -1,6 +1,7 @@
 """Tests for validated audio extraction and its task state machine."""
 
 import json
+import subprocess
 from io import BytesIO
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -13,6 +14,7 @@ from core import analytics, factories
 from core.audio import (
     AudioExtractionError,
     AudioExtractionRetryableError,
+    _run_checked,
     extract_audio_to_storage,
 )
 from core.models import (
@@ -27,6 +29,20 @@ from core.tasks.file import (
 )
 
 pytestmark = pytest.mark.django_db
+
+
+def test_run_checked_passes_timeout_and_converts_timeout_errors(settings):
+    """Media command timeouts become permanent extraction errors."""
+    settings.MEDIA_COMMAND_TIMEOUT_SECONDS = 12
+
+    with patch(
+        "core.audio.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(["ffmpeg"], 12),
+    ) as run:
+        with pytest.raises(AudioExtractionError, match="timed out"):
+            _run_checked(["ffmpeg"])
+
+    assert run.call_args.kwargs["timeout"] == 12
 
 
 def test_extract_audio_to_storage_streams_source_and_uploads_high_quality_ogg():

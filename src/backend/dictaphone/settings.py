@@ -150,6 +150,11 @@ class Base(Configuration):
     }
 
     # Media
+    MEDIA_COMMAND_TIMEOUT_SECONDS = values.PositiveIntegerValue(
+        10 * 60,
+        environ_name="MEDIA_COMMAND_TIMEOUT_SECONDS",
+        environ_prefix=None,
+    )
     AWS_S3_UPLOAD_POLICY_EXPIRATION = values.Value(
         60,  # 1 minute
         environ_name="AWS_S3_UPLOAD_POLICY_EXPIRATION",
