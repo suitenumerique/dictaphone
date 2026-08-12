@@ -46,8 +46,8 @@ def test_run_checked_passes_timeout_and_converts_timeout_errors(settings):
     assert run.call_args.kwargs["timeout"] == 12
 
 
-def test_extract_audio_to_storage_streams_source_and_uploads_high_quality_ogg():
-    """Conversion should use disk-backed files and preserve channel information."""
+def test_extract_audio_to_storage_streams_source_and_uploads_normalized_ogg():
+    """Conversion should produce a compact mono Opus transcription input."""
     file = factories.FileFactory(filename="recording.webm")
     storage = get_storage_for_file(file)
     captured_commands = []
@@ -66,7 +66,7 @@ def test_extract_audio_to_storage_streams_source_and_uploads_high_quality_ogg():
                         {
                             "codec_type": "audio",
                             "codec_name": "opus",
-                            "channels": 2,
+                            "channels": 1,
                             "sample_rate": "48000",
                         }
                     ],
@@ -87,8 +87,9 @@ def test_extract_audio_to_storage_streams_source_and_uploads_high_quality_ogg():
     ffmpeg_command = next(
         command for command in captured_commands if command[0] == "ffmpeg"
     )
-    assert ffmpeg_command[ffmpeg_command.index("-b:a") + 1] == "256k"
-    assert "-ac" not in ffmpeg_command
+    assert ffmpeg_command[ffmpeg_command.index("-ac") + 1] == "1"
+    assert ffmpeg_command[ffmpeg_command.index("-b:a") + 1] == "64k"
+    assert ffmpeg_command[ffmpeg_command.index("-ar") + 1] == "16000"
     upload.assert_called_once()
     assert upload.call_args.args[2] == file.audio_file_key
     assert upload.call_args.kwargs["ExtraArgs"] == {"ContentType": "audio/ogg"}
