@@ -298,10 +298,21 @@ def extract_audio(file_id, ai_job_id=None, language=None):
         raise
 
     _log_suspicious_duration(file, duration_seconds)
-    File.objects.filter(pk=file.pk).update(
+    updated = File.objects.filter(
+        pk=file.pk,
+        deleted_at__isnull=True,
+        lifecycle_state=FileLifecycleStateChoices.ACTIVE,
+    ).update(
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=duration_seconds,
     )
+    if updated == 0:
+        _delete_extracted_audio(file)
+        File.objects.filter(pk=file.pk).update(
+            audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        )
+        return None
+
     _capture_audio_extraction_event(
         analytics.EventName.AUDIO_EXTRACTION_SUCCESS,
         file,

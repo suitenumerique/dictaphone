@@ -123,6 +123,43 @@ def test_extract_audio_marks_done_and_queues_transcription(
     mock_transcribe.assert_called_once_with(file.id)
 
 
+@pytest.mark.parametrize("hard_delete", [False, True], ids=["deleted", "hard-deleted"])
+def test_extract_audio_does_not_record_success_after_file_deletion(
+    hard_delete,
+):
+    """Extraction results are discarded when deletion wins the race."""
+    file = factories.FileFactory(upload_bytes=b"source")
+    storage = get_storage_for_file(file)
+    initial_duration = file.duration_seconds
+
+    def extract_and_delete(file_to_extract):
+        storage.save(file_to_extract.audio_file_key, BytesIO(b"extracted audio"))
+        file_to_extract.soft_delete()
+        if hard_delete:
+            file_to_extract.hard_delete()
+        return 42.25
+
+    with (
+        patch(
+            "core.tasks.file.extract_audio_to_storage",
+            side_effect=extract_and_delete,
+        ),
+        patch("core.tasks.file.call_transcribe_service.delay") as mock_transcribe,
+        patch("core.tasks.file.analytics.capture_event") as capture_event,
+    ):
+        assert extract_audio(file.id) is None
+
+    file.refresh_from_db()
+    assert file.duration_seconds == initial_duration
+    assert (
+        file.audio_extraction_state
+        == FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+    )
+    assert not storage.exists(file.audio_file_key)
+    mock_transcribe.assert_not_called()
+    capture_event.assert_not_called()
+
+
 def test_extract_audio_records_success_analytics_and_warns_on_duration_difference(
     caplog,
 ):
