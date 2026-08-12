@@ -43,10 +43,12 @@ def test_frontend_configuration_exposes_base_settings(settings):
     content = response.json()
     assert content["LANGUAGE_CODE"] == "fr-fr"
     assert content["data_policy"] == {
+        "is_relative_to_user": False,
         "file_auto_hard_delete_after_days": 365,
         "original_file_data_delete_after_days": 31,
     }
     assert content["docs_integration_enabled"] is True
+    assert content["docs_integration_supports_synchroneous_calls"] is True
     assert content["feature_flags"] == {"new_editor": True}
 
 
@@ -68,6 +70,7 @@ def test_frontend_configuration_uses_authenticated_user_domain_profile(settings)
 
     assert response.status_code == 200
     assert response.json()["data_policy"] == {
+        "is_relative_to_user": True,
         "file_auto_hard_delete_after_days": 90,
         "original_file_data_delete_after_days": 14,
     }

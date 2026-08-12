@@ -65,10 +65,12 @@ def get_app_configuration(request):
             ]["max_duration_seconds"],
         },
         "data_policy": {
+            "is_relative_to_user": request.user.is_authenticated,
             "file_auto_hard_delete_after_days": profile.file_auto_hard_delete_after_days,
             "original_file_data_delete_after_days": profile.original_file_data_delete_after_days,
         },
         "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
+        "docs_integration_supports_synchroneous_calls": settings.DOCS_INTEGRATION_ENABLED,
         "mobile_app": {
             "ios_download_link": settings.MOBILE_APP_IOS_DOWNLOAD_LINK,
             "android_download_link": settings.MOBILE_APP_ANDROID_DOWNLOAD_LINK,
