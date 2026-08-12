@@ -63,9 +63,28 @@ def test_profiles_are_normalized_and_resolved(settings):
     assert profile.bucket == "alpha"
     assert profile.storage_bucket_name == "dictaphone-media-alpha"
     assert profile.file_auto_hard_delete_after_days == 10
+    assert profile.auto_create_in_docs is True
+    assert profile.send_notification_email is False
     assert profile.original_file_data_delete_after_days == (
         settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
     )
+
+
+def test_data_policy_notification_and_docs_options_are_configurable(settings):
+    """Data policy options should be resolved with their documented defaults."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {
+            "default": True,
+            "auto_create_in_docs": False,
+            "send_notification_email": True,
+        }
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+
+    profile = get_profile_for_email("user@example.com")
+
+    assert profile.auto_create_in_docs is False
+    assert profile.send_notification_email is True
 
 
 def test_runtime_configuration_is_resolved_once(settings):

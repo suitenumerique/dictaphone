@@ -138,6 +138,8 @@ class DataPolicyConfiguration(BaseModel):
     default: bool = False
     domains: tuple[str, ...] = Field(default_factory=tuple)
     bucket: str = "default"
+    auto_create_in_docs: bool = True
+    send_notification_email: bool = False
     trashbin_cutoff_days: int | None = Field(default=None, ge=0)
     purge_grace_days: int | None = Field(default=None, ge=0)
     original_file_data_delete_after_days: int | None = Field(default=None, ge=0)
@@ -220,6 +222,8 @@ class ResolvedDomainProfile(BaseModel):
     domains: tuple[str, ...]
     bucket: str
     storage_bucket_name: str
+    auto_create_in_docs: bool
+    send_notification_email: bool
     trashbin_cutoff_days: int = Field(ge=0)
     purge_grace_days: int = Field(ge=0)
     original_file_data_delete_after_days: int = Field(ge=0)

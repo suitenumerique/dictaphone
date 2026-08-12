@@ -281,6 +281,9 @@ def test_task_store_transcript_and_call_summary_success(
     """Transcript should be stored, transcript job marked success and summary job created."""
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True, "send_notification_email": True}
+    }
     ai_transcript_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.PENDING,
@@ -391,14 +394,36 @@ def test_task_store_transcript_and_call_summary_success(
     )
 
 
+@pytest.mark.parametrize(
+    ("auto_create_in_docs", "send_notification_email"),
+    [
+        (False, False),
+        (False, True),
+        (True, False),
+        (True, True),
+    ],
+)
 @patch("core.tasks.file.send_transcription_ready_email.apply_async")
 @patch("core.tasks.file.create_document_in_docs.apply_async")
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.session.get")
-def test_task_store_empty_transcript_without_calling_summary(
-    mock_get, mock_post, mock_create_document_in_docs, mock_send_email
+def test_task_store_empty_transcript_without_calling_summary(  # noqa: PLR0913 pylint: disable=too-many-arguments,too-many-positional-arguments
+    mock_get,
+    mock_post,
+    mock_create_document_in_docs,
+    mock_send_email,
+    settings,
+    auto_create_in_docs,
+    send_notification_email,
 ):
-    """A no-audio transcript should be stored without scheduling a summary."""
+    """A no-audio transcript should honor the Docs and email policy options."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {
+            "default": True,
+            "auto_create_in_docs": auto_create_in_docs,
+            "send_notification_email": send_notification_email,
+        }
+    }
     ai_transcript_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.PENDING,
@@ -408,8 +433,16 @@ def test_task_store_empty_transcript_without_calling_summary(
 
     mock_get.assert_not_called()
     mock_post.assert_not_called()
-    mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
-    mock_send_email.assert_called_once_with(args=[ai_transcript_job.id])
+    if auto_create_in_docs:
+        mock_create_document_in_docs.assert_called_once_with(
+            args=[ai_transcript_job.id]
+        )
+    else:
+        mock_create_document_in_docs.assert_not_called()
+    if send_notification_email:
+        mock_send_email.assert_called_once_with(args=[ai_transcript_job.id])
+    else:
+        mock_send_email.assert_not_called()
 
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
@@ -648,7 +681,7 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
             "content": "# Transcript",
             "email": ai_transcript_job.file.creator.email,
             "sub": ai_transcript_job.file.creator.sub,
-            "send_notification_email": False,
+            "send_notification_email": True,
         },
         headers={"Authorization": "Bearer docs-api-key"},
         timeout=(20, 3 * 60),

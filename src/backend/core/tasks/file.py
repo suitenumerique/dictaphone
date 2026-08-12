@@ -18,6 +18,7 @@ from core.audio import (
     AudioExtractionRetryableError,
     extract_audio_to_storage,
 )
+from core.configuration import get_profile_for_email
 from core.models import (
     AiFileJob,
     AiJobStatusChoices,
@@ -495,10 +496,6 @@ def handle_transcript_received(remote_job_id, url: str | None):
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
     ai_transcript_job.save()
 
-    send_transcription_ready_email.apply_async(
-        args=[ai_transcript_job.id],
-    )
-
     analytics.capture_event(
         analytics.EventName.TRANSCRIPT_GENERATION_SUCCESS,
         user=ai_transcript_job.file.creator,
@@ -514,10 +511,16 @@ def handle_transcript_received(remote_job_id, url: str | None):
         },
     )
 
-    create_document_in_docs.apply_async(args=[ai_transcript_job.id])
+    profile = get_profile_for_email(file.creator.email)
+    if profile.auto_create_in_docs:
+        create_document_in_docs.apply_async(args=[ai_transcript_job.id])
 
     if len(transcript.segments) == 0 and len(transcript.word_segments) == 0:
         logger.info("Transcript is empty, skipping summary")
+        if profile.send_notification_email:
+            send_transcription_ready_email.apply_async(
+                args=[ai_transcript_job.id],
+            )
         return
 
     ai_summary_job = AiFileJob.objects.create(
@@ -553,6 +556,11 @@ def handle_transcript_received(remote_job_id, url: str | None):
     ai_summary_job.save()
 
     logger.info("Summary job created for file %s", file.id)
+
+    if profile.send_notification_email:
+        send_transcription_ready_email.apply_async(
+            args=[ai_transcript_job.id],
+        )
 
 
 @app.task(
@@ -620,7 +628,7 @@ def create_document_in_docs(ai_job_id):
                 "content": content,
                 "email": ai_job.file.creator.email,
                 "sub": ai_job.file.creator.sub,
-                "send_notification_email": False,
+                "send_notification_email": True,
             },
             headers={
                 "Authorization": f"Bearer {settings.DOCS_SERVER_TO_SERVER_API_KEY}",
