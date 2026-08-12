@@ -409,6 +409,7 @@ celeryAudioExtractor:
     - "dictaphone.celery_app"
     - "worker"
     - "--loglevel=info"
+    - "--concurrency=1"
     - "-Q"
     - "dictaphone-audio"
 

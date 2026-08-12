@@ -177,7 +177,7 @@ add_header Content-Disposition "attachment";
 | Name                        | Description                                                    | Value                                                                                       |
 | --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `celeryAudioExtractor.dpAnnotations` | Annotations to add to the audio worker Deployment       | `{}`                                                                                        |
-| `celeryAudioExtractor.command`       | Command used by the audio extraction worker             | `["celery","-A","dictaphone.celery_app","worker","--loglevel=info","-Q","dictaphone-audio"]` |
+| `celeryAudioExtractor.command`       | Command used by the audio extraction worker             | `["celery","-A","dictaphone.celery_app","worker","--loglevel=info","--concurrency=1","-Q","dictaphone-audio"]` |
 | `celeryAudioExtractor.args`          | Additional audio worker arguments                        | `[]`                                                                                        |
 | `celeryAudioExtractor.replicas`      | Amount of audio worker replicas                         | `1`                                                                                         |
 | `celeryAudioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
