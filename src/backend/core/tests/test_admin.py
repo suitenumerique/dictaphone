@@ -108,10 +108,10 @@ def test_file_admin_can_only_reset_audio_extraction_to_pending():
     ]
 
     reset_form = FileAdminForm(
-        data={"audio_extraction_state": pending},
+        data={**form.initial, "audio_extraction_state": pending},
         instance=file,
     )
-    assert "audio_extraction_state" not in reset_form.errors
+    assert reset_form.is_valid()
 
     pending_file = factories.FileFactory(audio_extraction_state=pending)
     successful_form = FileAdminForm(
