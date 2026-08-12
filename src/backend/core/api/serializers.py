@@ -85,7 +85,13 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
     pending_jobs = (
         models.AiFileJob.objects.filter(status=models.AiJobStatusChoices.PENDING)
         .select_related("file")
-        .only("id", "type", "created_at", "file__duration_seconds")
+        .only(
+            "id",
+            "type",
+            "created_at",
+            "file__duration_seconds",
+            "file__audio_extraction_state",
+        )
         .order_by("created_at", "id")
     )
     throughput_by_type = {}
@@ -165,9 +171,8 @@ class AiJobSerializer(serializers.ModelSerializer):
             "ai_job_processing_expected_end_at_by_id",
             {},
         )
-        estimate = expected_end_at_by_job_id.get(ai_job.id)
-        if estimate is not None:
-            return estimate
+        if ai_job.id in expected_end_at_by_job_id:
+            return expected_end_at_by_job_id[ai_job.id]
 
         return _build_processing_expected_end_at_by_pending_job_id().get(ai_job.id)
 
