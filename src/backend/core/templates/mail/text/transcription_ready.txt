@@ -1,0 +1,9 @@
+{% load i18n %}{{ title|capfirst }}
+
+{{ message|capfirst }}
+{{ link_label }}: {{ link }}
+
+{{ button_label }}: {{ link }}
+
+{% blocktrans %}Brought to you by {{ brandname }}.{% endblocktrans %}
+{% if support_email %}{% blocktrans %}Need help? Contact {{ support_email }}.{% endblocktrans %}{% endif %}

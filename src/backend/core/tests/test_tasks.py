@@ -267,11 +267,16 @@ def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
     mock_post.assert_not_called()
 
 
+@patch("core.tasks.file.send_transcription_ready_email.apply_async")
 @patch("core.tasks.file.create_document_in_docs.apply_async")
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_success(
-    mock_get, mock_post, mock_create_document_in_docs, settings
+    mock_get,
+    mock_post,
+    mock_create_document_in_docs,
+    mock_send_email,
+    settings,
 ):
     """Transcript should be stored, transcript job marked success and summary job created."""
     settings.AI_SERVICE_URL = "http://ai-service/"
@@ -363,6 +368,7 @@ def test_task_store_transcript_and_call_summary_success(
         "content": "\n\n**SPEAKER_00**: Bonjour",
     }
     mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
+    mock_send_email.assert_called_once_with(args=[ai_transcript_job.id])
 
     s3_client = default_storage.connection.meta.client
     stored_obj = s3_client.get_object(
@@ -385,11 +391,12 @@ def test_task_store_transcript_and_call_summary_success(
     )
 
 
+@patch("core.tasks.file.send_transcription_ready_email.apply_async")
 @patch("core.tasks.file.create_document_in_docs.apply_async")
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.session.get")
 def test_task_store_empty_transcript_without_calling_summary(
-    mock_get, mock_post, mock_create_document_in_docs
+    mock_get, mock_post, mock_create_document_in_docs, mock_send_email
 ):
     """A no-audio transcript should be stored without scheduling a summary."""
     ai_transcript_job = factories.AiFileJobFactory(
@@ -402,6 +409,7 @@ def test_task_store_empty_transcript_without_calling_summary(
     mock_get.assert_not_called()
     mock_post.assert_not_called()
     mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
+    mock_send_email.assert_called_once_with(args=[ai_transcript_job.id])
 
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
@@ -640,6 +648,7 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
             "content": "# Transcript",
             "email": ai_transcript_job.file.creator.email,
             "sub": ai_transcript_job.file.creator.sub,
+            "send_notification_email": False,
         },
         headers={"Authorization": "Bearer docs-api-key"},
         timeout=(20, 3 * 60),

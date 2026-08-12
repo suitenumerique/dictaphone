@@ -28,6 +28,7 @@ from core.models import (
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.constants import AUDIO_EXTRACTION_QUEUE, BACKEND_QUEUE
+from core.tasks.mail import send_transcription_ready_email
 from core.tasks.retry import build_retry_task_options
 from core.utils import format_transcript, generate_download_file_url
 from core.webhook_models import WhisperXResponse
@@ -494,6 +495,10 @@ def handle_transcript_received(remote_job_id, url: str | None):
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
     ai_transcript_job.save()
 
+    send_transcription_ready_email.apply_async(
+        args=[ai_transcript_job.id],
+    )
+
     analytics.capture_event(
         analytics.EventName.TRANSCRIPT_GENERATION_SUCCESS,
         user=ai_transcript_job.file.creator,
@@ -615,6 +620,7 @@ def create_document_in_docs(ai_job_id):
                 "content": content,
                 "email": ai_job.file.creator.email,
                 "sub": ai_job.file.creator.sub,
+                "send_notification_email": False,
             },
             headers={
                 "Authorization": f"Bearer {settings.DOCS_SERVER_TO_SERVER_API_KEY}",

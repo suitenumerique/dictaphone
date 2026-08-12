@@ -8,80 +8,130 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-31 17:29+0000\n"
+"POT-Creation-Date: 2026-08-12 13:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: en_US\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: core/admin.py:51
+#: core/admin.py:104
+msgid "Audio extraction can only be reset to pending by an admin."
+msgstr "Audio extraction can only be reset to pending by an admin."
+
+#: core/admin.py:112
+msgid "latest transcript job status"
+msgstr "latest transcript job status"
+
+#: core/admin.py:117
+msgid "No transcript job"
+msgstr "No transcript job"
+
+#: core/admin.py:146
 msgid "Personal info"
 msgstr "Personal info"
 
-#: core/admin.py:64
+#: core/admin.py:160
 msgid "Permissions"
 msgstr "Permissions"
 
-#: core/admin.py:76
+#: core/admin.py:172
 msgid "Important dates"
 msgstr "Important dates"
 
-#: core/admin.py:184
+#: core/admin.py:319
 msgid "Content"
-msgstr "Conent"
+msgstr "Content"
 
-#: core/admin.py:195
+#: core/admin.py:331
 msgid "Deletion"
 msgstr "Deletion"
 
-#: core/admin.py:204
+#: core/admin.py:340
+msgid "Storage and retention"
+msgstr "Storage and retention"
+
+#: core/admin.py:354
 msgid "Derived info"
 msgstr "Derived info"
 
-#: core/admin.py:215 core/admin.py:270
+#: core/admin.py:364 core/admin.py:525
 msgid "Timestamps"
 msgstr "Timestamps"
+
+#: core/admin.py:388
+msgid "Latest transcript job status"
+msgstr "Latest transcript job status"
+
+#: core/admin.py:397
+msgid "Audio extraction status"
+msgstr "Audio extraction status"
+
+#: core/admin.py:405
+msgid "Latest transcript job created on"
+msgstr "Latest transcript job created on"
+
+#: core/admin.py:421
+msgid "Retry transcript generation"
+msgstr "Retry transcript generation"
+
+#: core/admin.py:429
+msgid "Invalid language selected."
+msgstr "Invalid language selected."
+
+#: core/admin.py:439 core/admin.py:470
+#, python-format
+msgid "%(count)s transcript retry job(s) enqueued."
+msgstr "%(count)s transcript retry job(s) enqueued."
+
+#: core/admin.py:443
+msgid "Retry transcript generation with latest job language"
+msgstr "Retry transcript generation with latest job language"
+
+#: core/admin.py:476
+#, python-format
+msgid "%(count)s file(s) skipped because no transcript job was found."
+msgstr "%(count)s file(s) skipped because no transcript job was found."
 
 #: core/api/filters.py:25
 msgid "Creator is me"
 msgstr "Creator is me"
 
-#: core/api/serializers.py:170
+#: core/api/serializers.py:388
 msgid "This file extension is not allowed."
 msgstr "This file extension is not allowed."
 
-#: core/api/serializers.py:187 core/api/viewsets.py:299
+#: core/api/serializers.py:405 core/api/viewsets.py:317
 msgid "You have reached the maximum number of files for this type."
 msgstr "You have reached the maximum number of files for this type."
 
-#: core/models.py:50
+#: core/models.py:60
 msgid "id"
 msgstr "id"
 
-#: core/models.py:51
+#: core/models.py:61
 msgid "primary key for the record as UUID"
 msgstr "primary key for the record as UUID"
 
-#: core/models.py:57
+#: core/models.py:67
 msgid "created on"
 msgstr "created on"
 
-#: core/models.py:58
+#: core/models.py:68
 msgid "date and time at which a record was created"
 msgstr "date and time at which a record was created"
 
-#: core/models.py:63
+#: core/models.py:73
 msgid "updated on"
 msgstr "updated on"
 
-#: core/models.py:64
+#: core/models.py:74
 msgid "date and time at which a record was last updated"
 msgstr "date and time at which a record was last updated"
 
-#: core/models.py:84
+#: core/models.py:94
 msgid ""
 "Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
 "_ characters."
@@ -89,67 +139,67 @@ msgstr ""
 "Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
 "_ characters."
 
-#: core/models.py:90
+#: core/models.py:100
 msgid "sub"
 msgstr "sub"
 
-#: core/models.py:92
+#: core/models.py:102
 msgid ""
 "Optional for pending users; required upon account activation. 255 characters "
 "or fewer. Letters, numbers, and @/./+/-/_ characters only."
 msgstr ""
-"Required. 255 characters or fewer. Letters, numbers, and @/./+/-/_ "
-"characters only."
+"Optional for pending users; required upon account activation. 255 characters "
+"or fewer. Letters, numbers, and @/./+/-/_ characters only."
 
-#: core/models.py:101
+#: core/models.py:111
 msgid "identity email address"
 msgstr "identity email address"
 
-#: core/models.py:106
+#: core/models.py:116
 msgid "admin email address"
 msgstr "admin email address"
 
-#: core/models.py:108
+#: core/models.py:118
 msgid "full name"
 msgstr "full name"
 
-#: core/models.py:110
+#: core/models.py:120
 msgid "short name"
 msgstr "short name"
 
-#: core/models.py:116
+#: core/models.py:126
 msgid "language"
 msgstr "language"
 
-#: core/models.py:117
+#: core/models.py:127
 msgid "The language in which the user wants to see the interface."
 msgstr "The language in which the user wants to see the interface."
 
-#: core/models.py:123
+#: core/models.py:133
 msgid "The timezone in which the user wants to see times."
 msgstr "The timezone in which the user wants to see times."
 
-#: core/models.py:126
+#: core/models.py:136
 msgid "device"
 msgstr "device"
 
-#: core/models.py:128
+#: core/models.py:138
 msgid "Whether the user is a device or a real user."
 msgstr "Whether the user is a device or a real user."
 
-#: core/models.py:131
+#: core/models.py:141
 msgid "staff status"
 msgstr "staff status"
 
-#: core/models.py:133
+#: core/models.py:143
 msgid "Whether the user can log into this admin site."
 msgstr "Whether the user can log into this admin site."
 
-#: core/models.py:136
+#: core/models.py:146
 msgid "active"
 msgstr "active"
 
-#: core/models.py:139
+#: core/models.py:149
 msgid ""
 "Whether this user should be treated as active. Unselect this instead of "
 "deleting accounts."
@@ -157,92 +207,178 @@ msgstr ""
 "Whether this user should be treated as active. Unselect this instead of "
 "deleting accounts."
 
-#: core/models.py:152
+#: core/models.py:154
+msgid "show mobile app popup"
+msgstr "show mobile app popup"
+
+#: core/models.py:156
+msgid "Whether to show the mobile app popup to the user."
+msgstr "Whether to show the mobile app popup to the user."
+
+#: core/models.py:167
 msgid "user"
 msgstr "user"
 
-#: core/models.py:153
+#: core/models.py:168
 msgid "users"
 msgstr "users"
 
-#: core/models.py:203 core/models.py:421
-#, fuzzy
-#| msgid "Recording"
+#: core/models.py:222 core/models.py:645
 msgid "Pending"
 msgstr "Pending"
 
-#: core/models.py:211
+#: core/models.py:223
+msgid "Analyzing"
+msgstr "Analyzing"
+
+#: core/models.py:230
 msgid "Ready"
 msgstr "Ready"
 
-#: core/models.py:217
+#: core/models.py:236
+msgid "Pending audio extraction"
+msgstr "Pending audio extraction"
+
+#: core/models.py:237
+msgid "Extracting audio"
+msgstr "Extracting audio"
+
+#: core/models.py:238
+msgid "Audio extraction done"
+msgstr "Audio extraction done"
+
+#: core/models.py:239
+msgid "Audio extraction failed"
+msgstr "Audio extraction failed"
+
+#: core/models.py:245
+msgid "Active"
+msgstr "Active"
+
+#: core/models.py:248
+msgid "Pending original data deletion"
+msgstr "Pending original data deletion"
+
+#: core/models.py:250
+msgid "Original data deleted"
+msgstr "Original data deleted"
+
+#: core/models.py:251
+msgid "Pending auto hard delete"
+msgstr "Pending auto hard delete"
+
+#: core/models.py:257
 msgid "Audio recording"
 msgstr "Audio recording"
 
-#: core/models.py:229
+#: core/models.py:263
+msgid "Unknown"
+msgstr "Unknown"
+
+#: core/models.py:264
+msgid "Web recording"
+msgstr "Web recording"
+
+#: core/models.py:265
+msgid "Web file upload"
+msgstr "Web file upload"
+
+#: core/models.py:266
+msgid "Mobile recording"
+msgstr "Mobile recording"
+
+#: core/models.py:267
+msgid "Mobile file upload"
+msgstr "Mobile file upload"
+
+#: core/models.py:279
 msgid "title"
 msgstr "title"
 
-#: core/models.py:254
+#: core/models.py:319
 msgid "Malware detection info when the analysis status is unsafe."
 msgstr "Malware detection info when the analysis status is unsafe."
 
-#: core/models.py:259
+#: core/models.py:336
 msgid "File"
 msgstr "File"
 
-#: core/models.py:260
+#: core/models.py:337
 msgid "Files"
 msgstr "Files"
 
-#: core/models.py:369
-#, fuzzy
-#| msgid "This user is already in this recording."
+#: core/models.py:585
 msgid "This file is already hard deleted."
 msgstr "This file is already hard deleted."
 
-#: core/models.py:379
+#: core/models.py:595
 msgid "To hard delete a file, it must first be soft deleted."
 msgstr "To hard delete a file, it must first be soft deleted."
 
-#: core/models.py:396
-#, fuzzy
-#| msgid "This user is already in this recording."
+#: core/models.py:612
 msgid "This item is not deleted."
-msgstr "This file is already hard deleted."
+msgstr "This item is not deleted."
 
-#: core/models.py:406
+#: core/models.py:622
 msgid "This item was permanently deleted and cannot be restored."
 msgstr "This item was permanently deleted and cannot be restored."
 
-#: core/models.py:422
+#: core/models.py:646
 msgid "Success"
 msgstr "Success"
 
-#: core/models.py:423
+#: core/models.py:647
 msgid "Failed"
 msgstr "Failed"
 
-#: core/models.py:429
+#: core/models.py:653
 msgid "Transcript"
 msgstr "Transcript"
 
-#: core/models.py:430
+#: core/models.py:654
 msgid "Summary"
 msgstr "Summary"
 
-#: core/models.py:451
+#: core/models.py:681
 msgid "AiJob"
 msgstr "AiJob"
 
-#: core/models.py:452
+#: core/models.py:682
 msgid "AiJobs"
 msgstr "AiJobs"
 
-#: dictaphone/settings.py:249
+#: core/tasks/mail.py:71
+msgid "Your transcription is ready"
+msgstr "Your transcription is ready"
+
+#: core/tasks/mail.py:74
+msgid "Your recording has been transcribed:"
+msgstr "Your recording has been transcribed:"
+
+#: core/tasks/mail.py:77
+msgid "View transcription"
+msgstr "View transcription"
+
+#: core/templates/mail/html/transcription_ready.html:18
+msgid "Logo email"
+msgstr "Email logo"
+
+#: core/templates/mail/html/transcription_ready.html:24
+#: core/templates/mail/text/transcription_ready.txt:8
+#, python-format
+msgid "Brought to you by %(brandname)s."
+msgstr "Brought to you by %(brandname)s."
+
+#: core/templates/mail/html/transcription_ready.html:25
+#: core/templates/mail/text/transcription_ready.txt:9
+#, python-format
+msgid "Need help? Contact %(support_email)s."
+msgstr "Need help? Contact %(support_email)s."
+
+#: dictaphone/settings.py:348
 msgid "English"
 msgstr "English"
 
-#: dictaphone/settings.py:250
+#: dictaphone/settings.py:349
 msgid "French"
 msgstr "French"

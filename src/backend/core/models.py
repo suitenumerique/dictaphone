@@ -12,13 +12,14 @@ from typing import List
 from django.conf import settings
 from django.contrib.auth import models as auth_models
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.core import mail, validators
+from django.core import validators
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from celery import current_app
 from timezone_field import TimeZoneField
 
 from core.configuration import (
@@ -170,10 +171,14 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
         return self.email or self.admin_email or str(self.id)
 
     def email_user(self, subject, message, from_email=None, **kwargs):
-        """Email this user."""
+        """Queue an email to this user on the backend worker."""
         if not self.email:
             raise ValueError("User has no email address.")
-        mail.send_mail(subject, message, from_email, [self.email], **kwargs)
+        current_app.send_task(
+            "core.tasks.mail.send_email",
+            args=[subject, message, self.email],
+            kwargs={"from_email": from_email, **kwargs},
+        )
 
     def get_teams(self):
         """

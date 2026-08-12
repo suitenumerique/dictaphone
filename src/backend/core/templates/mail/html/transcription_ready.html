@@ -1,0 +1,30 @@
+<!doctype html>
+{% load i18n %}
+{% get_current_language as current_language %}
+<html lang="{{ current_language }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <style>
+      body { margin: 0; background: #f5f5fe; color: #161616; font-family: Arial, sans-serif; }
+      .container { max-width: 600px; margin: 32px auto; background: #fff; padding: 32px; }
+      .logo { max-width: 260px; max-height: 80px; }
+      .button { display: inline-block; background: #000091; color: #fff !important; padding: 12px 20px; text-decoration: none; }
+      .footer { margin-top: 32px; color: #666; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      {% if logo_img %}<p><img class="logo" src="{{ logo_img }}" alt="{% trans 'Logo email' %}"></p>{% endif %}
+      <h1>{{ title|capfirst }}</h1>
+      <p>{{ message|capfirst }}</p>
+      <p><a href="{{ link }}">{{ link_label }}</a></p>
+      <p><a class="button" href="{{ link }}">{{ button_label }}</a></p>
+      <p class="footer">
+        {% blocktrans %}Brought to you by {{ brandname }}.{% endblocktrans %}
+        {% if support_email %}<br>{% blocktrans %}Need help? Contact {{ support_email }}.{% endblocktrans %}{% endif %}
+      </p>
+    </main>
+  </body>
+</html>

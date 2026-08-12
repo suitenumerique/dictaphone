@@ -24,4 +24,4 @@ app.autodiscover_tasks()
 # The file tasks live in a module below the conventional ``tasks.py`` name.
 # Import it explicitly so every worker, including the dedicated audio worker,
 # registers the extraction task.
-app.conf.imports = ("core.tasks.file",)
+app.conf.imports = ("core.tasks.file", "core.tasks.mail")

@@ -26,14 +26,18 @@ def test_models_users_id_unique():
         factories.UserFactory(id=user.id)
 
 
-def test_models_users_send_mail_main_existing():
-    """The "email_user' method should send mail to the user's email address."""
+@mock.patch("celery.current_app.send_task")
+def test_models_users_send_mail_main_existing(mock_send_email):
+    """The "email_user" method should queue mail to the user's email address."""
     user = factories.UserFactory()
 
-    with mock.patch("django.core.mail.send_mail") as mock_send:
-        user.email_user("my subject", "my message")
+    user.email_user("my subject", "my message")
 
-    mock_send.assert_called_once_with("my subject", "my message", None, [user.email])
+    mock_send_email.assert_called_once_with(
+        "core.tasks.mail.send_email",
+        args=["my subject", "my message", user.email],
+        kwargs={"from_email": None},
+    )
 
 
 def test_models_users_send_mail_main_missing():

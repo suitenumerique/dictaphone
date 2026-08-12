@@ -8,82 +8,132 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-31 17:29+0000\n"
+"POT-Creation-Date: 2026-08-12 13:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: antoine.lebaud@mail.numerique.gouv.fr\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: fr_FR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: core/admin.py:51
+#: core/admin.py:104
+msgid "Audio extraction can only be reset to pending by an admin."
+msgstr "L'extraction audio ne peut être réinitialisée à l'état « en attente » que par un administrateur."
+
+#: core/admin.py:112
+msgid "latest transcript job status"
+msgstr "statut de la dernière tâche de transcription"
+
+#: core/admin.py:117
+msgid "No transcript job"
+msgstr "Aucune tâche de transcription"
+
+#: core/admin.py:146
 msgid "Personal info"
 msgstr "Informations personnelles"
 
-#: core/admin.py:64
+#: core/admin.py:160
 msgid "Permissions"
 msgstr "Permissions"
 
-#: core/admin.py:76
+#: core/admin.py:172
 msgid "Important dates"
 msgstr "Dates importantes"
 
-#: core/admin.py:184
+#: core/admin.py:319
 msgid "Content"
 msgstr "Contenu"
 
-#: core/admin.py:195
+#: core/admin.py:331
 msgid "Deletion"
 msgstr "Suppression"
 
-#: core/admin.py:204
+#: core/admin.py:340
+msgid "Storage and retention"
+msgstr "Stockage et conservation"
+
+#: core/admin.py:354
 msgid "Derived info"
 msgstr "Informations dérivées"
 
-#: core/admin.py:215 core/admin.py:270
+#: core/admin.py:364 core/admin.py:525
 msgid "Timestamps"
 msgstr "Timestamps"
+
+#: core/admin.py:388
+msgid "Latest transcript job status"
+msgstr "Statut de la dernière tâche de transcription"
+
+#: core/admin.py:397
+msgid "Audio extraction status"
+msgstr "Statut de l'extraction audio"
+
+#: core/admin.py:405
+msgid "Latest transcript job created on"
+msgstr "Date de création de la dernière tâche de transcription"
+
+#: core/admin.py:421
+msgid "Retry transcript generation"
+msgstr "Relancer la génération de la transcription"
+
+#: core/admin.py:429
+msgid "Invalid language selected."
+msgstr "La langue sélectionnée n'est pas valide."
+
+#: core/admin.py:439 core/admin.py:470
+#, python-format
+msgid "%(count)s transcript retry job(s) enqueued."
+msgstr "%(count)s tâche(s) de relance de transcription ajoutée(s) à la file."
+
+#: core/admin.py:443
+msgid "Retry transcript generation with latest job language"
+msgstr "Relancer la génération de la transcription avec la langue de la dernière tâche"
+
+#: core/admin.py:476
+#, python-format
+msgid "%(count)s file(s) skipped because no transcript job was found."
+msgstr "%(count)s fichier(s) ignoré(s), car aucune tâche de transcription n'a été trouvée."
 
 #: core/api/filters.py:25
 msgid "Creator is me"
 msgstr "Je suis le créateur"
 
-#: core/api/serializers.py:170
+#: core/api/serializers.py:388
 msgid "This file extension is not allowed."
 msgstr "Cette extension n'est pas autorisée"
 
-#: core/api/serializers.py:187 core/api/viewsets.py:299
+#: core/api/serializers.py:405 core/api/viewsets.py:317
 msgid "You have reached the maximum number of files for this type."
 msgstr "Vous avez atteint le nombre maximum de fichiers de ce type"
 
-#: core/models.py:50
+#: core/models.py:60
 msgid "id"
 msgstr "id"
 
-#: core/models.py:51
+#: core/models.py:61
 msgid "primary key for the record as UUID"
 msgstr "clé primaire pour l'enregistrement sous forme d'UUID"
 
-#: core/models.py:57
+#: core/models.py:67
 msgid "created on"
 msgstr "créé le"
 
-#: core/models.py:58
+#: core/models.py:68
 msgid "date and time at which a record was created"
 msgstr "date et heure auxquelles un enregistrement a été créé"
 
-#: core/models.py:63
+#: core/models.py:73
 msgid "updated on"
 msgstr "mis à jour le"
 
-#: core/models.py:64
+#: core/models.py:74
 msgid "date and time at which a record was last updated"
 msgstr ""
 "date et heure auxquelles un enregistrement a été mis à jour pour la dernière "
 "fois"
 
-#: core/models.py:84
+#: core/models.py:94
 msgid ""
 "Enter a valid sub. This value may contain only letters, numbers, and @/./+/-/"
 "_ characters."
@@ -91,11 +141,11 @@ msgstr ""
 "Entrez un sub valide. Cette valeur ne peut contenir que des lettres, des "
 "chiffres et les caractères @/./+/-/_."
 
-#: core/models.py:90
+#: core/models.py:100
 msgid "sub"
 msgstr "sub"
 
-#: core/models.py:92
+#: core/models.py:102
 msgid ""
 "Optional for pending users; required upon account activation. 255 characters "
 "or fewer. Letters, numbers, and @/./+/-/_ characters only."
@@ -103,55 +153,55 @@ msgstr ""
 "Optionnel pour les utilisateurs en attente ; requis lors de l'activation du "
 "compte. 255 caractères maximum. Lettres, chiffres et @/./+/-/_ uniquement."
 
-#: core/models.py:101
+#: core/models.py:111
 msgid "identity email address"
 msgstr "adresse e-mail d'identité"
 
-#: core/models.py:106
+#: core/models.py:116
 msgid "admin email address"
 msgstr "adresse e-mail d'administrateur"
 
-#: core/models.py:108
+#: core/models.py:118
 msgid "full name"
 msgstr "nom complet"
 
-#: core/models.py:110
+#: core/models.py:120
 msgid "short name"
 msgstr "nom court"
 
-#: core/models.py:116
+#: core/models.py:126
 msgid "language"
 msgstr "langue"
 
-#: core/models.py:117
+#: core/models.py:127
 msgid "The language in which the user wants to see the interface."
 msgstr "La langue dans laquelle l'utilisateur souhaite voir l'interface."
 
-#: core/models.py:123
+#: core/models.py:133
 msgid "The timezone in which the user wants to see times."
 msgstr "Le fuseau horaire dans lequel l'utilisateur souhaite voir les heures."
 
-#: core/models.py:126
+#: core/models.py:136
 msgid "device"
 msgstr "appareil"
 
-#: core/models.py:128
+#: core/models.py:138
 msgid "Whether the user is a device or a real user."
 msgstr "Si l'utilisateur est un appareil ou un utilisateur réel."
 
-#: core/models.py:131
+#: core/models.py:141
 msgid "staff status"
 msgstr "statut du personnel"
 
-#: core/models.py:133
+#: core/models.py:143
 msgid "Whether the user can log into this admin site."
 msgstr "Si l'utilisateur peut se connecter à ce site d'administration."
 
-#: core/models.py:136
+#: core/models.py:146
 msgid "active"
 msgstr "actif"
 
-#: core/models.py:139
+#: core/models.py:149
 msgid ""
 "Whether this user should be treated as active. Unselect this instead of "
 "deleting accounts."
@@ -159,93 +209,181 @@ msgstr ""
 "Si cet utilisateur doit être traité comme actif. Désélectionnez cette option "
 "au lieu de supprimer des comptes."
 
-#: core/models.py:152
+#: core/models.py:154
+msgid "show mobile app popup"
+msgstr "afficher la fenêtre contextuelle de l'application mobile"
+
+#: core/models.py:156
+msgid "Whether to show the mobile app popup to the user."
+msgstr "Indique s'il faut afficher la fenêtre contextuelle de l'application mobile à l'utilisateur."
+
+#: core/models.py:167
 msgid "user"
 msgstr "utilisateur"
 
-#: core/models.py:153
+#: core/models.py:168
 msgid "users"
 msgstr "utilisateurs"
 
-#: core/models.py:203 core/models.py:421
+#: core/models.py:222 core/models.py:645
 msgid "Pending"
 msgstr "En attente"
 
-#: core/models.py:211
+#: core/models.py:223
+msgid "Analyzing"
+msgstr "Analyse en cours"
+
+#: core/models.py:230
 msgid "Ready"
 msgstr "Prêt"
 
-#: core/models.py:217
+#: core/models.py:236
+msgid "Pending audio extraction"
+msgstr "Extraction audio en attente"
+
+#: core/models.py:237
+msgid "Extracting audio"
+msgstr "Extraction audio en cours"
+
+#: core/models.py:238
+msgid "Audio extraction done"
+msgstr "Extraction audio terminée"
+
+#: core/models.py:239
+msgid "Audio extraction failed"
+msgstr "Échec de l'extraction audio"
+
+#: core/models.py:245
+msgid "Active"
+msgstr "Actif"
+
+#: core/models.py:248
+msgid "Pending original data deletion"
+msgstr "Suppression des données originales en attente"
+
+#: core/models.py:250
+msgid "Original data deleted"
+msgstr "Données originales supprimées"
+
+#: core/models.py:251
+msgid "Pending auto hard delete"
+msgstr "Suppression définitive automatique en attente"
+
+#: core/models.py:257
 msgid "Audio recording"
 msgstr "Enregistrement audio"
 
-#: core/models.py:229
+#: core/models.py:263
+msgid "Unknown"
+msgstr "Inconnu"
+
+#: core/models.py:264
+msgid "Web recording"
+msgstr "Enregistrement Web"
+
+#: core/models.py:265
+msgid "Web file upload"
+msgstr "Importation d'un fichier depuis le Web"
+
+#: core/models.py:266
+msgid "Mobile recording"
+msgstr "Enregistrement mobile"
+
+#: core/models.py:267
+msgid "Mobile file upload"
+msgstr "Importation d'un fichier depuis un appareil mobile"
+
+#: core/models.py:279
 msgid "title"
 msgstr "Titre"
 
-#: core/models.py:254
+#: core/models.py:319
 msgid "Malware detection info when the analysis status is unsafe."
 msgstr ""
 "Information concernant la détection de Malware cand le statut n'est pas sain"
 
-#: core/models.py:259
+#: core/models.py:336
 msgid "File"
 msgstr "Fichier"
 
-#: core/models.py:260
+#: core/models.py:337
 msgid "Files"
 msgstr "Fichiers"
 
-#: core/models.py:369
-#, fuzzy
-#| msgid "This user is already in this recording."
+#: core/models.py:585
 msgid "This file is already hard deleted."
-msgstr "Ce fichier a été supprimé."
+msgstr "Ce fichier a déjà été supprimé définitivement."
 
-#: core/models.py:379
+#: core/models.py:595
 msgid "To hard delete a file, it must first be soft deleted."
 msgstr ""
 "Pour supprimer définitivement un fichier il doit d'abord avoir été marqué "
 "comme supprimé (soft delete)"
 
-#: core/models.py:396
-#, fuzzy
-#| msgid "This user is already in this recording."
+#: core/models.py:612
 msgid "This item is not deleted."
-msgstr "Ce fichier a été supprimé."
+msgstr "Cet élément n'est pas supprimé."
 
-#: core/models.py:406
+#: core/models.py:622
 msgid "This item was permanently deleted and cannot be restored."
-msgstr "The fichier a été supprimé de façon permanante, il ne peut pas être restauré."
+msgstr "Cet élément a été supprimé définitivement et ne peut pas être restauré."
 
-#: core/models.py:422
+#: core/models.py:646
 msgid "Success"
 msgstr "Succès"
 
-#: core/models.py:423
+#: core/models.py:647
 msgid "Failed"
 msgstr "Échec"
 
-#: core/models.py:429
+#: core/models.py:653
 msgid "Transcript"
 msgstr "Transcript"
 
-#: core/models.py:430
+#: core/models.py:654
 msgid "Summary"
 msgstr "Résumé"
 
-#: core/models.py:451
+#: core/models.py:681
 msgid "AiJob"
 msgstr "Tâche AI"
 
-#: core/models.py:452
+#: core/models.py:682
 msgid "AiJobs"
 msgstr "Tâches AI"
 
-#: dictaphone/settings.py:249
+#: core/tasks/mail.py:71
+msgid "Your transcription is ready"
+msgstr "Votre transcription est prête"
+
+#: core/tasks/mail.py:74
+msgid "Your recording has been transcribed:"
+msgstr "Votre enregistrement a été transcrit :"
+
+#: core/tasks/mail.py:77
+msgid "View transcription"
+msgstr "Voir la transcription"
+
+#: core/templates/mail/html/transcription_ready.html:18
+msgid "Logo email"
+msgstr "Logo de l'e-mail"
+
+#: core/templates/mail/html/transcription_ready.html:24
+#: core/templates/mail/text/transcription_ready.txt:8
+#, python-format
+msgid "Brought to you by %(brandname)s."
+msgstr "Proposé par %(brandname)s."
+
+#: core/templates/mail/html/transcription_ready.html:25
+#: core/templates/mail/text/transcription_ready.txt:9
+#, python-format
+msgid "Need help? Contact %(support_email)s."
+msgstr "Besoin d'aide ? Contactez %(support_email)s."
+
+#: dictaphone/settings.py:348
 msgid "English"
 msgstr "Anglais"
 
-#: dictaphone/settings.py:250
+#: dictaphone/settings.py:349
 msgid "French"
 msgstr "Français"
