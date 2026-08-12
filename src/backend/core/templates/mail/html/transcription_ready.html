@@ -7,24 +7,151 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
     <style>
-      body { margin: 0; background: #f5f5fe; color: #161616; font-family: Arial, sans-serif; }
-      .container { max-width: 600px; margin: 32px auto; background: #fff; padding: 32px; }
-      .logo { max-width: 260px; max-height: 80px; }
-      .button { display: inline-block; background: #000091; color: #fff !important; padding: 12px 20px; text-decoration: none; }
-      .footer { margin-top: 32px; color: #666; font-size: 13px; }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f6f6fe;
+        color: #1e1e2f;
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      .page {
+        width: 100%;
+        background-color: #f6f6fe;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 640px;
+        background-color: #ffffff;
+        border: 1px solid #e3e3fd;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0, 0, 145, 0.08);
+      }
+
+      .content {
+        padding: 48px 64px 52px;
+      }
+
+      .logo {
+        display: block;
+        width: auto;
+        max-width: 260px;
+        max-height: 80px;
+        margin: 0 auto;
+      }
+
+      .title {
+        margin: 32px 0 24px;
+        color: #161616;
+        font-size: 30px;
+        font-weight: 700;
+        line-height: 1.2;
+        text-align: center;
+      }
+
+      .message,
+      .recording,
+      .footer {
+        color: #575766;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .message {
+        margin: 0 0 8px;
+      }
+
+      .recording {
+        margin: 0;
+      }
+
+      .recording a {
+        color: #000091;
+        font-weight: 700;
+        text-decoration: underline;
+      }
+
+      .button-wrap {
+        padding: 28px 0 40px;
+        text-align: center;
+      }
+
+      .button {
+        display: inline-block;
+        min-width: 150px;
+        padding: 14px 24px;
+        background-color: #000091;
+        border-radius: 2px;
+        color: #ffffff !important;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1.25;
+        text-align: center;
+        text-decoration: none;
+      }
+
+      .divider {
+        width: 168px;
+        height: 1px;
+        margin: 0 auto 28px;
+        background-color: #e5e5e5;
+      }
+
+      .footer {
+        margin: 0;
+        color: #666666;
+      }
+
+      .footer a {
+        color: #000091;
+      }
+
+      @media only screen and (max-width: 640px) {
+        .content {
+          padding: 36px 24px 40px !important;
+        }
+
+        .title {
+          font-size: 26px !important;
+        }
+      }
     </style>
   </head>
   <body>
-    <main class="container">
-      {% if logo_img %}<p><img class="logo" src="{{ logo_img }}" alt="{% trans 'Logo email' %}"></p>{% endif %}
-      <h1>{{ title|capfirst }}</h1>
-      <p>{{ message|capfirst }}</p>
-      <p><a href="{{ link }}">{{ link_label }}</a></p>
-      <p><a class="button" href="{{ link }}">{{ button_label }}</a></p>
-      <p class="footer">
-        {% blocktrans %}Brought to you by {{ brandname }}.{% endblocktrans %}
-        {% if support_email %}<br>{% blocktrans %}Need help? Contact {{ support_email }}.{% endblocktrans %}{% endif %}
-      </p>
-    </main>
+    <table class="page" role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td align="center" style="padding: 32px 16px;">
+          <table class="card" role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td class="content">
+                {% if logo_img %}
+                  <img class="logo" src="{{ logo_img }}" alt="{% trans 'Logo email' %}">
+                {% endif %}
+
+                <h1 class="title">{{ title|capfirst }}</h1>
+
+                <p class="message">{{ message|capfirst }}</p>
+                <p class="recording">
+                  <a href="{{ link }}">{{ link_label }}</a>
+                </p>
+
+                <div class="button-wrap">
+                  <a class="button" href="{{ link }}">{{ button_label }}</a>
+                </div>
+
+                <div class="divider"></div>
+
+                <p class="footer">
+                  {% blocktrans %}Brought to you by {{ brandname }}.{% endblocktrans %}
+                  {% if support_email %}<br>{% blocktrans %}Need help? Contact {{ support_email }}.{% endblocktrans %}{% endif %}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
