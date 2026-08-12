@@ -20,6 +20,7 @@ from core.models import (
     FileLifecycleStateChoices,
 )
 from core.tasks.file import (
+    DocumentCreationAlreadyInProgress,
     call_transcribe_service,
     create_document_in_docs,
     handle_transcript_received,
@@ -650,6 +651,21 @@ def test_task_create_document_in_docs_ignores_existing_doc(mock_post):
     )
 
     create_document_in_docs(ai_transcript_job.id)
+
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.session.post")
+def test_task_create_document_in_docs_rejects_existing_creation_claim(mock_post):
+    """A claimed job must not call Docs a second time."""
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+        docs_creation_in_progress=True,
+    )
+
+    with pytest.raises(DocumentCreationAlreadyInProgress):
+        create_document_in_docs(ai_transcript_job.id)
 
     mock_post.assert_not_called()
 

@@ -36,6 +36,7 @@ from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.file import (
+    DocumentCreationAlreadyInProgress,
     call_transcribe_service,
     create_document_in_docs,
     handle_transcript_received,
@@ -766,7 +767,14 @@ class AiJobViewSet(
                 code="document_already_exists",
             )
 
-        create_document_in_docs(ai_job.id)
+        try:
+            create_document_in_docs(ai_job.id)
+        except DocumentCreationAlreadyInProgress as exc:
+            raise drf_exceptions.ValidationError(
+                {"docs_app_id": "Document creation is already in progress."},
+                code="document_creation_in_progress",
+            ) from exc
+
         ai_job.refresh_from_db()
         if ai_job.docs_app_id is None:
             raise RuntimeError(

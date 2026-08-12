@@ -675,6 +675,7 @@ class AiFileJob(BaseModel):
         default="fr",
     )
     docs_app_id = models.CharField(max_length=255, null=True, blank=True)
+    docs_creation_in_progress = models.BooleanField(default=False)
 
     class Meta:
         db_table = "ai_job"

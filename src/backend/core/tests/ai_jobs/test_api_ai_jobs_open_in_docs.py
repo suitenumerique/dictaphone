@@ -3,11 +3,13 @@
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
 from core.models import AiJobStatusChoices, AiJobTypeChoices
+from core.tasks.file import DocumentCreationAlreadyInProgress
 
 pytestmark = pytest.mark.django_db
 
@@ -129,6 +131,57 @@ def test_api_ai_jobs_create_in_docs_rejects_existing_document():
         "docs_app_id": "AI job is already associated with a document."
     }
     create_document.assert_not_called()
+
+
+def test_api_ai_jobs_create_in_docs_rejects_existing_creation_claim():
+    """A durable creation claim should prevent a concurrent Docs request."""
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        file__creator=user,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.SUCCESS,
+        docs_creation_in_progress=True,
+    )
+    client = APIClient()
+    client.force_login(user)
+
+    with patch(
+        "core.api.viewsets.create_document_in_docs",
+        side_effect=DocumentCreationAlreadyInProgress,
+    ) as create_document:
+        response = client.post(f"/api/v1.0/ai-jobs/{ai_job.id}/create-in-docs/")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "docs_app_id": "Document creation is already in progress."
+    }
+    create_document.assert_called_once_with(ai_job.id)
+
+
+def test_api_ai_jobs_create_in_docs_resets_claim_when_creation_fails():
+    """A confirmed creation failure should release the durable claim."""
+    user = factories.UserFactory()
+    ai_job = factories.AiFileJobFactory(
+        file__creator=user,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.SUCCESS,
+        docs_app_id=None,
+    )
+    client = APIClient()
+    client.force_login(user)
+    client.raise_request_exception = False
+
+    with patch("core.tasks.file.AiFileJob.to_markdown") as to_markdown:
+        with patch(
+            "core.tasks.file.session.post",
+            side_effect=requests.HTTPError("Docs API failed"),
+        ):
+            to_markdown.return_value = "# Transcript"
+            response = client.post(f"/api/v1.0/ai-jobs/{ai_job.id}/create-in-docs/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    ai_job.refresh_from_db()
+    assert ai_job.docs_creation_in_progress is False
 
 
 @patch("core.tasks.file.AiFileJob.to_markdown")

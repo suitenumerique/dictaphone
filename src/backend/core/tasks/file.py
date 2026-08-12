@@ -39,6 +39,10 @@ from dictaphone.celery_app import app
 logger = logging.getLogger(__name__)
 
 
+class DocumentCreationAlreadyInProgress(Exception):
+    """Raised when another worker already owns the Docs creation claim."""
+
+
 session = requests_lib.Session()
 session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 
@@ -618,6 +622,16 @@ def create_document_in_docs(ai_job_id):
         logger.info("Document already exists in Docs for file %s", ai_job.file.id)
         return
 
+    claimed = AiFileJob.objects.filter(
+        pk=ai_job.pk,
+        docs_app_id__isnull=True,
+        docs_creation_in_progress=False,
+    ).update(docs_creation_in_progress=True)
+    if not claimed:
+        raise DocumentCreationAlreadyInProgress(
+            f"Document creation is already in progress for AI job {ai_job.id}"
+        )
+
     content = ai_job.to_markdown(ai_job.file.creator.language)
 
     try:
@@ -635,28 +649,38 @@ def create_document_in_docs(ai_job_id):
             },
             timeout=(20, 3 * 60),
         )
+        if response.status_code != 201:
+            logger.error(
+                "Failed to create document in Docs for file %s: %s",
+                ai_job.file.id,
+                response.text,
+            )
+            AiFileJob.objects.filter(pk=ai_job.pk).update(
+                docs_creation_in_progress=False
+            )
+            response.raise_for_status()
+
+        docs_app_id = response.json()["id"]
+        logger.info(
+            "Document created in Docs for file %s => %s (in docs)",
+            ai_job.file.id,
+            docs_app_id,
+        )
+        AiFileJob.objects.filter(pk=ai_job.pk).update(
+            docs_app_id=docs_app_id,
+        )
     except requests_lib.ReadTimeout:
         logger.error(
             "Request to Docs timed out for file %s, "
             "do not considering this a failure to avoid creating multiple files on docs",
             ai_job.file.id,
         )
-        # We will "just" loose the link between the job and docs id but that's ok
+        # We will "just" lose the link between the job and docs id but that's ok
         return
-
-    if response.status_code != 201:
-        logger.error(
-            "Failed to create document in Docs for file %s: %s",
-            ai_job.file.id,
-            response.text,
+    except requests_lib.RequestException:
+        AiFileJob.objects.filter(pk=ai_job.pk).update(docs_creation_in_progress=False)
+        raise
+    finally:
+        AiFileJob.objects.filter(pk=ai_job.pk).update(
+            docs_creation_in_progress=False,
         )
-        response.raise_for_status()
-
-    docs_app_id = response.json()["id"]
-    logger.info(
-        "Document created in Docs for file %s => %s (in docs)",
-        ai_job.file.id,
-        docs_app_id,
-    )
-    ai_job.docs_app_id = docs_app_id
-    ai_job.save()
