@@ -27,6 +27,7 @@ from core.models import (
     FileLifecycleStateChoices,
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
+from core.tasks.constants import AUDIO_EXTRACTION_QUEUE, BACKEND_QUEUE
 from core.tasks.retry import build_retry_task_options
 from core.utils import format_transcript, generate_download_file_url
 from core.webhook_models import WhisperXResponse
@@ -39,10 +40,8 @@ logger = logging.getLogger(__name__)
 session = requests_lib.Session()
 session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 
-AUDIO_EXTRACTION_QUEUE = "dictaphone-audio"
 
-
-@app.task
+@app.task(queue=BACKEND_QUEUE)
 def process_file_deletion(file_id):
     """
     Process the deletion of a file.
@@ -72,7 +71,7 @@ def process_file_deletion(file_id):
     file.delete()
 
 
-@app.task
+@app.task(queue=BACKEND_QUEUE)
 def process_original_file_data_deletion(file_id):
     """Delete only original source file data and keep DB record."""
     logger.info("Processing original file data deletion for %s", file_id)
@@ -210,7 +209,10 @@ def _queue_transcription_if_ready(file, *, ai_job_id=None, language=None):
     )
 
 
-@app.task(**build_retry_task_options(autoretry_for=(AudioExtractionRetryableError,)))
+@app.task(
+    queue=AUDIO_EXTRACTION_QUEUE,
+    **build_retry_task_options(autoretry_for=(AudioExtractionRetryableError,)),
+)
 def extract_audio(file_id, ai_job_id=None, language=None):
     """Validate, convert, and store a file's audio representation."""
     try:
@@ -332,7 +334,6 @@ def queue_audio_extraction(file_id, *, ai_job_id=None, language=None):
     extract_audio.apply_async(
         args=[file_id],
         kwargs={"ai_job_id": ai_job_id, "language": language},
-        queue=AUDIO_EXTRACTION_QUEUE,
     )
 
 
@@ -350,7 +351,10 @@ def _duration_is_allowed(file):
     )
 
 
-@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
+@app.task(
+    queue=BACKEND_QUEUE,
+    **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
+)
 def call_transcribe_service(file_id, language=None, ai_job_id=None):
     """
     Call the transcribe service for a given file.
@@ -449,7 +453,10 @@ def call_transcribe_service(file_id, language=None, ai_job_id=None):
     return ai_transcribe_job.id
 
 
-@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
+@app.task(
+    queue=BACKEND_QUEUE,
+    **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
+)
 def handle_transcript_received(remote_job_id, url: str | None):
     """
     Store the transcript and call the summarize service for a given file.
@@ -543,7 +550,10 @@ def handle_transcript_received(remote_job_id, url: str | None):
     logger.info("Summary job created for file %s", file.id)
 
 
-@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
+@app.task(
+    queue=BACKEND_QUEUE,
+    **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
+)
 def store_summary(remote_job_id, url):
     """
     Store the summary of a given file.
@@ -576,7 +586,10 @@ def store_summary(remote_job_id, url):
     ai_summary_job.save()
 
 
-@app.task(**build_retry_task_options(autoretry_for=(requests_lib.RequestException,)))
+@app.task(
+    queue=BACKEND_QUEUE,
+    **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
+)
 def create_document_in_docs(ai_job_id):
     """
     Create a document in Docs for a given file.

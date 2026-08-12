@@ -392,5 +392,4 @@ def test_queue_audio_extraction_uses_dedicated_queue(mock_apply_async):
     mock_apply_async.assert_called_once_with(
         args=["file-id"],
         kwargs={"ai_job_id": "job-id", "language": "fr"},
-        queue="dictaphone-audio",
     )
