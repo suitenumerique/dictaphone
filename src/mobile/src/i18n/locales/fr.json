@@ -49,6 +49,15 @@
     "pendingTitle": "Envois en attente",
     "manageOnline": "Gérer les enregistrements en ligne",
     "uploading": "Envoi en cours...",
+    "uploadNotifications": {
+      "channelName": "Envois d'enregistrements",
+      "uploadingTitle": "Envoi de l'enregistrement",
+      "uploadingIndeterminate": "Envoi en cours…",
+      "completeTitle": "Envoi terminé",
+      "completeBody": "Ouvrez l'application pour terminer le traitement de l'enregistrement",
+      "failedTitle": "Échec de l'envoi",
+      "failedBody": "Ouvrez l'application pour réessayer l'envoi de l'enregistrement"
+    },
     "loginButton": "Se connecter avec ProConnect",
     "delete": "Supprimer",
     "loginHelper": "Connectez-vous pour accéder à vos transcriptions.",

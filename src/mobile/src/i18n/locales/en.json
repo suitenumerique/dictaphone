@@ -49,6 +49,15 @@
     "pendingTitle": "Pending uploads",
     "manageOnline": "Manage recordings online",
     "uploading": "Uploading...",
+    "uploadNotifications": {
+      "channelName": "Recording uploads",
+      "uploadingTitle": "Uploading recording",
+      "uploadingIndeterminate": "Uploading…",
+      "completeTitle": "Upload complete",
+      "completeBody": "Open the app to finish processing the recording",
+      "failedTitle": "Upload failed",
+      "failedBody": "Open the app to retry the recording upload"
+    },
     "loginButton": "Login with ProConnect",
     "loginHelper": "Log in to access your transcripts.",
     "delete": "Delete",

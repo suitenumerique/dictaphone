@@ -4,7 +4,7 @@ import { type LocalRecording, recordingSchema } from '../types/localRecording'
 import { type AppSettings, appSettingsSchema } from '../types/settings'
 import { z } from 'zod/v4'
 import NetInfo from '@react-native-community/netinfo'
-import { createFile } from '@/features/files/api/createFile'
+import { createFile, finalizeFileUpload } from '@/features/files/api/createFile'
 import { queryClient } from '@/api/queryClient'
 import { keys } from '@/api/queryKeys'
 import { mmkvStorage } from '@/services/index'
@@ -25,6 +25,17 @@ import {
 } from '@/features/recordings/utils/concatSubAudioFiles'
 import uuid from 'react-native-uuid'
 import { wait } from '@/utils/wait'
+import { AppState } from 'react-native'
+import {
+  clearUpload,
+  getUploadStatuses,
+  markUploadFinalized,
+  requestUploadNotificationPermission,
+  resumeUpload,
+  setFileUploadAppActive,
+  waitForUpload,
+} from '@/utils/fileUpload'
+import { selectRecordingToUpload } from '@/services/uploadSelection'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -135,6 +146,7 @@ const checkCanUpload = async (): Promise<boolean> => {
 }
 
 let isUploadInProgress = false
+
 const triggerUpload = async (): Promise<void> => {
   if (isUploadInProgress) {
     return
@@ -145,42 +157,112 @@ const triggerUpload = async (): Promise<void> => {
     return
   }
 
+  isUploadInProgress = true
+
   const canUpload = await checkCanUpload()
   if (!canUpload) {
+    isUploadInProgress = false
     return
   }
 
   const { recordings, updateRecording, deleteRecording } =
     useRecordingsStore.getState()
-  const recordingToUpload =
-    recordings.find((r) => r.uploadingStatus === 'to_upload') ?? null
+  const { settings } = useSettingsStore.getState()
+  const { bypassWifiOnly } = useUploadStore.getState()
+  const recordingToUpload = selectRecordingToUpload(recordings)
 
   if (!recordingToUpload) {
     // reset bypass wifiOnly
     setBypassWifiOnly(false)
+    isUploadInProgress = false
     return
   }
-
-  isUploadInProgress = true
+  const isRetryRequested = recordingToUpload.uploadingStatus === 'to_upload'
   updateRecording(recordingToUpload.id, { uploadingStatus: 'uploading' })
 
   try {
-    await createFile({
-      durationSeconds: recordingToUpload.duration_seconds,
-      createdAt: recordingToUpload.created_at,
-      file: {
-        name: `${recordingToUpload.title}.m4a`,
-        type: 'audio/mp4',
-        uri: recordingToUpload.filePath,
-      },
-      source: 'mobile_recording',
-      language: recordingToUpload.language,
-      onProgress: (progress) => {
+    if (recordingToUpload.uploadId && recordingToUpload.fileId) {
+      const nativeStatus = (await getUploadStatuses()).find(
+        (status) => status.uploadId === recordingToUpload.uploadId
+      )
+
+      if (!nativeStatus) {
         updateRecording(recordingToUpload.id, {
-          uploadProgress: progress,
+          uploadId: undefined,
+          uploadProgress: undefined,
+          uploadingStatus: 'to_upload' as const,
         })
-      },
-    })
+        return
+      }
+
+      if (nativeStatus.status === 'failed') {
+        if (isRetryRequested) {
+          await clearUpload(recordingToUpload.uploadId)
+          updateRecording(recordingToUpload.id, {
+            uploadId: undefined,
+            uploadProgress: undefined,
+            uploadingStatus: 'to_upload' as const,
+          })
+        } else {
+          updateRecording(recordingToUpload.id, {
+            uploadingStatus: 'failed',
+            uploadProgress: undefined,
+          })
+        }
+        return
+      }
+
+      updateRecording(recordingToUpload.id, {
+        uploadProgress: {
+          uploadedBytes: nativeStatus.uploadedBytes,
+          totalBytes: nativeStatus.totalBytes,
+          progress:
+            nativeStatus.totalBytes > 0
+              ? nativeStatus.uploadedBytes / nativeStatus.totalBytes
+              : 0,
+          percentage:
+            nativeStatus.totalBytes > 0
+              ? (nativeStatus.uploadedBytes / nativeStatus.totalBytes) * 100
+              : 0,
+        },
+      })
+
+      if (nativeStatus.status === 'uploading') {
+        await resumeUpload(recordingToUpload.uploadId)
+        await waitForUpload(recordingToUpload.uploadId)
+      }
+
+      await finalizeFileUpload(recordingToUpload.fileId)
+      await markUploadFinalized(recordingToUpload.uploadId)
+    } else {
+      const uploadId = `${recordingToUpload.id}-${Date.now()}`
+      await requestUploadNotificationPermission()
+      await createFile({
+        durationSeconds: recordingToUpload.duration_seconds,
+        createdAt: recordingToUpload.created_at,
+        file: {
+          name: `${recordingToUpload.title}.m4a`,
+          type: 'audio/mp4',
+          uri: recordingToUpload.filePath,
+        },
+        source: 'mobile_recording',
+        language: recordingToUpload.language,
+        uploadId,
+        wifiOnly: settings.wifiOnlyUpload && !bypassWifiOnly,
+        onUploadPrepared: ({ fileId, uploadId: preparedUploadId }) => {
+          updateRecording(recordingToUpload.id, {
+            fileId,
+            uploadId: preparedUploadId,
+          })
+        },
+        onProgress: (progress) => {
+          updateRecording(recordingToUpload.id, {
+            uploadProgress: progress,
+          })
+        },
+      })
+      await markUploadFinalized(uploadId)
+    }
     await deleteRecording(recordingToUpload.id)
     await queryClient.invalidateQueries({ queryKey: [keys.files] })
   } catch (error) {
@@ -206,6 +288,15 @@ export const startRecordingsUploadManager = () => {
     return
   }
   isRecordingsUploadManagerStarted = true
+
+  setFileUploadAppActive(AppState.currentState === 'active')
+  AppState.addEventListener('change', (state) => {
+    const active = state === 'active'
+    setFileUploadAppActive(active)
+    if (active) {
+      triggerUpload().catch(console.error)
+    }
+  })
 
   useRecordingsStore.subscribe((state) => {
     if (state.recordings.some((r) => r.uploadingStatus === 'to_upload')) {
@@ -269,10 +360,12 @@ export const useRecordingsStore = create<RecordingsStore>()(
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
           state.recordings = parsed.success
-            ? // we force all files back to "to_upload" status
-              parsed.data.map((el) => ({
+            ? parsed.data.map((el) => ({
                 ...el,
-                uploadingStatus: 'to_upload',
+                uploadingStatus:
+                  el.uploadId && el.fileId
+                    ? ('uploading' as const)
+                    : ('to_upload' as const),
                 uploadProgress: undefined,
               }))
             : []

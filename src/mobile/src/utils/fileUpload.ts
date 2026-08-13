@@ -1,5 +1,36 @@
-import { NativeEventEmitter, NativeModules } from 'react-native'
+import {
+  NativeEventEmitter,
+  NativeModules,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native'
 import { toByteArray } from 'react-native-quick-base64'
+import i18n from '@/i18n'
+
+export type NativeUploadStatus = {
+  uploadId: string
+  status: 'uploading' | 'uploadedAwaitingFinalize' | 'failed'
+  uploadedBytes: number
+  totalBytes: number
+  error?: string
+}
+
+type NativeUploadProgress = {
+  uploadId: string
+  uploadedBytes: number
+  totalBytes: number
+  progress: number
+}
+
+export type UploadNotificationStrings = {
+  channelName: string
+  uploadingTitle: string
+  uploadingIndeterminate: string
+  completeTitle: string
+  completeBody: string
+  failedTitle: string
+  failedBody: string
+}
 
 type FileUploadNativeModule = {
   addListener: (eventName: string) => void
@@ -8,22 +39,28 @@ type FileUploadNativeModule = {
     filePath: string,
     url: string,
     contentType: string,
-    uploadId: string
+    uploadId: string,
+    wifiOnly: boolean,
+    notificationStrings: UploadNotificationStrings
   ) => Promise<void>
+  getUploadStatuses: () => Promise<NativeUploadStatus[]>
+  resumeUpload: (
+    uploadId: string,
+    notificationStrings: UploadNotificationStrings
+  ) => Promise<void>
+  waitForUpload: (uploadId: string) => Promise<void>
+  markUploadFinalized: (uploadId: string) => Promise<void>
+  clearUpload: (uploadId: string) => Promise<void>
+  setAppActive: (active: boolean) => void
+  requestNotificationPermission?: () => Promise<boolean>
   readBundledFileAsBase64?: (fileName: string) => Promise<string>
 }
 
 const { FileUploadModule } = NativeModules as {
   FileUploadModule?: FileUploadNativeModule
 }
-const uploadProgressEvent = 'FileUploadProgress'
 
-type NativeUploadProgress = {
-  uploadId: string
-  uploadedBytes: number
-  totalBytes: number
-  progress: number
-}
+const uploadProgressEvent = 'FileUploadProgress'
 
 export type UploadProgress = {
   uploadedBytes: number
@@ -34,22 +71,56 @@ export type UploadProgress = {
 
 export type UploadProgressCallback = (progress: UploadProgress) => void
 
-const createUploadId = () =>
+export const createUploadId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+const getUploadNotificationStrings = (): UploadNotificationStrings => ({
+  channelName: i18n.t('recordings.uploadNotifications.channelName'),
+  uploadingTitle: i18n.t('recordings.uploadNotifications.uploadingTitle'),
+  uploadingIndeterminate: i18n.t(
+    'recordings.uploadNotifications.uploadingIndeterminate'
+  ),
+  completeTitle: i18n.t('recordings.uploadNotifications.completeTitle'),
+  completeBody: i18n.t('recordings.uploadNotifications.completeBody'),
+  failedTitle: i18n.t('recordings.uploadNotifications.failedTitle'),
+  failedBody: i18n.t('recordings.uploadNotifications.failedBody'),
+})
+
+let notificationPermissionRequested = false
+
+export const requestUploadNotificationPermission = async (): Promise<void> => {
+  if (notificationPermissionRequested) {
+    return
+  }
+
+  if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+    await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+    )
+  } else {
+    await FileUploadModule?.requestNotificationPermission?.()
+  }
+  notificationPermissionRequested = true
+}
+
+export const setFileUploadAppActive = (active: boolean): void => {
+  FileUploadModule?.setAppActive(active)
+}
 
 export const uploadFileToS3 = async (
   fileUri: string,
   presignedUrl: string,
   contentType: string,
-  onProgress?: UploadProgressCallback
+  onProgress?: UploadProgressCallback,
+  uploadId = createUploadId(),
+  wifiOnly = false
 ): Promise<void> => {
   if (!FileUploadModule) {
     throw new Error('FileUploadModule is not available')
   }
 
-  // Strip file:// prefix — the native layer handles it
   const filePath = fileUri.replace('file://', '')
-  const uploadId = createUploadId()
+  const notificationStrings = getUploadNotificationStrings()
   const eventEmitter = onProgress
     ? new NativeEventEmitter(FileUploadModule)
     : null
@@ -74,11 +145,48 @@ export const uploadFileToS3 = async (
       filePath,
       presignedUrl,
       contentType,
-      uploadId
+      uploadId,
+      wifiOnly,
+      notificationStrings
     )
   } finally {
     subscription?.remove()
   }
+}
+
+export const getUploadStatuses = async (): Promise<NativeUploadStatus[]> => {
+  if (!FileUploadModule) {
+    throw new Error('FileUploadModule is not available')
+  }
+  return FileUploadModule.getUploadStatuses()
+}
+
+export const resumeUpload = async (uploadId: string): Promise<void> => {
+  if (!FileUploadModule) {
+    throw new Error('FileUploadModule is not available')
+  }
+  return FileUploadModule.resumeUpload(uploadId, getUploadNotificationStrings())
+}
+
+export const waitForUpload = async (uploadId: string): Promise<void> => {
+  if (!FileUploadModule) {
+    throw new Error('FileUploadModule is not available')
+  }
+  return FileUploadModule.waitForUpload(uploadId)
+}
+
+export const markUploadFinalized = async (uploadId: string): Promise<void> => {
+  if (!FileUploadModule) {
+    throw new Error('FileUploadModule is not available')
+  }
+  return FileUploadModule.markUploadFinalized(uploadId)
+}
+
+export const clearUpload = async (uploadId: string): Promise<void> => {
+  if (!FileUploadModule) {
+    throw new Error('FileUploadModule is not available')
+  }
+  return FileUploadModule.clearUpload(uploadId)
 }
 
 export const readBundledFileAsArrayBuffer = async (

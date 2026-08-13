@@ -50,4 +50,9 @@ export type ApiFileItem = {
       policy: string
       url: null
     }
+  | {
+      upload_state: 'analyzing'
+      url: null
+      policy?: string
+    }
 )

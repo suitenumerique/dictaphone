@@ -17,6 +17,8 @@ export const recordingSchema = z.object({
   title: z.string(),
   language: transcriptionLanguageSchema.default('fr'),
   uploadingStatus: uploadingStatusSchema,
+  uploadId: z.string().optional(),
+  fileId: z.string().optional(),
   uploadProgress: z
     .object({
       uploadedBytes: z.number().nonnegative(),

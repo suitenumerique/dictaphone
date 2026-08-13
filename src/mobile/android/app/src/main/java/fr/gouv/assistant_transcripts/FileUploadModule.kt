@@ -1,13 +1,22 @@
 package fr.gouv.assistant_transcripts
 
 import android.content.ClipData
+import android.content.Context
 import android.content.Intent
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.os.Build
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.os.SystemClock
 import android.util.Base64
 import androidx.core.content.FileProvider
+import androidx.core.app.NotificationCompat
+import androidx.work.BackoffPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.BufferedInputStream
@@ -21,11 +30,23 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class FileUploadModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
     private val listenerCount = AtomicInteger(0)
+    private val uploadStateStore = UploadStateStore(reactContext)
+    private val waiters = mutableMapOf<String, MutableList<Promise>>()
+
+    init {
+        instance = this
+    }
+
+    override fun invalidate() {
+        super.invalidate()
+        instance = null
+    }
 
     override fun getName() = "FileUploadModule"
 
@@ -47,77 +68,114 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         url: String,
         contentType: String,
         uploadId: String,
+        wifiOnly: Boolean,
+        notificationStrings: ReadableMap,
         promise: Promise
     ) {
-        thread {
-            try {
-                val file = File(normalizePath(filePath))
-                val totalBytes = file.length()
-                val connection = URL(url).openConnection() as HttpURLConnection
+        val file = File(normalizePath(filePath))
+        if (!file.exists() || !file.isFile) {
+            promise.reject("FILE_NOT_FOUND", "Upload file does not exist")
+            return
+        }
 
-                connection.requestMethod = "PUT"
-                connection.setRequestProperty("Content-Type", contentType)
-                connection.setRequestProperty("X-amz-acl", "private")
-                connection.setRequestProperty("Content-Length", totalBytes.toString())
-                connection.doOutput = true
-                connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MS
-                connection.setFixedLengthStreamingMode(totalBytes) // true streaming
+        val totalBytes = file.length()
+        uploadStateStore.put(
+            NativeUploadState(
+                uploadId = uploadId,
+                filePath = file.absolutePath,
+                url = url,
+                contentType = contentType,
+                totalBytes = totalBytes,
+                uploadedBytes = 0,
+                wifiOnly = wifiOnly,
+                status = FileUploadWorker.UPLOADING,
+                notificationStrings = parseNotificationStrings(notificationStrings),
+            )
+        )
+        synchronized(waiters) {
+            waiters.getOrPut(uploadId) { mutableListOf() }.add(promise)
+        }
 
-                var lastEmittedProgress = -1
-                var lastReportedBytes = 0L
-                var lastReportedAtMs = 0L
-                fun emitProgress(uploadedBytes: Long, force: Boolean = false) {
-                    if (!force) {
-                        val now = SystemClock.elapsedRealtime()
-                        val sentEnoughBytes =
-                            (uploadedBytes - lastReportedBytes) >= PROGRESS_BYTES_STEP
-                        val waitedEnoughTime = (now - lastReportedAtMs) >= PROGRESS_MIN_INTERVAL_MS
-                        if (!sentEnoughBytes && !waitedEnoughTime) {
-                            return
-                        }
-                    }
+        enqueueUpload(uploadId, wifiOnly)
+    }
 
-                    val currentProgress =
-                        if (totalBytes > 0) ((uploadedBytes * 100) / totalBytes).toInt() else 0
-
-                    if (currentProgress != lastEmittedProgress || uploadedBytes == totalBytes) {
-                        lastEmittedProgress = currentProgress
-                        lastReportedBytes = uploadedBytes
-                        lastReportedAtMs = SystemClock.elapsedRealtime()
-                        sendProgress(uploadId, uploadedBytes, totalBytes)
-                    }
+    @ReactMethod
+    fun getUploadStatuses(promise: Promise) {
+        val result = Arguments.createArray()
+        uploadStateStore.all().forEach { state ->
+            result.pushMap(
+                Arguments.createMap().apply {
+                    putString("uploadId", state.uploadId)
+                    putString("status", state.status)
+                    putDouble("uploadedBytes", state.uploadedBytes.toDouble())
+                    putDouble("totalBytes", state.totalBytes.toDouble())
+                    state.error?.let { putString("error", it) }
                 }
+            )
+        }
+        promise.resolve(result)
+    }
 
-                emitProgress(0, force = true)
-
-                BufferedInputStream(file.inputStream(), UPLOAD_BUFFER_SIZE).use { input ->
-                    BufferedOutputStream(connection.outputStream, UPLOAD_BUFFER_SIZE).use { output ->
-                        val buffer = ByteArray(UPLOAD_BUFFER_SIZE)
-                        var uploadedBytes = 0L
-                        var bytesRead = input.read(buffer)
-
-                        while (bytesRead >= 0) {
-                            output.write(buffer, 0, bytesRead)
-                            uploadedBytes += bytesRead
-                            emitProgress(uploadedBytes)
-                            bytesRead = input.read(buffer)
-                        }
-                        output.flush()
-                    }
-                }
-
-                val status = connection.responseCode
-                if (status == 200) {
-                    emitProgress(totalBytes, force = true)
-                    promise.resolve(null)
-                } else {
-                    promise.reject("UPLOAD_FAILED", "Status: $status")
-                }
-
-            } catch (e: Exception) {
-                promise.reject("UPLOAD_ERROR", e.message)
+    @ReactMethod
+    fun resumeUpload(
+        uploadId: String,
+        notificationStrings: ReadableMap,
+        promise: Promise,
+    ) {
+        val state = uploadStateStore.get(uploadId)
+        when {
+            state == null -> promise.reject("UPLOAD_NOT_FOUND", "Upload does not exist")
+            state.status != FileUploadWorker.UPLOADING -> promise.resolve(null)
+            else -> {
+                uploadStateStore.put(
+                    state.copy(notificationStrings = parseNotificationStrings(notificationStrings))
+                )
+                enqueueUpload(uploadId, state.wifiOnly)
+                promise.resolve(null)
             }
         }
+    }
+
+    @ReactMethod
+    fun waitForUpload(uploadId: String, promise: Promise) {
+        val state = uploadStateStore.get(uploadId)
+        when (state?.status) {
+            FileUploadWorker.UPLOADED_AWAITING_FINALIZE -> promise.resolve(null)
+            FileUploadWorker.FAILED -> promise.reject("UPLOAD_ERROR", state.error)
+            null -> promise.reject("UPLOAD_NOT_FOUND", "Upload does not exist")
+            else -> synchronized(waiters) {
+                waiters.getOrPut(uploadId) { mutableListOf() }.add(promise)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun markUploadFinalized(uploadId: String, promise: Promise) {
+        resolveWaiters(uploadId)
+        uploadStateStore.remove(uploadId)
+        WorkManager.getInstance(reactApplicationContext).cancelUniqueWork(workName(uploadId))
+        cancelNotification(uploadId)
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun clearUpload(uploadId: String, promise: Promise) {
+        rejectWaiters(uploadId, "Upload was cleared")
+        uploadStateStore.remove(uploadId)
+        WorkManager.getInstance(reactApplicationContext).cancelUniqueWork(workName(uploadId))
+        cancelNotification(uploadId)
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun setAppActive(active: Boolean) {
+        uploadStateStore.setAppActive(active)
+    }
+
+    @ReactMethod
+    fun requestNotificationPermission(promise: Promise) {
+        // Android notification permission is requested by PermissionsAndroid in JS.
+        promise.resolve(true)
     }
 
     @ReactMethod
@@ -258,8 +316,139 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    private fun onUploadSucceeded(uploadId: String) {
+        val state = uploadStateStore.get(uploadId) ?: return
+        uploadStateStore.put(
+            state.copy(
+                uploadedBytes = state.totalBytes,
+                status = FileUploadWorker.UPLOADED_AWAITING_FINALIZE,
+                error = null,
+            )
+        )
+        sendProgress(uploadId, state.totalBytes, state.totalBytes)
+        resolveWaiters(uploadId)
+        if (!uploadStateStore.isAppActive()) {
+            showUploadNotification(
+                state.uploadId,
+                state.notificationStrings,
+                state.notificationStrings.completeTitle,
+                state.notificationStrings.completeBody,
+                ongoing = false,
+            )
+        } else {
+            cancelNotification(uploadId)
+        }
+    }
+
+    private fun onUploadFailed(uploadId: String, message: String) {
+        val state = uploadStateStore.get(uploadId) ?: return
+        uploadStateStore.put(state.copy(status = FileUploadWorker.FAILED, error = message))
+        rejectWaiters(uploadId, message)
+        if (!uploadStateStore.isAppActive()) {
+            showUploadNotification(
+                state.uploadId,
+                state.notificationStrings,
+                state.notificationStrings.failedTitle,
+                state.notificationStrings.failedBody,
+                ongoing = false,
+            )
+        }
+    }
+
+    private fun resolveWaiters(uploadId: String) {
+        val uploadWaiters = synchronized(waiters) { waiters.remove(uploadId).orEmpty() }
+        uploadWaiters.forEach { it.resolve(null) }
+    }
+
+    private fun rejectWaiters(uploadId: String, message: String) {
+        val uploadWaiters = synchronized(waiters) { waiters.remove(uploadId).orEmpty() }
+        uploadWaiters.forEach { it.reject("UPLOAD_ERROR", message) }
+    }
+
+    private fun showUploadNotification(
+        uploadId: String,
+        notificationStrings: UploadNotificationStrings,
+        title: String,
+        text: String,
+        ongoing: Boolean,
+    ) {
+        val manager = reactApplicationContext.getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                android.app.NotificationChannel(
+                    FileUploadWorker.CHANNEL_ID,
+                    notificationStrings.channelName,
+                    NotificationManager.IMPORTANCE_LOW,
+                )
+            )
+        }
+        val launchIntent = reactApplicationContext.packageManager
+            .getLaunchIntentForPackage(reactApplicationContext.packageName)
+        val pendingIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                reactApplicationContext,
+                FileUploadWorker.notificationId(uploadId),
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+        val notification = NotificationCompat.Builder(
+            reactApplicationContext,
+            FileUploadWorker.CHANNEL_ID,
+        )
+            .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setAutoCancel(!ongoing)
+            .setOngoing(ongoing)
+            .apply { pendingIntent?.let { setContentIntent(it) } }
+            .build()
+        manager.notify(FileUploadWorker.notificationId(uploadId), notification)
+    }
+
+    private fun cancelNotification(uploadId: String) {
+        reactApplicationContext
+            .getSystemService(NotificationManager::class.java)
+            .cancel(FileUploadWorker.notificationId(uploadId))
+    }
+
+    private fun enqueueUpload(uploadId: String, wifiOnly: Boolean) {
+        val request = OneTimeWorkRequestBuilder<FileUploadWorker>()
+            .setInputData(
+                androidx.work.Data.Builder()
+                    .putString(FileUploadWorker.KEY_UPLOAD_ID, uploadId)
+                    .build()
+            )
+            .setConstraints(FileUploadWorker.requestConstraints(wifiOnly))
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(reactApplicationContext).enqueueUniqueWork(
+            workName(uploadId),
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
+    }
+
+    private fun parseNotificationStrings(map: ReadableMap): UploadNotificationStrings =
+        UploadNotificationStrings(
+            channelName = mapString(map, "channelName", UploadNotificationStrings().channelName),
+            uploadingTitle = mapString(map, "uploadingTitle", UploadNotificationStrings().uploadingTitle),
+            uploadingIndeterminate = mapString(
+                map,
+                "uploadingIndeterminate",
+                UploadNotificationStrings().uploadingIndeterminate,
+            ),
+            completeTitle = mapString(map, "completeTitle", UploadNotificationStrings().completeTitle),
+            completeBody = mapString(map, "completeBody", UploadNotificationStrings().completeBody),
+            failedTitle = mapString(map, "failedTitle", UploadNotificationStrings().failedTitle),
+            failedBody = mapString(map, "failedBody", UploadNotificationStrings().failedBody),
+        )
+
+    private fun mapString(map: ReadableMap, key: String, fallback: String): String =
+        if (map.hasKey(key) && !map.isNull(key)) map.getString(key) ?: fallback else fallback
+
     private fun sendProgress(uploadId: String, uploadedBytes: Long, totalBytes: Long) {
-        if (listenerCount.get() <= 0) {
+        if (listenerCount.get() <= 0 || !reactApplicationContext.hasActiveReactInstance()) {
             return
         }
 
@@ -279,12 +468,90 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     }
 
     companion object {
+        @Volatile
+        private var instance: FileUploadModule? = null
         private const val UPLOAD_PROGRESS_EVENT = "FileUploadProgress"
         private const val DEFAULT_BUFFER_SIZE = 8192
         private const val UPLOAD_BUFFER_SIZE = 256 * 1024
-        private const val PROGRESS_BYTES_STEP = 512 * 1024L
-        private const val PROGRESS_MIN_INTERVAL_MS = 200L
-        private const val HTTP_CONNECT_TIMEOUT_MS = 30_000
+
+        fun emitProgressFromWorker(uploadId: String, uploadedBytes: Long, totalBytes: Long) {
+            instance?.sendProgress(uploadId, uploadedBytes, totalBytes)
+        }
+
+        fun onWorkerUploadSucceeded(context: Context, uploadId: String) {
+            instance?.onUploadSucceeded(uploadId) ?: run {
+                val store = UploadStateStore(context)
+                val state = store.get(uploadId) ?: return
+                store.put(
+                    state.copy(
+                        uploadedBytes = state.totalBytes,
+                        status = FileUploadWorker.UPLOADED_AWAITING_FINALIZE,
+                        error = null,
+                    )
+                )
+                if (!store.isAppActive()) {
+                    showStaticNotification(
+                        context,
+                        state,
+                        state.notificationStrings.completeTitle,
+                        state.notificationStrings.completeBody,
+                    )
+                }
+            }
+        }
+
+        fun onWorkerUploadFailed(context: Context, uploadId: String, message: String) {
+            instance?.onUploadFailed(uploadId, message) ?: run {
+                val store = UploadStateStore(context)
+                val state = store.get(uploadId) ?: return
+                store.put(state.copy(status = FileUploadWorker.FAILED, error = message))
+                if (!store.isAppActive()) {
+                    showStaticNotification(
+                        context,
+                        state,
+                        state.notificationStrings.failedTitle,
+                        state.notificationStrings.failedBody,
+                    )
+                }
+            }
+        }
+
+        private fun workName(uploadId: String) = "file-upload-$uploadId"
+
+        private fun showStaticNotification(
+            context: Context,
+            state: NativeUploadState,
+            title: String,
+            text: String,
+        ) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                manager.createNotificationChannel(
+                    android.app.NotificationChannel(
+                        FileUploadWorker.CHANNEL_ID,
+                        state.notificationStrings.channelName,
+                        NotificationManager.IMPORTANCE_LOW,
+                    )
+                )
+            }
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            val pendingIntent = launchIntent?.let {
+                PendingIntent.getActivity(
+                    context,
+                    FileUploadWorker.notificationId(state.uploadId),
+                    it,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+            }
+            val notification = NotificationCompat.Builder(context, FileUploadWorker.CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setAutoCancel(true)
+                .apply { pendingIntent?.let { setContentIntent(it) } }
+                .build()
+            manager.notify(FileUploadWorker.notificationId(state.uploadId), notification)
+        }
     }
 
     private fun copyFile(source: File, destination: File) {

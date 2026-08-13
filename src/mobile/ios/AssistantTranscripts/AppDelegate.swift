@@ -32,6 +32,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     return true
   }
 
+  func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) {
+    if identifier == FileUploadModule.backgroundSessionIdentifier {
+      FileUploadModule.storeBackgroundCompletionHandler(completionHandler)
+    }
+  }
+
   // MARK: - URL Scheme Deep Links (myapp://)
   func application(
     _ app: UIApplication,
