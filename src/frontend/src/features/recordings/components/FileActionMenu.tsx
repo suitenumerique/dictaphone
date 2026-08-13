@@ -29,11 +29,13 @@ import {
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import {
   getTranscript,
+  useCreateInDocsMutation,
   useOpenInDocsMutation,
   useRetryWithLanguageMutation,
 } from '@/features/ai-jobs/api/fetch.ts'
 import { TTranscriptionLanguage } from '@/features/ai-jobs/api/types.ts'
 import { useLocation } from 'wouter'
+import { useConfig } from '@/api/useConfig'
 import {
   buildTranscriptMarkdown,
   buildTranscriptSrt,
@@ -83,6 +85,7 @@ export function FileActionMenu({
   showOpenInDocs?: boolean
 }) {
   const { t } = useTranslation(['recordings', 'shared'])
+  const { data: config } = useConfig()
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState(file.title)
   const [openRenameModal, setOpenRenameModal] = useState(false)
@@ -216,19 +219,61 @@ export function FileActionMenu({
   }, [deleteFileMutation, file.id, navigate, t])
 
   const openInDocs = useOpenInDocsMutation()
+  const createInDocs = useCreateInDocsMutation()
+  const supportsSynchronousDocsCreation =
+    config?.docs_integration_supports_synchroneous_calls ?? false
+
+  const showCreateDocsError = useCallback(
+    () =>
+      addToast(
+        <ToasterItem type="error">
+          <span>{t('transcript.createInDocsError')}</span>
+        </ToasterItem>
+      ),
+    [t]
+  )
+  const showOpenDocsError = useCallback(
+    () =>
+      addToast(
+        <ToasterItem type="error">
+          <span>{t('transcript.openInDocsError')}</span>
+        </ToasterItem>
+      ),
+    [t]
+  )
+
+  const canOpenInDocs =
+    lastAiJobTranscript?.status === 'success' &&
+    (Boolean(lastAiJobTranscript.docs_app_id) ||
+      supportsSynchronousDocsCreation)
+
   const handleOpenInDocs = useCallback(() => {
-    if (
-      lastAiJobTranscript?.id &&
-      lastAiJobTranscript.status === 'success' &&
-      lastAiJobTranscript.docs_app_id
-    ) {
+    if (!lastAiJobTranscript?.id || lastAiJobTranscript.status !== 'success') {
+      return
+    }
+
+    if (lastAiJobTranscript.docs_app_id) {
       openInDocs.mutate(lastAiJobTranscript, {
-        onSuccess: (res) => {
-          window.open(res.doc_url, '_blank')
-        },
+        onSuccess: (res) => window.open(res.doc_url, '_blank'),
+        onError: showOpenDocsError,
+      })
+      return
+    }
+
+    if (supportsSynchronousDocsCreation) {
+      createInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) => window.open(res.doc_url, '_blank'),
+        onError: showCreateDocsError,
       })
     }
-  }, [lastAiJobTranscript, openInDocs])
+  }, [
+    createInDocs,
+    lastAiJobTranscript,
+    openInDocs,
+    showCreateDocsError,
+    showOpenDocsError,
+    supportsSynchronousDocsCreation,
+  ])
 
   const handleCopyText = useCallback(() => {
     if (lastAiJobTranscript?.status !== 'success' || isCopyingText) {
@@ -372,7 +417,8 @@ export function FileActionMenu({
         label: t('transcript.openInDocsCta'),
         icon: <ArrowUpRight size="small" />,
         callback: handleOpenInDocs,
-        isDisabled: !lastAiJobTranscript?.docs_app_id,
+        isDisabled:
+          !canOpenInDocs || openInDocs.isPending || createInDocs.isPending,
       })
     }
     if (showCopyText) {
@@ -498,9 +544,9 @@ export function FileActionMenu({
     showOpenInDocs,
     showCopyText,
     t,
+    canOpenInDocs,
     lastAiJobTranscript?.status,
     lastAiJobTranscript?.id,
-    lastAiJobTranscript?.docs_app_id,
     file.abilities.partial_update,
     file.abilities.destroy,
     file.abilities.restore,
@@ -509,6 +555,8 @@ export function FileActionMenu({
     file.id,
     handleOpenInDocs,
     handleCopyText,
+    openInDocs.isPending,
+    createInDocs.isPending,
     isCopyingText,
     isRetryPending,
     canOpenRetryModal,
@@ -558,6 +606,18 @@ export function FileActionMenu({
           />
         )}
       </DropdownMenu>
+      <Modal
+        size={ModalSize.SMALL}
+        isOpen={createInDocs.isPending}
+        onClose={() => undefined}
+        preventClose={true}
+        closeOnEsc={false}
+        closeOnClickOutside={false}
+        title={t('createInDocsModal.title')}
+        hideCloseButton={true}
+      >
+        <p>{t('createInDocsModal.description')}</p>
+      </Modal>
       <Modal
         size={ModalSize.MEDIUM}
         isOpen={openExportModal}

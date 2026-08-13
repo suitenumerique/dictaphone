@@ -24,6 +24,10 @@
     "failed": "Fichier audio invalide",
     "failedAriaLabel": "Échec de l'extraction audio"
   },
+  "createInDocsModal": {
+    "title": "Création du document Docs",
+    "description": "Veuillez patienter pendant l'ajout de votre transcription dans Docs."
+  },
   "uploadTooltip": {
     "title": "Importer des fichiers",
     "supportedFormats": "Formats pris en charge : {{formats, list}}",
@@ -151,6 +155,8 @@
     "segmentSeekAriaLabel": "Aller à {{timestamp}} ({{speaker}})",
     "noSpeaker": "Intervenant inconnu",
     "openInDocsCta": "Ouvrir dans Docs",
+    "createInDocsError": "Impossible de créer le document Docs pour le moment. Veuillez réessayer.",
+    "openInDocsError": "Impossible d'ouvrir le document Docs pour le moment. Veuillez réessayer.",
     "copySuccess": "Transcript copié dans le presse-papiers",
     "copyError": "Échec de la copie du transcript dans le presse-papiers",
     "status": {

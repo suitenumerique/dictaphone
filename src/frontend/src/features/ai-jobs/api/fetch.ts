@@ -39,6 +39,20 @@ export const openInDocs = async (
   })
 }
 
+export const createInDocs = async (
+  aiJob: ApiAiJob | null
+): Promise<ApiOpenInDocsResponse> => {
+  if (!aiJob || !aiJob.id) {
+    throw new Error('No aiJob provided')
+  }
+  return fetchApi<ApiOpenInDocsResponse>(
+    `/ai-jobs/${aiJob.id}/create-in-docs/`,
+    {
+      method: 'POST',
+    }
+  )
+}
+
 export const retryWithLanguage = async ({
   id,
   language,
@@ -76,6 +90,19 @@ export const useSummary = (params: Parameters<typeof getSummary>[0]) => {
 export const useOpenInDocsMutation = () => {
   return useMutation({
     mutationFn: openInDocs,
+  })
+}
+
+export const useCreateInDocsMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createInDocs,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [keys.files],
+      })
+    },
   })
 }
 

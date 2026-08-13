@@ -7,7 +7,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Transcript } from '@/features/recordings/components/Transcript.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
-import { Badge, useResponsive } from '@gouvfr-lasuite/ui-kit'
+import { Badge, Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -18,9 +18,17 @@ import {
 } from '@gouvfr-lasuite/ui-kit/icons'
 import { useTranslation } from 'react-i18next'
 import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
-import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
+import {
+  Button,
+  Modal,
+  ModalSize,
+  Tooltip,
+} from '@gouvfr-lasuite/cunningham-react'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
-import { useOpenInDocsMutation } from '@/features/ai-jobs/api/fetch.ts'
+import {
+  useCreateInDocsMutation,
+  useOpenInDocsMutation,
+} from '@/features/ai-jobs/api/fetch.ts'
 import { useLocation } from 'wouter'
 import { intervalToDuration } from 'date-fns'
 import {
@@ -35,40 +43,93 @@ import { useConfig } from '@/api/useConfig'
 
 function OpenInDocsButton({
   lastAiJobTranscript,
+  supportsSynchronousDocsCreation,
 }: {
   lastAiJobTranscript: ApiAiJob | null
+  supportsSynchronousDocsCreation: boolean
 }) {
   const { t } = useTranslation('recordings')
   const openInDocs = useOpenInDocsMutation()
+  const createInDocs = useCreateInDocsMutation()
+
+  const showCreateDocsError = useCallback(
+    () =>
+      addToast(
+        <ToasterItem type="error">
+          <span>{t('transcript.createInDocsError')}</span>
+        </ToasterItem>
+      ),
+    [t]
+  )
+  const showOpenDocsError = useCallback(
+    () =>
+      addToast(
+        <ToasterItem type="error">
+          <span>{t('transcript.openInDocsError')}</span>
+        </ToasterItem>
+      ),
+    [t]
+  )
+
   const handleOpenInDocs = useCallback(() => {
-    if (
-      lastAiJobTranscript?.id &&
-      lastAiJobTranscript.status === 'success' &&
-      lastAiJobTranscript.docs_app_id
-    ) {
+    if (!lastAiJobTranscript?.id || lastAiJobTranscript.status !== 'success') {
+      return
+    }
+
+    if (lastAiJobTranscript.docs_app_id) {
       openInDocs.mutate(lastAiJobTranscript, {
-        onSuccess: (res) => {
-          window.open(res.doc_url, '_blank')
-        },
+        onSuccess: (res) => window.open(res.doc_url, '_blank'),
+        onError: showOpenDocsError,
+      })
+      return
+    }
+
+    if (supportsSynchronousDocsCreation) {
+      createInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) => window.open(res.doc_url, '_blank'),
+        onError: showCreateDocsError,
       })
     }
-  }, [lastAiJobTranscript, openInDocs])
+  }, [
+    createInDocs,
+    lastAiJobTranscript,
+    openInDocs,
+    showCreateDocsError,
+    showOpenDocsError,
+    supportsSynchronousDocsCreation,
+  ])
   const { isMobile } = useResponsive()
+  const isDocsActionPending = openInDocs.isPending || createInDocs.isPending
+  const canOpenInDocs =
+    lastAiJobTranscript?.status === 'success' &&
+    (Boolean(lastAiJobTranscript.docs_app_id) ||
+      supportsSynchronousDocsCreation)
 
   return (
-    <Button
-      onClick={handleOpenInDocs}
-      size="small"
-      variant="secondary"
-      disabled={
-        openInDocs.isPending ||
-        lastAiJobTranscript?.status !== 'success' ||
-        !lastAiJobTranscript?.docs_app_id
-      }
-      aria-label={t('transcript.openInDocsCta')}
-      icon={<ArrowUpRight />}
-      children={!isMobile ? t('transcript.openInDocsCta') : undefined}
-    />
+    <>
+      <Button
+        onClick={handleOpenInDocs}
+        size="small"
+        variant="secondary"
+        disabled={isDocsActionPending || !canOpenInDocs}
+        aria-label={t('transcript.openInDocsCta')}
+        icon={<ArrowUpRight />}
+        children={!isMobile ? t('transcript.openInDocsCta') : undefined}
+      />
+      <Modal
+        size={ModalSize.SMALL}
+        isOpen={createInDocs.isPending}
+        onClose={() => undefined}
+        preventClose={true}
+        closeOnEsc={false}
+        closeOnClickOutside={false}
+        title={t('createInDocsModal.title')}
+        hideCloseButton={true}
+      >
+        <Spinner />
+        <p>{t('createInDocsModal.description')}</p>
+      </Modal>
+    </>
   )
 }
 
@@ -175,7 +236,13 @@ export default function RecordingPage({
                     children={t('shared:actions.copyText')}
                     onClick={handleCopy}
                   />
-                  <OpenInDocsButton lastAiJobTranscript={lastAiJobTranscript} />
+                  <OpenInDocsButton
+                    lastAiJobTranscript={lastAiJobTranscript}
+                    supportsSynchronousDocsCreation={
+                      data?.docs_integration_supports_synchroneous_calls ??
+                      false
+                    }
+                  />
                 </>
               )}
 

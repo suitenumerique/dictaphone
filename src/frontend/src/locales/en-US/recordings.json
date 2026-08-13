@@ -24,6 +24,10 @@
     "failed": "Invalid audio file",
     "failedAriaLabel": "Audio extraction failed"
   },
+  "createInDocsModal": {
+    "title": "Creating your Docs document",
+    "description": "Please wait while your transcript is added to Docs."
+  },
   "uploadTooltip": {
     "title": "Upload files",
     "supportedFormats": "Supported formats: {{formats, list}}",
@@ -150,6 +154,8 @@
     "segmentSeekAriaLabel": "Seek to {{timestamp}} ({{speaker}})",
     "noSpeaker": "Unknown speaker",
     "openInDocsCta": "Open in Docs",
+    "createInDocsError": "Unable to create the Docs document right now. Please try again.",
+    "openInDocsError": "Unable to open the Docs document right now. Please try again.",
     "copySuccess": "Transcript copied to clipboard",
     "copyError": "Failed to copy transcript to clipboard",
     "status": {
