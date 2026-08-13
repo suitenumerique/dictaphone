@@ -24,6 +24,7 @@ def test_send_transcription_ready_email_success(settings):
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.SUCCESS,
         file__title="Team meeting",
+        file__creator__language="en-us",
     )
 
     send_transcription_ready_email(job.id)
