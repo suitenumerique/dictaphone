@@ -105,7 +105,7 @@
       "audioKeptUntil": "Audio recording is kept until {{value, formatDate}}",
       "fileKeptUntil": "Transcript is kept until {{value, formatDate}}",
       "alertTitle": "Data policy",
-      "alertDescription": "Your recordings are kept on our servers for {{originalDataKeptFor}} days. The transcripts (text) are kept for {{transcriptDataKeptFor}} days.",
+      "alertDescription": "Your recordings are kept on our servers for {{originalDataKeptFor}} days. The transcripts (text) are kept for {{transcriptDataKeptFor}} days. This policy applies to new recordings and may differ from this / previous recordings.",
       "alertAction": "Understood"
     },
     "meta": {

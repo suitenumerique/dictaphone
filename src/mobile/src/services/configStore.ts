@@ -33,10 +33,13 @@ const apiConfigSchema = z.object({
     android_version: z.string(),
     android_min_version: z.string(),
   }),
+  docs_integration_enabled: z.boolean(),
+  docs_integration_supports_synchroneous_calls: z.boolean().default(false),
   data_policy: z
     .object({
       file_auto_hard_delete_after_days: z.number(),
       original_file_data_delete_after_days: z.number(),
+      is_relative_to_user: z.boolean().optional(),
       // adding default if missing during release
     })
     .default(DEFAULT_DATA_POLICY),
