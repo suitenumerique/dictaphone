@@ -125,7 +125,10 @@ def extract_audio_to_storage(file) -> float:
                 "-hide_banner",  # Keep logs focused on actionable errors.
                 "-loglevel",  # Limit FFmpeg output volume.
                 "error",  # Report errors only; stderr is captured on failure.
-                "-xerror",  # Treat decoding errors as fatal.
+                "-fflags",
+                "+discardcorrupt+genpts",  # Discard corrupt packets & generate missing PTS
+                "-err_detect",  # Ignore error if possible.
+                "ignore_err",
                 "-i",  # Specify the downloaded source file.
                 str(source_path),  # Source media path.
                 "-map",  # Select the first audio stream explicitly.
@@ -141,6 +144,8 @@ def extract_audio_to_storage(file) -> float:
                 "on",  # Let Opus allocate bits where they are most useful.
                 "-application",  # Tune Opus for the intended workload.
                 "audio",  # Use the full-quality audio application mode.
+                "-af",  # Rebuild timestamps from decoded audio samples.
+                "asetpts=N/SR/TB",  # Prevent non-monotonic timestamps in the OGG muxer.
                 "-ar",  # Normalize the output sample rate.
                 "16000",  # Use the transcription service sample rate.
                 "-f",  # Force a stable output container.
