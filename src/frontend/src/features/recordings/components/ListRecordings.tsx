@@ -33,7 +33,10 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
     )
   }
 
-  if (recording.audio_extraction_state !== 'extraction_done') {
+  if (
+    recording.ai_jobs.length === 0 &&
+    recording.audio_extraction_state !== 'extraction_done'
+  ) {
     const label =
       recording.audio_extraction_state === 'pending_audio_extraction'
         ? t('audioExtraction.pending')
@@ -94,7 +97,10 @@ function RecordingMetadata({ recording }: { recording: ApiFileItem }) {
   const formattedProcessingDurationRemaining =
     useFormattedProcessingDuration(recording)
 
-  if (recording.audio_extraction_state !== 'extraction_done') {
+  if (
+    recording.ai_jobs.length === 0 &&
+    recording.audio_extraction_state !== 'extraction_done'
+  ) {
     if (recording.audio_extraction_state === 'audio_extraction_failed') {
       return (
         <div className="recordings-list__item__metadata">

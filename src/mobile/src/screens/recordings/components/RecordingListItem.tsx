@@ -87,6 +87,7 @@ function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
     return <WarningIcon />
   }
   if (
+    item.ai_jobs.length === 0 &&
     item.audio_extraction_state &&
     item.audio_extraction_state !== 'extraction_done'
   ) {
@@ -146,6 +147,7 @@ function formatRecordMeta(
   }
 
   if (
+    recording.ai_jobs.length === 0 &&
     recording.audio_extraction_state &&
     recording.audio_extraction_state !== 'extraction_done'
   ) {
