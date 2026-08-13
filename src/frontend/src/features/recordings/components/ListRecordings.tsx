@@ -19,6 +19,33 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
     [recording.ai_jobs]
   )
 
+  if (recording.audio_extraction_state === 'audio_extraction_failed') {
+    return (
+      <Tooltip content={t('audioExtraction.failed')}>
+        <span
+          role="img"
+          aria-label={t('audioExtraction.failedAriaLabel')}
+          className="warning"
+        >
+          <Warning />
+        </span>
+      </Tooltip>
+    )
+  }
+
+  if (recording.audio_extraction_state !== 'extraction_done') {
+    const label =
+      recording.audio_extraction_state === 'pending_audio_extraction'
+        ? t('audioExtraction.pending')
+        : t('audioExtraction.extracting')
+
+    return (
+      <span role="status" aria-label={label}>
+        <Spinner />
+      </span>
+    )
+  }
+
   if (lastAiJobTranscript?.status === 'success') {
     return (
       <div className="recordings-list__document-icon">
@@ -66,6 +93,27 @@ function RecordingMetadata({ recording }: { recording: ApiFileItem }) {
 
   const formattedProcessingDurationRemaining =
     useFormattedProcessingDuration(recording)
+
+  if (recording.audio_extraction_state !== 'extraction_done') {
+    if (recording.audio_extraction_state === 'audio_extraction_failed') {
+      return (
+        <div className="recordings-list__item__metadata">
+          <span>{t('audioExtraction.failed')}</span>
+        </div>
+      )
+    }
+
+    return (
+      <div className="recordings-list__item__metadata">
+        <span>{durationFormatted}</span>•
+        <span>
+          {recording.audio_extraction_state === 'pending_audio_extraction'
+            ? t('audioExtraction.pending')
+            : t('audioExtraction.extracting')}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className="recordings-list__item__metadata">

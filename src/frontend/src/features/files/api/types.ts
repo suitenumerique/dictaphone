@@ -14,6 +14,12 @@ export type ApiLifeCycleState =
   | 'original_data_deleted'
   | 'pending_auto_hard_delete'
 
+export type ApiAudioExtractionState =
+  | 'pending_audio_extraction'
+  | 'extracting_audio'
+  | 'extraction_done'
+  | 'audio_extraction_failed'
+
 export type ApiFileItem = {
   id: string // UUID
   created_at: string // ISO datetime string
@@ -25,6 +31,7 @@ export type ApiFileItem = {
   hard_deleted_at: string | null
   filename: string
   upload_state: ApiFileUploadState
+  audio_extraction_state: ApiAudioExtractionState
   lifecycle_state: ApiLifeCycleState
   mimetype: string // e.g. "image/png"
   size: number // file size in bytes
@@ -48,6 +55,10 @@ export type ApiFileItem = {
   | {
       upload_state: 'pending'
       policy: string
+      url: null
+    }
+  | {
+      upload_state: 'analyzing'
       url: null
     }
 )
