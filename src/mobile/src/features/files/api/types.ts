@@ -14,6 +14,12 @@ export type ApiLifeCycleState =
   | 'original_data_deleted'
   | 'pending_auto_hard_delete'
 
+export type ApiAudioExtractionState =
+  | 'pending_audio_extraction'
+  | 'extracting_audio'
+  | 'extraction_done'
+  | 'audio_extraction_failed'
+
 export type ApiFileItem = {
   id: string // UUID
   created_at: string // ISO datetime string
@@ -26,6 +32,7 @@ export type ApiFileItem = {
   filename: string
   upload_state: ApiFileUploadState
   lifecycle_state: ApiLifeCycleState
+  audio_extraction_state?: ApiAudioExtractionState // ? because some older backend version don't have this attribute
   mimetype: string // e.g. "image/png"
   size: number // file size in bytes
   description: string | null

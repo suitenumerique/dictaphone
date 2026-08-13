@@ -47,6 +47,12 @@ const OPEN_STATE_THRESHOLD = 60
 const DELETE_ACTION_WIDTH = 80
 const RETRY_ACTION_WIDTH = 60
 
+const audioExtractionMetaTranslationKeys = {
+  pending_audio_extraction: 'recordings.meta.pendingAudioExtraction',
+  extracting_audio: 'recordings.meta.extractingAudio',
+  audio_extraction_failed: 'recordings.meta.audioExtractionFailed',
+} as const
+
 export type SwipeableRowRef = React.ElementRef<typeof Swipeable>
 
 type StatusIndicatorProps = {
@@ -75,6 +81,16 @@ function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
       return <ActivityIndicator size="small" />
     }
     return <WarningIcon />
+  }
+
+  if (item.audio_extraction_state === 'audio_extraction_failed') {
+    return <WarningIcon />
+  }
+  if (
+    item.audio_extraction_state &&
+    item.audio_extraction_state !== 'extraction_done'
+  ) {
+    return <ActivityIndicator size="small" />
   }
 
   const { lastAiJobTranscript } = getMainAiJobs(item.ai_jobs)
@@ -127,6 +143,19 @@ function formatRecordMeta(
       return `${durationLabel} • ${t('recordings.meta.waitingForUpload')}`
     }
     return `${durationLabel} • ${dateLabel}`
+  }
+
+  if (
+    recording.audio_extraction_state &&
+    recording.audio_extraction_state !== 'extraction_done'
+  ) {
+    if (recording.audio_extraction_state === 'audio_extraction_failed') {
+      return t(audioExtractionMetaTranslationKeys.audio_extraction_failed)
+    }
+
+    return `${durationLabel} • ${t(
+      audioExtractionMetaTranslationKeys[recording.audio_extraction_state]
+    )}`
   }
 
   const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)

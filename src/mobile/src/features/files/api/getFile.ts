@@ -39,7 +39,9 @@ export const useGetFile = (params: Parameters<typeof getFile>[0]) => {
       if (!file) {
         return false
       }
-      return shouldRefetchMainAiJobs(file.ai_jobs)
+      return file.audio_extraction_state === 'pending_audio_extraction' ||
+        file.audio_extraction_state === 'extracting_audio' ||
+        shouldRefetchMainAiJobs(file.ai_jobs)
         ? REFRESH_AI_JOBS_INTERVAL_MS
         : false
     },

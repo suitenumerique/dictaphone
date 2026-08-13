@@ -15,6 +15,10 @@ import { useUser } from '@/features/auth/api/useUser'
 
 const REFRESH_AI_JOBS_INTERVAL_MS = 10_000
 
+const isAudioExtractionPending = (file: ApiFileItem) =>
+  file.audio_extraction_state === 'pending_audio_extraction' ||
+  file.audio_extraction_state === 'extracting_audio'
+
 export type ListFilesResponse = {
   count: number
   next: string | null
@@ -89,7 +93,11 @@ export const useListMyFiles = (params: Parameters<typeof listMyFiles>[0]) => {
       if (!files) {
         return false
       }
-      return files.some((file) => shouldRefetchMainAiJobs(file.ai_jobs))
+      return files.some(
+        (file) =>
+          isAudioExtractionPending(file) ||
+          shouldRefetchMainAiJobs(file.ai_jobs)
+      )
         ? REFRESH_AI_JOBS_INTERVAL_MS
         : false
     },
@@ -124,7 +132,11 @@ export const useListMyFilesInfinite = ({
         return false
       }
 
-      return files.some((file) => shouldRefetchMainAiJobs(file.ai_jobs))
+      return files.some(
+        (file) =>
+          isAudioExtractionPending(file) ||
+          shouldRefetchMainAiJobs(file.ai_jobs)
+      )
         ? REFRESH_AI_JOBS_INTERVAL_MS
         : false
     },

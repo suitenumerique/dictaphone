@@ -115,7 +115,10 @@
       "processingLong": "Processing ∼ {{value}}",
       "uploading": "Uploading",
       "waitingForUpload": "Waiting for upload",
-      "processingFailed": "Processing failed"
+      "processingFailed": "Processing failed",
+      "pendingAudioExtraction": "Preparing audio",
+      "extractingAudio": "Converting audio",
+      "audioExtractionFailed": "Invalid audio file"
     },
     "menu": {
       "rename": "Rename",

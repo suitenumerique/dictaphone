@@ -115,7 +115,10 @@
       "processingLong": "En traitement ∼ {{value}}",
       "uploading": "Envoi en cours",
       "waitingForUpload": "En attente d'envoi",
-      "processingFailed": "Échec du traitement"
+      "processingFailed": "Échec du traitement",
+      "pendingAudioExtraction": "Préparation de l'audio",
+      "extractingAudio": "Conversion de l'audio",
+      "audioExtractionFailed": "Fichier audio invalide"
     },
     "menu": {
       "rename": "Renommer",
