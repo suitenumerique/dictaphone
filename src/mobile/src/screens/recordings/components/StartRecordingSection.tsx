@@ -12,11 +12,15 @@ import { useSettingsStore } from '@/services/storage'
 
 type StartRecordingSectionProps = {
   onStartRecording: () => void
+  onImportFile: () => void
+  isImporting: boolean
   t: TFunction
 }
 
 export function StartRecordingSection({
   onStartRecording,
+  onImportFile,
+  isImporting,
   t,
 }: StartRecordingSectionProps) {
   const [isPopoverVisible, setIsPopoverVisible] = useState(false)
@@ -41,20 +45,40 @@ export function StartRecordingSection({
 
   return (
     <View style={styles.startRecordingContainer}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.startRecordingButton,
-          pressed && styles.startRecordingButtonPressed,
-        ]}
-        onPress={onStartRecording}
-        accessibilityLabel={t('home.newRecording')}
-        accessibilityRole="button"
-      >
-        <RecordIcon width={24} height={24} />
-        <AppText variant="button" color={colors.errorSecondary}>
-          {t('home.newRecording')}
-        </AppText>
-      </Pressable>
+      <View style={styles.actionsRow}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.startRecordingButton,
+            pressed && styles.startRecordingButtonPressed,
+          ]}
+          onPress={onStartRecording}
+          accessibilityLabel={t('home.newRecording')}
+          accessibilityRole="button"
+        >
+          <RecordIcon width={24} height={24} />
+          <AppText variant="button" color={colors.errorSecondary}>
+            {t('home.newRecording')}
+          </AppText>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.importButton,
+            pressed && styles.importButtonPressed,
+            isImporting && styles.importButtonDisabled,
+          ]}
+          onPress={onImportFile}
+          disabled={isImporting}
+          accessibilityLabel={t('recordings.import.button')}
+          accessibilityRole="button"
+        >
+          <Lucide
+            name={isImporting ? 'loader-circle' : 'file-up'}
+            size={22}
+            color={colors.primary}
+          />
+        </Pressable>
+      </View>
 
       <View style={styles.consentRow}>
         <AppText
@@ -168,19 +192,41 @@ const styles = StyleSheet.create({
       },
     ],
   },
+  actionsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 8,
+  },
   startRecordingButton: {
     backgroundColor: colors.backgroundErrorSecondary,
     borderRadius: 4,
-    minHeight: 40,
+    minHeight: 48,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
-    width: '100%',
+    flex: 1,
   },
   startRecordingButtonPressed: {
     backgroundColor: colors.backgroundErrorSecondaryPressed,
+  },
+  importButton: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    width: 48,
+    minHeight: 48,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  importButtonPressed: {
+    backgroundColor: colors.backgroundSubtlePressed,
+  },
+  importButtonDisabled: {
+    opacity: 0.6,
   },
   consentRow: {},
   languageRow: {

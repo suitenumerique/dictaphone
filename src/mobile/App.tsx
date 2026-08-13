@@ -28,6 +28,7 @@ import { UpdateModal } from '@/features/config/UpdateModal'
 import { RecoverModal } from '@/features/config/RecoverModal'
 import { CheckBatteryOptimization } from '@/components/CheckBatteryOptimization'
 import { runRecovery, startRecordingsUploadManager } from '@/services/storage'
+import { IncomingSharedFileHandler } from '@/components/IncomingSharedFileHandler'
 
 const RootStack = createNativeStackNavigator<RootStackParamList>()
 
@@ -136,6 +137,7 @@ function App() {
             </RootStack.Navigator>
           </NavigationContainer>
           <UpdateModal />
+          <IncomingSharedFileHandler />
           <RecoverModal />
         </AppInitialization>
       </QueryClientProvider>

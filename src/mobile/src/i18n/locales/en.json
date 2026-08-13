@@ -72,6 +72,18 @@
     "wifiOnlySync": "Waiting for WiFi to sync",
     "syncNow": "Sync now",
     "syncNowHint": "Transfer pending recordings using current network connection",
+    "import": {
+      "button": "Import audio file",
+      "preparing": "Preparing audio file...",
+      "errorTitle": "Unable to import audio file",
+      "errors": {
+        "unsupported_type": "This file type is not supported.",
+        "too_large": "This file is too large.",
+        "too_long": "This audio file is too long.",
+        "unrecognized_audio": "This audio file could not be read.",
+        "generic": "The audio file could not be imported."
+      }
+    },
     "listFooter": "No other recordings",
     "missingFiles": {
       "title": "Recordings removed",

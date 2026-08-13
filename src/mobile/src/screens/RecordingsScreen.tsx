@@ -35,6 +35,25 @@ import {
   type UploadBlockReason,
 } from '@/screens/recordings/components/RecordingListItem'
 import { StartRecordingSection } from '@/screens/recordings/components/StartRecordingSection'
+import { pickAndQueueFile, ImportedFileError } from '@/services/importedFile'
+
+const importErrorMessage = (
+  t: ReturnType<typeof useTranslation>['t'],
+  code: string
+) => {
+  switch (code) {
+    case 'unsupported_type':
+      return t('recordings.import.errors.unsupported_type')
+    case 'too_large':
+      return t('recordings.import.errors.too_large')
+    case 'too_long':
+      return t('recordings.import.errors.too_long')
+    case 'unrecognized_audio':
+      return t('recordings.import.errors.unrecognized_audio')
+    default:
+      return t('recordings.import.errors.generic')
+  }
+}
 
 export default function RecordingsScreen() {
   const { t } = useTranslation()
@@ -71,6 +90,8 @@ export default function RecordingsScreen() {
   const [fileIdBeingDeleted, setFileIdBeingDeleted] = useState<string | null>(
     null
   )
+  const [isImporting, setIsImporting] = useState(false)
+  const importLockRef = useRef(false)
   const openedSwipeableRef = useRef<SwipeableRowRef | null>(null)
 
   const uploadBlockReason: UploadBlockReason = !isLoggedIn
@@ -135,6 +156,26 @@ export default function RecordingsScreen() {
   const handleStartRecording = useCallback(() => {
     navigation.navigate('RecordingInProgress')
   }, [navigation])
+
+  const handleImportFile = useCallback(async () => {
+    if (importLockRef.current) {
+      return
+    }
+    importLockRef.current = true
+    setIsImporting(true)
+    try {
+      await pickAndQueueFile()
+    } catch (error) {
+      const code = error instanceof ImportedFileError ? error.code : 'generic'
+      Alert.alert(
+        t('recordings.import.errorTitle'),
+        importErrorMessage(t, code)
+      )
+    } finally {
+      importLockRef.current = false
+      setIsImporting(false)
+    }
+  }, [t])
 
   const handleOpenRecording = useCallback(
     (item: LocalOrRemoteRecording) => {
@@ -269,7 +310,12 @@ export default function RecordingsScreen() {
         }
       />
 
-      <StartRecordingSection onStartRecording={handleStartRecording} t={t} />
+      <StartRecordingSection
+        onStartRecording={handleStartRecording}
+        onImportFile={handleImportFile}
+        isImporting={isImporting}
+        t={t}
+      />
     </View>
   )
 }

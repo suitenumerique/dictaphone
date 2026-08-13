@@ -34,11 +34,13 @@ class MainActivity : ReactActivity() {
         supportFragmentManager.fragmentFactory = RNScreensFragmentFactory()
         RNBootSplash.init(this, R.style.BootTheme) // ⬅️ initialize the splash screen
         super.onCreate(savedInstanceState)
+        FileUploadModule.handleIncomingIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        FileUploadModule.handleIncomingIntent(intent)
 
 //        val data: Uri? = intent.data
 //        Log.d("DEEPLINK", "onNewIntent URI = $data")

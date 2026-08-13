@@ -57,4 +57,10 @@ RCT_EXTERN_METHOD(readBundledFileAsBase64:(NSString *)fileName
         resolver:(RCTPromiseResolveBlock)resolver
         rejecter:(RCTPromiseRejectBlock)rejecter)
 
+RCT_EXTERN_METHOD(copyExternalFile:(NSString *)sourceUri
+        fileName:(NSString *)fileName
+        maxSize:(double)maxSize
+        resolver:(RCTPromiseResolveBlock)resolver
+        rejecter:(RCTPromiseRejectBlock)rejecter)
+
 @end

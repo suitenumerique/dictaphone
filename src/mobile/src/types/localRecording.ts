@@ -17,6 +17,9 @@ export const recordingSchema = z.object({
   title: z.string(),
   language: transcriptionLanguageSchema.default('fr'),
   uploadingStatus: uploadingStatusSchema,
+  source: z.enum(['mobile_recording', 'mobile_file_upload']).optional(),
+  fileName: z.string().optional(),
+  mimeType: z.string().optional(),
   uploadId: z.string().optional(),
   fileId: z.string().optional(),
   uploadProgress: z

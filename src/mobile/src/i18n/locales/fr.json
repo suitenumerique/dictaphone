@@ -72,6 +72,18 @@
     "wifiOnlySync": "En attente de WiFi pour synchroniser",
     "syncNow": "Synchroniser maintenant",
     "syncNowHint": "Transférer les enregistrements en attente avec le réseau actuel",
+    "import": {
+      "button": "Importer un fichier audio",
+      "preparing": "Préparation du fichier audio...",
+      "errorTitle": "Impossible d'importer le fichier audio",
+      "errors": {
+        "unsupported_type": "Ce type de fichier n'est pas pris en charge.",
+        "too_large": "Ce fichier est trop volumineux.",
+        "too_long": "Ce fichier audio est trop long.",
+        "unrecognized_audio": "Ce fichier audio ne peut pas être lu.",
+        "generic": "Le fichier audio n'a pas pu être importé."
+      }
+    },
     "listFooter": "Pas d'autres enregistrements",
     "missingFiles": {
       "title": "Enregistrements supprimés",

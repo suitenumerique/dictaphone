@@ -68,6 +68,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
   private static let appActiveKey = "FileUploadAppActive"
   static let backgroundSessionIdentifier = "fr.gouv.assistant_transcripts.uploads"
   private static var backgroundCompletionHandler: (() -> Void)?
+  private static let incomingSharedFileEvent = "IncomingSharedFile"
 
   private static var backgroundSessionConfiguration: URLSessionConfiguration = {
     let configuration = URLSessionConfiguration.background(
@@ -367,6 +368,9 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
 
         var output: [[String: Any]] = []
         for case let fileUrl as URL in enumerator {
+          if fileUrl.pathComponents.contains("Imported") {
+            continue
+          }
           let values = try fileUrl.resourceValues(forKeys: resourceKeys)
           if values.isDirectory == true {
             continue
@@ -424,8 +428,133 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     }
   }
 
+  @objc func copyExternalFile(_ sourceUri: String,
+                              fileName: String,
+                              maxSize: Double,
+                              resolver: @escaping RCTPromiseResolveBlock,
+                              rejecter: @escaping RCTPromiseRejectBlock) {
+    DispatchQueue.global(qos: .userInitiated).async {
+      let sourceUrl: URL
+      if let parsedUrl = URL(string: sourceUri), parsedUrl.scheme != nil {
+        sourceUrl = parsedUrl
+      } else {
+        sourceUrl = URL(fileURLWithPath: self.normalizePath(sourceUri))
+      }
+
+      let didStartAccessing = sourceUrl.startAccessingSecurityScopedResource()
+      defer {
+        if didStartAccessing {
+          sourceUrl.stopAccessingSecurityScopedResource()
+        }
+      }
+
+      var destination: URL? = nil
+      do {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: sourceUrl.path) else {
+          rejecter("FILE_NOT_FOUND", "Shared file does not exist", nil)
+          return
+        }
+
+        guard let documentsDirectory = fileManager.urls(
+          for: .documentDirectory,
+          in: .userDomainMask
+        ).first else {
+          rejecter("FILE_COPY_ERROR", "Unable to access app documents", nil)
+          return
+        }
+
+        let importedDirectory = documentsDirectory
+          .appendingPathComponent("Assistant Transcripts", isDirectory: true)
+          .appendingPathComponent("Imported", isDirectory: true)
+        try fileManager.createDirectory(
+          at: importedDirectory,
+          withIntermediateDirectories: true,
+          attributes: nil
+        )
+
+        let resolvedName = fileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          ? (sourceUrl.lastPathComponent.isEmpty ? "audio-file" : sourceUrl.lastPathComponent)
+          : fileName
+        let safeName = self.sanitizeImportedFileName(resolvedName)
+        let dest = importedDirectory.appendingPathComponent(
+          "\(UUID().uuidString)-\(safeName)"
+        )
+        destination = dest
+
+        let maxSizeBytes = Int64(maxSize)
+        let inputStream = InputStream(url: sourceUrl)
+        let outputStream = OutputStream(url: dest, append: false)
+
+        guard let input = inputStream, let output = outputStream else {
+          rejecter("FILE_COPY_ERROR", "Unable to open file streams", nil)
+          return
+        }
+
+        input.open()
+        output.open()
+        defer {
+          input.close()
+          output.close()
+        }
+
+        let bufferSize = 8192
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer {
+          buffer.deallocate()
+        }
+
+        var bytesCopied: Int64 = 0
+        while input.hasBytesAvailable {
+          let bytesRead = input.read(buffer, maxLength: bufferSize)
+          if bytesRead < 0 {
+            throw input.streamError ?? NSError(
+              domain: "FileUploadModule",
+              code: -1,
+              userInfo: [NSLocalizedDescriptionKey: "Read error"]
+            )
+          }
+          if bytesRead == 0 {
+            break
+          }
+
+          bytesCopied += Int64(bytesRead)
+          if maxSizeBytes > 0 && bytesCopied > maxSizeBytes {
+            if fileManager.fileExists(atPath: dest.path) {
+              try? fileManager.removeItem(at: dest)
+            }
+            rejecter("FILE_TOO_LARGE", "File exceeds maximum size limit", nil)
+            return
+          }
+
+          var bytesWritten = 0
+          while bytesWritten < bytesRead {
+            let written = output.write(buffer.advanced(by: bytesWritten), maxLength: bytesRead - bytesWritten)
+            if written < 0 {
+              throw output.streamError ?? NSError(
+                domain: "FileUploadModule",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Write error"]
+              )
+            }
+            bytesWritten += written
+          }
+        }
+
+        let attributes = try fileManager.attributesOfItem(atPath: dest.path)
+        let size = (attributes[.size] as? NSNumber)?.intValue ?? 0
+        resolver(["path": dest.path, "name": safeName, "size": size])
+      } catch {
+        if let dest = destination, FileManager.default.fileExists(atPath: dest.path) {
+          try? FileManager.default.removeItem(at: dest)
+        }
+        rejecter("FILE_COPY_ERROR", "Unable to copy shared file", error)
+      }
+    }
+  }
+
   override func supportedEvents() -> [String]! {
-    [FileUploadModule.uploadProgressEvent]
+    [FileUploadModule.uploadProgressEvent, FileUploadModule.incomingSharedFileEvent]
   }
 
   override func startObserving() {
@@ -692,6 +821,13 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     let withExtension = fallback.lowercased().hasSuffix(".m4a") ? fallback : "\(fallback).m4a"
     let invalidCharacters = CharacterSet(charactersIn: "\\/:*?\"<>|")
     return withExtension.components(separatedBy: invalidCharacters).joined(separator: "_")
+  }
+
+  private func sanitizeImportedFileName(_ fileName: String) -> String {
+    let trimmed = fileName.trimmingCharacters(in: .whitespacesAndNewlines)
+    let fallback = trimmed.isEmpty ? "audio-file" : trimmed
+    let invalidCharacters = CharacterSet(charactersIn: "\\/:*?\"<>|")
+    return fallback.components(separatedBy: invalidCharacters).joined(separator: "_")
   }
 
   private func getDurationSeconds(_ fileURL: URL) -> Double {

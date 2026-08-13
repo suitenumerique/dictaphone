@@ -54,6 +54,11 @@ type FileUploadNativeModule = {
   setAppActive: (active: boolean) => void
   requestNotificationPermission?: () => Promise<boolean>
   readBundledFileAsBase64?: (fileName: string) => Promise<string>
+  copyExternalFile?: (
+    sourceUri: string,
+    fileName: string,
+    maxSize: number
+  ) => Promise<{ path: string; name: string; size: number }>
 }
 
 const { FileUploadModule } = NativeModules as {
@@ -61,6 +66,7 @@ const { FileUploadModule } = NativeModules as {
 }
 
 const uploadProgressEvent = 'FileUploadProgress'
+export const incomingSharedFileEvent = 'IncomingSharedFile'
 
 export type UploadProgress = {
   uploadedBytes: number
@@ -198,4 +204,22 @@ export const readBundledFileAsArrayBuffer = async (
 
   const base64Payload = await FileUploadModule.readBundledFileAsBase64(fileName)
   return new Uint8Array(toByteArray(base64Payload, true)).buffer
+}
+
+export type ExternalFileCopy = {
+  path: string
+  name: string
+  size: number
+}
+
+export const copyExternalFile = async (
+  sourceUri: string,
+  fileName: string,
+  maxSize = 0
+): Promise<ExternalFileCopy> => {
+  if (!FileUploadModule?.copyExternalFile) {
+    throw new Error('FileUploadModule.copyExternalFile is not available')
+  }
+
+  return FileUploadModule.copyExternalFile(sourceUri, fileName, maxSize)
 }

@@ -3,6 +3,8 @@ package fr.gouv.assistant_transcripts
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.os.Build
@@ -176,6 +178,86 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     fun requestNotificationPermission(promise: Promise) {
         // Android notification permission is requested by PermissionsAndroid in JS.
         promise.resolve(true)
+    }
+
+    @ReactMethod
+    fun copyExternalFile(sourceUri: String, fileName: String, maxSize: Double, promise: Promise) {
+        thread {
+            try {
+                val source = Uri.parse(sourceUri)
+                val input = if (source.scheme == "file") {
+                    FileInputStream(
+                        File(source.path ?: throw IllegalArgumentException("Invalid file URI"))
+                    )
+                } else {
+                    reactApplicationContext.contentResolver.openInputStream(source)
+                        ?: throw IllegalArgumentException("Unable to open shared file")
+                }
+
+                val importedDirectory = File(
+                    reactApplicationContext.filesDir,
+                    "Assistant Transcripts/Imported",
+                )
+                if (!importedDirectory.exists() && !importedDirectory.mkdirs()) {
+                    throw IllegalStateException("Unable to create imported files directory")
+                }
+
+                val resolvedName = fileName.trim().ifEmpty {
+                    queryDisplayName(source).orEmpty()
+                }
+                val safeName = sanitizeImportedFileName(
+                    resolvedName.ifEmpty {
+                        "audio-file${extensionForMimeType(reactApplicationContext.contentResolver.getType(source))}"
+                    },
+                )
+                val dest = File(
+                    importedDirectory,
+                    "${System.currentTimeMillis()}-$safeName",
+                )
+
+                val maxSizeBytes = maxSize.toLong()
+                var bytesCopied = 0L
+                input.use { inputStream ->
+                    dest.outputStream().use { outputStream ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var bytesRead = inputStream.read(buffer)
+                        while (bytesRead >= 0) {
+                            bytesCopied += bytesRead
+                            if (maxSizeBytes > 0 && bytesCopied > maxSizeBytes) {
+                                if (dest.exists()) {
+                                    dest.delete()
+                                }
+                                promise.reject("FILE_TOO_LARGE", "File exceeds maximum size limit")
+                                return@thread
+                            }
+                            outputStream.write(buffer, 0, bytesRead)
+                            bytesRead = inputStream.read(buffer)
+                        }
+                        outputStream.flush()
+                    }
+                }
+
+                promise.resolve(
+                    Arguments.createMap().apply {
+                        putString("path", dest.absolutePath)
+                        putString("name", safeName)
+                        putDouble("size", dest.length().toDouble())
+                    },
+                )
+            } catch (error: Exception) {
+                promise.reject("FILE_COPY_ERROR", "Unable to copy shared file", error)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun getPendingSharedFile(promise: Promise) {
+        val result = Arguments.createArray()
+        while (true) {
+            val file = takePendingSharedFile() ?: break
+            result.pushMap(file)
+        }
+        promise.resolve(result)
     }
 
     @ReactMethod
@@ -467,12 +549,47 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
             .emit(UPLOAD_PROGRESS_EVENT, params)
     }
 
+    private fun emitIncomingSharedFile(file: WritableMap) {
+        reactApplicationContext
+            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+            .emit(INCOMING_SHARED_FILE_EVENT, file)
+    }
+
     companion object {
         @Volatile
         private var instance: FileUploadModule? = null
         private const val UPLOAD_PROGRESS_EVENT = "FileUploadProgress"
+        private const val INCOMING_SHARED_FILE_EVENT = "IncomingSharedFile"
         private const val DEFAULT_BUFFER_SIZE = 8192
         private const val UPLOAD_BUFFER_SIZE = 256 * 1024
+        private val pendingSharedFiles = mutableListOf<WritableMap>()
+
+        fun handleIncomingIntent(intent: Intent?) {
+            if (intent?.action != Intent.ACTION_SEND) {
+                return
+            }
+
+            val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return
+            val map = Arguments.createMap().apply {
+                putString("uri", uri.toString())
+                putString("name", intent.getStringExtra(Intent.EXTRA_TITLE))
+                putString("type", intent.type)
+            }
+            synchronized(pendingSharedFiles) {
+                pendingSharedFiles.add(map)
+            }
+            instance?.emitIncomingSharedFile(map)
+        }
+
+        private fun takePendingSharedFile(): WritableMap? {
+            synchronized(pendingSharedFiles) {
+                return if (pendingSharedFiles.isNotEmpty()) {
+                    pendingSharedFiles.removeAt(0)
+                } else {
+                    null
+                }
+            }
+        }
 
         fun emitProgressFromWorker(uploadId: String, uploadedBytes: Long, totalBytes: Long) {
             instance?.sendProgress(uploadId, uploadedBytes, totalBytes)
@@ -574,6 +691,44 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         return withExtension.replace(Regex("""[\\/:*?"<>|]"""), "_")
     }
 
+    private fun sanitizeImportedFileName(fileName: String): String {
+        val trimmed = fileName.trim()
+        val fallback = if (trimmed.isEmpty()) "audio-file" else trimmed
+        return fallback.replace(Regex("""[\\/:*?"<>|]"""), "_")
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        if (uri.scheme != "content") {
+            return null
+        }
+        return reactApplicationContext.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0) cursor.getString(nameIndex) else null
+            } else {
+                null
+            }
+        }
+    }
+
+    private fun extensionForMimeType(mimeType: String?): String = when (mimeType) {
+        "audio/mp4", "video/mp4" -> ".m4a"
+        "audio/mpeg" -> ".mp3"
+        "audio/wav", "audio/x-wav" -> ".wav"
+        "audio/ogg", "application/ogg" -> ".ogg"
+        "audio/opus" -> ".opus"
+        "audio/flac" -> ".flac"
+        "audio/aac" -> ".aac"
+        "audio/webm" -> ".webm"
+        else -> ".m4a"
+    }
+
     private fun collectM4AFiles(root: File): List<File> {
         val output = mutableListOf<File>()
         val stack = ArrayDeque<File>()
@@ -584,7 +739,9 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
             val children = current.listFiles() ?: continue
             children.forEach { child ->
                 if (child.isDirectory) {
-                    stack.add(child)
+                    if (child.name != "Imported") {
+                        stack.add(child)
+                    }
                 } else if (child.isFile && child.name.lowercase().endsWith(".m4a")) {
                     output.add(child)
                 }
