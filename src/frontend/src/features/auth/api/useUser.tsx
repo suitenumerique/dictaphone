@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
 import { fetchUser } from './fetchUser'
 import { type ApiUser } from './ApiUser'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { logoutUrl } from '../utils/logoutUrl'
 import { useConfig } from '@/api/useConfig'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
@@ -57,6 +57,23 @@ export const useUser = (
     staleTime: Infinity,
     enabled: !isConfigLoading,
   })
+
+  const previousUserId = useRef<string | false | undefined>(undefined)
+
+  useEffect(() => {
+    if (query.status !== 'success') return
+
+    const currentUserId = query.data === false ? false : query.data.id
+    if (previousUserId.current === undefined) {
+      previousUserId.current = currentUserId
+      return
+    }
+
+    if (previousUserId.current !== currentUserId) {
+      previousUserId.current = currentUserId
+      void queryClient.refetchQueries({ queryKey: [keys.config] })
+    }
+  }, [query.data, query.status])
 
   const updateUserQuery = useMutation({
     mutationFn: updateUserPreferences,

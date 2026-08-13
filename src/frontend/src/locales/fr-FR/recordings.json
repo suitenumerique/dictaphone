@@ -16,7 +16,13 @@
     "ariaLabel": "Métadonnées de l'enregistrement",
     "audioKeptUntil": "L'enregistrement audio est conservé jusqu'au {{value, formatDate}}",
     "fileKeptUntil": "Ce transcript est conservé jusqu'au {{value, formatDate}}",
-    "dataPolicyTooltip": "Vos enregistrements sont conservés sur nos serveurs pendant {{originalDataKeptFor}} jours. Les transcriptions (textes) elles sont conservées pendant {{transcriptDataKeptFor}} jours."
+    "dataPolicyTooltip": "Vos enregistrements sont conservés sur nos serveurs pendant {{originalDataKeptFor}} jours. Les transcriptions (textes) sont conservées pendant {{transcriptDataKeptFor}} jours. Cette politique s'applique aux nouveaux enregistrements et peut différer pour les enregistrements précédents."
+  },
+  "audioExtraction": {
+    "pending": "Préparation de l'audio",
+    "extracting": "Conversion de l'audio",
+    "failed": "Fichier audio invalide",
+    "failedAriaLabel": "Échec de l'extraction audio"
   },
   "uploadTooltip": {
     "title": "Importer des fichiers",

@@ -20,9 +20,12 @@ export interface ApiConfig {
     ios_download_link: string
     android_download_link: string
   }
+  docs_integration_enabled: boolean
+  docs_integration_supports_synchroneous_calls: boolean
   data_policy: {
     file_auto_hard_delete_after_days: number
     original_file_data_delete_after_days: number
+    is_relative_to_user: boolean
   }
 }
 
@@ -34,6 +37,6 @@ export const useConfig = () => {
   return useQuery({
     queryKey: [keys.config],
     queryFn: fetchConfig,
-    staleTime: Infinity,
+    staleTime: 10 * 60 * 1000,
   })
 }
