@@ -21,6 +21,7 @@
   "audioExtraction": {
     "pending": "Préparation de l'audio",
     "extracting": "Conversion de l'audio",
+    "transcriptPending": "Nous préparons d'abord votre audio avant de lancer la transcription. Cela prend généralement quelques secondes à quelques minutes.",
     "failed": "Fichier audio invalide",
     "failedAriaLabel": "Échec de l'extraction audio"
   },

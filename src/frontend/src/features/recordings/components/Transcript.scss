@@ -107,6 +107,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 12px;
     color: var(--c--contextuals--content--semantic--neutral--secondary);
 
     p {
@@ -114,6 +115,20 @@
       max-width: 300px;
       font-size: 12px;
       line-height: 16px;
+    }
+  }
+
+  &--audio-extraction {
+    .transcript-pending__message {
+      min-height: 220px;
+    }
+
+    .transcript-pending__message p {
+      margin: 0;
+
+      &:last-child {
+        color: var(--c--contextuals--content--semantic--neutral--tertiary);
+      }
     }
   }
 }

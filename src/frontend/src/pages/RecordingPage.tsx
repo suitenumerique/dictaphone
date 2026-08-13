@@ -329,6 +329,8 @@ export default function RecordingPage({
         <div className="recording-page__main-content">
           <Transcript
             lastAiJobTranscript={lastAiJobTranscript}
+            hasAiJobs={recording.ai_jobs.length > 0}
+            audioExtractionState={recording.audio_extraction_state}
             seekTo={seekTo}
             currentTime={currentTime}
             setTranscriptSegments={setTranscriptSegments}

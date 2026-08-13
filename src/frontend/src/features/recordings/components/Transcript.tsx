@@ -6,19 +6,24 @@ import {
   TranscriptViewSegment,
 } from '@/features/ai-jobs/utils/transcript.ts'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
+import { ApiAudioExtractionState } from '@/features/files/api/types.ts'
 import { TranscriptSegment } from '@/features/recordings/components/TranscriptSegment.tsx'
 import { Trans, useTranslation } from 'react-i18next'
-import { Badge } from '@gouvfr-lasuite/ui-kit'
+import { Badge, Spinner } from '@gouvfr-lasuite/ui-kit'
 import { Skeleton } from '@/components/Skeleton'
 import { useFormattedProcessingDuration } from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 
 export function Transcript({
   lastAiJobTranscript,
+  hasAiJobs,
+  audioExtractionState,
   currentTime,
   seekTo,
   setTranscriptSegments,
 }: {
   lastAiJobTranscript: ApiAiJob | null
+  hasAiJobs: boolean
+  audioExtractionState: ApiAudioExtractionState
   currentTime: number
   seekTo: (time: number) => void
   setTranscriptSegments: (segments: TranscriptViewSegment[]) => void
@@ -83,6 +88,32 @@ export function Transcript({
 
   const formattedProcessingDurationRemaining =
     useFormattedProcessingDuration(lastAiJobTranscript)
+  const isAudioExtractionPending =
+    !hasAiJobs &&
+    (audioExtractionState === 'pending_audio_extraction' ||
+      audioExtractionState === 'extracting_audio')
+
+  if (isAudioExtractionPending) {
+    return (
+      <div
+        className="transcript-pending transcript-pending--audio-extraction"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="transcript-pending__message">
+          <Spinner />
+          <p>
+            {t(
+              audioExtractionState === 'pending_audio_extraction'
+                ? 'audioExtraction.pending'
+                : 'audioExtraction.extracting'
+            )}
+          </p>
+          <p>{t('audioExtraction.transcriptPending')}</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!lastAiJobTranscript || lastAiJobTranscript?.status === 'pending') {
     return (
