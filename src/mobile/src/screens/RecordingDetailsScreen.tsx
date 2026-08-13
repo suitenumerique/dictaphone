@@ -16,6 +16,7 @@ import type { RootStackParamList } from '@/navigation/types'
 import { useGetFile } from '@/features/files/api/getFile'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
 import {
+  useCreateInDocsMutation,
   useOpenInDocsMutation,
   useTranscript,
 } from '@/features/ai-jobs/api/fetch'
@@ -34,6 +35,7 @@ import { AppText, typography } from '@/components/AppText'
 import { colors } from '@/components/colors'
 import { EnrichedMarkdownText } from 'react-native-enriched-markdown'
 import { DEFAULT_DATA_POLICY, useConfigStore } from '@/services/configStore'
+import { CreateInDocsModal } from '@/components/CreateInDocsModal'
 
 type RecordingDetailsRouteProp = RouteProp<
   RootStackParamList,
@@ -59,6 +61,11 @@ export default function RecordingDetailsScreen() {
     (state) =>
       state.config?.data_policy?.file_auto_hard_delete_after_days ??
       DEFAULT_DATA_POLICY.file_auto_hard_delete_after_days
+  )
+
+  const supportsSynchronousDocsCreation = useConfigStore(
+    (state) =>
+      state.config?.docs_integration_supports_synchroneous_calls ?? false
   )
 
   const [openMetaInfo, setOpenMetaInfo] = useState(false)
@@ -89,37 +96,84 @@ export default function RecordingDetailsScreen() {
   )
 
   const openInDocs = useOpenInDocsMutation()
+  const createInDocs = useCreateInDocsMutation()
+
+  const showDocsError = useCallback(
+    (
+      translationKey:
+        'recordings.createInDocsError' | 'recordings.openInDocsError'
+    ) => {
+      Alert.alert(t('recordings.menu.errorTitle'), t(translationKey))
+    },
+    [t]
+  )
+
+  const openDocsUrl = useCallback(
+    async (
+      docUrl: string,
+      errorTranslationKey:
+        'recordings.createInDocsError' | 'recordings.openInDocsError'
+    ) => {
+      try {
+        const isAvailable = await InAppBrowser.isAvailable()
+        if (isAvailable) {
+          await InAppBrowser.open(docUrl, {
+            // iOS Properties
+            preferredBarTintColor: colors.secondary,
+            preferredControlTintColor: 'white',
+            readerMode: false,
+            animated: true,
+            modalPresentationStyle: 'fullScreen',
+            modalTransitionStyle: 'coverVertical',
+            modalEnabled: true,
+            enableBarCollapsing: false,
+            // Android Properties
+            showTitle: false,
+            toolbarColor: colors.secondary,
+            secondaryToolbarColor: 'black',
+            navigationBarColor: 'black',
+            navigationBarDividerColor: 'white',
+            enableUrlBarHiding: true,
+          })
+        } else {
+          await Linking.openURL(docUrl)
+        }
+      } catch {
+        showDocsError(errorTranslationKey)
+      }
+    },
+    [showDocsError]
+  )
+
   const handleOpenInDocs = useCallback(() => {
-    if (lastAiJobTranscript?.id && lastAiJobTranscript.status === 'success') {
+    if (!lastAiJobTranscript?.id || lastAiJobTranscript.status !== 'success') {
+      return
+    }
+
+    if (lastAiJobTranscript.docs_app_id) {
       openInDocs.mutate(lastAiJobTranscript, {
-        onSuccess: async (res) => {
-          const isAvailable = await InAppBrowser.isAvailable()
-          if (isAvailable) {
-            await InAppBrowser.open(res.doc_url, {
-              // iOS Properties
-              preferredBarTintColor: colors.secondary,
-              preferredControlTintColor: 'white',
-              readerMode: false,
-              animated: true,
-              modalPresentationStyle: 'fullScreen',
-              modalTransitionStyle: 'coverVertical',
-              modalEnabled: true,
-              enableBarCollapsing: false,
-              // Android Properties
-              showTitle: false,
-              toolbarColor: colors.secondary,
-              secondaryToolbarColor: 'black',
-              navigationBarColor: 'black',
-              navigationBarDividerColor: 'white',
-              enableUrlBarHiding: true,
-            })
-          } else {
-            await Linking.openURL(res.doc_url)
-          }
-        },
+        onSuccess: (res) =>
+          void openDocsUrl(res.doc_url, 'recordings.openInDocsError'),
+        onError: () => showDocsError('recordings.openInDocsError'),
+      })
+      return
+    }
+
+    if (supportsSynchronousDocsCreation) {
+      createInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) =>
+          void openDocsUrl(res.doc_url, 'recordings.createInDocsError'),
+        onError: () => showDocsError('recordings.createInDocsError'),
       })
     }
-  }, [lastAiJobTranscript, openInDocs])
+  }, [
+    createInDocs,
+    lastAiJobTranscript,
+    openDocsUrl,
+    openInDocs,
+    showDocsError,
+    supportsSynchronousDocsCreation,
+  ])
 
   const transcriptQ = useTranscript(lastAiJobTranscript)
   const transcriptSegments = useMemo(
@@ -151,6 +205,12 @@ export default function RecordingDetailsScreen() {
       })
     }
   }, [transcriptMarkdown])
+
+  const canOpenInDocs =
+    lastAiJobTranscript?.status === 'success' &&
+    (Boolean(lastAiJobTranscript.docs_app_id) ||
+      supportsSynchronousDocsCreation)
+  const isDocsActionPending = openInDocs.isPending || createInDocs.isPending
 
   return (
     <View style={[styles.container, { paddingTop: insets.paddingTop }]}>
@@ -299,10 +359,10 @@ export default function RecordingDetailsScreen() {
               style={({ pressed }) => [
                 styles.openInDocsButton,
                 pressed && styles.openInDocsButtonPressed,
-                !lastAiJobTranscript?.docs_app_id &&
+                (!canOpenInDocs || isDocsActionPending) &&
                   styles.openInDocsButtonDisabled,
               ]}
-              disabled={!lastAiJobTranscript?.docs_app_id}
+              disabled={!canOpenInDocs || isDocsActionPending}
               onPress={handleOpenInDocs}
             >
               <DocsIcon />
@@ -324,6 +384,7 @@ export default function RecordingDetailsScreen() {
           </View>
         </View>
       )}
+      <CreateInDocsModal isVisible={createInDocs.isPending} />
     </View>
   )
 }

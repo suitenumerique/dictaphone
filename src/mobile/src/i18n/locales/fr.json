@@ -108,6 +108,10 @@
       "alertDescription": "Vos enregistrements sont conservés sur nos serveurs pendant {{originalDataKeptFor}} jours. Les transcriptions (textes) sont conservées pendant {{transcriptDataKeptFor}} jours. Cette politique s'applique aux nouveaux enregistrements et peut différer pour cet enregistrement ou les précédents.",
       "alertAction": "Compris"
     },
+    "createInDocsModal": {
+      "title": "Création du document Docs",
+      "description": "Veuillez patienter pendant l'ajout de votre transcription dans Docs."
+    },
     "meta": {
       "loginToSync": "Se connecter pour synchroniser",
       "offline": "Synchronisera une fois en ligne",
@@ -152,7 +156,9 @@
         }
       }
     },
-    "openInDocs": "Ouvrir dans Docs"
+    "openInDocs": "Ouvrir dans Docs",
+    "createInDocsError": "Impossible de créer le document Docs pour le moment. Veuillez réessayer.",
+    "openInDocsError": "Impossible d'ouvrir le document Docs pour le moment. Veuillez réessayer."
   },
   "transcript": {
     "speaker": "Participant",
