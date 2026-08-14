@@ -54,9 +54,9 @@
       "uploadingTitle": "Envoi de l'enregistrement",
       "uploadingIndeterminate": "Envoi en cours…",
       "completeTitle": "Envoi terminé",
-      "completeBody": "Ouvrez l'application pour terminer le traitement de l'enregistrement",
+      "completeBody": "Ouvrez l'application pour terminer le transfert de l'enregistrement",
       "failedTitle": "Échec de l'envoi",
-      "failedBody": "Ouvrez l'application pour réessayer l'envoi de l'enregistrement"
+      "failedBody": "Ouvrez l'application pour réessayer le transfert de l'enregistrement"
     },
     "loginButton": "Se connecter avec ProConnect",
     "delete": "Supprimer",

@@ -54,7 +54,7 @@
       "uploadingTitle": "Uploading recording",
       "uploadingIndeterminate": "Uploading…",
       "completeTitle": "Upload complete",
-      "completeBody": "Open the app to finish processing the recording",
+      "completeBody": "Open the app to finish uploading the recording",
       "failedTitle": "Upload failed",
       "failedBody": "Open the app to retry the recording upload"
     },
