@@ -93,6 +93,20 @@ export function Transcript({
     (audioExtractionState === 'pending_audio_extraction' ||
       audioExtractionState === 'extracting_audio')
 
+  if (audioExtractionState === 'audio_extraction_failed') {
+    return (
+      <div
+        className="transcript-pending transcript-pending--audio-extraction"
+        role="alert"
+      >
+        <div className="transcript-pending__message">
+          <Badge type="danger">{t('audioExtraction.failed')}</Badge>
+          <p>{t('audioExtraction.failedDescription')}</p>
+        </div>
+      </div>
+    )
+  }
+
   if (isAudioExtractionPending) {
     return (
       <div

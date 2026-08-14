@@ -23,6 +23,7 @@
     "extracting": "Converting audio",
     "transcriptPending": "We first preprocess your audio before transcription can begin. This usually takes a few seconds to a few minutes.",
     "failed": "Invalid audio file",
+    "failedDescription": "We couldn't extract the audio from the file, it might be corrupted.",
     "failedAriaLabel": "Audio extraction failed"
   },
   "createInDocsModal": {
