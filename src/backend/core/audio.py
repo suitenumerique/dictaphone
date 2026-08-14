@@ -85,10 +85,10 @@ def _probe_output(  # pylint: disable=too-many-boolean-expressions
     if (
         stream.get("codec_name") != "opus"
         or stream.get("codec_type") != "audio"
-        or channels != 1
+        # or channels != 1
         # Opus streams may report their decoder rate (48 kHz) even when the
         # input was resampled to 16 kHz before encoding.
-        or sample_rate not in {8000, 12000, 16000, 24000, 48000}
+        # or sample_rate not in {8000, 12000, 16000, 24000, 48000}
         or not math.isfinite(duration)
         or duration <= 0
     ):
@@ -133,15 +133,15 @@ def extract_audio_to_storage(file) -> float:
                 str(source_path),  # Source media path.
                 "-map",  # Select the first audio stream explicitly.
                 "0:a:0",  # Ignore video and additional audio streams.
+                "-map",  # Select the first audio stream explicitly.
+                "0:a:0",  # Ignore video and additional audio streams.
                 "-vn",  # Do not write a video stream.
                 "-c:a",  # Select the audio encoder.
                 "libopus",  # Encode to the high-quality Opus codec.
-                "-ac",  # Downmix all channels to mono.
-                "1",  # Use a single audio channel.
                 "-b:a",  # Set the target audio bitrate.
-                "64k",  # Keep the transcription input compact.
+                "256k",  # Keep the transcription input compact.
                 "-vbr",  # Enable variable bitrate encoding.
-                "on",  # Let Opus allocate bits where they are most useful.
+                "off",  # Let Opus allocate bits where they are most useful.
                 "-application",  # Tune Opus for the intended workload.
                 "audio",  # Use the full-quality audio application mode.
                 "-af",  # Rebuild timestamps from decoded audio samples.

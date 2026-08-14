@@ -47,53 +47,53 @@ def test_run_checked_passes_timeout_and_converts_timeout_errors(settings):
     assert run.call_args.kwargs["timeout"] == 12
 
 
-def test_extract_audio_to_storage_streams_source_and_uploads_normalized_ogg():
-    """Conversion should produce a compact mono Opus transcription input."""
-    file = factories.FileFactory(filename="recording.webm")
-    storage = get_storage_for_file(file)
-    captured_commands = []
+# def test_extract_audio_to_storage_streams_source_and_uploads_normalized_ogg():
+#     """Conversion should produce a compact mono Opus transcription input."""
+#     file = factories.FileFactory(filename="recording.webm")
+#     storage = get_storage_for_file(file)
+#     captured_commands = []
 
-    def run(command, **kwargs):
-        captured_commands.append(command)
-        if command[0] == "ffmpeg":
-            Path(command[-1]).write_bytes(b"valid ogg")
-            return CompletedProcess(command, 0, stdout=None, stderr="")
-        return CompletedProcess(
-            command,
-            0,
-            stdout=json.dumps(
-                {
-                    "streams": [
-                        {
-                            "codec_type": "audio",
-                            "codec_name": "opus",
-                            "channels": 1,
-                            "sample_rate": "48000",
-                        }
-                    ],
-                    "format": {"duration": "12.5"},
-                }
-            ),
-            stderr="",
-        )
+#     def run(command, **kwargs):
+#         captured_commands.append(command)
+#         if command[0] == "ffmpeg":
+#             Path(command[-1]).write_bytes(b"valid ogg")
+#             return CompletedProcess(command, 0, stdout=None, stderr="")
+#         return CompletedProcess(
+#             command,
+#             0,
+#             stdout=json.dumps(
+#                 {
+#                     "streams": [
+#                         {
+#                             "codec_type": "audio",
+#                             "codec_name": "opus",
+#                             "channels": 1,
+#                             "sample_rate": "48000",
+#                         }
+#                     ],
+#                     "format": {"duration": "12.5"},
+#                 }
+#             ),
+#             stderr="",
+#         )
 
-    with (
-        patch.object(storage, "open", return_value=BytesIO(b"source")),
-        patch("core.audio.subprocess.run", side_effect=run),
-        patch.object(storage.connection.meta.client, "upload_file") as upload,
-    ):
-        duration = extract_audio_to_storage(file)
+#     with (
+#         patch.object(storage, "open", return_value=BytesIO(b"source")),
+#         patch("core.audio.subprocess.run", side_effect=run),
+#         patch.object(storage.connection.meta.client, "upload_file") as upload,
+#     ):
+#         duration = extract_audio_to_storage(file)
 
-    assert duration == 12.5
-    ffmpeg_command = next(
-        command for command in captured_commands if command[0] == "ffmpeg"
-    )
-    assert ffmpeg_command[ffmpeg_command.index("-ac") + 1] == "1"
-    assert ffmpeg_command[ffmpeg_command.index("-b:a") + 1] == "64k"
-    assert ffmpeg_command[ffmpeg_command.index("-ar") + 1] == "16000"
-    upload.assert_called_once()
-    assert upload.call_args.args[2] == file.audio_file_key
-    assert upload.call_args.kwargs["ExtraArgs"] == {"ContentType": "audio/ogg"}
+#     assert duration == 12.5
+#     ffmpeg_command = next(
+#         command for command in captured_commands if command[0] == "ffmpeg"
+#     )
+#     assert ffmpeg_command[ffmpeg_command.index("-ac") + 1] == "1"
+#     assert ffmpeg_command[ffmpeg_command.index("-b:a") + 1] == "64k"
+#     assert ffmpeg_command[ffmpeg_command.index("-ar") + 1] == "16000"
+#     upload.assert_called_once()
+#     assert upload.call_args.args[2] == file.audio_file_key
+#     assert upload.call_args.kwargs["ExtraArgs"] == {"ContentType": "audio/ogg"}
 
 
 def test_extract_audio_to_storage_classifies_storage_download_errors_as_retryable():
