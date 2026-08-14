@@ -4,6 +4,7 @@ Tasks related to files.
 
 import json
 import logging
+from datetime import datetime
 from time import monotonic
 from urllib.parse import urljoin
 
@@ -135,11 +136,12 @@ def _handle_retryable_audio_extraction_failure(file, ai_job_id):
     )
 
 
-def _capture_audio_extraction_event(
+def _capture_audio_extraction_event(  # noqa: PLR0913 pylint: disable=too-many-arguments
     event_name,
     file,
     preprocessing_time_seconds,
     *,
+    queue_time_seconds=None,
     duration_seconds=None,
     error=None,
 ):
@@ -149,6 +151,8 @@ def _capture_audio_extraction_event(
         "file_id": file.id,
         "input_file_type": file.type,
     }
+    if queue_time_seconds is not None:
+        properties["queue_time_seconds"] = queue_time_seconds
     if duration_seconds is not None:
         properties["audio_duration_seconds"] = duration_seconds
     if error is not None:
@@ -161,6 +165,24 @@ def _capture_audio_extraction_event(
         )
 
     analytics.capture_event(event_name, user=file.creator, properties=properties)
+
+
+def _get_queue_time_seconds(created_at):
+    """Return the time elapsed since the task was created, if available."""
+    if created_at is None:
+        return None
+
+    try:
+        queue_time_seconds = (
+            timezone.now() - datetime.fromisoformat(created_at)
+        ).total_seconds()
+    except TypeError, ValueError:
+        logger.warning(
+            "Invalid audio extraction task creation timestamp: %r", created_at
+        )
+        return None
+
+    return max(0, queue_time_seconds)
 
 
 def _log_suspicious_duration(file, extracted_duration_seconds):
@@ -219,8 +241,10 @@ def _queue_transcription_if_ready(file, *, ai_job_id=None, language=None):
     queue=AUDIO_EXTRACTION_QUEUE,
     **build_retry_task_options(autoretry_for=(AudioExtractionRetryableError,)),
 )
-def extract_audio(file_id, ai_job_id=None, language=None):
+def extract_audio(file_id, ai_job_id=None, language=None, created_at=None):
     """Validate, convert, and store a file's audio representation."""
+    queue_time_seconds = _get_queue_time_seconds(created_at)
+
     try:
         file = File.objects.get(id=file_id)
     except File.DoesNotExist:
@@ -272,6 +296,7 @@ def extract_audio(file_id, ai_job_id=None, language=None):
             analytics.EventName.AUDIO_EXTRACTION_FAILURE,
             file,
             preprocessing_time_seconds,
+            queue_time_seconds=queue_time_seconds,
             error=error,
         )
         _handle_retryable_audio_extraction_failure(file, ai_job_id)
@@ -281,6 +306,7 @@ def extract_audio(file_id, ai_job_id=None, language=None):
             analytics.EventName.AUDIO_EXTRACTION_FAILURE,
             file,
             monotonic() - preprocessing_started_at,
+            queue_time_seconds=queue_time_seconds,
             error=error,
         )
         logger.exception("Audio extraction failed for file %s", file.id)
@@ -295,6 +321,7 @@ def extract_audio(file_id, ai_job_id=None, language=None):
             analytics.EventName.AUDIO_EXTRACTION_FAILURE,
             file,
             monotonic() - preprocessing_started_at,
+            queue_time_seconds=queue_time_seconds,
             error=error,
         )
         logger.exception("Unexpected audio extraction failure for file %s", file.id)
@@ -325,6 +352,7 @@ def extract_audio(file_id, ai_job_id=None, language=None):
         analytics.EventName.AUDIO_EXTRACTION_SUCCESS,
         file,
         monotonic() - preprocessing_started_at,
+        queue_time_seconds=queue_time_seconds,
         duration_seconds=duration_seconds,
     )
 
@@ -339,7 +367,11 @@ def queue_audio_extraction(file_id, *, ai_job_id=None, language=None):
     """Queue extraction on the worker reserved for media processing."""
     extract_audio.apply_async(
         args=[file_id],
-        kwargs={"ai_job_id": ai_job_id, "language": language},
+        kwargs={
+            "ai_job_id": ai_job_id,
+            "language": language,
+            "created_at": timezone.now().isoformat(),
+        },
     )
 
 

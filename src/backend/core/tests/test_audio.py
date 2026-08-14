@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -166,14 +167,19 @@ def test_extract_audio_records_success_analytics_and_warns_on_duration_differenc
 ):
     """Successful extraction records timing and flags suspicious duration changes."""
     file = factories.FileFactory(upload_bytes=b"source", duration_seconds=100)
+    created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
     with (
         patch("core.tasks.file.extract_audio_to_storage", return_value=120),
         patch("core.tasks.file.call_transcribe_service.delay"),
         patch("core.tasks.file.monotonic", side_effect=[10, 14]),
+        patch(
+            "core.tasks.file.timezone.now",
+            return_value=created_at + timedelta(seconds=2),
+        ),
         patch("core.tasks.file.analytics.capture_event") as capture_event,
     ):
-        extract_audio(file.id)
+        extract_audio(file.id, created_at=created_at.isoformat())
 
     assert "Suspicious audio duration difference" in caplog.text
     capture_event.assert_called_once_with(
@@ -181,6 +187,7 @@ def test_extract_audio_records_success_analytics_and_warns_on_duration_differenc
         user=file.creator,
         properties={
             "preprocessing_time_seconds": 4,
+            "queue_time_seconds": 2,
             "file_id": file.id,
             "input_file_type": file.type,
             "audio_duration_seconds": 120,
@@ -217,6 +224,7 @@ def test_extract_audio_marks_failed_and_does_not_transcribe(
 def test_extract_audio_records_failure_analytics():
     """Failed extraction records timing, context, and the exception details."""
     file = factories.FileFactory(upload_bytes=b"invalid")
+    created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
     with (
         patch(
@@ -224,16 +232,21 @@ def test_extract_audio_records_failure_analytics():
             side_effect=AudioExtractionError("invalid audio"),
         ),
         patch("core.tasks.file.monotonic", side_effect=[10, 13]),
+        patch(
+            "core.tasks.file.timezone.now",
+            return_value=created_at + timedelta(seconds=2),
+        ),
         patch("core.tasks.file.analytics.capture_event") as capture_event,
         pytest.raises(AudioExtractionError),
     ):
-        extract_audio(file.id)
+        extract_audio(file.id, created_at=created_at.isoformat())
 
     capture_event.assert_called_once_with(
         analytics.EventName.AUDIO_EXTRACTION_FAILURE,
         user=file.creator,
         properties={
             "preprocessing_time_seconds": 3,
+            "queue_time_seconds": 2,
             "file_id": file.id,
             "input_file_type": file.type,
             "error_type": "AudioExtractionError",
@@ -283,14 +296,19 @@ def test_extract_audio_does_not_retry_terminal_failure(mock_extract):
 def test_extract_audio_retries_transient_failure(mock_extract):
     """Infrastructure failures retry without marking a valid file as bad."""
     file = factories.FileFactory(upload_bytes=b"source")
+    created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
     with (
         patch.object(extract_audio, "retry", side_effect=Retry()) as retry,
         patch("core.tasks.file.monotonic", side_effect=[10, 12]),
+        patch(
+            "core.tasks.file.timezone.now",
+            return_value=created_at + timedelta(seconds=2),
+        ),
         patch("core.tasks.file.analytics.capture_event") as capture_event,
     ):
         with pytest.raises(Retry):
-            extract_audio(file.id)
+            extract_audio(file.id, created_at=created_at.isoformat())
 
     file.refresh_from_db()
     assert (
@@ -305,6 +323,7 @@ def test_extract_audio_retries_transient_failure(mock_extract):
         user=file.creator,
         properties={
             "preprocessing_time_seconds": 2,
+            "queue_time_seconds": 2,
             "file_id": file.id,
             "input_file_type": file.type,
             "error_type": "AudioExtractionRetryableError",
@@ -387,9 +406,16 @@ def test_call_transcribe_service_queues_missing_done_output(mock_queue, settings
 @patch("core.tasks.file.extract_audio.apply_async")
 def test_queue_audio_extraction_uses_dedicated_queue(mock_apply_async):
     """Extraction jobs must be routed to the dedicated audio worker queue."""
-    queue_audio_extraction("file-id", ai_job_id="job-id", language="fr")
+    created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    with patch("core.tasks.file.timezone.now", return_value=created_at):
+        queue_audio_extraction("file-id", ai_job_id="job-id", language="fr")
 
     mock_apply_async.assert_called_once_with(
         args=["file-id"],
-        kwargs={"ai_job_id": "job-id", "language": "fr"},
+        kwargs={
+            "ai_job_id": "job-id",
+            "language": "fr",
+            "created_at": created_at.isoformat(),
+        },
     )
