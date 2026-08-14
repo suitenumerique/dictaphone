@@ -57,7 +57,7 @@ class AiFileJobInline(admin.TabularInline):
 class RetryTranscriptActionForm(ActionForm):
     """Admin action form used to choose the transcription language."""
 
-    language = forms.ChoiceField(choices=models.ISO_639_1_CHOICES, required=True)
+    language = forms.ChoiceField(choices=models.ISO_639_1_CHOICES, required=False)
 
 
 class FileAdminForm(forms.ModelForm):

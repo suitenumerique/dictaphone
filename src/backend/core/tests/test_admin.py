@@ -3,8 +3,11 @@
 from io import BytesIO
 from unittest.mock import Mock, patch
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.files.storage import default_storage
+from django.test import override_settings
+from django.urls import reverse
 
 import pytest
 
@@ -267,6 +270,75 @@ def test_admin_ai_file_job_delete_model_removes_storage_file():
 
     assert not AiFileJob.objects.filter(id=ai_job.id).exists()
     assert not default_storage.exists(ai_job.key)
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
+def test_file_admin_bulk_delete_selected_files(client):
+    """Bulk file deletion removes files and all their storage artifacts."""
+    admin_user = factories.UserFactory(
+        admin_email="admin@example.com",
+        is_staff=True,
+        is_superuser=True,
+    )
+    files = [
+        factories.FileFactory(
+            upload_bytes=b"content",
+            audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        )
+        for _ in range(2)
+    ]
+    transcript_jobs = [
+        factories.AiFileJobFactory(
+            file=file,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            status=AiJobStatusChoices.SUCCESS,
+        )
+        for file in files
+    ]
+    for job in transcript_jobs:
+        default_storage.save(job.key, BytesIO(b'{"segments": []}'))
+
+    selected_ids = [str(file.id) for file in files]
+    changelist_url = reverse("admin:core_file_changelist")
+    storage_keys = [
+        key for file in files for key in (file.file_key, file.audio_file_key)
+    ] + [job.key for job in transcript_jobs]
+
+    assert all(default_storage.exists(key) for key in storage_keys)
+
+    client.force_login(admin_user)
+    response = client.post(
+        changelist_url,
+        data={
+            "action": "delete_selected",
+            "_selected_action": selected_ids,
+            "index": 0,
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Delete multiple objects" in response.content
+
+    response = client.post(
+        changelist_url,
+        data={
+            "action": "delete_selected",
+            "_selected_action": selected_ids,
+            "post": "yes",
+        },
+    )
+
+    assert response.status_code == 302
+    assert not File.objects.filter(id__in=selected_ids).exists()
+    assert not any(default_storage.exists(key) for key in storage_keys)
 
 
 @pytest.mark.django_db(transaction=True)
