@@ -38,9 +38,6 @@ const pathNicefy = (path: string) => {
   return path.replace(/^[./]+/, '')
 }
 
-// 3 hours
-const MAX_DURATION_SECONDS = 60 * 60 * 3
-
 export const useUploadZone = () => {
   const { t } = useTranslation('upload')
   const { data: appConfig } = useConfig()
@@ -189,14 +186,17 @@ export const useUploadZone = () => {
           continue
         }
 
-        if (durationSeconds > MAX_DURATION_SECONDS) {
+        const maxAudioDurationSeconds =
+          appConfig!.audio_recording.max_duration_seconds
+
+        if (durationSeconds > maxAudioDurationSeconds) {
           addToast(
             <ToasterItem type="error">
               <span>
                 {t('errors.tooLong', {
                   maxDuration: intervalToDuration({
                     start: 0,
-                    end: MAX_DURATION_SECONDS * 1000,
+                    end: maxAudioDurationSeconds * 1000,
                   }),
                   duration: intervalToDuration({
                     start: 0,
