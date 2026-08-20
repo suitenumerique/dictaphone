@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from core.configuration import (
     BucketConfigurations,
+    DataPolicyConfiguration,
     DataPolicyConfigurations,
     get_email_domain,
     get_profile_for_email,
@@ -34,6 +35,14 @@ def test_email_domains_are_normalized_and_validated_by_email_validator():
     assert normalize_email_domain(" Exämple.COM. ") == "exämple.com"
     assert get_email_domain("user@Exämple.COM") == "exämple.com"
     assert get_email_domain("not-an-email") is None
+
+
+def test_email_addresses_default_to_an_empty_tuple_and_are_normalized():
+    """Explicit email selectors should be stored as normalized tuples."""
+    assert DataPolicyConfiguration.model_validate({}).emails == ()
+    assert DataPolicyConfiguration.model_validate(
+        {"emails": [" user@EXAMPLE.COM "]}
+    ).emails == ("user@example.com",)
 
 
 def _buckets():
@@ -68,6 +77,39 @@ def test_profiles_are_normalized_and_resolved(settings):
     assert profile.original_file_data_delete_after_days == (
         settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS
     )
+
+
+def test_explicit_email_match_takes_precedence_over_domain_match(settings):
+    """An explicit email selector should override its domain's policy."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "alpha": {"domains": ["example.com"]},
+        "beta": {
+            "domains": ["other.example"],
+            "emails": ["user@EXAMPLE.COM"],
+        },
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+
+    profile = get_profile_for_email("user@example.com")
+
+    assert profile.name == "beta"
+    assert profile.emails == ("user@example.com",)
+
+
+def test_data_policy_can_be_configured_with_emails_only(settings):
+    """A non-default policy may target explicit emails without declaring domains."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "email_only": {"emails": ["user@example.com"]},
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+
+    profile = get_profile_for_email("user@example.com")
+
+    assert profile.name == "email_only"
+    assert profile.domains == ()
+    assert profile.emails == ("user@example.com",)
 
 
 def test_data_policy_notification_and_docs_options_are_configurable(settings):
@@ -119,6 +161,52 @@ def test_duplicate_domains_are_rejected():
                 "default": {"default": True},
                 "alpha": {"domains": ["example.com"]},
                 "beta": {"domains": ["EXAMPLE.COM"]},
+            }
+        )
+
+
+def test_duplicate_explicit_emails_are_rejected_across_profiles():
+    """An explicit email cannot be assigned to multiple data policies."""
+    with pytest.raises(ValidationError, match="multiple data policies"):
+        DataPolicyConfigurations.model_validate(
+            {
+                "default": {"default": True},
+                "alpha": {
+                    "domains": ["alpha.example"],
+                    "emails": ["user@example.com"],
+                },
+                "beta": {
+                    "domains": ["beta.example"],
+                    "emails": ["user@EXAMPLE.COM"],
+                },
+            }
+        )
+
+
+def test_duplicate_explicit_emails_are_rejected_within_a_profile():
+    """A profile cannot list an explicit email more than once."""
+    with pytest.raises(ValidationError, match="duplicate email addresses"):
+        DataPolicyConfigurations.model_validate(
+            {
+                "default": {"default": True},
+                "alpha": {
+                    "domains": ["alpha.example"],
+                    "emails": ["user@example.com", "user@example.com"],
+                },
+            }
+        )
+
+
+def test_invalid_explicit_email_is_rejected():
+    """Configured explicit email selectors must be valid addresses."""
+    with pytest.raises(ValidationError, match="Invalid email address"):
+        DataPolicyConfigurations.model_validate(
+            {
+                "default": {"default": True},
+                "alpha": {
+                    "domains": ["alpha.example"],
+                    "emails": ["not-an-email"],
+                },
             }
         )
 

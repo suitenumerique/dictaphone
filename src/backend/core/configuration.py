@@ -70,17 +70,36 @@ def normalize_email_domain(domain: str) -> str:
         raise ValueError(f"Invalid email domain: {domain!r}") from exc
 
 
+def normalize_email_address(email: str) -> str:
+    """Normalize and validate an email address."""
+    try:
+        return validate_email(
+            email.strip(),
+            check_deliverability=False,
+            test_environment=True,
+        ).normalized
+    except EmailNotValidError as exc:
+        raise ValueError(f"Invalid email address: {email!r}") from exc
+
+
 @lru_cache(maxsize=2048)
-def get_email_domain(email: str | None) -> str | None:
-    """Return the normalized domain from an email address, if available."""
+def _get_email_parts(email: str | None) -> tuple[str, str] | None:
+    """Return the normalized email and domain from an email address."""
     if not email:
         return None
     try:
-        return validate_email(
+        validated_email = validate_email(
             email, check_deliverability=False, test_environment=True
-        ).domain
+        )
     except EmailNotValidError:
         return None
+    return validated_email.normalized, validated_email.domain
+
+
+def get_email_domain(email: str | None) -> str | None:
+    """Return the normalized domain from an email address, if available."""
+    email_parts = _get_email_parts(email)
+    return email_parts[1] if email_parts else None
 
 
 class BucketConfiguration(BaseModel):
@@ -137,6 +156,7 @@ class DataPolicyConfiguration(BaseModel):
 
     default: bool = False
     domains: tuple[str, ...] = Field(default_factory=tuple)
+    emails: tuple[str, ...] = Field(default_factory=tuple)
     bucket: str = "default"
     auto_create_in_docs: bool = True
     send_notification_email: bool = False
@@ -160,6 +180,15 @@ class DataPolicyConfiguration(BaseModel):
             raise ValueError("A profile cannot contain duplicate email domains")
         return normalized
 
+    @field_validator("emails")
+    @classmethod
+    def normalize_emails(cls, emails: tuple[str, ...]) -> tuple[str, ...]:
+        """Normalize email addresses and reject duplicates within a profile."""
+        normalized = tuple(normalize_email_address(email) for email in emails)
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("A profile cannot contain duplicate email addresses")
+        return normalized
+
 
 class DataPolicyConfigurations(RootModel[dict[str, DataPolicyConfiguration]]):
     """Validated collection of data policies."""
@@ -173,7 +202,7 @@ class DataPolicyConfigurations(RootModel[dict[str, DataPolicyConfiguration]]):
 
     @model_validator(mode="after")
     def validate_policies(self) -> "DataPolicyConfigurations":
-        """Validate default selection and relationships between domains."""
+        """Validate default selection and relationships between selectors."""
         default_policies = [
             name for name, policy in self.root.items() if policy.default
         ]
@@ -181,18 +210,25 @@ class DataPolicyConfigurations(RootModel[dict[str, DataPolicyConfiguration]]):
             raise ValueError("Exactly one data policy must be marked as default")
 
         domains_to_profiles = {}
+        emails_to_profiles = {}
         for profile_name, profile in self.root.items():
             if profile.default and profile.domains:
                 raise ValueError("The default data policy cannot declare domains")
-            if not profile.default and not profile.domains:
+            if not profile.default and not profile.domains and not profile.emails:
                 raise ValueError(
-                    f"Data policy {profile_name!r} must declare email domains"
+                    f"Data policy {profile_name!r} must declare email domains or addresses"
                 )
             for domain in profile.domains:
                 previous_profile = domains_to_profiles.setdefault(domain, profile_name)
                 if previous_profile != profile_name:
                     raise ValueError(
                         f"Email domain {domain!r} is configured in multiple data policies"
+                    )
+            for email in profile.emails:
+                previous_profile = emails_to_profiles.setdefault(email, profile_name)
+                if previous_profile != profile_name:
+                    raise ValueError(
+                        f"Email address {email!r} is configured in multiple data policies"
                     )
         return self
 
@@ -220,6 +256,7 @@ class ResolvedDomainProfile(BaseModel):
     name: str
     default: bool
     domains: tuple[str, ...]
+    emails: tuple[str, ...]
     bucket: str
     storage_bucket_name: str
     auto_create_in_docs: bool
@@ -289,6 +326,7 @@ class RuntimeConfiguration:
     buckets_by_physical_name: Mapping[str, str]
     profiles: tuple[ResolvedDomainProfile, ...]
     profiles_by_domain: Mapping[str, ResolvedDomainProfile]
+    profiles_by_email: Mapping[str, ResolvedDomainProfile]
     default_profile: ResolvedDomainProfile
 
 
@@ -437,6 +475,9 @@ def resolve_runtime_configuration(settings_obj) -> RuntimeConfiguration:
         profiles_by_domain=MappingProxyType(
             {domain: profile for profile in profiles for domain in profile.domains}
         ),
+        profiles_by_email=MappingProxyType(
+            {email: profile for profile in profiles for email in profile.emails}
+        ),
         default_profile=default_profile,
     )
 
@@ -450,7 +491,7 @@ def get_runtime_configuration() -> RuntimeConfiguration:
 def clear_configuration_cache() -> None:
     """Clear resolved configuration caches, primarily for tests."""
     get_runtime_configuration.cache_clear()
-    get_email_domain.cache_clear()
+    _get_email_parts.cache_clear()
     for clear_cache in _configuration_cache_clearers:
         clear_cache()
 
@@ -478,7 +519,14 @@ def get_default_profile() -> ResolvedDomainProfile:
 def get_profile_for_email(email: str | None) -> ResolvedDomainProfile:
     """Resolve the profile matching an email address."""
     runtime_configuration = get_runtime_configuration()
-    domain = get_email_domain(email)
+    email_parts = _get_email_parts(email)
+    if email_parts:
+        normalized_email, domain = email_parts
+        profile = runtime_configuration.profiles_by_email.get(normalized_email)
+        if profile is not None:
+            return profile
+    else:
+        domain = None
     return runtime_configuration.profiles_by_domain.get(
         domain, runtime_configuration.default_profile
     )
