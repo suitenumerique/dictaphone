@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant Client@{ "type": "boundary" } as Web or mobile client
+    participant API@{ "type": "control" } as Dictaphone API
+    participant DB@{ "type": "database" } as PostgreSQL
+    participant UserStore@{ "type": "database" } as Creator policy-selected object storage
+    participant Queue@{ "type": "queue" } as Redis and Celery queue
+
+    User->>Client: Select a file or finish recording
+    Client->>API: POST /api/v1.0/files/<br/>Auth<br/>Bearer token for mobile<br/>session cookie for web
+    API->>API: Validate request and upload limits
+    API->>DB: Create file in PENDING state
+    API->>API: Resolve creator data policy
+    API->>UserStore: Generate presigned PUT for temporary object
+    UserStore-->>API: Presigned upload policy
+    API-->>Client: 201 Created<br/>pending file and upload policy
+
+    Client->>UserStore: PUT file to temporary object
+    Client->>API: POST /api/v1.0/files/{id}/upload-ended/
+    API->>DB: Atomically claim finalization<br/>PENDING -> ANALYZING
+    Note over API,DB: This conditional state update is the per-file lock. <br> Only one concurrent call can claim the file.<br> Other calls receive 400 because the file is no longer PENDING.
+    API->>UserStore: Copy temporary object to final location
+    API->>UserStore: Inspect size and content type
+
+    alt File rejected
+        API->>DB: Soft-delete and hard-delete file record
+        API->>UserStore: Delete final object
+        API-->>Client: 4xx validation error
+    else File accepted
+        API->>DB: Mark file READY with validated metadata
+        API->>Queue: queue_audio_extraction(file_id)<br/>extract_audio on dictaphone-audio
+        API-->>Client: 200 OK<br/>READY file
+    end
+
+    Note over API,UserStore: The bucket is selected from the creator's data policy at creation time and persisted on the file.
