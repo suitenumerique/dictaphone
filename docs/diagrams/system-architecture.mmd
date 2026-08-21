@@ -1,0 +1,94 @@
+%% Sources: src/helm/dictaphone/templates, src/helm/dictaphone/values.yaml,
+%%          src/backend/core/configuration.py,
+%%          docs/developping_locally.md, src/backend/dictaphone/settings.py
+flowchart LR
+    subgraph Clients
+        Web["Web browser<br/>React + Vite"]
+        Mobile["Mobile app<br/>React Native"]
+    end
+
+    subgraph Dictaphone["Dictaphone"]
+        direction TB
+        Ingress["Kubernetes Ingress<br/>TLS and path routing"]
+        Frontend["Frontend service<br/>static web app"]
+        API["Backend service<br/>Django REST API"]
+        DB[("PostgreSQL<br/>users, files, AI jobs")]
+        Redis[("Redis<br/>sessions, cache, Celery broker/result")]
+        BackendWorker["Celery backend worker<br/>dictaphone-backend"]
+        AudioWorker["Celery audio worker<br/>dictaphone-audio"]
+        MediaIngress["Media-files Ingress<br/>Nginx auth subrequest"]
+
+        subgraph DictaphoneStorage["Dictaphone S3 storage<br/>one or more policy-linked buckets"]
+            direction TB
+            StoragePolicy["Data policy selects the file bucket"]
+            DefaultBucket[("S3 bucket<br/>default policy")]
+            DomainBucket[("S3 bucket<br/>domain or partner policy")]
+            AdditionalBuckets[("Additional S3 buckets<br/>for other policies")]
+
+            StoragePolicy -->|default| DefaultBucket
+            StoragePolicy -->|domain or partner| DomainBucket
+            StoragePolicy -->|other configured policy| AdditionalBuckets
+        end
+    end
+
+    subgraph SummaryService["Summary Service"]
+        direction TB
+        SummaryAPI["Meet summary API<br/>FastAPI /api/v2"]
+        SummaryWorker["Summary Celery worker"]
+        SummaryStore[("S3/MinIO<br/>temporary result storage")]
+
+        SummaryAPI -->|"enqueue task"| SummaryWorker
+        SummaryWorker -->|"write transcript/summary results"| SummaryStore
+    end
+
+    OIDC["OIDC provider<br/>ProConnect / Keycloak"]
+    WhisperX["WhisperX<br/>transcription and diarization"]
+    LLM["OpenAI-compatible LLM"]
+    Docs["La Suite Docs<br/>optional integration"]
+
+    Web --> Ingress
+    Mobile --> Ingress
+    Ingress -->|"/"| Frontend
+    Ingress -->|"/api/"| API
+
+    API --> DB
+    API <--> Redis
+    API -->|"OIDC redirects"| OIDC
+    API -->|"presigned PUT/GET URLs for selected bucket"| StoragePolicy
+
+    MediaIngress -->|"auth subrequest: /api/v1.0/files/media-auth/"| API
+    MediaIngress -->|"signed request proxy to selected bucket"| StoragePolicy
+
+    Redis --> BackendWorker
+    Redis --> AudioWorker
+    BackendWorker --> DB
+    BackendWorker -->|"read/write media and AI results"| StoragePolicy
+    AudioWorker --> DB
+    AudioWorker -->|"read/write media"| StoragePolicy
+
+    BackendWorker -->|"start transcribe or summarize job"| SummaryAPI
+    SummaryWorker -->|"GET media via signed URL"| StoragePolicy
+    SummaryWorker --> WhisperX
+    SummaryWorker --> LLM
+    SummaryWorker -->|"send success/failure webhooks"| API
+    BackendWorker -.->|"optional transcript document creation"| Docs
+
+    classDef client fill:#e8f1ff,stroke:#356ae6,color:#102a56
+    classDef dictaphoneApp fill:#dbeafe,stroke:#1d4ed8,color:#172554
+    classDef summaryApp fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef data fill:#fef3c7,stroke:#b45309,color:#451a03
+    classDef routing fill:#ffedd5,stroke:#c2410c,color:#7c2d12
+    classDef external fill:#f3e8ff,stroke:#7e22ce,color:#3b0764
+
+    class Web,Mobile client
+    class Ingress,Frontend,API,BackendWorker,AudioWorker,MediaIngress dictaphoneApp
+    class SummaryAPI,SummaryWorker summaryApp
+    class DB,Redis,DefaultBucket,DomainBucket,AdditionalBuckets,SummaryStore data
+    class StoragePolicy routing
+    class OIDC,WhisperX,LLM,Docs external
+
+    linkStyle default stroke:#334155,stroke-width:2px
+
+    style Dictaphone fill:#eff6ff,stroke:#1d4ed8,stroke-width:3px,color:#172554
+    style DictaphoneStorage fill:#fffbeb,stroke:#b45309,stroke-width:2px,color:#451a03
+    style SummaryService fill:#f0fdf4,stroke:#15803d,stroke-width:3px,color:#14532d
