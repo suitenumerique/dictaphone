@@ -1,0 +1,123 @@
+%% Sources: src/backend/core/configuration.py,
+%%          src/backend/core/models.py,
+%%          src/backend/core/management/commands/delete_original_files_data.py,
+%%          src/backend/core/management/commands/auto_hard_delete_files.py,
+%%          src/backend/core/management/commands/purge_deleted_files.py,
+%%          src/backend/core/tasks/file.py,
+%%          src/helm/dictaphone/values.yaml
+flowchart TB
+    subgraph Diagram[" "]
+
+    subgraph ObjectClasses["Objects stored in Dictaphone S3 buckets"]
+        direction LR
+        Temp["Type 1<br/>tmp/files/<br/>temporary upload objects"]
+        Source["Type 2<br/>files/<br/>source and converted audio"]
+        Results["Type 3<br/>transcripts/*.json<br/>summaries/*.txt"]
+    end
+
+    subgraph Enforcement["Two independent purge mechanisms"]
+        direction LR
+
+        subgraph AppPurge["Applicative purge"]
+            direction TB
+            Creator(("File creator"))
+            API["Dictaphone API<br/>soft-delete action"]
+            DB[("Central PostgreSQL<br/>metadata and deadlines")]
+            Cron{{"Daily Kubernetes CronJobs<br/>once per day"}}
+            Commands["Django management commands<br/>delete_original_files_data<br/>auto_hard_delete_files<br/>purge_deleted_files"]
+            Tasks["Celery deletion tasks<br/>process_original_file_data_deletion<br/>process_file_deletion"]
+            AppConfig["Deployment-configured retention<br/>Type 2: 31 days<br/>Type 3: 365 days<br/>hard-delete grace: 7 days (example for one tenant)"]
+            UserRule["Creator can trigger soft delete.<br/>Hard delete is not a creator action."]
+
+            Creator -->|soft delete| API
+            API -->|store deleted_at and deadlines| DB
+            Cron -->|trigger| Commands
+            AppConfig -->|configure| Commands
+            DB -->|select due records| Commands
+            Commands -->|queue| Tasks
+            Tasks -->|update metadata| DB
+            UserRule -.-> API
+        end
+
+        subgraph S3Purge["S3-managed lifecycle (required complement) - example"]
+            direction TB
+            S3Lifecycle{{"S3 lifecycle policy<br/>runs independently of the app"}}
+            S3Delete["S3 soft delete: 7 days<br/>administrator recovery window"]
+            Versioning["Versioning enabled<br/>traceability and recovery"]
+            PrefixRules["Proposed prefix lifecycle rules<br/>configured per bucket"]
+            TempRule["tmp/files/<br/>delete after 1 day<br/>8 days effective incl. soft delete"]
+            SourceRule["files/<br/>delete after 8 days<br/>15 days effective incl. soft delete"]
+            TranscriptRule["transcripts/<br/>delete after 32 days<br/>39 days effective incl. soft delete"]
+            SummaryRule["summaries/<br/>delete after 32 days<br/>39 days effective incl. soft delete"]
+            BackupNote["Retention targets exclude backups"]
+
+            S3Lifecycle --> S3Delete
+            S3Lifecycle --> Versioning
+            S3Lifecycle --> PrefixRules
+            PrefixRules --> TempRule
+            PrefixRules --> SourceRule
+            PrefixRules --> TranscriptRule
+            PrefixRules --> SummaryRule
+            BackupNote -.-> S3Lifecycle
+        end
+    end
+
+    subgraph Buckets["Policy-isolated Dictaphone S3 storage"]
+        direction LR
+        BucketRouter["Data policy / tenant<br/>selects one bucket"]
+        DefaultBucket[("Default bucket<br/>shared policy")]
+        DedicatedBucket[("Dedicated tenant bucket 1")]
+        OtherBuckets[("Other tenant buckets<br/>same pattern can be replicated")]
+
+        BucketRouter --> DefaultBucket
+        BucketRouter --> DedicatedBucket
+        BucketRouter --> OtherBuckets
+    end
+
+    subgraph SummaryStorage["Summary Service temporary storage"]
+        SummaryStore[("Summary Service temporary S3<br/>transcripts and summaries retained [Should be configured with a 24h auto delete policy for instance]")]
+    end
+
+    Tasks -->|delete selected objects| BucketRouter
+    S3Delete -->|applies to each bucket| DefaultBucket
+    S3Delete --> DedicatedBucket
+    S3Delete --> OtherBuckets
+
+    Temp -.-> TempRule
+    Source -.-> SourceRule
+    Results -.-> TranscriptRule
+    Results -.-> SummaryRule
+    SummaryRule -.->|separate lifecycle| SummaryStore
+    end
+
+    classDef type1 fill:#ffedd5,stroke:#c2410c,color:#7c2d12
+    classDef type2 fill:#dbeafe,stroke:#1d4ed8,color:#172554
+    classDef type3 fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef app fill:#dbeafe,stroke:#1d4ed8,color:#172554
+    classDef appData fill:#fef3c7,stroke:#b45309,color:#451a03
+    classDef s3 fill:#ffedd5,stroke:#c2410c,color:#7c2d12
+    classDef s3Rule fill:#fef3c7,stroke:#b45309,color:#451a03
+    classDef bucket fill:#fef3c7,stroke:#b45309,color:#451a03
+    classDef external fill:#f3e8ff,stroke:#7e22ce,color:#3b0764
+    classDef note fill:#f1f5f9,stroke:#64748b,color:#334155
+
+    class Temp type1
+    class Source type2
+    class Results type3
+    class API,Cron,Commands,Tasks app
+    class DB,Creator appData
+    class AppConfig,UserRule note
+    class S3Lifecycle,S3Delete,Versioning,PrefixRules s3
+    class TempRule,SourceRule,TranscriptRule,SummaryRule s3Rule
+    class DefaultBucket,DedicatedBucket,OtherBuckets,BucketRouter bucket
+    class SummaryStore external
+    class BackupNote note
+
+    linkStyle default stroke:#334155,stroke-width:1.8px
+    style ObjectClasses fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#0f172a
+    style Enforcement fill:#ffffff,stroke:#334155,stroke-width:2px,color:#0f172a
+    style AppPurge fill:#eff6ff,stroke:#1d4ed8,stroke-width:2px,color:#172554
+    style S3Purge fill:#fff7ed,stroke:#c2410c,stroke-width:2px,color:#7c2d12
+    style Buckets fill:#fffbeb,stroke:#b45309,stroke-width:2px,color:#451a03
+    style SummaryStorage fill:#faf5ff,stroke:#7e22ce,stroke-width:2px,color:#3b0764
+    style Diagram fill:none,stroke:none,color:transparent

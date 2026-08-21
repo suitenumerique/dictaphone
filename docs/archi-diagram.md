@@ -11,6 +11,9 @@ copying the diagrams into every document.
 - [File routing by data policy](diagrams/file-routing-by-data-policy.mmd) — how
   an email address selects a policy, logical bucket, physical bucket, and the
   persisted retention snapshot for a file.
+- [Data purge and S3 lifecycle](diagrams/data-purge-lifecycle.mmd) — the daily
+  applicative purge and the independent S3-managed lifecycle policies that
+  provide a second retention safeguard.
 
 ## Sequences
 
