@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    participant Queue@{ "type": "queue" } as Redis and Celery queue
+    participant Audio@{ "type": "control" } as Audio worker
+    participant FFmpeg@{ "type": "entity" } as FFmpeg
+    participant FileStore@{ "type": "database" } as File-linked object storage
+    participant DB@{ "type": "database" } as PostgreSQL
+    participant Backend@{ "type": "control" } as Backend worker
+    participant Summary@{ "type": "boundary" } as Summary service
+
+    Queue->>Audio: extract_audio(file_id)<br/>queue: dictaphone-audio
+    Audio->>DB: Claim pending audio extraction
+    Audio->>FileStore: Read source object using persisted file storage
+    Audio->>FFmpeg: Run ffmpeg to extract and normalize audio
+
+    alt Audio extraction failure
+        FFmpeg-->>Audio: Extraction failure
+        Audio->>FileStore: Delete partial derived audio
+        Audio->>DB: Mark AUDIO_EXTRACTION_FAILED
+    else Audio extraction succeeds
+        FFmpeg-->>Audio: Normalized OGG/Opus audio and duration
+        Audio->>FileStore: Write derived audio object
+        Audio->>DB: Mark EXTRACTION_DONE and save duration
+        Audio->>Queue: call_transcribe_service.delay(file_id)<br/>queue: dictaphone-backend
+        Queue->>Backend: call_transcribe_service(file_id)<br/>queue: dictaphone-backend
+        Backend->>DB: Create PENDING transcription job
+        Backend->>FileStore: Generate signed GET URL for derived audio
+        Backend->>Summary: POST /api/v2/async-jobs/transcribe
+
+        alt Transcription request failure
+            Summary-->>Backend: Request failure
+            Backend->>DB: Mark transcription job FAILED
+        else Transcription request succeeds
+            Summary-->>Backend: 200 pending and remote job id
+            Backend->>DB: Save remote transcription job id
+        end
+    end
+
+    Note over Audio,FileStore: Every storage operation here uses the storage configuration persisted on the file.
