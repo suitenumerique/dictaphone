@@ -1,0 +1,41 @@
+sequenceDiagram
+    autonumber
+    participant DictaphoneWorker@{ "type": "control" } as Dictaphone backend worker
+    participant API@{ "type": "boundary" } as Summary FastAPI
+    participant TranscribeQueue@{ "type": "queue" } as Transcription task queue
+    participant Worker@{ "type": "control" } as Summary Celery worker
+    participant SourceStore@{ "type": "database" } as Signed audio object storage
+    participant WhisperX@{ "type": "boundary" } as WhisperX service
+    participant ResultStore@{ "type": "database" } as Transcript result store
+    participant WebhookQueue@{ "type": "queue" } as Webhook task queue
+    participant Webhook@{ "type": "boundary" } as Dictaphone webhook endpoint
+
+    DictaphoneWorker->>API: POST /api/v2/async-jobs/transcribe<br/>tenant Bearer key + signed audio URL + language
+    API->>API: Verify tenant API key and validate request
+    API->>TranscribeQueue: process_audio_transcribe_v2_task.apply_async<br/>queue: transcribe-queue-v2
+    API-->>DictaphoneWorker: 200 pending + job id
+    TranscribeQueue->>Worker: process_audio_transcribe_v2_task(job_id)
+
+    Worker->>SourceStore: GET signed audio URL
+    SourceStore-->>Worker: Audio stream
+    Worker->>WhisperX: POST /audio/transcriptions<br/>language + diarized_json response format
+
+    alt Transcription failure
+        WhisperX-->>Worker: Transcription failure
+        Worker->>WebhookQueue: call_webhook_v2_task(failure)<br/>queue: call-webhook-queue-v2
+        WebhookQueue->>Webhook: POST transcript failure webhook
+    else Transcription succeeds
+        WhisperX-->>Worker: Transcript segments and word segments
+        Worker->>ResultStore: Store transcript as transcripts/{job_id}.json
+        ResultStore-->>Worker: Stored
+        Worker->>ResultStore: Create signed GET URL for transcript
+        Worker->>WebhookQueue: call_webhook_v2_task(success)<br/>queue: call-webhook-queue-v2
+        WebhookQueue->>Webhook: POST transcript success webhook + data URL
+    end
+
+%% Sources in sibling Meet repository:
+%% meet/src/summary/summary/api/route/tasks_v2.py
+%% meet/src/summary/summary/core/celery_worker.py
+%% meet/src/summary/summary/core/file_service.py
+%% meet/src/summary/summary/core/webhook_service.py
+%% meet/src/summary/summary/core/shared_models.py
