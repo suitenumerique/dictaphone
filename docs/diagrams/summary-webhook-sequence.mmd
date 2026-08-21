@@ -1,0 +1,40 @@
+sequenceDiagram
+    autonumber
+    participant SummaryWorker@{ "type": "control" } as Summary service worker
+    participant WebhookTask@{ "type": "queue" } as Webhook delivery task
+    participant SummaryStore@{ "type": "database" } as Summary result store
+    participant API@{ "type": "boundary" } as Dictaphone webhook endpoint
+    participant DB@{ "type": "database" } as PostgreSQL
+    participant Backend@{ "type": "control" } as Dictaphone backend worker
+    participant Store@{ "type": "database" } as File data-policy bucket
+
+    SummaryWorker->>WebhookTask: Queue call_webhook_v2_task(payload, tenant_id)
+    WebhookTask->>WebhookTask: Resolve tenant webhook URL and API key
+    WebhookTask->>API: POST /api/v1.0/ai-jobs/webhook/<br/>Authorization: Bearer webhook key
+    API->>API: Verify shared webhook key and validate summary payload
+    API->>DB: Find AiFileJob by remote_job_id
+
+    alt Summary success webhook
+        DB-->>API: Pending summary job
+        API->>Backend: Enqueue store_summary(job_id, summary_data_url)
+        API-->>WebhookTask: 200 Event processed
+        Backend->>SummaryStore: GET signed summary URL
+        SummaryStore-->>Backend: Summary text
+        Backend->>DB: Resolve file and persisted storage policy
+        Backend->>Store: PUT summaries/{ai_job_id}.txt
+        Backend->>DB: Mark summary job SUCCESS
+    else Summary failure webhook
+        Note over WebhookTask,API: The same request carries status=failure and error_code.
+        DB-->>API: Pending summary job
+        API->>DB: Mark matching AI job FAILED
+        API-->>WebhookTask: 200 Event processed
+    else Unknown or already successful job
+        API-->>WebhookTask: 200 Ignore event
+    end
+
+    Note over SummaryWorker,Store: Webhook delivery retries are handled by the summary service's Celery task. Result download and storage retries are handled by Dictaphone's task.
+
+%% Sources: src/backend/core/api/viewsets.py,
+%%          src/backend/core/tasks/file.py,
+%%          src/backend/core/webhook_models.py,
+%%          meet/src/summary/summary/core/webhook_service.py

@@ -1,0 +1,59 @@
+sequenceDiagram
+    autonumber
+    participant SummaryWorker@{ "type": "control" } as Summary service worker
+    participant WebhookTask@{ "type": "queue" } as Webhook delivery task
+    participant API@{ "type": "boundary" } as Dictaphone webhook endpoint
+    participant DB@{ "type": "database" } as PostgreSQL
+    participant Backend@{ "type": "control" } as Dictaphone backend worker
+    participant TranscriptStore@{ "type": "database" } as Summary result storage
+    participant FileStore@{ "type": "database" } as File data-policy bucket
+    participant Docs@{ "type": "boundary" } as La Suite Docs
+    participant SummaryAPI@{ "type": "boundary" } as Summary service API
+
+    SummaryWorker->>WebhookTask: Queue call_webhook_v2_task(payload, tenant_id)<br/>queue: call-webhook-queue-v2
+    WebhookTask->>API: POST /api/v1.0/ai-jobs/webhook/<br/>type: transcript + status + job id + data URL/error code
+    API->>API: Verify shared webhook key and validate transcript payload
+    API->>DB: Find transcript job by remote_job_id
+
+    alt Transcript succeeds
+        DB-->>API: Pending transcript job
+        API->>Backend: Enqueue handle_transcript_received(job_id, transcription_data_url)<br/>queue: dictaphone-backend
+        API-->>WebhookTask: 200 Event processed
+        Backend->>TranscriptStore: GET signed transcript URL
+        TranscriptStore-->>Backend: Transcript JSON
+        Backend->>FileStore: PUT transcripts/{ai_job_id}.json
+        Backend->>DB: Mark transcript job SUCCESS
+        opt Data policy enables automatic Docs publication
+            Backend->>Backend: Enqueue create_document_in_docs(ai_job_id)<br/>queue: dictaphone-backend
+            Backend->>Docs: POST /api/v1.0/documents/create-for-owner/<br/>transcript markdown + owner
+            Docs-->>Backend: 201 document id
+        end
+        opt Transcript contains segments
+            Backend->>SummaryAPI: POST /api/v2/async-jobs/summarize/<br/>transcript content
+            SummaryAPI-->>Backend: 200 pending + summary job id
+        end
+    else Transcript failure: no_audio_in_file
+        DB-->>API: Pending transcript job
+        API->>Backend: Enqueue handle_transcript_received(job_id, no transcript URL)<br/>queue: dictaphone-backend
+        API-->>WebhookTask: 200 Event processed
+        Backend->>FileStore: PUT empty transcripts/{ai_job_id}.json
+        Backend->>DB: Mark transcript job SUCCESS
+        opt Data policy enables automatic Docs publication
+            Backend->>Backend: Enqueue create_document_in_docs(ai_job_id)<br/>queue: dictaphone-backend
+            Backend->>Docs: POST /api/v1.0/documents/create-for-owner/<br/>empty transcript + owner
+            Docs-->>Backend: 201 document id
+        end
+    else Other transcript failure
+        DB-->>API: Pending transcript job
+        API->>DB: Mark transcript job FAILED
+        API-->>WebhookTask: 200 Event processed
+    else Unknown or already successful job
+        API-->>WebhookTask: 200 Ignore event
+    end
+
+    Note over SummaryWorker,FileStore: Webhook delivery retries are handled by the summary service task. Transcript download and storage retries are handled by Dictaphone's task.
+
+%% Sources: src/backend/core/api/viewsets.py,
+%%          src/backend/core/tasks/file.py,
+%%          src/backend/core/webhook_models.py,
+%%          meet/src/summary/summary/core/webhook_service.py
