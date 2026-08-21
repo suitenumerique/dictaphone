@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant Mobile@{ "type": "boundary" } as Mobile app
+    participant Browser@{ "type": "boundary" } as In-app browser
+    participant API@{ "type": "control" } as Django auth views
+    participant Keychain@{ "type": "database" } as Device keychain
+    participant OIDC@{ "type": "boundary" } as OIDC provider
+    participant Cache@{ "type": "database" } as Redis/cache
+    participant DB@{ "type": "database" } as Django database
+
+    User->>Mobile: Tap OIDC login
+    Mobile->>Mobile: Generate code_verifier and state
+    Mobile->>Mobile: code_challenge = BASE64URL(SHA-256(code_verifier))
+    Mobile->>Keychain: Store verifier + state
+    Mobile->>Browser: Open /authenticate/?<br/>response_type=code, code_challenge, S256, state
+    Browser->>API: GET /authenticate/
+    API->>API: Validate PKCE parameters
+    API->>Cache: Store PKCE request data in Django session
+    API-->>Browser: Redirect to OIDC authorization endpoint
+    Browser->>OIDC: Authenticate user and grant access
+    OIDC-->>Browser: Redirect to Django OIDC callback
+    Browser->>API: GET callback
+    API->>OIDC: Validate callback and resolve user
+    OIDC-->>API: Authenticated user
+    API->>Cache: Pop PKCE request data
+    API->>Cache: Store one-time code -> user + code_challenge
+    API-->>Browser: Redirect to /mobile-login
+    Browser-->>Mobile: Deep link with code + state
+
+    Mobile->>Keychain: Read verifier + expected state
+    Mobile->>Mobile: Verify returned state matches expected state
+    Mobile->>API: POST /api/v1.0/oauth/token/<br/>code + code_verifier
+    API->>Cache: Get authorization code
+    API->>Cache: Delete code immediately (single use)
+    API->>API: Compute S256(code_verifier)<br/>and compare with stored challenge
+    API->>DB: Confirm user exists and is active
+    DB-->>API: Active user
+    API-->>Mobile: access JWT + refresh JWT
+    Mobile->>Keychain: Store access + refresh JWTs<br/>and clear verifier/state
+
+    opt Access token later expires
+        Mobile->>API: POST /api/v1.0/oauth/token/refresh/<br/>with refresh JWT
+        API-->>Mobile: New access + refresh JWT
+    end
+
+    Note over API,Cache: An invalid verifier also consumes the code, so it cannot be retried.
+%% Sources: src/mobile/src/services/authService.ts, src/mobile/App.tsx,
+%%          src/backend/core/authentication/views.py,
+%%          src/backend/core/authentication/schemas.py, src/backend/core/urls.py
