@@ -1,0 +1,36 @@
+%% Sources: src/backend/core/configuration.py, src/backend/core/models.py,
+%%          src/backend/core/storage.py, src/backend/core/utils.py,
+%%          src/backend/core/api/viewsets.py
+flowchart TD
+    Create["File creation<br/>creator.email"] --> Runtime["get_runtime_configuration()<br/>validate policies and buckets; build lookup maps"]
+    Runtime --> Email{"Exact normalized email matched?"}
+    Email -->|"yes"| EmailProfile["profiles_by_email[email]"]
+    Email -->|"no"| Domain{"Normalized email domain matched?"}
+    Domain -->|"yes"| DomainProfile["profiles_by_domain[domain]"]
+    Domain -->|"no"| Default["default_profile"]
+
+    EmailProfile --> Profile["ResolvedDomainProfile"]
+    DomainProfile --> Profile
+    Default --> Profile
+
+    Profile --> Snapshot["File.save() persists snapshot<br/>storage_bucket_name + retention deadlines"]
+
+    Snapshot --> Storage["get_storage_for_file(file)<br/>routes by persisted file configuration"]
+
+    Existing["Existing file operation"] --> Persisted["get_profile_for_file(file)<br/>use persisted bucket and deadlines"]
+    Persisted --> Storage
+
+    Media["Media request through Nginx"] --> Auth["/files/media-auth/"]
+    Auth --> BucketCheck{"Requested URL bucket<br/>matches file configuration?"}
+    BucketCheck -->|"no"| Deny["403 denied"]
+    BucketCheck -->|"yes"| Signed["Generate S3 authorization headers"]
+
+    Note["Policy selection happens at file creation.<br/>Later configuration changes do not move existing files; the persisted snapshot keeps routing and retention deterministic."]
+    Snapshot -.-> Note
+
+    classDef decision fill:#fff4dc,stroke:#b7791f,color:#4a2c00
+    classDef storage fill:#e8f1ff,stroke:#356ae6,color:#102a56
+    classDef policy fill:#eaf8ef,stroke:#238636,color:#123b1d
+    class Email,Domain,BucketCheck decision
+    class Storage,Final,Signed storage
+    class Runtime,EmailProfile,DomainProfile,Default,Profile,Snapshot,Persisted policy
