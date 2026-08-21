@@ -1,0 +1,44 @@
+sequenceDiagram
+    autonumber
+    participant Dictaphone@{ "type": "control" } as Dictaphone backend worker
+    participant API@{ "type": "boundary" } as Summary FastAPI
+    participant Queue@{ "type": "queue" } as Summary Celery/Redis
+    participant Worker@{ "type": "control" } as Summary Celery worker
+    participant Store@{ "type": "database" } as S3/MinIO temporary result store
+    participant Docs@{ "type": "boundary" } as La Suite Docs
+    participant WebhookQueue@{ "type": "queue" } as Webhook task queue
+    participant Webhook@{ "type": "boundary" } as Dictaphone webhook endpoint
+
+    Dictaphone->>API: POST /api/v2/async-jobs/summarize<br/>tenant Bearer key + transcript content
+    API->>API: Verify tenant API key and validate request
+    API->>Queue: summarize_v2_task.apply_async<br/>queue: summarize-queue-v2
+    API-->>Dictaphone: 200 pending + job id
+    Queue->>Worker: summarize_v2_task(job_id)
+
+    alt Summary generation failure
+        Worker->>WebhookQueue: call_webhook_v2_task(failure)<br/>queue: call-webhook-queue-v2
+        WebhookQueue->>Webhook: POST failure webhook
+        Webhook-->>Dictaphone: Failure callback
+    else Summary generation succeeds
+        Worker->>Worker: Generate summary result
+        Worker->>Store: Store summary as summaries/{job_id}.txt
+        Store-->>Worker: Stored
+        opt Push-to-Docs requested and tenant allowed
+            Worker->>Docs: Create document for owner
+            Docs-->>Worker: 201 document created
+        end
+        Worker->>Store: Create signed GET URL for summary
+        Worker->>WebhookQueue: call_webhook_v2_task(success)<br/>queue: call-webhook-queue-v2
+        WebhookQueue->>Webhook: POST success webhook + summary_data_url
+        Webhook-->>Dictaphone: 2xx success callback
+        Dictaphone->>Dictaphone: Download result, store locally, mark job SUCCESS
+    end
+
+    Note over Worker,Webhook: Summary construction is intentionally represented as one opaque worker step.
+
+
+%% Sources in sibling Meet repository:
+%% meet/src/summary/summary/api/route/tasks_v2.py,
+%% meet/src/summary/summary/core/celery_worker.py,
+%% meet/src/summary/summary/core/file_service.py,
+%% meet/src/summary/summary/core/webhook_service.py
