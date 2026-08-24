@@ -11,7 +11,6 @@ import android.os.Build
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
-import android.os.SystemClock
 import android.util.Base64
 import androidx.core.content.FileProvider
 import androidx.core.app.NotificationCompat
@@ -21,8 +20,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -561,7 +558,6 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
         private const val UPLOAD_PROGRESS_EVENT = "FileUploadProgress"
         private const val INCOMING_SHARED_FILE_EVENT = "IncomingSharedFile"
         private const val DEFAULT_BUFFER_SIZE = 8192
-        private const val UPLOAD_BUFFER_SIZE = 256 * 1024
         private val pendingSharedFiles = mutableListOf<WritableMap>()
 
         fun handleIncomingIntent(intent: Intent?) {

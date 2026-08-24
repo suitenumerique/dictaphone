@@ -75,6 +75,16 @@ class UploadStateStore(context: Context) {
         preferences.edit().putString(UPLOADS_KEY, json.toString()).apply()
     }
 
+    /**
+     * Persists transfer progress without clobbering fields a concurrent caller may have
+     * refreshed (notification strings, wifiOnly…). Cheap enough to call periodically.
+     */
+    @Synchronized
+    fun updateProgress(uploadId: String, uploadedBytes: Long, status: String) {
+        val state = get(uploadId) ?: return
+        put(state.copy(uploadedBytes = uploadedBytes, status = status))
+    }
+
     @Synchronized
     fun remove(uploadId: String) {
         val states = all().filterNot { it.uploadId == uploadId }

@@ -14,12 +14,17 @@ import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.WorkerParameters
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicLong
 
 class FileUploadWorker(
     appContext: Context,
@@ -39,6 +44,11 @@ class FileUploadWorker(
             return fail(uploadId, "Upload file does not exist")
         }
 
+        // Created once: this is a binder call, and it never changes during a transfer.
+        createNotificationChannel(state.notificationStrings.channelName)
+        // Promoting the worker to foreground is also a round trip through WorkManager and
+        // ActivityManager, so it happens once here. Later progress updates go straight to
+        // NotificationManager with the same id, which updates the same notification in place.
         setForeground(createForegroundInfo(uploadId, 0, state.totalBytes, state.notificationStrings))
 
         return try {
@@ -56,12 +66,33 @@ class FileUploadWorker(
         }
     }
 
+    /**
+     * Runs the transfer on [Dispatchers.IO] with a sibling coroutine sampling progress, so that
+     * nothing on the reporting path (preferences, JS bridge, notifications) can stall the socket
+     * writes. The writer only ever touches the streams and [progress].
+     */
     private suspend fun upload(
         uploadId: String,
         state: NativeUploadState,
         file: File,
         store: UploadStateStore,
-    ) {
+    ) = coroutineScope {
+        val progress = AtomicLong(0)
+        val reporter = launch(Dispatchers.IO) { reportProgress(uploadId, state, store, progress) }
+        try {
+            withContext(Dispatchers.IO) { transfer(state, file, progress) }
+        } finally {
+            reporter.cancelAndJoin()
+        }
+        // The success path (FileUploadModule.onWorkerUploadSucceeded) persists the final
+        // byte count and emits the terminal progress event, so no last report is needed here.
+    }
+
+    /**
+     * Blocking writer. Deliberately free of suspension points and IPC: the only work between two
+     * socket writes is a file read and an atomic add.
+     */
+    private fun transfer(state: NativeUploadState, file: File, progress: AtomicLong) {
         val connection = URL(state.url).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "PUT"
@@ -73,46 +104,17 @@ class FileUploadWorker(
             connection.readTimeout = HTTP_READ_TIMEOUT_MS
             connection.setFixedLengthStreamingMode(state.totalBytes)
 
-            var uploadedBytes = 0L
-            var lastReportedBytes = 0L
-            var lastReportedAtMs = 0L
-            suspend fun report(force: Boolean = false) {
-                val now = SystemClock.elapsedRealtime()
-                if (!force &&
-                    (uploadedBytes - lastReportedBytes < PROGRESS_BYTES_STEP ||
-                    now - lastReportedAtMs < PROGRESS_MIN_INTERVAL_MS)
-                ) {
-                    return
-                }
-                lastReportedBytes = uploadedBytes
-                lastReportedAtMs = now
-                store.put(state.copy(uploadedBytes = uploadedBytes, status = UPLOADING))
-                FileUploadModule.emitProgressFromWorker(
-                    uploadId,
-                    uploadedBytes,
-                    state.totalBytes,
-                )
-                setForeground(
-                    createForegroundInfo(
-                        uploadId,
-                        uploadedBytes,
-                        state.totalBytes,
-                        state.notificationStrings,
-                    )
-                )
-            }
-
-            report(force = true)
-            BufferedInputStream(file.inputStream(), BUFFER_SIZE).use { input ->
-                BufferedOutputStream(connection.outputStream, BUFFER_SIZE).use { output ->
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var read = input.read(buffer)
-                    while (read >= 0) {
+            // No Buffered* wrappers: chunks are already large enough that they bypass the
+            // buffer and would only add a copy.
+            file.inputStream().use { input ->
+                connection.outputStream.use { output ->
+                    val buffer = ByteArray(UPLOAD_CHUNK_SIZE)
+                    while (true) {
                         if (isStopped) throw IOException("Upload was stopped")
+                        val read = input.read(buffer)
+                        if (read < 0) break
                         output.write(buffer, 0, read)
-                        uploadedBytes += read
-                        report()
-                        read = input.read(buffer)
+                        progress.addAndGet(read.toLong())
                     }
                     output.flush()
                 }
@@ -125,9 +127,44 @@ class FileUploadWorker(
                 }
                 throw IllegalStateException("Upload returned HTTP $responseCode")
             }
-            report(force = true)
         } finally {
             connection.disconnect()
+        }
+    }
+
+    /** Samples [progress] until cancelled. Never touched by the writer. */
+    private suspend fun reportProgress(
+        uploadId: String,
+        state: NativeUploadState,
+        store: UploadStateStore,
+        progress: AtomicLong,
+    ) {
+        var lastReportedBytes = -1L
+        var lastNotifiedPercent = -1
+        var lastPersistedAtMs = SystemClock.elapsedRealtime()
+
+        while (true) {
+            delay(PROGRESS_TICK_MS)
+
+            val uploadedBytes = progress.get()
+            if (uploadedBytes == lastReportedBytes) continue
+            lastReportedBytes = uploadedBytes
+
+            FileUploadModule.emitProgressFromWorker(uploadId, uploadedBytes, state.totalBytes)
+
+            val percent = percentOf(uploadedBytes, state.totalBytes)
+            if (percent != lastNotifiedPercent) {
+                lastNotifiedPercent = percent
+                notifyProgress(uploadId, uploadedBytes, state.totalBytes, state.notificationStrings)
+            }
+
+            // Only needed so a killed process can report progress on restart, so it is kept
+            // well away from the per-tick path.
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastPersistedAtMs >= PERSIST_INTERVAL_MS) {
+                lastPersistedAtMs = now
+                store.updateProgress(uploadId, uploadedBytes, UPLOADING)
+            }
         }
     }
 
@@ -138,31 +175,28 @@ class FileUploadWorker(
         )
     }
 
+    /** Updates the foreground notification in place, without going through WorkManager. */
+    private fun notifyProgress(
+        uploadId: String,
+        uploadedBytes: Long,
+        totalBytes: Long,
+        notificationStrings: UploadNotificationStrings,
+    ) {
+        applicationContext
+            .getSystemService(NotificationManager::class.java)
+            .notify(
+                notificationId(uploadId),
+                buildProgressNotification(uploadedBytes, totalBytes, notificationStrings),
+            )
+    }
+
     private fun createForegroundInfo(
         uploadId: String,
         uploadedBytes: Long,
         totalBytes: Long,
         notificationStrings: UploadNotificationStrings,
     ): ForegroundInfo {
-        createNotificationChannel(applicationContext, notificationStrings.channelName)
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle(notificationStrings.uploadingTitle)
-            .setContentText(
-                if (totalBytes > 0) {
-                    "${(uploadedBytes * 100 / totalBytes).toInt()}%"
-                } else {
-                    notificationStrings.uploadingIndeterminate
-                }
-            )
-            .setProgress(
-                if (totalBytes > 0) totalBytes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt() else 0,
-                if (totalBytes > 0) uploadedBytes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt() else 0,
-                totalBytes <= 0,
-            )
-            .setOngoing(true)
-            .setCategory(Notification.CATEGORY_PROGRESS)
-            .build()
+        val notification = buildProgressNotification(uploadedBytes, totalBytes, notificationStrings)
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
@@ -175,16 +209,40 @@ class FileUploadWorker(
         }
     }
 
-    private fun createNotificationChannel(context: Context, channelName: String) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                channelName,
-                NotificationManager.IMPORTANCE_LOW,
-            )
+    private fun buildProgressNotification(
+        uploadedBytes: Long,
+        totalBytes: Long,
+        notificationStrings: UploadNotificationStrings,
+    ): Notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+        .setSmallIcon(android.R.drawable.stat_sys_upload)
+        .setContentTitle(notificationStrings.uploadingTitle)
+        .setContentText(
+            if (totalBytes > 0) {
+                "${percentOf(uploadedBytes, totalBytes)}%"
+            } else {
+                notificationStrings.uploadingIndeterminate
+            }
         )
+        .setProgress(
+            if (totalBytes > 0) 100 else 0,
+            if (totalBytes > 0) percentOf(uploadedBytes, totalBytes) else 0,
+            totalBytes <= 0,
+        )
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .setCategory(Notification.CATEGORY_PROGRESS)
+        .build()
+
+    private fun createNotificationChannel(channelName: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        applicationContext.getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    channelName,
+                    NotificationManager.IMPORTANCE_LOW,
+                )
+            )
     }
 
     companion object {
@@ -195,9 +253,14 @@ class FileUploadWorker(
         const val FAILED = "failed"
         const val CHANNEL_ID = "recording_uploads"
         const val MAX_RETRIES = 3
-        const val BUFFER_SIZE = 256 * 1024
-        const val PROGRESS_BYTES_STEP = 512 * 1024L
-        const val PROGRESS_MIN_INTERVAL_MS = 200L
+
+        /**
+         * Small enough that a single write on a slow mobile link cannot freeze progress for
+         * seconds, large enough to keep syscall overhead irrelevant.
+         */
+        const val UPLOAD_CHUNK_SIZE = 64 * 1024
+        const val PROGRESS_TICK_MS = 150L
+        const val PERSIST_INTERVAL_MS = 2_500L
         const val HTTP_CONNECT_TIMEOUT_MS = 30_000
         const val HTTP_READ_TIMEOUT_MS = 60_000
 
@@ -209,5 +272,8 @@ class FileUploadWorker(
 
         fun notificationId(uploadId: String): Int =
             (uploadId.hashCode() and 0x7fffffff).coerceAtLeast(1)
+
+        private fun percentOf(uploadedBytes: Long, totalBytes: Long): Int =
+            if (totalBytes > 0) (uploadedBytes * 100 / totalBytes).toInt() else 0
     }
 }
