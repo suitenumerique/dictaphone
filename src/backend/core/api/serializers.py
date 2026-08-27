@@ -19,6 +19,7 @@ from core.models import (
     FileLifecycleStateChoices,
     get_original_file_data_cutoff_datetime,
 )
+from core.storage import get_bucket_configuration_for_file
 from core.utils import floor_dt_to_bucket
 
 logger = logging.getLogger(__name__)
@@ -336,10 +337,11 @@ class CreateFileSerializer(ListFileSerializer):
 
     title = serializers.CharField(max_length=255, required=False)
     policy = serializers.SerializerMethodField()
+    acl = serializers.SerializerMethodField()
 
     class Meta:
         model = models.File
-        fields = [*ListFileSerializer.Meta.fields, "policy"]
+        fields = [*ListFileSerializer.Meta.fields, "policy", "acl"]
         read_only_fields = [
             *(
                 field
@@ -347,6 +349,7 @@ class CreateFileSerializer(ListFileSerializer):
                 if field not in {"filename", "duration_seconds", "source", "language"}
             ),
             "policy",
+            "acl",
         ]
 
     def get_fields(self):
@@ -421,6 +424,10 @@ class CreateFileSerializer(ListFileSerializer):
             return None
 
         return utils.generate_upload_policy(file)
+
+    def get_acl(self, file):
+        """Return the ACL to use for the file upload."""
+        return get_bucket_configuration_for_file(file).upload_acl
 
     def update(self, instance, validated_data):
         raise NotImplementedError("Update method can not be used.")

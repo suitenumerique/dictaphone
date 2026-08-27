@@ -141,6 +141,7 @@ def test_api_files_create_file_authenticated_success():
 
     response_data = response.json()
     assert response_data["creator"] is not None, response_data
+    assert response_data["acl"] == "private"
 
     assert response.json().get("policy") is not None
 
