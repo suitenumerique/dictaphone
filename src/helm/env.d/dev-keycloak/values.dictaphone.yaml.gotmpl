@@ -162,15 +162,30 @@ posthog:
     enabled: false
 
 ingressMediaFiles:
-  enabled: true
-  host: dictaphone.127.0.0.1.nip.io
+  - name: default
+    serviceName: default
+    enabled: true
+    className: null
+    host: dictaphone.127.0.0.1.nip.io
+    path: /media/(.*)
+    hosts: []
+    tls:
+      secretName: null
+      enabled: true
+      additional: []
 
-  annotations:
-    nginx.ingress.kubernetes.io/auth-url: https://dictaphone.127.0.0.1.nip.io/api/v1.0/files/media-auth/
-    nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
-    nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    annotations:
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/auth-url: https://dictaphone.127.0.0.1.nip.io/api/v1.0/files/media-auth/
+      nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
+      nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        add_header Content-Security-Policy "default-src 'none'" always;
+        add_header Content-Disposition "attachment";
 
 serviceMediaFiles:
-  host: minio.dictaphone.svc.cluster.local
-  port: 9000
+  - name: default
+    host: minio.dictaphone.svc.cluster.local
+    port: 9000
+    annotations: {}

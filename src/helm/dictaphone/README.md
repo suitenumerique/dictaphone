@@ -34,26 +34,31 @@
 | `ingressAdmin.tls.secretName`                                                     | Secret name for TLS config                             | `nil`                                                            |
 | `ingressAdmin.tls.additional[].secretName`                                        | Secret name for additional TLS config                  |                                                                  |
 | `ingressAdmin.tls.additional[].hosts[]`                                           | Hosts for additional TLS config                        |                                                                  |
-| `ingressMediaFiles.enabled`                                                       | whether to enable the Ingress or not                   | `false`                                                          |
-| `ingressMediaFiles.className`                                                     | IngressClass to use for the Ingress                    | `nil`                                                            |
-| `ingressMediaFiles.host`                                                          | Host for the Ingress                                   | `dictaphone.example.com`                                         |
-| `ingressMediaFiles.path`                                                          | Path to use for the Ingress                            | `/media/(.*)`                                                    |
-| `ingressMediaFiles.hosts`                                                         | Additional host to configure for the Ingress           | `[]`                                                             |
-| `ingressMediaFiles.tls.enabled`                                                   | Weather to enable TLS for the Ingress                  | `true`                                                           |
-| `ingressMediaFiles.tls.secretName`                                                | Secret name for TLS config                             | `nil`                                                            |
-| `ingressMediaFiles.tls.additional[].secretName`                                   | Secret name for additional TLS config                  |                                                                  |
-| `ingressMediaFiles.tls.additional[].hosts[]`                                      | Hosts for additional TLS config                        |                                                                  |
-| `ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/use-regex`             | Enable use of regex for ingress paths                  | `true`                                                           |
-| `ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-url`              | Authentication URL for the ingress                     | `https://dictaphone.example.com/api/v1.0/files/media-auth/`      |
-| `ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-response-headers` | Headers to pass from auth response                     | `Authorization, X-Amz-Date, X-Amz-Content-SHA256`                |
-| `ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/upstream-vhost`        | Upstream host for proxying                             | `minio.dictaphone.svc.cluster.local:9000`                        |
-| `ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/configuration-snippet` | Custom nginx configuration snippet                     | `add_header Content-Security-Policy "default-src 'none'" always; |
+| `ingressMediaFiles`                                                              | List of media files ingresses to create                 |                                                                  |
+| `ingressMediaFiles[].name`                                                       | Unique name for the ingress and its provider entry      | `default`                                                        |
+| `ingressMediaFiles[].serviceName`                                                | Service entry to route to (defaults to name)            | `default`                                                        |
+| `ingressMediaFiles[].enabled`                                                    | Whether to enable this Ingress                           | `false`                                                          |
+| `ingressMediaFiles[].className`                                                  | IngressClass to use for this Ingress                    | `nil`                                                            |
+| `ingressMediaFiles[].host`                                                       | Host for this Ingress                                   | `dictaphone.example.com`                                         |
+| `ingressMediaFiles[].path`                                                       | Path to use for this Ingress                            | `/media/(.*)`                                                    |
+| `ingressMediaFiles[].hosts`                                                      | Additional hosts to configure for the Ingress           | `[]`                                                             |
+| `ingressMediaFiles[].tls.enabled`                                                | Whether to enable TLS for the Ingress                  | `true`                                                           |
+| `ingressMediaFiles[].tls.secretName`                                             | Secret name for TLS config                             | `nil`                                                            |
+| `ingressMediaFiles[].tls.additional[].secretName`                                | Secret name for additional TLS config                  |                                                                  |
+| `ingressMediaFiles[].tls.additional[].hosts[]`                                  | Hosts for additional TLS config                        |                                                                  |
+| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/use-regex`          | Enable use of regex for ingress paths                  | `true`                                                           |
+| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/auth-url`           | Authentication URL for the ingress                     | `https://dictaphone.example.com/api/v1.0/files/media-auth/`      |
+| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/auth-response-headers` | Headers to pass from auth response                  | `Authorization, X-Amz-Date, X-Amz-Content-SHA256`                |
+| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/upstream-vhost`     | Upstream host for proxying                             | `minio.dictaphone.svc.cluster.local:9000`                        |
+| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/configuration-snippet` | Custom nginx configuration snippet                  | `add_header Content-Security-Policy "default-src 'none'" always; |
 
 add_header Content-Disposition "attachment";
 `|
-|`serviceMediaFiles.host`                                                         |                                                        |`minio.dictaphone.svc.cluster.local`                                                                           |
-|`serviceMediaFiles.port`                                                         |                                                        |`9000`                                                                                                         |
-|`serviceMediaFiles.annotations`                                                  |                                                        |`{}` |
+| `serviceMediaFiles`                                                              | List of ExternalName services for media files providers |                                                                  |
+| `serviceMediaFiles[].name`                                                       | Unique name for this provider service                  | `default`                                                        |
+| `serviceMediaFiles[].host`                                                       | External hostname for this provider                    | `minio.dictaphone.svc.cluster.local`                             |
+| `serviceMediaFiles[].port`                                                       | Port for this provider                                 | `9000`                                                           |
+| `serviceMediaFiles[].annotations`                                                | Annotations to add to this Service                     | `{}`                                                             |
 
 ### backend
 

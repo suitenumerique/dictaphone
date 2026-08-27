@@ -177,6 +177,22 @@ Requires top level scope
 {{- end }}
 
 {{/*
+Full name for a media files service or ingress.
+
+Requires a dict with the top-level fullname and the media files entry name.
+The default entry keeps the names used before media files became configurable
+as a list, while additional entries get a stable name-specific suffix.
+*/}}
+{{- define "dictaphone.mediaFiles.fullname" -}}
+{{- $name := required "a name is required for every media files entry" .name | lower | replace "_" "-" -}}
+{{- if eq $name "default" -}}
+{{- printf "%s-media-files" .fullname | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-media-files-%s" .fullname $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Usage : {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.path.to.the.image1) }}
 */}}
 {{- define "dictaphone.secret.dockerconfigjson.name" }}

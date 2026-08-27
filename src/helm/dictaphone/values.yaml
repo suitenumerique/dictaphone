@@ -72,49 +72,56 @@ ingressAdmin:
     enabled: true
     additional: []
 
-## @param ingressMediaFiles.enabled whether to enable the Ingress or not
-## @param ingressMediaFiles.className IngressClass to use for the Ingress
-## @param ingressMediaFiles.host Host for the Ingress
-## @param ingressMediaFiles.path Path to use for the Ingress
+## @param ingressMediaFiles List of media files ingresses to create
+## @param ingressMediaFiles[].name Unique name for the ingress and its provider entry
+## @param ingressMediaFiles[].serviceName Name of the serviceMediaFiles entry to route to (defaults to name)
+## @param ingressMediaFiles[].enabled Whether to enable this Ingress
+## @param ingressMediaFiles[].className IngressClass to use for this Ingress
+## @param ingressMediaFiles[].host Host for this Ingress
+## @param ingressMediaFiles[].path Path to use for this Ingress
 ingressMediaFiles:
-  enabled: false
-  className: null
-  host: dictaphone.example.com
-  path: /media/(.*)
-  ## @param ingressMediaFiles.hosts Additional host to configure for the Ingress
-  hosts: []
-  #  - chart-example.local
-  ## @param ingressMediaFiles.tls.enabled Weather to enable TLS for the Ingress
-  ## @param ingressMediaFiles.tls.secretName Secret name for TLS config
-  ## @skip ingressMediaFiles.tls.additional
-  ## @extra ingressMediaFiles.tls.additional[].secretName Secret name for additional TLS config
-  ## @extra ingressMediaFiles.tls.additional[].hosts[] Hosts for additional TLS config
-  tls:
-    secretName: null
-    enabled: true
-    additional: []
+  - name: default
+    serviceName: default
+    enabled: false
+    className: null
+    host: dictaphone.example.com
+    path: /media/(.*)
+    ## @param ingressMediaFiles[].hosts Additional hosts to configure for the Ingress
+    hosts: []
+    ## @param ingressMediaFiles[].tls.enabled Whether to enable TLS for the Ingress
+    ## @param ingressMediaFiles[].tls.secretName Secret name for TLS config
+    ## @skip ingressMediaFiles[].tls.additional
+    ## @extra ingressMediaFiles[].tls.additional[].secretName Secret name for additional TLS config
+    ## @extra ingressMediaFiles[].tls.additional[].hosts[] Hosts for additional TLS config
+    tls:
+      secretName: null
+      enabled: true
+      additional: []
 
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/use-regex Enable use of regex for ingress paths
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-url Authentication URL for the ingress
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/auth-response-headers Headers to pass from auth response
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/upstream-vhost Upstream host for proxying
-  ## @param ingressMediaFiles.annotations.nginx.ingress.kubernetes.io/configuration-snippet Custom nginx configuration snippet
-  annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/auth-url: https://dictaphone.example.com/api/v1.0/files/media-auth/
-    nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
-    nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      add_header Content-Security-Policy "default-src 'none'" always;
-      add_header Content-Disposition "attachment";
+    ## @param ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/use-regex Enable use of regex for ingress paths
+    ## @param ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/auth-url Authentication URL for the ingress
+    ## @param ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/auth-response-headers Headers to pass from auth response
+    ## @param ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/upstream-vhost Upstream host for proxying
+    ## @param ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/configuration-snippet Custom nginx configuration snippet
+    annotations:
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/auth-url: https://dictaphone.example.com/api/v1.0/files/media-auth/
+      nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
+      nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        add_header Content-Security-Policy "default-src 'none'" always;
+        add_header Content-Disposition "attachment";
 
-## @param serviceMediaFiles.host
-## @param serviceMediaFiles.port
-## @param serviceMediaFiles.annotations
+## @param serviceMediaFiles List of ExternalName services for media files providers
+## @param serviceMediaFiles[].name Unique name for this provider service
+## @param serviceMediaFiles[].host External hostname for this provider
+## @param serviceMediaFiles[].port Port for this provider
+## @param serviceMediaFiles[].annotations Annotations to add to this Service
 serviceMediaFiles:
-  host: minio.dictaphone.svc.cluster.local
-  port: 9000
-  annotations: {}
+  - name: default
+    host: minio.dictaphone.svc.cluster.local
+    port: 9000
+    annotations: {}
 
 ## @section backend
 
