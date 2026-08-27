@@ -122,10 +122,17 @@ class FileUploadWorker(
 
             val responseCode = connection.responseCode
             if (responseCode != HttpURLConnection.HTTP_OK) {
+                val responseBody = runCatching {
+                    connection.errorStream?.bufferedReader()?.use { it.readText() }
+                }.getOrNull()
+
+                val responseDetails =
+                    if (!responseBody.isNullOrBlank()) ": $responseBody" else ""
+
                 if (responseCode == 408 || responseCode == 429 || responseCode >= 500) {
-                    throw IOException("Upload returned HTTP $responseCode")
+                    throw IOException("Upload returned HTTP $responseCode - $responseDetails")
                 }
-                throw IllegalStateException("Upload returned HTTP $responseCode")
+                throw IllegalStateException("Upload returned HTTP $responseCode - $responseDetails")
             }
         } finally {
             connection.disconnect()
@@ -246,6 +253,7 @@ class FileUploadWorker(
     }
 
     companion object {
+        private const val TAG = "FileUploadWorker"
         const val KEY_UPLOAD_ID = "upload_id"
         const val KEY_ERROR = "error"
         const val UPLOADING = "uploading"
