@@ -69,9 +69,12 @@ const uploadRecording = async (recordingId: string) => {
       method: 'PUT',
       totalBytes: recording.totalBytes,
       contentType: recording.mimeType || 'audio/webm',
-      headers: {
-        'X-amz-acl': 'private',
-      },
+      headers:
+        pendingFile.acl === null
+          ? {}
+          : {
+              'X-amz-acl': pendingFile.acl ?? 'private',
+            },
       onProgress: (progress) => {
         useLocalRecordingsStore.getState().updateRecording(recordingId, {
           status: 'uploading',

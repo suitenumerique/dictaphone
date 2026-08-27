@@ -55,6 +55,7 @@ export type ApiFileItem = {
   | {
       upload_state: 'pending'
       policy: string
+      acl: string | null
       url: null
     }
   | {
