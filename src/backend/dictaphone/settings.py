@@ -24,6 +24,7 @@ import posthog
 import sentry_sdk
 from configurations import Configuration, values
 from lasuite.configuration.values import SecretFileValue
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from core.configuration import get_runtime_configuration
@@ -885,7 +886,7 @@ class Base(Configuration):
                 dsn=cls.SENTRY_DSN,
                 environment=cls.__name__.lower(),
                 release=get_release(),
-                integrations=[DjangoIntegration()],
+                integrations=[DjangoIntegration(), CeleryIntegration()],
             )
             sentry_sdk.set_tag("application", "backend")
 
