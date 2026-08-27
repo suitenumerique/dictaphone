@@ -112,6 +112,7 @@ class BucketConfiguration(BaseModel):
     secret_access_key_env: str
     endpoint_url_env: str | None = None
     region_name: str | None = None
+    upload_acl: str | None = "private"
     signature_version: str = "s3v4"
     domain_replace: str | None = None
 
@@ -246,6 +247,7 @@ class ResolvedBucketConfiguration(BaseModel):
     region_name: str | None
     signature_version: str
     domain_replace: str | None
+    upload_acl: str | None
 
 
 class ResolvedDomainProfile(BaseModel):
@@ -403,6 +405,7 @@ def resolve_bucket_configurations(
             region_name=bucket.region_name,
             signature_version=bucket.signature_version,
             domain_replace=bucket.domain_replace,
+            upload_acl=bucket.upload_acl,
         )
         for name, bucket in parsed.buckets.items()
     }

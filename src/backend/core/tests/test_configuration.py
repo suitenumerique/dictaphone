@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from core.configuration import (
+    BucketConfiguration,
     BucketConfigurations,
     DataPolicyConfiguration,
     DataPolicyConfigurations,
@@ -247,6 +248,48 @@ def test_bucket_configuration_requires_default():
                 }
             }
         )
+
+
+@pytest.mark.parametrize(
+    ("bucket_overrides", "expected_upload_acl"),
+    [
+        ({}, "private"),
+        ({"upload_acl": "public-read"}, "public-read"),
+        ({"upload_acl": None}, None),
+    ],
+)
+def test_bucket_configuration_upload_acl_defaults_and_accepts_custom_values(
+    bucket_overrides, expected_upload_acl
+):
+    """Bucket upload ACLs should use the private default and accept overrides."""
+    bucket = {
+        "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
+        "access_key_id_env": "S3_DEFAULT_ACCESS_KEY_ID",
+        "secret_access_key_env": "S3_DEFAULT_SECRET_ACCESS_KEY",
+    }
+    bucket.update(bucket_overrides)
+
+    assert BucketConfiguration.model_validate(bucket).upload_acl == expected_upload_acl
+
+
+def test_bucket_configuration_upload_acl_is_resolved(monkeypatch):
+    """Resolved bucket configurations should retain the configured upload ACL."""
+    monkeypatch.setenv("S3_DEFAULT_BUCKET_NAME", "default-bucket")
+    monkeypatch.setenv("S3_ACCESS_KEY_ID", "access-key")
+    monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret-key")
+
+    buckets = resolve_bucket_configurations(
+        {
+            "default": {
+                "bucket_name_env": "S3_DEFAULT_BUCKET_NAME",
+                "access_key_id_env": "S3_ACCESS_KEY_ID",
+                "secret_access_key_env": "S3_SECRET_ACCESS_KEY",
+                "upload_acl": None,
+            }
+        }
+    )
+
+    assert buckets["default"].upload_acl is None
 
 
 def test_bucket_configuration_requires_unique_physical_bucket_names():

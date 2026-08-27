@@ -203,8 +203,9 @@ def generate_upload_policy(file):
     key = file.temporary_file_key
     storage = get_storage_for_file(file)
     bucket_name = get_storage_bucket_name(storage)
+    configuration = get_bucket_configuration_for_file(file)
 
-    # This settings should be used if the backend application and the frontend application
+    # This setting should be used if the backend application and the frontend application
     # can't connect to the object storage with the same domain. This is the case in the
     # docker compose stack used in development. The frontend application will use localhost
     # to connect to the object storage while the backend application will use the object storage
@@ -213,10 +214,15 @@ def generate_upload_policy(file):
     # changed dynamically by the frontend application.
     s3_client = _get_s3_client(file, storage, override_domain=True)
 
+    params = {"Bucket": bucket_name, "Key": key}
+
+    if configuration.upload_acl is not None:
+        params["ACL"] = configuration.upload_acl
+
     # Generate the policy
     policy = s3_client.generate_presigned_url(
         ClientMethod="put_object",
-        Params={"Bucket": bucket_name, "Key": key, "ACL": "private"},
+        Params=params,
         ExpiresIn=settings.AWS_S3_UPLOAD_POLICY_EXPIRATION,
     )
 
