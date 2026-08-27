@@ -54,12 +54,21 @@ export const finalizeFileUpload = async (
  */
 export const uploadFile = async (
   url: string,
+  acl: string | null,
   file: FileSource,
   onProgress?: UploadProgressCallback,
   uploadId?: string,
   wifiOnly = false
 ) => {
-  await uploadFileToS3(file.uri, url, file.type, onProgress, uploadId, wifiOnly)
+  await uploadFileToS3(
+    file.uri,
+    url,
+    acl,
+    file.type,
+    onProgress,
+    uploadId,
+    wifiOnly
+  )
 }
 
 /**
@@ -108,7 +117,14 @@ export const createFile = async ({
   }
   const policy = res.policy
   onUploadPrepared?.({ fileId: res.id, uploadId: effectiveUploadId })
-  await uploadFile(policy, file, onProgress, effectiveUploadId, wifiOnly)
+  await uploadFile(
+    policy,
+    res.acl === null ? null : (res.acl ?? 'private'),
+    file,
+    onProgress,
+    effectiveUploadId,
+    wifiOnly
+  )
   return finalizeFileUpload(res.id)
 }
 

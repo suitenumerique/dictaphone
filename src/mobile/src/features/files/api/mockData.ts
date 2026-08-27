@@ -116,6 +116,7 @@ export const mockedFiles: ApiFileItem[] = [
       hard_delete: false,
     },
     policy: 'upload-policy',
+    acl: 'private',
     url: null,
   },
   {

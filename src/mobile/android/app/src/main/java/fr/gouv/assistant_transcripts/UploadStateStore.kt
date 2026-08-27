@@ -19,6 +19,7 @@ data class NativeUploadState(
     val filePath: String,
     val url: String,
     val contentType: String,
+    val acl: String?,
     val totalBytes: Long,
     val uploadedBytes: Long,
     val wifiOnly: Boolean,
@@ -53,6 +54,11 @@ class UploadStateStore(context: Context) {
                         filePath = item.optString("filePath"),
                         url = item.optString("url"),
                         contentType = item.optString("contentType"),
+                        acl = when {
+                            !item.has("acl") -> "private"
+                            item.isNull("acl") -> null
+                            else -> item.optString("acl")
+                        },
                         totalBytes = item.optLong("totalBytes"),
                         uploadedBytes = item.optLong("uploadedBytes"),
                         wifiOnly = item.optBoolean("wifiOnly"),
@@ -101,6 +107,7 @@ class UploadStateStore(context: Context) {
             put("filePath", item.filePath)
             put("url", item.url)
             put("contentType", item.contentType)
+            put("acl", item.acl ?: JSONObject.NULL)
             put("totalBytes", item.totalBytes)
             put("uploadedBytes", item.uploadedBytes)
             put("wifiOnly", item.wifiOnly)

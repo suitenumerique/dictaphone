@@ -97,7 +97,7 @@ class FileUploadWorker(
         try {
             connection.requestMethod = "PUT"
             connection.setRequestProperty("Content-Type", state.contentType)
-            connection.setRequestProperty("X-amz-acl", "private")
+            state.acl?.let { connection.setRequestProperty("X-amz-acl", it) }
             connection.setRequestProperty("Content-Length", state.totalBytes.toString())
             connection.doOutput = true
             connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MS

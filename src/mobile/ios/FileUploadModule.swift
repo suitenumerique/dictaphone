@@ -12,12 +12,74 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     let filePath: String
     let url: String
     let contentType: String
+    let acl: String?
     let wifiOnly: Bool
     var uploadedBytes: Int64
     let totalBytes: Int64
     var status: String
     var error: String?
     var notificationStrings: NotificationStrings?
+
+    private enum CodingKeys: String, CodingKey {
+      case uploadId
+      case filePath
+      case url
+      case contentType
+      case acl
+      case wifiOnly
+      case uploadedBytes
+      case totalBytes
+      case status
+      case error
+      case notificationStrings
+    }
+
+    init(
+      uploadId: String,
+      filePath: String,
+      url: String,
+      contentType: String,
+      acl: String?,
+      wifiOnly: Bool,
+      uploadedBytes: Int64,
+      totalBytes: Int64,
+      status: String,
+      error: String?,
+      notificationStrings: NotificationStrings?
+    ) {
+      self.uploadId = uploadId
+      self.filePath = filePath
+      self.url = url
+      self.contentType = contentType
+      self.acl = acl
+      self.wifiOnly = wifiOnly
+      self.uploadedBytes = uploadedBytes
+      self.totalBytes = totalBytes
+      self.status = status
+      self.error = error
+      self.notificationStrings = notificationStrings
+    }
+
+    init(from decoder: Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+      uploadId = try container.decode(String.self, forKey: .uploadId)
+      filePath = try container.decode(String.self, forKey: .filePath)
+      url = try container.decode(String.self, forKey: .url)
+      contentType = try container.decode(String.self, forKey: .contentType)
+      // Uploads persisted before ACLs became configurable were signed with private ACL.
+      acl = container.contains(.acl)
+        ? try container.decodeIfPresent(String.self, forKey: .acl)
+        : "private"
+      wifiOnly = try container.decode(Bool.self, forKey: .wifiOnly)
+      uploadedBytes = try container.decode(Int64.self, forKey: .uploadedBytes)
+      totalBytes = try container.decode(Int64.self, forKey: .totalBytes)
+      status = try container.decode(String.self, forKey: .status)
+      error = try container.decodeIfPresent(String.self, forKey: .error)
+      notificationStrings = try container.decodeIfPresent(
+        NotificationStrings.self,
+        forKey: .notificationStrings
+      )
+    }
   }
 
   private struct NotificationStrings: Codable {
@@ -83,6 +145,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
   @objc func uploadFile(_ filePath: String,
                         url: String,
                         contentType: String,
+                        acl: String?,
                         uploadId: String,
                         wifiOnly: Bool,
                         notificationStrings: [String: String],
@@ -110,7 +173,9 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     request.httpMethod = "PUT"
     request.allowsCellularAccess = !wifiOnly
     request.setValue(contentType, forHTTPHeaderField: "Content-Type")
-    request.setValue("private", forHTTPHeaderField: "X-amz-acl")
+    if let acl {
+      request.setValue(acl, forHTTPHeaderField: "X-amz-acl")
+    }
 
     let task = session.uploadTask(with: request, fromFile: fileUrl)
     task.taskDescription = uploadId
@@ -119,6 +184,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       filePath: normalizedPath,
       url: url,
       contentType: contentType,
+      acl: acl,
       wifiOnly: wifiOnly,
       uploadedBytes: 0,
       totalBytes: totalBytes,
@@ -677,7 +743,9 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     request.httpMethod = "PUT"
     request.allowsCellularAccess = !state.wifiOnly
     request.setValue(state.contentType, forHTTPHeaderField: "Content-Type")
-    request.setValue("private", forHTTPHeaderField: "X-amz-acl")
+    if let acl = state.acl {
+      request.setValue(acl, forHTTPHeaderField: "X-amz-acl")
+    }
 
     let task = session.uploadTask(
       with: request,

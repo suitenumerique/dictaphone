@@ -6,6 +6,7 @@
 RCT_EXTERN_METHOD(uploadFile:(NSString *)filePath
         url:(NSString *)url
         contentType:(NSString *)contentType
+        acl:(NSString *)acl
         uploadId:(NSString *)uploadId
         wifiOnly:(BOOL)wifiOnly
         notificationStrings:(NSDictionary *)notificationStrings

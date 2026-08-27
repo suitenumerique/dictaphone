@@ -39,6 +39,7 @@ type FileUploadNativeModule = {
     filePath: string,
     url: string,
     contentType: string,
+    acl: string | null,
     uploadId: string,
     wifiOnly: boolean,
     notificationStrings: UploadNotificationStrings
@@ -116,6 +117,7 @@ export const setFileUploadAppActive = (active: boolean): void => {
 export const uploadFileToS3 = async (
   fileUri: string,
   presignedUrl: string,
+  acl: string | null,
   contentType: string,
   onProgress?: UploadProgressCallback,
   uploadId = createUploadId(),
@@ -151,6 +153,7 @@ export const uploadFileToS3 = async (
       filePath,
       presignedUrl,
       contentType,
+      acl,
       uploadId,
       wifiOnly,
       notificationStrings
