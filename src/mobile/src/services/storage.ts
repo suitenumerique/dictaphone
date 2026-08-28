@@ -36,6 +36,8 @@ import {
   waitForUpload,
 } from '@/utils/fileUpload'
 import { selectRecordingToUpload } from '@/services/uploadSelection'
+import { statusAfterUploadError } from '@/services/uploadReconciliation'
+import type { NativeUploadStatus } from '@/utils/fileUpload'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -178,6 +180,10 @@ const triggerUpload = async (): Promise<void> => {
     return
   }
   const isRetryRequested = recordingToUpload.uploadingStatus === 'to_upload'
+  let uploadIdForRecording = recordingToUpload.uploadId
+  let nativeStatusAtFailure: NativeUploadStatus | undefined
+  let waitForUploadCompleted = false
+  let shouldTriggerNextUpload = false
   updateRecording(recordingToUpload.id, { uploadingStatus: 'uploading' })
 
   try {
@@ -185,6 +191,7 @@ const triggerUpload = async (): Promise<void> => {
       const nativeStatus = (await getUploadStatuses()).find(
         (status) => status.uploadId === recordingToUpload.uploadId
       )
+      nativeStatusAtFailure = nativeStatus
 
       if (!nativeStatus) {
         updateRecording(recordingToUpload.id, {
@@ -192,6 +199,7 @@ const triggerUpload = async (): Promise<void> => {
           uploadProgress: undefined,
           uploadingStatus: 'to_upload' as const,
         })
+        shouldTriggerNextUpload = true
         return
       }
 
@@ -203,6 +211,7 @@ const triggerUpload = async (): Promise<void> => {
             uploadProgress: undefined,
             uploadingStatus: 'to_upload' as const,
           })
+          shouldTriggerNextUpload = true
         } else {
           updateRecording(recordingToUpload.id, {
             uploadingStatus: 'failed',
@@ -233,12 +242,14 @@ const triggerUpload = async (): Promise<void> => {
           settings.wifiOnlyUpload && !bypassWifiOnly
         )
         await waitForUpload(recordingToUpload.uploadId)
+        waitForUploadCompleted = true
       }
 
       await finalizeFileUpload(recordingToUpload.fileId)
       await markUploadFinalized(recordingToUpload.uploadId)
     } else {
       const uploadId = `${recordingToUpload.id}-${Date.now()}`
+      uploadIdForRecording = uploadId
       await requestUploadNotificationPermission()
       await createFile({
         durationSeconds: recordingToUpload.duration_seconds,
@@ -267,6 +278,7 @@ const triggerUpload = async (): Promise<void> => {
       await markUploadFinalized(uploadId)
     }
     await deleteRecording(recordingToUpload.id)
+    shouldTriggerNextUpload = true
     // Wait for every files query to finish refetching before moving on. This keeps the
     // recording list in sync with the just-finalized upload instead of showing it only
     // after the next focus or manual refresh.
@@ -276,10 +288,26 @@ const triggerUpload = async (): Promise<void> => {
     })
   } catch (error) {
     console.error('Error creating file:', error)
-    updateRecording(recordingToUpload.id, { uploadingStatus: 'failed' })
+    if (uploadIdForRecording) {
+      const currentNativeStatus = (
+        await getUploadStatuses().catch(() => [])
+      ).find((status) => status.uploadId === uploadIdForRecording)
+      if (currentNativeStatus) {
+        nativeStatusAtFailure = currentNativeStatus
+      }
+    }
+    updateRecording(recordingToUpload.id, {
+      uploadingStatus: statusAfterUploadError(
+        nativeStatusAtFailure,
+        waitForUploadCompleted,
+        error
+      ),
+    })
   } finally {
     isUploadInProgress = false
-    triggerUpload().catch(console.error)
+    if (shouldTriggerNextUpload) {
+      triggerUpload().catch(console.error)
+    }
   }
 }
 
