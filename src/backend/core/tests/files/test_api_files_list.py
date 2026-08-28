@@ -3,6 +3,7 @@ Tests for files API endpoint in dictaphone's core app: list
 """
 
 import csv
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
@@ -20,6 +21,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core import factories, models
+from core.api import serializers as api_serializers
 
 fake = Faker()
 pytestmark = pytest.mark.django_db
@@ -330,6 +332,110 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
     assert parse_datetime(
         ai_jobs[str(pending_job_3.id)]["processing_expected_end_at"]
     ) == now + timedelta(seconds=5)
+
+
+def test_ai_job_serializer_caches_missing_estimate_results():
+    """A missing or unavailable ETA must not trigger another queue computation."""
+    file = factories.FileFactory(
+        duration_seconds=33,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    jobs = [
+        factories.AiFileJobFactory(
+            file=file,
+            status=models.AiJobStatusChoices.PENDING,
+            type=models.AiJobTypeChoices.TRANSCRIPT,
+        )
+        for _ in range(2)
+    ]
+
+    with mock.patch(
+        "core.api.serializers._build_processing_expected_end_at_by_pending_job_id",
+        return_value={jobs[0].id: None},
+    ) as build_estimates:
+        data = api_serializers.AiJobSerializer(jobs, many=True, context={}).data
+
+    assert [job["processing_expected_end_at"] for job in data] == [None, None]
+    build_estimates.assert_called_once()
+
+
+def test_ai_job_estimation_uses_django_settings(settings):
+    """Serializer forwards its capacity-estimator parameters from settings."""
+    now = timezone.now()
+    file = factories.FileFactory(
+        duration_seconds=33,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    job = factories.AiFileJobFactory(
+        file=file,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+    settings.AI_JOB_ESTIMATION_THROUGHPUT_PER_WORKER = 42
+    settings.AI_JOB_ESTIMATION_DEFAULT_CAPACITY = 3
+    settings.AI_JOB_ESTIMATION_CAPACITY_LOOKBACK_SECONDS = 101
+    settings.AI_JOB_ESTIMATION_CAPACITY_WINDOW_SECONDS = 102
+    settings.AI_JOB_ESTIMATION_CAPACITY_STEP_SECONDS = 103
+    settings.AI_JOB_ESTIMATION_CAPACITY_HALF_LIFE_SECONDS = 104
+    settings.AI_JOB_ESTIMATION_REPLAY_HORIZON_SECONDS = 105
+
+    with (
+        mock.patch("core.api.serializers.timezone.now", return_value=now),
+        mock.patch(
+            "core.api.serializers.estimate_tasks_eta",
+            return_value={str(job.id): mock.Mock(eta=now)},
+        ) as estimate_tasks,
+    ):
+        estimates = (
+            # pylint: disable=protected-access
+            api_serializers._build_processing_expected_end_at_by_pending_job_id()
+        )
+
+    assert estimates == {job.id: now}
+    assert estimate_tasks.call_args.kwargs == {
+        "C": 42,
+        "now": now,
+        "default_capacity": 3,
+        "capacity_lookback": timedelta(seconds=101),
+        "capacity_window": timedelta(seconds=102),
+        "capacity_step": timedelta(seconds=103),
+        "capacity_half_life": timedelta(seconds=104),
+        "replay_horizon": timedelta(seconds=105),
+    }
+
+
+def test_api_files_list_returns_no_eta_when_estimation_fails(caplog):
+    """Estimator failures are logged and never make the files endpoint fail."""
+    caplog.set_level(logging.INFO, logger="core.api.serializers")
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    file = factories.FileFactory(
+        creator=user,
+        duration_seconds=33,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    job = factories.AiFileJobFactory(
+        file=file,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+
+    with mock.patch(
+        "core.api.serializers.estimate_tasks_eta",
+        side_effect=RuntimeError("estimator unavailable"),
+    ):
+        response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    ai_jobs = {
+        job_data["id"]: job_data
+        for file_data in response.json()["results"]
+        for job_data in file_data["ai_jobs"]
+    }
+    assert ai_jobs[str(job.id)]["processing_expected_end_at"] is None
+    assert "Unable to compute AI job processing estimates" in caplog.text
+    assert "Computed AI job processing estimates in" in caplog.text
 
 
 def test_api_files_list_estimates_each_ai_job_type_with_its_own_queue():

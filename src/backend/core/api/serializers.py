@@ -3,6 +3,7 @@
 import logging
 from datetime import timedelta
 from os.path import splitext
+from time import perf_counter
 from urllib.parse import quote
 
 from django.conf import settings
@@ -23,83 +24,107 @@ from core.storage import get_bucket_configuration_for_file
 
 logger = logging.getLogger(__name__)
 
-AI_JOB_DEFAULT_THROUGHPUT_PER_WORKER = 33  # 33s / s
-AI_JOB_CAPACITY_LOOKBACK = timedelta(hours=2)
-
 
 def _build_processing_expected_end_at_by_pending_job_id() -> dict:
     """Return processing expected-end-at estimates for all pending AI jobs."""
-    now = timezone.now()
-    ai_jobs = (
-        models.AiFileJob.objects.filter(
-            Q(status=models.AiJobStatusChoices.PENDING)
-            | Q(
-                status=models.AiJobStatusChoices.SUCCESS,
-                updated_at__gte=now - AI_JOB_CAPACITY_LOOKBACK,
+    started_at = perf_counter()
+    try:
+        now = timezone.now()
+        ai_jobs = (
+            models.AiFileJob.objects.filter(
+                Q(status=models.AiJobStatusChoices.PENDING)
+                | Q(
+                    status=models.AiJobStatusChoices.SUCCESS,
+                    updated_at__gte=now
+                    - timedelta(
+                        seconds=settings.AI_JOB_ESTIMATION_CAPACITY_LOOKBACK_SECONDS
+                    ),
+                )
             )
+            .select_related("file")
+            .only(
+                "id",
+                "type",
+                "status",
+                "created_at",
+                "updated_at",
+                "file__duration_seconds",
+                "file__audio_extraction_state",
+            )
+            .order_by("created_at", "id")
         )
-        .select_related("file")
-        .only(
-            "id",
-            "type",
-            "status",
-            "created_at",
-            "updated_at",
-            "file__duration_seconds",
-            "file__audio_extraction_state",
-        )
-        .order_by("created_at", "id")
-    )
 
-    processing_expected_end_at_by_job_id = {}
-    tasks_by_type = {}
-    pending_job_ids_by_type = {}
-    for ai_job in ai_jobs:
-        is_pending = ai_job.status == models.AiJobStatusChoices.PENDING
-        if is_pending and (
-            ai_job.file.audio_extraction_state
-            != models.FileAudioExtractionStateChoices.EXTRACTION_DONE
-        ):
-            # The transcription queue does not contain this job yet. Its
-            # duration is also not authoritative until extraction completes.
-            processing_expected_end_at_by_job_id[ai_job.id] = None
-            continue
-
-        duration_seconds = ai_job.file.duration_seconds
-        if duration_seconds is None:
-            if is_pending:
+        processing_expected_end_at_by_job_id = {}
+        tasks_by_type = {}
+        pending_job_ids_by_type = {}
+        for ai_job in ai_jobs:
+            is_pending = ai_job.status == models.AiJobStatusChoices.PENDING
+            if is_pending and (
+                ai_job.file.audio_extraction_state
+                != models.FileAudioExtractionStateChoices.EXTRACTION_DONE
+            ):
+                # The transcription queue does not contain this job yet. Its
+                # duration is also not authoritative until extraction completes.
                 processing_expected_end_at_by_job_id[ai_job.id] = None
-            continue
+                continue
 
-        tasks_by_type.setdefault(ai_job.type, []).append(
-            Task(
-                id=str(ai_job.id),
-                created_at=ai_job.created_at,
-                weight=duration_seconds,
-                done_at=(
-                    ai_job.updated_at
-                    if ai_job.status == models.AiJobStatusChoices.SUCCESS
-                    else None
+            duration_seconds = ai_job.file.duration_seconds
+            if duration_seconds is None:
+                if is_pending:
+                    processing_expected_end_at_by_job_id[ai_job.id] = None
+                continue
+
+            tasks_by_type.setdefault(ai_job.type, []).append(
+                Task(
+                    id=str(ai_job.id),
+                    created_at=ai_job.created_at,
+                    weight=duration_seconds,
+                    done_at=(
+                        ai_job.updated_at
+                        if ai_job.status == models.AiJobStatusChoices.SUCCESS
+                        else None
+                    ),
                 ),
             )
-        )
-        if is_pending:
-            pending_job_ids_by_type.setdefault(ai_job.type, []).append(ai_job.id)
+            if is_pending:
+                pending_job_ids_by_type.setdefault(ai_job.type, []).append(ai_job.id)
 
-    for job_type, job_ids in pending_job_ids_by_type.items():
-        estimates_by_task_id = estimate_tasks_eta(
-            tasks_by_type[job_type],
-            C=AI_JOB_DEFAULT_THROUGHPUT_PER_WORKER,
-            now=now,
-            capacity_lookback=AI_JOB_CAPACITY_LOOKBACK,
-            default_capacity=1,
-        )
-        for job_id in job_ids:
-            processing_expected_end_at_by_job_id[job_id] = estimates_by_task_id[
-                str(job_id)
-            ].eta
+        for job_type, job_ids in pending_job_ids_by_type.items():
+            estimates_by_task_id = estimate_tasks_eta(
+                tasks_by_type[job_type],
+                C=settings.AI_JOB_ESTIMATION_THROUGHPUT_PER_WORKER,
+                now=now,
+                default_capacity=settings.AI_JOB_ESTIMATION_DEFAULT_CAPACITY,
+                capacity_lookback=timedelta(
+                    seconds=settings.AI_JOB_ESTIMATION_CAPACITY_LOOKBACK_SECONDS
+                ),
+                capacity_window=timedelta(
+                    seconds=settings.AI_JOB_ESTIMATION_CAPACITY_WINDOW_SECONDS
+                ),
+                capacity_step=timedelta(
+                    seconds=settings.AI_JOB_ESTIMATION_CAPACITY_STEP_SECONDS
+                ),
+                capacity_half_life=timedelta(
+                    seconds=settings.AI_JOB_ESTIMATION_CAPACITY_HALF_LIFE_SECONDS
+                ),
+                replay_horizon=timedelta(
+                    seconds=settings.AI_JOB_ESTIMATION_REPLAY_HORIZON_SECONDS
+                ),
+            )
+            for job_id in job_ids:
+                processing_expected_end_at_by_job_id[job_id] = estimates_by_task_id[
+                    str(job_id)
+                ].eta
 
-    return processing_expected_end_at_by_job_id
+        return processing_expected_end_at_by_job_id
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unable to compute AI job processing estimates")
+        return {}
+    finally:
+        logger.info(
+            "Computed AI job processing estimates in %.3f seconds",
+            perf_counter() - started_at,
+        )
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -140,14 +165,13 @@ class AiJobSerializer(serializers.ModelSerializer):
         if ai_job.status != models.AiJobStatusChoices.PENDING:
             return None
 
-        expected_end_at_by_job_id = self.context.get(
-            "ai_job_processing_expected_end_at_by_id",
-            {},
-        )
-        if ai_job.id in expected_end_at_by_job_id:
-            return expected_end_at_by_job_id[ai_job.id]
+        context_key = "ai_job_processing_expected_end_at_by_id"
+        if context_key not in self.context:
+            self.context[context_key] = (
+                _build_processing_expected_end_at_by_pending_job_id()
+            )
 
-        return _build_processing_expected_end_at_by_pending_job_id().get(ai_job.id)
+        return self.context[context_key].get(ai_job.id)
 
     class Meta:
         model = models.AiFileJob

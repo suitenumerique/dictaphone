@@ -314,6 +314,41 @@ class Base(Configuration):
     AI_WEBHOOK_API_KEY = SecretFileValue(
         "token_summary", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
     )
+    AI_JOB_ESTIMATION_THROUGHPUT_PER_WORKER = values.PositiveIntegerValue(
+        33,
+        environ_name="AI_JOB_ESTIMATION_THROUGHPUT_PER_WORKER",
+        environ_prefix=None,
+    )
+    AI_JOB_ESTIMATION_DEFAULT_CAPACITY = values.PositiveIntegerValue(
+        1,
+        environ_name="AI_JOB_ESTIMATION_DEFAULT_CAPACITY",
+        environ_prefix=None,
+    )
+    AI_JOB_ESTIMATION_CAPACITY_LOOKBACK_SECONDS = values.PositiveIntegerValue(
+        2 * 60 * 60,
+        environ_name="AI_JOB_ESTIMATION_CAPACITY_LOOKBACK_SECONDS",
+        environ_prefix=None,
+    )
+    AI_JOB_ESTIMATION_CAPACITY_WINDOW_SECONDS = values.PositiveIntegerValue(
+        10 * 60,
+        environ_name="AI_JOB_ESTIMATION_CAPACITY_WINDOW_SECONDS",
+        environ_prefix=None,
+    )
+    AI_JOB_ESTIMATION_CAPACITY_STEP_SECONDS = values.PositiveIntegerValue(
+        2 * 60,
+        environ_name="AI_JOB_ESTIMATION_CAPACITY_STEP_SECONDS",
+        environ_prefix=None,
+    )
+    AI_JOB_ESTIMATION_CAPACITY_HALF_LIFE_SECONDS = values.PositiveIntegerValue(
+        30 * 60,
+        environ_name="AI_JOB_ESTIMATION_CAPACITY_HALF_LIFE_SECONDS",
+        environ_prefix=None,
+    )
+    AI_JOB_ESTIMATION_REPLAY_HORIZON_SECONDS = values.PositiveIntegerValue(
+        30 * 60,
+        environ_name="AI_JOB_ESTIMATION_REPLAY_HORIZON_SECONDS",
+        environ_prefix=None,
+    )
 
     # Docs integration
     DOCS_INTEGRATION_ENABLED = values.BooleanValue(
