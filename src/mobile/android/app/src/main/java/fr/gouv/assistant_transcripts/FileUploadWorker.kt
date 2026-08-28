@@ -14,6 +14,7 @@ import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
@@ -55,6 +56,10 @@ class FileUploadWorker(
             upload(uploadId, state, file, store)
             FileUploadModule.onWorkerUploadSucceeded(applicationContext, uploadId)
             Result.success()
+        } catch (error: CancellationException) {
+            // A replacement or explicit cancellation is not an upload failure. In particular,
+            // changing from Wi-Fi-only to any network replaces the waiting work request.
+            throw error
         } catch (error: IOException) {
             if (runAttemptCount < MAX_RETRIES) {
                 Result.retry()
@@ -260,7 +265,7 @@ class FileUploadWorker(
         const val UPLOADED_AWAITING_FINALIZE = "uploadedAwaitingFinalize"
         const val FAILED = "failed"
         const val CHANNEL_ID = "recording_uploads"
-        const val MAX_RETRIES = 3
+        const val MAX_RETRIES = 2
 
         /**
          * Small enough that a single write on a slow mobile link cannot freeze progress for

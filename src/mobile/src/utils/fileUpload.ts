@@ -47,7 +47,8 @@ type FileUploadNativeModule = {
   getUploadStatuses: () => Promise<NativeUploadStatus[]>
   resumeUpload: (
     uploadId: string,
-    notificationStrings: UploadNotificationStrings
+    notificationStrings: UploadNotificationStrings,
+    wifiOnly: boolean
   ) => Promise<void>
   waitForUpload: (uploadId: string) => Promise<void>
   markUploadFinalized: (uploadId: string) => Promise<void>
@@ -170,11 +171,20 @@ export const getUploadStatuses = async (): Promise<NativeUploadStatus[]> => {
   return FileUploadModule.getUploadStatuses()
 }
 
-export const resumeUpload = async (uploadId: string): Promise<void> => {
+export const resumeUpload = async (
+  uploadId: string,
+  wifiOnly = false
+): Promise<void> => {
   if (!FileUploadModule) {
     throw new Error('FileUploadModule is not available')
   }
-  return FileUploadModule.resumeUpload(uploadId, getUploadNotificationStrings())
+  // Both native implementations use this value to replace a stale Wi-Fi-only
+  // task when the user explicitly enables cellular upload.
+  return FileUploadModule.resumeUpload(
+    uploadId,
+    getUploadNotificationStrings(),
+    wifiOnly
+  )
 }
 
 export const waitForUpload = async (uploadId: string): Promise<void> => {

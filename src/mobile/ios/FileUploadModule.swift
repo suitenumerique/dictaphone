@@ -13,11 +13,12 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     let url: String
     let contentType: String
     let acl: String?
-    let wifiOnly: Bool
+    var wifiOnly: Bool
     var uploadedBytes: Int64
     let totalBytes: Int64
     var status: String
     var error: String?
+    var retryCount: Int
     var notificationStrings: NotificationStrings?
 
     private enum CodingKeys: String, CodingKey {
@@ -31,6 +32,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       case totalBytes
       case status
       case error
+      case retryCount
       case notificationStrings
     }
 
@@ -45,6 +47,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       totalBytes: Int64,
       status: String,
       error: String?,
+      retryCount: Int = 0,
       notificationStrings: NotificationStrings?
     ) {
       self.uploadId = uploadId
@@ -57,6 +60,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       self.totalBytes = totalBytes
       self.status = status
       self.error = error
+      self.retryCount = retryCount
       self.notificationStrings = notificationStrings
     }
 
@@ -75,6 +79,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       totalBytes = try container.decode(Int64.self, forKey: .totalBytes)
       status = try container.decode(String.self, forKey: .status)
       error = try container.decodeIfPresent(String.self, forKey: .error)
+      retryCount = try container.decodeIfPresent(Int.self, forKey: .retryCount) ?? 0
       notificationStrings = try container.decodeIfPresent(
         NotificationStrings.self,
         forKey: .notificationStrings
@@ -111,6 +116,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
   private var promiseHandlersByTaskId: [Int: PromiseHandlers] = [:]
   private var lastEmittedProgressByTaskId: [Int: Int] = [:]
   private var waitersByUploadId: [String: [(RCTPromiseResolveBlock, RCTPromiseRejectBlock)]] = [:]
+  private var replacedTaskIds = Set<Int>()
   private var hasListeners = false
   private let stateQueue = DispatchQueue(label: "fr.gouv.assistant_transcripts.FileUploadModule")
   private let defaults = UserDefaults.standard
@@ -128,6 +134,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
 
   private static let stateKey = "FileUploadStates"
   private static let appActiveKey = "FileUploadAppActive"
+  private static let maxUploadRetries = 2
   static let backgroundSessionIdentifier = "fr.gouv.assistant_transcripts.uploads"
   private static var backgroundCompletionHandler: (() -> Void)?
   private static let incomingSharedFileEvent = "IncomingSharedFile"
@@ -219,6 +226,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
 
   @objc func resumeUpload(_ uploadId: String,
                           notificationStrings: [String: String],
+                          wifiOnly: Bool,
                           resolver: @escaping RCTPromiseResolveBlock,
                           rejecter: @escaping RCTPromiseRejectBlock) {
     guard var state = state(for: uploadId) else {
@@ -231,7 +239,9 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       return
     }
 
+    let networkPolicyChanged = state.wifiOnly != wifiOnly
     state.notificationStrings = NotificationStrings(notificationStrings)
+    state.wifiOnly = wifiOnly
     saveState(state)
 
     let fileUrl = URL(fileURLWithPath: state.filePath)
@@ -243,6 +253,41 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
 
     session.getAllTasks { tasks in
       if let task = tasks.first(where: { $0.taskDescription == uploadId }) {
+        if networkPolicyChanged {
+          let handlers = self.stateQueue.sync {
+            self.replacedTaskIds.insert(task.taskIdentifier)
+            self.uploadIdsByTaskId.removeValue(forKey: task.taskIdentifier)
+            self.lastEmittedProgressByTaskId.removeValue(forKey: task.taskIdentifier)
+            return self.promiseHandlersByTaskId.removeValue(forKey: task.taskIdentifier)
+          }
+          task.cancel()
+
+          var restartedState = state
+          restartedState.uploadedBytes = 0
+          restartedState.status = "uploading"
+          restartedState.error = nil
+          restartedState.retryCount = 0
+
+          guard let replacementTask = self.makeUploadTask(from: restartedState) else {
+            self.markFailed(uploadId, "Invalid upload URL")
+            handlers?.rejecter("UPLOAD_ERROR", "Invalid upload URL", nil)
+            resolver(nil)
+            return
+          }
+
+          self.saveState(restartedState)
+          self.stateQueue.sync {
+            self.uploadIdsByTaskId[replacementTask.taskIdentifier] = uploadId
+            if let handlers {
+              self.promiseHandlersByTaskId[replacementTask.taskIdentifier] = handlers
+            }
+            self.lastEmittedProgressByTaskId[replacementTask.taskIdentifier] = -1
+          }
+          replacementTask.resume()
+          resolver(nil)
+          return
+        }
+
         self.stateQueue.sync {
           self.uploadIdsByTaskId[task.taskIdentifier] = uploadId
           self.lastEmittedProgressByTaskId[task.taskIdentifier] = -1
@@ -256,6 +301,7 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
       restartedState.uploadedBytes = 0
       restartedState.status = "uploading"
       restartedState.error = nil
+      restartedState.retryCount = 0
 
       guard let task = self.makeUploadTask(from: restartedState) else {
         self.markFailed(uploadId, "Invalid upload URL")
@@ -672,6 +718,13 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
   func urlSession(_ session: URLSession,
                   task: URLSessionTask,
                   didCompleteWithError error: Error?) {
+    let wasReplaced = stateQueue.sync {
+      replacedTaskIds.remove(task.taskIdentifier) != nil
+    }
+    if wasReplaced {
+      return
+    }
+
     let uploadId = task.taskDescription ?? stateQueue.sync {
       uploadIdsByTaskId[task.taskIdentifier]
     }
@@ -687,6 +740,9 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
 
     if let error = error {
       if let uploadId = taskState.uploadId {
+        if retryUpload(uploadId, handlers: taskState.handlers) {
+          return
+        }
         markFailed(uploadId, error.localizedDescription)
       }
       taskState.handlers?.rejecter("UPLOAD_ERROR", error.localizedDescription, error)
@@ -704,6 +760,10 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     } else {
       let message = "Status: \(status)"
       if let uploadId = taskState.uploadId {
+        if isTransientHTTPStatus(status),
+           retryUpload(uploadId, handlers: taskState.handlers) {
+          return
+        }
         markFailed(uploadId, message)
       }
       taskState.handlers?.rejecter("UPLOAD_FAILED", message, nil)
@@ -753,6 +813,33 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
     )
     task.taskDescription = state.uploadId
     return task
+  }
+
+  private func retryUpload(_ uploadId: String, handlers: PromiseHandlers?) -> Bool {
+    guard var state = state(for: uploadId),
+          state.status == "uploading",
+          state.retryCount < Self.maxUploadRetries,
+          let task = makeUploadTask(from: state) else {
+      return false
+    }
+
+    state.retryCount += 1
+    state.uploadedBytes = 0
+    state.error = nil
+    saveState(state)
+    stateQueue.sync {
+      uploadIdsByTaskId[task.taskIdentifier] = uploadId
+      if let handlers {
+        promiseHandlersByTaskId[task.taskIdentifier] = handlers
+      }
+      lastEmittedProgressByTaskId[task.taskIdentifier] = -1
+    }
+    task.resume()
+    return true
+  }
+
+  private func isTransientHTTPStatus(_ status: Int) -> Bool {
+    status == 408 || status == 429 || status >= 500
   }
 
   @objc override static func requiresMainQueueSetup() -> Bool { false }

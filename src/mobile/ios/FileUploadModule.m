@@ -18,6 +18,7 @@ RCT_EXTERN_METHOD(getUploadStatuses:(RCTPromiseResolveBlock)resolver
 
 RCT_EXTERN_METHOD(resumeUpload:(NSString *)uploadId
         notificationStrings:(NSDictionary *)notificationStrings
+        wifiOnly:(BOOL)wifiOnly
         resolver:(RCTPromiseResolveBlock)resolver
         rejecter:(RCTPromiseRejectBlock)rejecter)
 

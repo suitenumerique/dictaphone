@@ -121,6 +121,7 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
     fun resumeUpload(
         uploadId: String,
         notificationStrings: ReadableMap,
+        wifiOnly: Boolean,
         promise: Promise,
     ) {
         val state = uploadStateStore.get(uploadId)
@@ -128,10 +129,14 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
             state == null -> promise.reject("UPLOAD_NOT_FOUND", "Upload does not exist")
             state.status != FileUploadWorker.UPLOADING -> promise.resolve(null)
             else -> {
+                val networkPolicyChanged = state.wifiOnly != wifiOnly
                 uploadStateStore.put(
-                    state.copy(notificationStrings = parseNotificationStrings(notificationStrings))
+                    state.copy(
+                        notificationStrings = parseNotificationStrings(notificationStrings),
+                        wifiOnly = wifiOnly,
+                    )
                 )
-                enqueueUpload(uploadId, state.wifiOnly)
+                enqueueUpload(uploadId, wifiOnly, replaceExisting = networkPolicyChanged)
                 promise.resolve(null)
             }
         }
@@ -493,7 +498,11 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
             .cancel(FileUploadWorker.notificationId(uploadId))
     }
 
-    private fun enqueueUpload(uploadId: String, wifiOnly: Boolean) {
+    private fun enqueueUpload(
+        uploadId: String,
+        wifiOnly: Boolean,
+        replaceExisting: Boolean = false,
+    ) {
         val request = OneTimeWorkRequestBuilder<FileUploadWorker>()
             .setInputData(
                 androidx.work.Data.Builder()
@@ -501,11 +510,13 @@ class FileUploadModule(reactContext: ReactApplicationContext) :
                     .build()
             )
             .setConstraints(FileUploadWorker.requestConstraints(wifiOnly))
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
+            // Network failures should become manually retriable quickly. Linear backoff avoids
+            // the long exponential tail while still giving transient failures a second chance.
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(reactApplicationContext).enqueueUniqueWork(
             workName(uploadId),
-            ExistingWorkPolicy.KEEP,
+            if (replaceExisting) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
             request,
         )
     }
