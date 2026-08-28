@@ -1,13 +1,12 @@
 """Client serializers for the Dictaphone core app."""
 
 import logging
-from collections import defaultdict
 from datetime import timedelta
-from math import ceil
 from os.path import splitext
 from urllib.parse import quote
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -15,93 +14,49 @@ from rest_framework import serializers
 from timezone_field.rest_framework import TimeZoneSerializerField
 
 from core import enums, models, utils
+from core.capacity_estimator import Task, estimate_tasks_eta
 from core.models import (
     FileLifecycleStateChoices,
     get_original_file_data_cutoff_datetime,
 )
 from core.storage import get_bucket_configuration_for_file
-from core.utils import floor_dt_to_bucket
 
 logger = logging.getLogger(__name__)
 
-AI_JOB_DEFAULT_THROUGHPUT = 30  # 30s / s
-
-MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION = 4
-# We choose 3 minutes as the window size as with it will
-# comfortably fit the average file duration
-# and per worker coefficient of 37 observed in production,
-# all files should be processed within 5 minutes
-# This should be parametrizable later.
-THROUGHPUT_WINDOW_SECONDS: int = 3 * 60  # 3 minutes
-N_THROUGHPUT_WINDOWS = 5
-
-
-def compute_ai_job_throughput(job_type: models.AiJobTypeChoices) -> float:
-    """Estimate processing throughput in media seconds per wall-clock second."""
-    now = timezone.now()
-    success_queryset = (
-        models.AiFileJob.objects.filter(
-            status=models.AiJobStatusChoices.SUCCESS, type=job_type
-        )
-        .select_related("file")
-        .only("updated_at", "file__duration_seconds")
-        .order_by("-updated_at")
-    )
-
-    cutoff = now - timedelta(minutes=N_THROUGHPUT_WINDOWS * THROUGHPUT_WINDOW_SECONDS)
-    jobs = tuple(
-        success_queryset.filter(
-            updated_at__gte=cutoff,
-        )
-    )
-    if len(jobs) < MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION:
-        jobs = tuple(success_queryset[:MIN_JOB_SAMPLES_THROUGHPUT_ESTIMATION])
-
-    if len(jobs) == 0:
-        return AI_JOB_DEFAULT_THROUGHPUT
-
-    samples_by_bucket = defaultdict(list)
-    for job in jobs:
-        samples_by_bucket[
-            floor_dt_to_bucket(
-                job.updated_at,
-                THROUGHPUT_WINDOW_SECONDS,
-                reference_dt=now,
-            )
-        ].append(job)
-
-    throughput_by_bucket = {
-        k: (
-            sum(max(ai_job.file.duration_seconds, 1) for ai_job in bucket_samples)
-            / THROUGHPUT_WINDOW_SECONDS
-        )
-        for k, bucket_samples in samples_by_bucket.items()
-    }
-
-    return sum(throughput_by_bucket.values()) / len(throughput_by_bucket)
+AI_JOB_DEFAULT_THROUGHPUT_PER_WORKER = 33  # 33s / s
+AI_JOB_CAPACITY_LOOKBACK = timedelta(hours=2)
 
 
 def _build_processing_expected_end_at_by_pending_job_id() -> dict:
     """Return processing expected-end-at estimates for all pending AI jobs."""
-    pending_jobs = (
-        models.AiFileJob.objects.filter(status=models.AiJobStatusChoices.PENDING)
+    now = timezone.now()
+    ai_jobs = (
+        models.AiFileJob.objects.filter(
+            Q(status=models.AiJobStatusChoices.PENDING)
+            | Q(
+                status=models.AiJobStatusChoices.SUCCESS,
+                updated_at__gte=now - AI_JOB_CAPACITY_LOOKBACK,
+            )
+        )
         .select_related("file")
         .only(
             "id",
             "type",
+            "status",
             "created_at",
+            "updated_at",
             "file__duration_seconds",
             "file__audio_extraction_state",
         )
         .order_by("created_at", "id")
     )
-    throughput_by_type = {}
 
     processing_expected_end_at_by_job_id = {}
-    queued_media_seconds = 0.0
-    now = timezone.now()
-    for ai_job in pending_jobs:
-        if (
+    tasks_by_type = {}
+    pending_job_ids_by_type = {}
+    for ai_job in ai_jobs:
+        is_pending = ai_job.status == models.AiJobStatusChoices.PENDING
+        if is_pending and (
             ai_job.file.audio_extraction_state
             != models.FileAudioExtractionStateChoices.EXTRACTION_DONE
         ):
@@ -110,22 +65,39 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
             processing_expected_end_at_by_job_id[ai_job.id] = None
             continue
 
-        if ai_job.type not in throughput_by_type:
-            throughput_by_type[ai_job.type] = compute_ai_job_throughput(ai_job.type)
-        throughput = throughput_by_type[ai_job.type]
         duration_seconds = ai_job.file.duration_seconds
-
         if duration_seconds is None:
-            processing_expected_end_at_by_job_id[ai_job.id] = None
+            if is_pending:
+                processing_expected_end_at_by_job_id[ai_job.id] = None
             continue
 
-        waiting_seconds = int(
-            ceil((queued_media_seconds + duration_seconds) / throughput)
+        tasks_by_type.setdefault(ai_job.type, []).append(
+            Task(
+                id=str(ai_job.id),
+                created_at=ai_job.created_at,
+                weight=duration_seconds,
+                done_at=(
+                    ai_job.updated_at
+                    if ai_job.status == models.AiJobStatusChoices.SUCCESS
+                    else None
+                ),
+            )
         )
-        processing_expected_end_at_by_job_id[ai_job.id] = now + timedelta(
-            seconds=waiting_seconds
+        if is_pending:
+            pending_job_ids_by_type.setdefault(ai_job.type, []).append(ai_job.id)
+
+    for job_type, job_ids in pending_job_ids_by_type.items():
+        estimates_by_task_id = estimate_tasks_eta(
+            tasks_by_type[job_type],
+            C=AI_JOB_DEFAULT_THROUGHPUT_PER_WORKER,
+            now=now,
+            capacity_lookback=AI_JOB_CAPACITY_LOOKBACK,
+            default_capacity=1,
         )
-        queued_media_seconds += duration_seconds
+        for job_id in job_ids:
+            processing_expected_end_at_by_job_id[job_id] = estimates_by_task_id[
+                str(job_id)
+            ].eta
 
     return processing_expected_end_at_by_job_id
 
