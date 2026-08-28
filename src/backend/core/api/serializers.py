@@ -121,7 +121,7 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
         logger.exception("Unable to compute AI job processing estimates")
         return {}
     finally:
-        logger.info(
+        logger.debug(
             "Computed AI job processing estimates in %.3f seconds",
             perf_counter() - started_at,
         )

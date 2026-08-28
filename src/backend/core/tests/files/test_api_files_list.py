@@ -406,7 +406,7 @@ def test_ai_job_estimation_uses_django_settings(settings):
 
 def test_api_files_list_returns_no_eta_when_estimation_fails(caplog):
     """Estimator failures are logged and never make the files endpoint fail."""
-    caplog.set_level(logging.INFO, logger="core.api.serializers")
+    caplog.set_level(logging.DEBUG, logger="core.api.serializers")
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
