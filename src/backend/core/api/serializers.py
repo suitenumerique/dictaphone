@@ -167,9 +167,13 @@ class AiJobSerializer(serializers.ModelSerializer):
 
         context_key = "ai_job_processing_expected_end_at_by_id"
         if context_key not in self.context:
-            self.context[context_key] = (
-                _build_processing_expected_end_at_by_pending_job_id()
-            )
+            view = self.context.get("view")
+            if view and getattr(view, "action", None) not in {"list", "retrieve"}:
+                self.context[context_key] = {}
+            else:
+                self.context[context_key] = (
+                    _build_processing_expected_end_at_by_pending_job_id()
+                )
 
         return self.context[context_key].get(ai_job.id)
 
@@ -269,25 +273,6 @@ class ListFileSerializer(serializers.ModelSerializer):
             "original_file_file_delete_at",
             "will_auto_delete_at",
         ]
-
-    def _ensure_ai_job_estimation_context(self):
-        """Compute AI queue metrics once and share them with nested serializers."""
-        if "ai_job_processing_expected_end_at_by_id" in self.context:
-            return
-
-        view = self.context.get("view")
-        if view and getattr(view, "action", None) not in {"list", "retrieve"}:
-            self.context["ai_job_processing_expected_end_at_by_id"] = {}
-            return
-
-        self.context["ai_job_processing_expected_end_at_by_id"] = (
-            _build_processing_expected_end_at_by_pending_job_id()
-        )
-
-    def to_representation(self, instance):
-        """Ensure pending AI jobs can access precomputed estimation data."""
-        self._ensure_ai_job_estimation_context()
-        return super().to_representation(instance)
 
     def get_url(self, obj):
         """Return the URL of the file."""

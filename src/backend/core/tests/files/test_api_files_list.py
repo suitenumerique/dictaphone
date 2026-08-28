@@ -545,6 +545,31 @@ def test_api_files_list_has_no_transcription_eta_before_audio_extraction():
     )
 
 
+def test_api_files_list_skips_capacity_estimation_without_pending_jobs():
+    """Completed jobs must not trigger an ETA database query or computation."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    file = factories.FileFactory(
+        creator=user,
+        duration_seconds=33,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    factories.AiFileJobFactory(
+        file=file,
+        status=models.AiJobStatusChoices.SUCCESS,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+
+    with mock.patch(
+        "core.api.serializers._build_processing_expected_end_at_by_pending_job_id"
+    ) as build_estimates:
+        response = client.get("/api/v1.0/files/")
+
+    assert response.status_code == 200
+    build_estimates.assert_not_called()
+
+
 def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_at_real_case():
     """
     Pending AI jobs should include expected processing end datetimes using real case data.
