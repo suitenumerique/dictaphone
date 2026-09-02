@@ -20,6 +20,10 @@ class AudioExtractionRetryableError(AudioExtractionError):
     """Raised when extraction failed for a transient infrastructure reason."""
 
 
+class NoAudioStreamError(AudioExtractionError):
+    """Raised when a source media file does not contain an audio stream."""
+
+
 def _run_checked(
     command: list[str], *, capture_stdout: bool = False
 ) -> subprocess.CompletedProcess[str]:
@@ -97,6 +101,31 @@ def _probe_output(  # pylint: disable=too-many-boolean-expressions
     return duration
 
 
+def _ensure_audio_stream(source_path: Path) -> None:
+    """Reject valid media files that have no audio stream to extract."""
+    result = _run_checked(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "json",
+            str(source_path),
+        ],
+        capture_stdout=True,
+    )
+
+    try:
+        streams = json.loads(result.stdout or "{}").get("streams", [])
+    except (AttributeError, TypeError, json.JSONDecodeError) as exc:
+        raise AudioExtractionError("The source media has invalid metadata") from exc
+
+    if not any(stream.get("codec_type") == "audio" for stream in streams):
+        raise NoAudioStreamError("The source media contains no audio streams")
+
+
 def extract_audio_to_storage(file) -> float:
     """Convert a stored source file to validated OGG Opus without buffering it in RAM."""
     source_suffix = f".{file.extension}" if file.extension else ""
@@ -117,6 +146,8 @@ def extract_audio_to_storage(file) -> float:
             raise AudioExtractionRetryableError(
                 "The source file could not be downloaded"
             ) from exc
+
+        _ensure_audio_stream(source_path)
 
         _run_checked(
             [

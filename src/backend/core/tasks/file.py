@@ -17,6 +17,7 @@ from core import analytics
 from core.audio import (
     AudioExtractionError,
     AudioExtractionRetryableError,
+    NoAudioStreamError,
     extract_audio_to_storage,
 )
 from core.configuration import get_profile_for_email
@@ -237,11 +238,31 @@ def _queue_transcription_if_ready(file, *, ai_job_id=None, language=None):
     )
 
 
+def _handle_terminal_audio_extraction_failure(
+    file, error, preprocessing_started_at, queue_time_seconds, ai_job_id
+):
+    """Persist a terminal extraction failure and clean up any stale output."""
+    _capture_audio_extraction_event(
+        analytics.EventName.AUDIO_EXTRACTION_FAILURE,
+        file,
+        monotonic() - preprocessing_started_at,
+        queue_time_seconds=queue_time_seconds,
+        error=error,
+    )
+    _delete_extracted_audio(file)
+    File.objects.filter(pk=file.pk).update(
+        audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+    )
+    _mark_transcription_job_failed(ai_job_id)
+
+
 @app.task(
     queue=AUDIO_EXTRACTION_QUEUE,
     **build_retry_task_options(autoretry_for=(AudioExtractionRetryableError,)),
 )
-def extract_audio(file_id, ai_job_id=None, language=None, created_at=None):
+def extract_audio(  # noqa: PLR0911  # pylint: disable=too-many-return-statements
+    file_id, ai_job_id=None, language=None, created_at=None
+):
     """Validate, convert, and store a file's audio representation."""
     queue_time_seconds = _get_queue_time_seconds(created_at)
 
@@ -301,35 +322,23 @@ def extract_audio(file_id, ai_job_id=None, language=None, created_at=None):
         )
         _handle_retryable_audio_extraction_failure(file, ai_job_id)
         raise
+    except NoAudioStreamError as error:
+        _handle_terminal_audio_extraction_failure(
+            file, error, preprocessing_started_at, queue_time_seconds, ai_job_id
+        )
+        logger.warning("Audio extraction skipped for file %s: %s", file.id, error)
+        return None
     except AudioExtractionError as error:
-        _capture_audio_extraction_event(
-            analytics.EventName.AUDIO_EXTRACTION_FAILURE,
-            file,
-            monotonic() - preprocessing_started_at,
-            queue_time_seconds=queue_time_seconds,
-            error=error,
+        _handle_terminal_audio_extraction_failure(
+            file, error, preprocessing_started_at, queue_time_seconds, ai_job_id
         )
         logger.exception("Audio extraction failed for file %s", file.id)
-        _delete_extracted_audio(file)
-        File.objects.filter(pk=file.pk).update(
-            audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
-        )
-        _mark_transcription_job_failed(ai_job_id)
         raise
     except Exception as error:
-        _capture_audio_extraction_event(
-            analytics.EventName.AUDIO_EXTRACTION_FAILURE,
-            file,
-            monotonic() - preprocessing_started_at,
-            queue_time_seconds=queue_time_seconds,
-            error=error,
+        _handle_terminal_audio_extraction_failure(
+            file, error, preprocessing_started_at, queue_time_seconds, ai_job_id
         )
         logger.exception("Unexpected audio extraction failure for file %s", file.id)
-        _delete_extracted_audio(file)
-        File.objects.filter(pk=file.pk).update(
-            audio_extraction_state=FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
-        )
-        _mark_transcription_job_failed(ai_job_id)
         raise
 
     _log_suspicious_duration(file, duration_seconds)

@@ -28,6 +28,7 @@ REAL_MEDIA_SAMPLES = [
     ("video-sample-visio.mp4", 5.34059),
 ]
 CORRUPTED_MEDIA_SAMPLE = "audio-sample-corrupted.m4a"
+NO_AUDIO_MEDIA_SAMPLE = "video-with-no-audio.mp4"
 
 
 @pytest.mark.parametrize(("asset_name", "expected_duration"), REAL_MEDIA_SAMPLES)
@@ -120,6 +121,55 @@ def test_corrupted_media_upload_fails_audio_extraction(settings):
         with pytest.raises(AudioExtractionError):
             # Run the queued worker task against the actual S3 object and FFmpeg.
             extract_audio(file.id)
+
+    file.refresh_from_db()
+    assert file.upload_state == models.FileUploadStateChoices.READY
+    assert (
+        file.audio_extraction_state
+        == models.FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+    )
+    assert default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)
+    transcribe.assert_not_called()
+
+
+def test_video_without_audio_fails_extraction_without_raising(settings):
+    """A video with no audio stream is rejected without failing the worker task."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    asset_path = ASSETS_PATH / NO_AUDIO_MEDIA_SAMPLE
+
+    create_response = client.post(
+        "/api/v1.0/files/",
+        {
+            "title": NO_AUDIO_MEDIA_SAMPLE,
+            "filename": NO_AUDIO_MEDIA_SAMPLE,
+            "duration_seconds": 2,
+            "type": models.FileTypeChoices.AUDIO_RECORDING,
+        },
+        format="json",
+    )
+    assert create_response.status_code == 201, create_response.json()
+    file = models.File.objects.get(id=create_response.json()["id"])
+
+    with asset_path.open("rb") as asset:
+        default_storage.save(file.temporary_file_key, asset)
+
+    with (
+        patch("core.api.viewsets.queue_audio_extraction") as queue_extraction,
+        patch("core.tasks.file.call_transcribe_service.delay") as transcribe,
+    ):
+        upload_ended_response = client.post(
+            f"/api/v1.0/files/{file.id!s}/upload-ended/"
+        )
+
+        assert upload_ended_response.status_code == 200, upload_ended_response.json()
+        queue_extraction.assert_called_once_with(file.id)
+
+        # A no-audio media file is a terminal failure, but must not escape the task.
+        assert extract_audio(file.id) is None
 
     file.refresh_from_db()
     assert file.upload_state == models.FileUploadStateChoices.READY
