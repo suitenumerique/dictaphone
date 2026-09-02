@@ -270,6 +270,7 @@ class FileAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     readonly_fields = (
         "id",
+        "creator",
         "created_at",
         "updated_at",
         "deleted_at",

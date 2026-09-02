@@ -85,6 +85,13 @@ def test_file_admin_displays_new_storage_and_retention_fields_as_read_only():
     assert new_fields <= set(admin_instance.readonly_fields)
 
 
+def test_file_admin_displays_creator_as_read_only():
+    """Admins must not be able to change a file's owner."""
+    admin_instance = FileAdmin(File, Mock())
+
+    assert "creator" in admin_instance.readonly_fields
+
+
 def test_file_admin_displays_audio_extraction_status():
     """File admin should display the localized audio extraction state."""
     file = factories.FileFactory(
