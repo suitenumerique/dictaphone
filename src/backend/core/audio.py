@@ -162,6 +162,10 @@ def extract_audio_to_storage(file) -> float:
                 "ignore_err",
                 "-i",  # Specify the downloaded source file.
                 str(source_path),  # Source media path.
+                "-map_metadata",  # Remove metadata
+                "-1",  # Dummy file -> Removes metadata
+                "-map_chapters",  # Remove chapters
+                "-1",  # Dummy file -> Removes chapters
                 "-map",  # Select the first audio stream explicitly.
                 "0:a:0",  # Ignore video and additional audio streams.
                 "-vn",  # Do not write a video stream.
