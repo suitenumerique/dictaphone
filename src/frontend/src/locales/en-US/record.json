@@ -17,8 +17,8 @@
   "recordingPrefix": "Recording",
   "preventGoBackAlert": "You are about to leave the recording page. Your recording will be lost if you do so. Please terminate it properly!",
   "mobileAlert": {
-    "title": "Recording can stop without warning",
-    "description": "On the mobile web version, recording may stop if you lock your phone or switch tabs / apps, and won't be notified. The mobile app records reliably, even with the screen locked.",
+    "title": "Recording can stop without warning or be unreliable",
+    "description": "On the mobile web version, recording may stop or fail without warning, especially if you lock your phone or switch tabs or apps. In some cases, the resulting recording may be incomplete or unusable. For reliable recording, we strongly recommend using the mobile app, which continues recording even when the screen is locked.",
     "downloadApp": "Download app",
     "continueAnyways": "Continue in browser"
   },
