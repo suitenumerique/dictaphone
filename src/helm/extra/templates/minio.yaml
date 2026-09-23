@@ -103,7 +103,7 @@ spec:
     spec:
       containers:
       - name: mc
-        image: minio/mc
+        image: quay.io/minio/mc
         command:
           - /bin/sh
           - -c

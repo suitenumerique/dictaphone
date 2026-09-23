@@ -195,7 +195,7 @@ jobs:
 
       - name: Configure MinIO
         run: |
-          docker pull minio/mc
+          docker pull quay.io/minio/mc
           docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
             "until mc alias set dictaphone http://localhost:9000 dictaphone password; do sleep 1; done && \
             until mc ready dictaphone; do sleep 1; done && \
