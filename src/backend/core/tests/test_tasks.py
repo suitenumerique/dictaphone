@@ -408,7 +408,7 @@ def test_task_store_transcript_and_call_summary_success(
 @patch("core.tasks.file.create_document_in_docs.apply_async")
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.session.get")
-def test_task_store_empty_transcript_without_calling_summary(  # noqa: PLR0913 pylint: disable=too-many-arguments,too-many-positional-arguments
+def test_task_store_empty_transcript_without_calling_summary(  # noqa: PLR0913,PLR0917 pylint: disable=too-many-arguments,too-many-positional-arguments
     mock_get,
     mock_post,
     mock_create_document_in_docs,
