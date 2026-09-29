@@ -1,5 +1,5 @@
 import { CheckIcon } from '@/features/ui/components/icon/CheckIcon'
-import { Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Spinner } from '@gouvfr-lasuite/ui-components'
 
 interface CircularProgressProps {
   progress: number

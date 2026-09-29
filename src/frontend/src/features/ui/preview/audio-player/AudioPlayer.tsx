@@ -9,14 +9,14 @@ import React, {
   useState,
 } from 'react'
 import { clsx } from 'clsx'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button } from '@gouvfr-lasuite/ui-components'
 import {
   Download,
   FastBackward,
   FastForward,
   Pause,
   Play,
-} from '@gouvfr-lasuite/ui-kit/icons'
+} from '@gouvfr-lasuite/ui-components/icons'
 import { useTranslation } from 'react-i18next'
 
 export interface AudioPlayerHandle {

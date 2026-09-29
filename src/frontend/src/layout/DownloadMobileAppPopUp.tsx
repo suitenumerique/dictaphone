@@ -3,8 +3,8 @@ import { apiUrl } from '@/api/apiUrl'
 import { useMemo } from 'react'
 import { useConfig } from '@/api/useConfig'
 import clsx from 'clsx'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
-import { XMark } from '@gouvfr-lasuite/ui-kit/icons'
+import { Button } from '@gouvfr-lasuite/ui-components'
+import { XMark } from '@gouvfr-lasuite/ui-components/icons'
 import { useTranslation } from 'react-i18next'
 
 export function DownloadMobileAppPopUp({

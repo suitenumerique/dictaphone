@@ -9,7 +9,7 @@ import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { ApiAudioExtractionState } from '@/features/files/api/types.ts'
 import { TranscriptSegment } from '@/features/recordings/components/TranscriptSegment.tsx'
 import { Trans, useTranslation } from 'react-i18next'
-import { Badge, Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Badge, Spinner } from '@gouvfr-lasuite/ui-components'
 import { Skeleton } from '@/components/Skeleton'
 import { useFormattedProcessingDuration } from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 

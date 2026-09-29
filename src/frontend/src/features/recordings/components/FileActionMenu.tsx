@@ -1,4 +1,4 @@
-import { DropdownMenu, DropdownMenuProps } from '@gouvfr-lasuite/ui-kit'
+import { DropdownMenu, DropdownMenuProps } from '@gouvfr-lasuite/ui-components'
 import {
   ArrowUpRight,
   Copy,
@@ -7,14 +7,14 @@ import {
   Language,
   Trash,
   UndoCircle,
-} from '@gouvfr-lasuite/ui-kit/icons'
+} from '@gouvfr-lasuite/ui-components/icons'
 import {
   Button,
   Input,
   Modal,
   ModalSize,
   Select,
-} from '@gouvfr-lasuite/cunningham-react'
+} from '@gouvfr-lasuite/ui-components'
 import { useCallback, useMemo, useState } from 'react'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { useTranslation } from 'react-i18next'

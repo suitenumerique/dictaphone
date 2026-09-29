@@ -1,4 +1,8 @@
-import { LaGaufreV2, LanguagePicker, UserMenu } from '@gouvfr-lasuite/ui-kit'
+import {
+  LaGaufreV2,
+  LanguagePicker,
+  UserMenu,
+} from '@gouvfr-lasuite/ui-components'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth/api/useUser'

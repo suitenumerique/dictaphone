@@ -1,4 +1,4 @@
-import { MainLayout, Spinner } from '@gouvfr-lasuite/ui-kit'
+import { MainLayout, Spinner } from '@gouvfr-lasuite/ui-components'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { HeaderRight } from '@/layout/HeaderRight.tsx'
 import { useUser } from '@/features/auth/api/useUser'

@@ -5,15 +5,19 @@ import { useUploadZone } from '@/hooks/useUpload.tsx'
 import clsx from 'clsx'
 import LogoApp from '@/layout/LogoApp.tsx'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, FileUp, Warning } from '@gouvfr-lasuite/ui-kit/icons'
+import {
+  ChevronDown,
+  FileUp,
+  Warning,
+} from '@gouvfr-lasuite/ui-components/icons'
 import { useLocation } from 'wouter'
-import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
+import { Button, Tooltip } from '@gouvfr-lasuite/ui-components'
 import { RecoverList } from '@/features/recordings/components/RecoverList'
 import { useConfig } from '@/api/useConfig.ts'
 import { formatFileSize } from '@/features/recordings/utils/formatFileSize.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { intervalToDuration } from 'date-fns'
-import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-kit'
+import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-components'
 import {
   TRANSCRIPTION_LANGUAGES,
   TranscriptionLanguage,

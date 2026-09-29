@@ -1,12 +1,12 @@
 import { ToasterItem } from '@/features/ui/components/toaster/Toaster'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button } from '@gouvfr-lasuite/ui-components'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import { CircularProgress } from '@/features/ui/components/circular-progress/CircularProgress'
 import prettyBytes from 'pretty-bytes'
 import { ToastContentProps } from 'react-toastify'
-import { Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Spinner } from '@gouvfr-lasuite/ui-components'
 import { UploadingState } from '@/hooks/useUpload.tsx'
 
 export const FileUploadToast = (

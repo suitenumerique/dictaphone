@@ -2,7 +2,7 @@ import {
   createLocalFileFromChunkStore,
   useLocalRecordingsStore,
 } from '@/features/recordings/store/useLocalRecordingsStore.ts'
-import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
+import { Button, Tooltip } from '@gouvfr-lasuite/ui-components'
 import { intervalToDuration } from 'date-fns'
 import { Fragment, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,8 +10,13 @@ import {
   DropdownMenu,
   HorizontalSeparator,
   Spinner,
-} from '@gouvfr-lasuite/ui-kit'
-import { Download, Retry, Trash, Warning } from '@gouvfr-lasuite/ui-kit/icons'
+} from '@gouvfr-lasuite/ui-components'
+import {
+  Download,
+  Retry,
+  Trash,
+  Warning,
+} from '@gouvfr-lasuite/ui-components/icons'
 import { CircularProgress } from '@/features/ui/components/circular-progress/CircularProgress'
 
 const downloadFile = (file: File) => {

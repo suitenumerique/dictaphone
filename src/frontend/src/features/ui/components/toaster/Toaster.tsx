@@ -1,4 +1,4 @@
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button } from '@gouvfr-lasuite/ui-components'
 import clsx from 'clsx'
 import { ToastContainer, ToastContentProps, toast } from 'react-toastify'
 

@@ -1,11 +1,11 @@
-import { DropdownMenu } from '@gouvfr-lasuite/ui-kit'
+import { DropdownMenu } from '@gouvfr-lasuite/ui-components'
 import {
   BubbleText,
   Building,
   ExternalLink,
   QuestionMark,
-} from '@gouvfr-lasuite/ui-kit/icons'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+} from '@gouvfr-lasuite/ui-components/icons'
+import { Button } from '@gouvfr-lasuite/ui-components'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '@/features/auth/api/useUser'

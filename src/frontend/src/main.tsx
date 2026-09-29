@@ -1,13 +1,13 @@
 // @ts-expect-error For some reason this doesn't lint anymore
-import '@gouvfr-lasuite/ui-kit/style'
+import '@gouvfr-lasuite/ui-components/style'
 // @ts-expect-error For some reason this doesn't lint anymore
-import '@gouvfr-lasuite/ui-kit/fonts/Marianne'
+import '@gouvfr-lasuite/ui-components/fonts/marianne'
 import './styles/globals.scss'
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
-import { CunninghamProvider } from '@gouvfr-lasuite/ui-kit'
+import { CunninghamProvider } from '@gouvfr-lasuite/ui-components'
 import { useTranslation } from 'react-i18next'
 
 // eslint-disable-next-line react-refresh/only-export-components

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Tooltip } from '@gouvfr-lasuite/cunningham-react'
-import { Warning } from '@gouvfr-lasuite/ui-kit/icons'
+import { Tooltip } from '@gouvfr-lasuite/ui-components'
+import { Warning } from '@gouvfr-lasuite/ui-components/icons'
 
 const UPDATE_INTERVAL_MS = 33
 const BAR_SPAWN_INTERVAL_MS = 100

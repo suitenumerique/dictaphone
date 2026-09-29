@@ -2,8 +2,8 @@ import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
-import { Button, Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react'
-import { Download } from '@gouvfr-lasuite/ui-kit/icons'
+import { Button, Modal, ModalSize } from '@gouvfr-lasuite/ui-components'
+import { Download } from '@gouvfr-lasuite/ui-components/icons'
 import { useLocation } from 'wouter'
 
 const isMobile =

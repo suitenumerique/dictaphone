@@ -1,4 +1,4 @@
-import { cunninghamConfig } from "@gouvfr-lasuite/ui-kit";
+import { cunninghamConfig } from "@gouvfr-lasuite/ui-components";
 
 const config = cunninghamConfig;
 

@@ -1,13 +1,13 @@
 import { SignalLevelMeter } from '@/features/recordings/components/SignalLevelMeter.tsx'
 import { useRecordingController } from '@/features/recordings/hooks/useRecordingController.ts'
 import { useDisablePageRefresh } from '@/hooks/disablePageRegresh.ts'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { Button } from '@gouvfr-lasuite/ui-components'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'wouter'
 import clsx from 'clsx'
-import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-kit'
-import { ChevronDown } from '@gouvfr-lasuite/ui-kit/icons'
+import { DropdownMenu, DropdownMenuOption } from '@gouvfr-lasuite/ui-components'
+import { ChevronDown } from '@gouvfr-lasuite/ui-components/icons'
 
 const formatDuration = (durationMs: number) => {
   const totalSeconds = Math.floor(durationMs / 1000)

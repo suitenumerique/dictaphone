@@ -3,8 +3,8 @@ import {
   LaGaufreV2,
   LanguagePicker,
   useResponsive,
-} from '@gouvfr-lasuite/ui-kit'
-import { Button } from '@gouvfr-lasuite/cunningham-react'
+} from '@gouvfr-lasuite/ui-components'
+import { Button } from '@gouvfr-lasuite/ui-components'
 import { authUrl } from '@/features/auth/utils/authUrl'
 import { useTranslation } from 'react-i18next'
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react'
