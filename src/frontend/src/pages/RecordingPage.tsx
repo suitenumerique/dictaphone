@@ -114,8 +114,9 @@ function OpenInDocsButton({
         disabled={isDocsActionPending || !canOpenInDocs}
         aria-label={t('transcript.openInDocsCta')}
         icon={<ArrowUpRight />}
-        children={!isMobile ? t('transcript.openInDocsCta') : undefined}
-      />
+      >
+        {!isMobile ? t('transcript.openInDocsCta') : null}
+      </Button>
       <Modal
         size={ModalSize.SMALL}
         isOpen={createInDocs.isPending}
@@ -233,9 +234,10 @@ export default function RecordingPage({
                       lastAiJobTranscript?.status !== 'success' ||
                       !transcriptMarkdown
                     }
-                    children={t('shared:actions.copyText')}
                     onClick={handleCopy}
-                  />
+                  >
+                    {t('shared:actions.copyText')}
+                  </Button>
                   <OpenInDocsButton
                     lastAiJobTranscript={lastAiJobTranscript}
                     supportsSynchronousDocsCreation={

@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build-theme": "cunningham -g css,scss,ts -o src/styles && mv src/styles/cunningham-tokens.scss src/styles/cunningham-tokens-sass.scss",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "oxlint . --deny-warnings --report-unused-disable-directives",
     "preview": "vite preview",
-    "format": "prettier --write ./src",
-    "check": "prettier --check ./src"
+    "format": "oxfmt --write ./src",
+    "check": "oxfmt --check ./src"
   },
   "engines": {
     "node": ">=24 <25"
@@ -54,16 +54,11 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "9.39.5",
-    "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-jsx-a11y": "6.10.2",
-    "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-react-refresh": "0.5.7",
+    "oxlint": "1.86.0",
+    "oxfmt": "0.71.0",
     "postcss": "8.5.28",
-    "prettier": "3.9.9",
     "sass-embedded": "1.105.0",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.71.0",
     "vite": "8.3.1",
     "vite-tsconfig-paths": "6.1.1",
     "vitest": "5.0.2"

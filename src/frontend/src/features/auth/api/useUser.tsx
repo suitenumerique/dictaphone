@@ -50,9 +50,9 @@ export const useUser = (
     return opts.fetchUserOptions
   }, [opts, isConfigLoading])
 
-  // eslint-disable-next-line @tanstack/query/exhaustive-deps
+  const queryKey = [keys.user, options]
   const query = useQuery({
-    queryKey: [keys.user],
+    queryKey,
     queryFn: () => fetchUser(options),
     staleTime: Infinity,
     enabled: !isConfigLoading,
@@ -75,28 +75,30 @@ export const useUser = (
     }
   }, [query.data, query.status])
 
-  const updateUserQuery = useMutation({
+  const { mutate: updateUserMutation } = useMutation({
     mutationFn: updateUserPreferences,
     onSuccess: (data) => {
-      queryClient.setQueryData([keys.user], data)
+      queryClient.setQueryData(queryKey, data)
     },
   })
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const updateUser = (
-    newData: Partial<Pick<ApiUser, 'language' | 'flag_show_mobile_app_popup'>>
-  ) => {
-    if (!query.data) return
+  const updateUser = useCallback(
+    (
+      newData: Partial<Pick<ApiUser, 'language' | 'flag_show_mobile_app_popup'>>
+    ) => {
+      if (!query.data) return
 
-    const currentUser = query.data as ApiUser
-    updateUserQuery.mutate({
-      user: {
-        id: currentUser.id,
-        timezone: currentUser.timezone,
-        ...newData,
-      },
-    })
-  }
+      const currentUser = query.data as ApiUser
+      updateUserMutation({
+        user: {
+          id: currentUser.id,
+          timezone: currentUser.timezone,
+          ...newData,
+        },
+      })
+    },
+    [query.data, updateUserMutation]
+  )
 
   useEffect(() => {
     if (query?.data) {

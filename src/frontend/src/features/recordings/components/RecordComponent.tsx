@@ -15,9 +15,7 @@ const formatDuration = (durationMs: number) => {
   const minutes = Math.floor(totalSeconds / 60) % 60
   const seconds = totalSeconds % 60
 
-  const minutesSeconds = `${String(minutes).padStart(2, '0')}:${String(
-    seconds
-  ).padStart(2, '0')}`
+  const minutesSeconds = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
   if (hours > 0) {
     return `${String(hours).padStart(2, '0')}:${minutesSeconds}`
   }
