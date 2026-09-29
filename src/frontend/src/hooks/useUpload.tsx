@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Id, toast } from 'react-toastify'
-import { FileWithPath, useDropzone } from 'react-dropzone'
+import { useDropzone } from 'react-dropzone'
+import { fromEvent, type FileWithPath } from 'file-selector'
+import { COMMON_MIME_TYPES } from 'file-selector/mime'
 import { useTranslation } from 'react-i18next'
 import { addToast, ToasterItem } from '@/features/ui/components/toaster/Toaster'
 import { useCreateFile } from '@/features/files/api/createFile.ts'
@@ -85,6 +87,8 @@ export const useUploadZone = () => {
   const dropZone = useDropzone({
     accept,
     maxSize,
+    getFilesFromEvent: (event) =>
+      fromEvent(event, { mimeTypes: COMMON_MIME_TYPES }),
     noClick: true,
     useFsAccessApi: false,
     // If we do not set this, the click on the "..." menu of each items does not work, also click + select on items
@@ -165,7 +169,10 @@ export const useUploadZone = () => {
 
       const validFiles: (FileWithPath & { durationSeconds: number })[] = []
 
-      for (const file of acceptedFiles as FileWithPath[]) {
+      for (const acceptedFile of acceptedFiles) {
+        // react-dropzone's callback now exposes File[], while file-selector adds
+        // path metadata to every File it returns.
+        const file = acceptedFile as unknown as FileWithPath
         const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`
         if (!allowedExtensions.has(extension)) {
           addToast(
