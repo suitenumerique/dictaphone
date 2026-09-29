@@ -4,7 +4,7 @@ sequenceDiagram
     participant API@{ "type": "boundary" } as Summary FastAPI
     participant Queue@{ "type": "queue" } as Summary Celery/Redis
     participant Worker@{ "type": "control" } as Summary Celery worker
-    participant Store@{ "type": "database" } as S3/MinIO temporary result store
+    participant Store@{ "type": "database" } as S3/RustFS temporary result store
     participant Docs@{ "type": "boundary" } as La Suite Docs
     participant WebhookQueue@{ "type": "queue" } as Webhook task queue
     participant Webhook@{ "type": "boundary" } as Dictaphone webhook endpoint

@@ -15,49 +15,49 @@ services:
     ports:
       - "1081:1080"
 
-  minio:
+  rustfs:
     user: ${DOCKER_USER:-1000}
-    image: minio/minio
+    image: rustfs/rustfs:latest
     environment:
-      - MINIO_ROOT_USER=dictaphone
-      - MINIO_ROOT_PASSWORD=password
+      - RUSTFS_ACCESS_KEY=dictaphone
+      - RUSTFS_SECRET_KEY=password
+      - RUSTFS_CORS_ALLOWED_ORIGINS=http://localhost:3000
     ports:
       - '9000:9000'
       - '9001:9001'
     healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9000/health/ready >/dev/null" ]
       interval: 1s
       timeout: 20s
       retries: 300
-    entrypoint: ""
-    command: minio server --console-address :9001 /data
+    command: ["/data"]
     volumes:
       - ./data/media:/data
 
   createbuckets:
-    image: quay.io/minio/mc
+    image: rustfs/rc:latest
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
         restart: true
     entrypoint: >
       sh -c "
-      /usr/bin/mc alias set dictaphone http://minio:9000 dictaphone password && \
-      /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-storage && \
-      /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
-      /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-beta && \
-      /usr/bin/mc admin user add dictaphone dictaphone-default password-default || true; \
-      /usr/bin/mc admin user add dictaphone dictaphone-alpha password-alpha || true; \
-      /usr/bin/mc admin user add dictaphone dictaphone-beta password-beta || true; \
+      rc alias set dictaphone http://rustfs:9000 dictaphone password && \
+      rc mb --ignore-existing dictaphone/dictaphone-media-storage && \
+      rc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
+      rc mb --ignore-existing dictaphone/dictaphone-media-beta && \
+      rc admin user add dictaphone dictaphone-default password-default || true; \
+      rc admin user add dictaphone dictaphone-alpha password-alpha || true; \
+      rc admin user add dictaphone dictaphone-beta password-beta || true; \
       printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-storage\",\"arn:aws:s3:::dictaphone-media-storage/*\"]}]}' >/tmp/default-policy.json && \
       printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-alpha\",\"arn:aws:s3:::dictaphone-media-alpha/*\"]}]}' >/tmp/alpha-policy.json && \
       printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-beta\",\"arn:aws:s3:::dictaphone-media-beta/*\"]}]}' >/tmp/beta-policy.json && \
-      /usr/bin/mc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json || true; \
-      /usr/bin/mc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json || true; \
-      /usr/bin/mc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json || true; \
-      /usr/bin/mc admin policy attach dictaphone default-bucket-policy --user dictaphone-default || true; \
-      /usr/bin/mc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha || true; \
-      /usr/bin/mc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta || true; \
+      rc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json || true; \
+      rc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json || true; \
+      rc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json || true; \
+      rc admin policy attach dictaphone default-bucket-policy --user dictaphone-default || true; \
+      rc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha || true; \
+      rc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta || true; \
       exit 0;"
 
   app-dev:
@@ -139,7 +139,7 @@ services:
     depends_on:
       - postgresql
       - redis
-      - minio
+      - rustfs
 
   celery:
     user: ${DOCKER_USER:-1000}

@@ -165,6 +165,7 @@ jobs:
       - name: Create writable /data
         run: |
           sudo mkdir -p /data/media && \
+          sudo chown -R 10001:10001 /data/media && \
           sudo mkdir -p /data/static
 
       - name: Restore the mail templates
@@ -174,46 +175,46 @@ jobs:
           path: "src/backend/core/templates/mail"
           key: mail-templates-${{ hashFiles('src/mail/mjml') }}
 
-      - name: Start MinIO
+      - name: Start RustFS
         run: |
-          docker pull minio/minio
-          docker run -d --name minio \
+          docker pull rustfs/rustfs:latest
+          docker run -d --name rustfs \
             -p 9000:9000 \
-            -e "MINIO_ROOT_USER=dictaphone" \
-            -e "MINIO_ROOT_PASSWORD=password" \
+            -e "RUSTFS_ACCESS_KEY=dictaphone" \
+            -e "RUSTFS_SECRET_KEY=password" \
             -v /data/media:/data \
-            minio/minio server --console-address :9001 /data
+            rustfs/rustfs:latest /data
 
       # Tool to wait for a service to be ready
       - name: Install Dockerize
         run: |
           curl -sSL https://github.com/jwilder/dockerize/releases/download/v0.8.0/dockerize-linux-amd64-v0.8.0.tar.gz | sudo tar -C /usr/local/bin -xzv
 
-      - name: Wait for MinIO to be ready
+      - name: Wait for RustFS to be ready
         run: |
-          dockerize -wait tcp://localhost:9000 -timeout 10s
+          dockerize -wait http://localhost:9000/health/ready -timeout 30s
 
-      - name: Configure MinIO
+      - name: Configure RustFS
         run: |
-          docker pull quay.io/minio/mc
-          docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
-            "until mc alias set dictaphone http://localhost:9000 dictaphone password; do sleep 1; done && \
-            until mc ready dictaphone; do sleep 1; done && \
-            mc mb --ignore-existing dictaphone/dictaphone-media-storage && \
-            mc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
-            mc mb --ignore-existing dictaphone/dictaphone-media-beta && \
-            mc admin user add dictaphone dictaphone-default password-default && \
-            mc admin user add dictaphone dictaphone-alpha password-alpha && \
-            mc admin user add dictaphone dictaphone-beta password-beta && \
+          docker pull rustfs/rc:latest
+          docker run --rm --network host --entrypoint /bin/sh rustfs/rc:latest -c \
+            "until rc alias set dictaphone http://localhost:9000 dictaphone password; do sleep 1; done && \
+            until rc ready dictaphone; do sleep 1; done && \
+            rc mb --ignore-existing dictaphone/dictaphone-media-storage && \
+            rc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
+            rc mb --ignore-existing dictaphone/dictaphone-media-beta && \
+            rc admin user add dictaphone dictaphone-default password-default && \
+            rc admin user add dictaphone dictaphone-alpha password-alpha && \
+            rc admin user add dictaphone dictaphone-beta password-beta && \
             printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-storage\",\"arn:aws:s3:::dictaphone-media-storage/*\"]}]}' >/tmp/default-policy.json && \
             printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-alpha\",\"arn:aws:s3:::dictaphone-media-alpha/*\"]}]}' >/tmp/alpha-policy.json && \
             printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-beta\",\"arn:aws:s3:::dictaphone-media-beta/*\"]}]}' >/tmp/beta-policy.json && \
-            mc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json && \
-            mc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json && \
-            mc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json && \
-            mc admin policy attach dictaphone default-bucket-policy --user dictaphone-default && \
-            mc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha && \
-            mc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta"
+            rc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json && \
+            rc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json && \
+            rc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json && \
+            rc admin policy attach dictaphone default-bucket-policy --user dictaphone-default && \
+            rc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha && \
+            rc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta"
 
       - name: Install Python
         uses: actions/setup-python@v6

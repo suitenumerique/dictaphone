@@ -316,7 +316,7 @@ def test_bucket_name_and_endpoint_url_are_resolved_from_environment(monkeypatch)
     monkeypatch.setenv("S3_BUCKET_NAME", "default-bucket")
     monkeypatch.setenv("S3_ACCESS_KEY_ID", "access-key")
     monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "secret-key")
-    monkeypatch.setenv("S3_ENDPOINT_URL", "http://minio:9000")
+    monkeypatch.setenv("S3_ENDPOINT_URL", "http://rustfs:9000")
 
     buckets = resolve_bucket_configurations(
         {
@@ -330,4 +330,4 @@ def test_bucket_name_and_endpoint_url_are_resolved_from_environment(monkeypatch)
     )
 
     assert buckets["default"].storage_bucket_name == "default-bucket"
-    assert buckets["default"].endpoint_url == "http://minio:9000"
+    assert buckets["default"].endpoint_url == "http://rustfs:9000"

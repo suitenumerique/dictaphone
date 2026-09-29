@@ -2,30 +2,30 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: minio
+  name: rustfs
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 1g
 spec:
   rules:
-  - host: "minio-dictaphone.127.0.0.1.nip.io"
+  - host: "rustfs-dictaphone.127.0.0.1.nip.io"
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: minio
+            name: rustfs
             port:
               number: 9000
   tls:
   - hosts:
-    - minio-dictaphone.127.0.0.1.nip.io
+    - rustfs-dictaphone.127.0.0.1.nip.io
     secretName: dictaphone-tls
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: minio
+  name: rustfs
   namespace: {{ .Release.Namespace | quote }}
 spec:
   ports:
@@ -39,42 +39,41 @@ spec:
     targetPort: 9001
   selector:
     app.kubernetes.io/instance: extra
-    app.kubernetes.io/name: minio
+    app.kubernetes.io/name: rustfs
   type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: minio
+  name: rustfs
   namespace: {{ .Release.Namespace | quote }}
   labels:
     app.kubernetes.io/instance: extra
-    app.kubernetes.io/name: minio
+    app.kubernetes.io/name: rustfs
 spec:
   selector:
     matchLabels:
       app.kubernetes.io/instance: extra
-      app.kubernetes.io/name: minio
+      app.kubernetes.io/name: rustfs
   replicas: 1
   template:
     metadata:
       labels:
         app.kubernetes.io/instance: extra
-        app.kubernetes.io/name: minio
+        app.kubernetes.io/name: rustfs
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
-      - name: minio
-        command:
-          - /bin/sh
-          - -c
-          - |
-            minio server --console-address :9001 /data
+      - name: rustfs
         env:
-          - name: MINIO_ROOT_USER
+          - name: RUSTFS_ACCESS_KEY
             value: dictaphone
-          - name: MINIO_ROOT_PASSWORD
+          - name: RUSTFS_SECRET_KEY
             value: password
-        image: "minio/minio"
+          - name: RUSTFS_CORS_ALLOWED_ORIGINS
+            value: "https://dictaphone.127.0.0.1.nip.io,http://dictaphone.127.0.0.1.nip.io"
+        image: "rustfs/rustfs:latest"
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9000
@@ -97,33 +96,33 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: minio-bucket
+  name: rustfs-bucket
 spec:
   template:
     spec:
       containers:
-      - name: mc
-        image: quay.io/minio/mc
+      - name: rc
+        image: rustfs/rc:latest
         command:
           - /bin/sh
           - -c
           - |
-            /usr/bin/mc alias set dictaphone http://minio:9000 dictaphone password && \
-            /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-storage && \
-            /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
-            /usr/bin/mc mb --ignore-existing dictaphone/dictaphone-media-beta && \
-            /usr/bin/mc admin user add dictaphone dictaphone-default password-default || true; \
-            /usr/bin/mc admin user add dictaphone dictaphone-alpha password-alpha || true; \
-            /usr/bin/mc admin user add dictaphone dictaphone-beta password-beta || true; \
+            rc alias set dictaphone http://rustfs:9000 dictaphone password && \
+            rc mb --ignore-existing dictaphone/dictaphone-media-storage && \
+            rc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
+            rc mb --ignore-existing dictaphone/dictaphone-media-beta && \
+            rc admin user add dictaphone dictaphone-default password-default || true; \
+            rc admin user add dictaphone dictaphone-alpha password-alpha || true; \
+            rc admin user add dictaphone dictaphone-beta password-beta || true; \
             printf '%s' '{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::dictaphone-media-storage","arn:aws:s3:::dictaphone-media-storage/*"]}]}' >/tmp/default-policy.json && \
             printf '%s' '{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::dictaphone-media-alpha","arn:aws:s3:::dictaphone-media-alpha/*"]}]}' >/tmp/alpha-policy.json && \
             printf '%s' '{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::dictaphone-media-beta","arn:aws:s3:::dictaphone-media-beta/*"]}]}' >/tmp/beta-policy.json && \
-            /usr/bin/mc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json || true; \
-            /usr/bin/mc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json || true; \
-            /usr/bin/mc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json || true; \
-            /usr/bin/mc admin policy attach dictaphone default-bucket-policy --user dictaphone-default || true; \
-            /usr/bin/mc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha || true; \
-            /usr/bin/mc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta || true; \
+            rc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json || true; \
+            rc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json || true; \
+            rc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json || true; \
+            rc admin policy attach dictaphone default-bucket-policy --user dictaphone-default || true; \
+            rc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha || true; \
+            rc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta || true; \
             exit 0
       restartPolicy: Never
   backoffLimit: 3

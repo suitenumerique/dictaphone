@@ -35,7 +35,7 @@ flowchart LR
         direction TB
         SummaryAPI["Meet summary API<br/>FastAPI /api/v2"]
         SummaryWorker["Summary Celery worker"]
-        SummaryStore[("S3/MinIO<br/>temporary result storage")]
+        SummaryStore[("S3/RustFS<br/>temporary result storage")]
 
         SummaryAPI -->|"enqueue task"| SummaryWorker
         SummaryWorker -->|"write transcript/summary results"| SummaryStore

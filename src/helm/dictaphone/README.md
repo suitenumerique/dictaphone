@@ -49,14 +49,14 @@
 | `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/use-regex`          | Enable use of regex for ingress paths                  | `true`                                                           |
 | `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/auth-url`           | Authentication URL for the ingress                     | `https://dictaphone.example.com/api/v1.0/files/media-auth/`      |
 | `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/auth-response-headers` | Headers to pass from auth response                  | `Authorization, X-Amz-Date, X-Amz-Content-SHA256`                |
-| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/upstream-vhost`     | Upstream host for proxying                             | `minio.dictaphone.svc.cluster.local:9000`                        |
+| `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/upstream-vhost`     | Upstream host for proxying                             | `rustfs.dictaphone.svc.cluster.local:9000`                        |
 | `ingressMediaFiles[].annotations.nginx.ingress.kubernetes.io/configuration-snippet` | Custom nginx configuration snippet                  | `add_header Content-Security-Policy "default-src 'none'" always; |
 
 add_header Content-Disposition "attachment";
 `|
 | `serviceMediaFiles`                                                              | List of ExternalName services for media files providers |                                                                  |
 | `serviceMediaFiles[].name`                                                       | Unique name for this provider service                  | `default`                                                        |
-| `serviceMediaFiles[].host`                                                       | External hostname for this provider                    | `minio.dictaphone.svc.cluster.local`                             |
+| `serviceMediaFiles[].host`                                                       | External hostname for this provider                    | `rustfs.dictaphone.svc.cluster.local`                             |
 | `serviceMediaFiles[].port`                                                       | Port for this provider                                 | `9000`                                                           |
 | `serviceMediaFiles[].annotations`                                                | Annotations to add to this Service                     | `{}`                                                             |
 

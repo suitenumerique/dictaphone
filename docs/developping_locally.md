@@ -12,7 +12,7 @@ These components rely on a few key services:
 
 - PostgreSQL for storing data (users, recordings, AI jobs results)
 - Redis for caching and inter-service communication
-- MinIO for storing files (room recordings)
+- RustFS for storing files (recordings)
 - Celery workers to handle async jobs
 
 We provide two stack options for getting Dictaphone up and running for development:
