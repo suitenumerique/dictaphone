@@ -1,0 +1,18 @@
+name: Release Chart
+run-name: Release Chart
+
+on:
+  push:
+    paths:
+      - src/helm/dictaphone/**
+
+permissions: {}
+
+jobs:
+  release:
+    permissions:
+      contents: write # push the chart to the gh-pages branch
+    uses: suitenumerique/ci/.github/workflows/_release-helm-chart.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
+    with:
+      charts_dir: ./src/helm
+      cleanup_paths: ./src/helm/extra

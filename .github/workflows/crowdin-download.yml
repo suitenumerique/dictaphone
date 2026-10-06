@@ -2,32 +2,19 @@ name: Download Crowdin translations
 
 on:
   workflow_dispatch:
-    types: [file-fully-translated]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   crowdin:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Download Crowdin files
-        uses: crowdin/github-action@v2
-        with:
-          upload_sources: false
-          upload_translations: false
-          download_translations: true
-          localization_branch_name: l10n_crowdin_translations
-          create_pull_request: true
-          pull_request_title: "New Crowdin translations"
-          pull_request_body: "New Crowdin pull request with translations"
-          pull_request_base_branch_name: "main"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
-          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
-          CROWDIN_BASE_PATH: ${{ github.workspace }}
+    permissions:
+      contents: write # push the translations branch
+      pull-requests: write # open the pull request
+    uses: suitenumerique/ci/.github/workflows/_crowdin-download.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
+    with:
+      crowdin_config: crowdin/config.yml
+      # Sources in crowdin/config.yml are relative to the repository root
+      crowdin_base_path: ../
+    secrets:
+      CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
+      CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
