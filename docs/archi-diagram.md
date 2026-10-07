@@ -7,7 +7,9 @@ copying the diagrams into every document.
 ## Architecture
 
 - [System architecture](diagrams/system-architecture.mmd) — clients, Kubernetes
-  ingress, Django, Celery workers, storage, and the external summary service.
+  ingress, Django, Celery workers, HTTP audio workers, storage, and the external
+  summary service. The audio path has an FFmpeg re-encoding worker and a separate
+  result-validation worker; both pull tasks from and report completion to the API.
 - [File routing by data policy](diagrams/file-routing-by-data-policy.mmd) — how
   an email address selects a policy, logical bucket, physical bucket, and the
   persisted retention snapshot for a file.
@@ -20,9 +22,14 @@ copying the diagrams into every document.
 - [File creation and upload from web or mobile](diagrams/file-upload-sequence.mmd)
   — the shared API and presigned-upload protocol through audio extraction
   enqueueing.
-- [File processing after upload](diagrams/file-processing-sequence.mmd) — the
-  audio worker, FFmpeg extraction, persisted file storage, transcription task,
-  and failure paths.
+- [File processing after upload](diagrams/file-processing-sequence.mmd) — a
+  concise successful path from audio processing through transcription handoff.
+- [Audio re-encoding worker](diagrams/audio-reencoding-worker-sequence.mmd) —
+  HTTP task polling, signed source and destination URLs, FFmpeg conversion, and
+  task completion callback.
+- [Audio validation worker](diagrams/audio-validation-worker-sequence.mmd) —
+  HTTP task polling, signed audio URL, independent validation, and task completion
+  callback.
 - [Mobile authentication with PKCE](diagrams/mobile-auth-pkce-sequence.mmd) —
   the OIDC browser round trip, one-time authorization code, verifier check, and
   JWT issuance.

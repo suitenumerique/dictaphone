@@ -1,39 +1,36 @@
 sequenceDiagram
     autonumber
-    participant Queue@{ "type": "queue" } as Redis and Celery queue
-    participant Audio@{ "type": "control" } as Audio worker
-    participant FFmpeg@{ "type": "entity" } as FFmpeg
-    participant FileStore@{ "type": "database" } as File-linked object storage
+    participant API@{ "type": "control" } as Dictaphone API
+    participant Reencoder@{ "type": "control" } as HTTP re-encoding worker
+    participant Validator@{ "type": "control" } as HTTP validation worker
     participant DB@{ "type": "database" } as PostgreSQL
+    participant Queue@{ "type": "queue" } as Redis and Celery queue
     participant Backend@{ "type": "control" } as Backend worker
+    participant FileStore@{ "type": "database" } as File-linked object storage
     participant Summary@{ "type": "boundary" } as Summary service
 
-    Queue->>Audio: extract_audio(file_id)<br/>queue: dictaphone-audio
-    Audio->>DB: Claim pending audio extraction
-    Audio->>FileStore: Read source object using persisted file storage
-    Audio->>FFmpeg: Run ffmpeg to extract and normalize audio
+    Reencoder->>API: GET /audio-jobs/transcoding/next<br/>Bearer token
+    API-->>Reencoder: 204 or job id, source_url, destination_url
+    Reencoder->>FileStore: GET source_url, transcode with FFmpeg,<br/>PUT destination_url
+    Reencoder->>API: POST /audio-jobs/transcoding/complete<br/>id and status<br/>duration_seconds on success or error on failure
+    API->>DB: Record transcoding result and duration<br/>make validation job available on success
+    Validator->>API: GET /audio-jobs/validation/next<br/>Bearer token
+    API-->>Validator: 204 or job id, source_url
+    Validator->>FileStore: GET source_url and validate with opusinfo + opusdec
+    Validator->>API: POST /audio-jobs/validation/complete<br/>id, status, error on failure
+    API->>DB: Mark EXTRACTION_DONE after validation succeeds
+    API->>Queue: call_transcribe_service.delay(file_id)<br/>queue: dictaphone-backend
+    Queue->>Backend: call_transcribe_service(file_id)<br/>queue: dictaphone-backend
+    Backend->>DB: Create PENDING transcription job
+    Backend->>FileStore: Generate signed GET URL for derived audio
+    Backend->>Summary: POST /api/v2/async-jobs/transcribe
 
-    alt Audio extraction failure
-        FFmpeg-->>Audio: Extraction failure
-        Audio->>FileStore: Delete partial derived audio
-        Audio->>DB: Mark AUDIO_EXTRACTION_FAILED
-    else Audio extraction succeeds
-        FFmpeg-->>Audio: Normalized OGG/Opus audio and duration
-        Audio->>FileStore: Write derived audio object
-        Audio->>DB: Mark EXTRACTION_DONE and save duration
-        Audio->>Queue: call_transcribe_service.delay(file_id)<br/>queue: dictaphone-backend
-        Queue->>Backend: call_transcribe_service(file_id)<br/>queue: dictaphone-backend
-        Backend->>DB: Create PENDING transcription job
-        Backend->>FileStore: Generate signed GET URL for derived audio
-        Backend->>Summary: POST /api/v2/async-jobs/transcribe
-
-        alt Transcription request failure
-            Summary-->>Backend: Request failure
-            Backend->>DB: Mark transcription job FAILED
-        else Transcription request succeeds
-            Summary-->>Backend: 200 pending and remote job id
-            Backend->>DB: Save remote transcription job id
-        end
+    alt Transcription request failure
+        Summary-->>Backend: Request failure
+        Backend->>DB: Mark transcription job FAILED
+    else Transcription request succeeds
+        Summary-->>Backend: 200 pending and remote job id
+        Backend->>DB: Save remote transcription job id
     end
 
-    Note over Audio,FileStore: Every storage operation here uses the storage configuration persisted on the file.
+    Note over Reencoder,Validator: Worker polling, signed URLs, validation, and completion callbacks are detailed in their dedicated sequence diagrams.

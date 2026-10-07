@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant Worker@{ "type": "control" } as HTTP audio transcoding worker
+    participant FFmpeg@{ "type": "entity" } as FFmpeg executable<br/>inside this worker
+    participant API@{ "type": "control" } as Dictaphone API
+    participant FileStore@{ "type": "database" } as File-linked object storage
+
+    Worker->>API: GET /audio-jobs/transcoding/next<br/>Authorization: Bearer worker token
+    alt No job available
+        API-->>Worker: 204 No Content
+    else Transcoding job available
+        API-->>Worker: Job id, job_kind, signed source_url and destination_url
+        Worker->>Worker: Create temporary job directory under work_dir
+        Worker->>FileStore: GET source_url
+        Worker->>FFmpeg: Convert source to OGG/Opus<br/>and calculate duration
+
+        alt Download, conversion, or upload fails
+            Worker->>Worker: Build failure completion with error message
+            Worker->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token<br/>id and status=failure with error
+        else Conversion succeeds
+            FFmpeg-->>Worker: OGG/Opus file and duration_seconds
+            Worker->>FileStore: PUT destination_url
+            Worker->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token<br/>id and status=success with duration_seconds
+        end
+    end
+    Worker->>Worker: Clean work_dir in finally block
+
+    Note over Worker,API: The worker polls once, processes at most one job, reports to the fixed completion endpoint, and exits.
+    Note over Worker,FFmpeg: FFmpeg runs inside this worker's isolated environment.

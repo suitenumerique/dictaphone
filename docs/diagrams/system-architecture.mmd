@@ -1,5 +1,6 @@
-%% Sources: src/helm/dictaphone/templates, src/helm/dictaphone/values.yaml,
-%%          src/backend/core/configuration.py,
+%% Audio workers pull tasks from the backend API over HTTP and report completion.
+%% Other architecture sources: src/helm/dictaphone/templates,
+%%          src/helm/dictaphone/values.yaml, src/backend/core/configuration.py,
 %%          docs/developping_locally.md, src/backend/dictaphone/settings.py
 flowchart LR
     subgraph Clients
@@ -15,7 +16,18 @@ flowchart LR
         DB[("PostgreSQL<br/>users, files, AI jobs")]
         Redis[("Redis<br/>sessions, cache, Celery broker/result")]
         BackendWorker["Celery backend worker<br/>dictaphone-backend"]
-        AudioWorker["Celery audio worker<br/>dictaphone-audio"]
+        subgraph ReencodingWorker["Audio re-encoding worker (isolated)"]
+            direction TB
+            Reencoder["HTTP task poller and processor"]
+            FFmpeg["FFmpeg executable<br/>runs inside this worker"]
+            Reencoder -->|"executes locally"| FFmpeg
+        end
+        subgraph ValidationWorker["Audio validation worker (isolated)"]
+            direction TB
+            Validator["HTTP task poller and processor"]
+            OpusTools["opusinfo + opusdec<br/>run inside this worker"]
+            Validator -->|"executes locally"| OpusTools
+        end
         MediaIngress["Media-files Ingress<br/>Nginx auth subrequest"]
 
         subgraph DictaphoneStorage["Dictaphone S3 storage<br/>one or more policy-linked buckets"]
@@ -60,11 +72,18 @@ flowchart LR
     MediaIngress -->|"signed request proxy to selected bucket"| StoragePolicy
 
     Redis --> BackendWorker
-    Redis --> AudioWorker
     BackendWorker --> DB
     BackendWorker -->|"read/write media and AI results"| StoragePolicy
-    AudioWorker --> DB
-    AudioWorker -->|"read/write media"| StoragePolicy
+
+    Reencoder -->|"poll with bearer token<br/>GET /audio-jobs/transcoding/next"| API
+    API -->|"job: id, job_kind, source_url, destination_url"| Reencoder
+    Reencoder -->|"GET source_url / PUT destination_url"| StoragePolicy
+    Reencoder -->|"bearer token + result payload<br/>POST /audio-jobs/transcoding/complete"| API
+
+    Validator -->|"poll with bearer token<br/>GET /audio-jobs/validation/next"| API
+    API -->|"job: id, job_kind, source_url"| Validator
+    Validator -->|"GET source_url"| StoragePolicy
+    Validator -->|"bearer token + result payload<br/>POST /audio-jobs/validation/complete"| API
 
     BackendWorker -->|"start transcribe or summarize job"| SummaryAPI
     SummaryWorker -->|"GET media via signed URL"| StoragePolicy
@@ -79,9 +98,12 @@ flowchart LR
     classDef data fill:#fef3c7,stroke:#b45309,color:#451a03
     classDef routing fill:#ffedd5,stroke:#c2410c,color:#7c2d12
     classDef external fill:#f3e8ff,stroke:#7e22ce,color:#3b0764
+    classDef workerTool fill:#ffedd5,stroke:#c2410c,color:#7c2d12
+    classDef securityNote fill:#fef2f2,stroke:#b91c1c,color:#7f1d1d
 
     class Web,Mobile client
-    class Ingress,Frontend,API,BackendWorker,AudioWorker,MediaIngress dictaphoneApp
+    class Ingress,Frontend,API,BackendWorker,Reencoder,Validator,MediaIngress dictaphoneApp
+    class FFmpeg,OpusTools workerTool
     class SummaryAPI,SummaryWorker summaryApp
     class DB,Redis,DefaultBucket,DomainBucket,AdditionalBuckets,SummaryStore data
     class StoragePolicy routing
@@ -90,5 +112,7 @@ flowchart LR
     linkStyle default stroke:#334155,stroke-width:2px
 
     style Dictaphone fill:#eff6ff,stroke:#1d4ed8,stroke-width:3px,color:#172554
+    style ReencodingWorker fill:#fff7ed,stroke:#c2410c,stroke-width:2px,color:#7c2d12
+    style ValidationWorker fill:#fff7ed,stroke:#c2410c,stroke-width:2px,color:#7c2d12
     style DictaphoneStorage fill:#fffbeb,stroke:#b45309,stroke-width:2px,color:#451a03
     style SummaryService fill:#f0fdf4,stroke:#15803d,stroke-width:3px,color:#14532d
