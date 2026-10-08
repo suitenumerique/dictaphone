@@ -5,7 +5,6 @@ sequenceDiagram
     participant API@{ "type": "control" } as Dictaphone API
     participant DB@{ "type": "database" } as PostgreSQL
     participant UserStore@{ "type": "database" } as Creator policy-selected object storage
-    participant Queue@{ "type": "queue" } as Redis and Celery queue
 
     User->>Client: Select a file or finish recording
     Client->>API: POST /api/v1.0/files/<br/>Auth<br/>Bearer token for mobile<br/>session cookie for web
@@ -29,7 +28,7 @@ sequenceDiagram
         API-->>Client: 4xx validation error
     else File accepted
         API->>DB: Mark file READY with validated metadata
-        API->>Queue: queue_audio_extraction(file_id)<br/>extract_audio on dictaphone-audio
+        API->>DB: Create pending transcoding AudioJob<br/>with a unique output key
         API-->>Client: 200 OK<br/>READY file
     end
 

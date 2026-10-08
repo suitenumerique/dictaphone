@@ -183,33 +183,36 @@ add_header Content-Disposition "attachment";
 | `celeryBackend.extraVolumes`                                | Additional volumes to mount on the celeryBackend.                                        | `[]`                                                                                           |
 | `celeryBackend.pdb.enabled`                                 | Enable pdb on celeryBackend                                                              | `false`                                                                                        |
 
-### celeryAudioExtractor
+### audioExtractor
+
+The worker's `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` is copied from
+`backend.envVars.AUDIO_JOB_TIMEOUT_SECONDS`, defaulting to `300`.
 
 | Name                        | Description                                                    | Value                                                                                       |
 | --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `celeryAudioExtractor.dpAnnotations` | Annotations to add to the audio worker Deployment       | `{}`                                                                                        |
-| `celeryAudioExtractor.command`          | Command used by the audio extraction worker           | `["python","-m","audio_extractor"]` |
-| `celeryAudioExtractor.args`          | Additional audio worker arguments                        | `[]`                                                                                        |
-| `celeryAudioExtractor.transcodingReplicas` | Amount of transcoding worker replicas             | `1` |
-| `celeryAudioExtractor.validationReplicas`  | Amount of validation worker replicas              | `1` |
-| `celeryAudioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
-| `celeryAudioExtractor.sidecars`      | Add sidecars containers to audio worker deployment       | `[]`                                                                                        |
-| `celeryAudioExtractor.securityContext` | Configure audio worker container security context     | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, capabilities: {drop: [ALL]}}`                                                                                       |
-| `celeryAudioExtractor.envVars`       | Environment variables shared by both audio workers      | `{}`                                                                                        |
-| `celeryAudioExtractor.transcodingEnvVars` | Environment variables for the transcoding worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
-| `celeryAudioExtractor.validationEnvVars` | Environment variables for the validation worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
-| `celeryAudioExtractor.podAnnotations` | Annotations to add to the audio worker Pod             | `{}`                                                                                        |
-| `celeryAudioExtractor.resources`      | Resource requirements for the audio worker container    | `{}` |
-| `celeryAudioExtractor.nodeSelector`   | Node selector for the audio worker Pod                  | `{}`                                                                                        |
-| `celeryAudioExtractor.tolerations`    | Tolerations for the audio worker Pod                    | `[]`                                                                                        |
-| `celeryAudioExtractor.affinity`       | Affinity for the audio worker Pod                       | `{}`                                                                                        |
-| `celeryAudioExtractor.persistence`   | Additional volumes to create and mount on the audio worker. Used for debugging purposes | `{}` |
-| `celeryAudioExtractor.persistence.volume-name.size` | Size of the additional volume | |
-| `celeryAudioExtractor.persistence.volume-name.type` | Type of the additional volume, persistentVolumeClaim or emptyDir | |
-| `celeryAudioExtractor.persistence.volume-name.mountPath` | Path where the volume should be mounted to | |
-| `celeryAudioExtractor.extraVolumeMounts` | Additional volumes to mount on the audio worker. | `[]` |
-| `celeryAudioExtractor.extraVolumes`    | Additional volumes to mount on the audio worker. | `[]` |
-| `celeryAudioExtractor.pdb.enabled`    | Enable pdb on the audio worker | `false` |
+| `audioExtractor.dpAnnotations` | Annotations to add to the audio worker Deployment       | `{}`                                                                                        |
+| `audioExtractor.command`          | Command used by the audio extraction worker, enforcing its job deadline | `["sh","/app/run-worker.sh"]` |
+| `audioExtractor.args`          | Additional audio worker arguments                        | `[]`                                                                                        |
+| `audioExtractor.transcodingReplicas` | Amount of transcoding worker replicas             | `1` |
+| `audioExtractor.validationReplicas`  | Amount of validation worker replicas              | `1` |
+| `audioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
+| `audioExtractor.sidecars`      | Add sidecars containers to audio worker deployment       | `[]`                                                                                        |
+| `audioExtractor.securityContext` | Configure audio worker container security context     | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, capabilities: {drop: [ALL]}}`                                                                                       |
+| `audioExtractor.envVars`       | Environment variables shared by both audio workers      | `{AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend:8000}` |
+| `audioExtractor.transcodingEnvVars` | Environment variables for the transcoding worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
+| `audioExtractor.validationEnvVars` | Environment variables for the validation worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
+| `audioExtractor.podAnnotations` | Annotations to add to the audio worker Pod             | `{}`                                                                                        |
+| `audioExtractor.resources`      | Resource requirements for the audio worker container    | `{}` |
+| `audioExtractor.nodeSelector`   | Node selector for the audio worker Pod                  | `{}`                                                                                        |
+| `audioExtractor.tolerations`    | Tolerations for the audio worker Pod                    | `[]`                                                                                        |
+| `audioExtractor.affinity`       | Affinity for the audio worker Pod                       | `{}`                                                                                        |
+| `audioExtractor.persistence`   | Additional volumes to create and mount on the audio worker. Used for debugging purposes | `{}` |
+| `audioExtractor.persistence.volume-name.size` | Size of the additional volume | |
+| `audioExtractor.persistence.volume-name.type` | Type of the additional volume, persistentVolumeClaim or emptyDir | |
+| `audioExtractor.persistence.volume-name.mountPath` | Path where the volume should be mounted to | |
+| `audioExtractor.extraVolumeMounts` | Additional volumes to mount on the audio worker. | `[]` |
+| `audioExtractor.extraVolumes`    | Additional volumes to mount on the audio worker. | `[]` |
+| `audioExtractor.pdb.enabled`    | Enable pdb on the audio worker | `false` |
 
 ### frontend
 

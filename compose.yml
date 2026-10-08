@@ -71,6 +71,9 @@ services:
     environment:
       - PYLINTHOME=/app/.pylint.d
       - DJANGO_CONFIGURATION=Development
+      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
+      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
       - env.d/development/common
       - env.d/development/postgresql
@@ -97,22 +100,9 @@ services:
     command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "dictaphone-backend"]
     environment:
       - DJANGO_CONFIGURATION=Development
-    env_file:
-      - env.d/development/common
-      - env.d/development/postgresql
-    volumes:
-      - ./src/backend:/app
-      - ./data/static:/data/static
-      - /app/.venv
-    depends_on:
-      - app-dev
-
-  celery-audio-dev:
-    user: ${DOCKER_USER:-1000}
-    image: dictaphone:backend-development
-    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "dictaphone-audio"]
-    environment:
-      - DJANGO_CONFIGURATION=Development
+      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
+      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
       - env.d/development/common
       - env.d/development/postgresql
@@ -133,6 +123,8 @@ services:
     user: ${DOCKER_USER:-1000}
     image: dictaphone:audio-extractor-development
     working_dir: /app
+    environment:
+      PYLINTHOME: /tmp/pylint
     volumes:
       - ./src/audio-extractor:/app
       - /app/.venv
@@ -150,6 +142,7 @@ services:
       AUDIO_EXTRACTOR_API_URL: http://app-dev:8000
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
       AUDIO_EXTRACTOR_MODE: transcoding
+      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
     depends_on:
       - app-dev
     tmpfs:
@@ -169,6 +162,7 @@ services:
       AUDIO_EXTRACTOR_API_URL: http://app-dev:8000
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
       AUDIO_EXTRACTOR_MODE: validation
+      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
     depends_on:
       - app-dev
     tmpfs:
@@ -188,6 +182,7 @@ services:
       AUDIO_EXTRACTOR_API_URL: http://app:8000
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
       AUDIO_EXTRACTOR_MODE: transcoding
+      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
     depends_on:
       - app
     tmpfs:
@@ -207,6 +202,7 @@ services:
       AUDIO_EXTRACTOR_API_URL: http://app:8000
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
       AUDIO_EXTRACTOR_MODE: validation
+      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
     depends_on:
       - app
     tmpfs:
@@ -223,6 +219,9 @@ services:
     image: dictaphone:backend-production
     environment:
       - DJANGO_CONFIGURATION=Demo
+      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
+      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
       - env.d/development/common
       - env.d/development/postgresql
@@ -237,18 +236,9 @@ services:
     command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "INFO", "--concurrency=1", "-Q", "dictaphone-backend"]
     environment:
       - DJANGO_CONFIGURATION=Demo
-    env_file:
-      - env.d/development/common
-      - env.d/development/postgresql
-    depends_on:
-      - app
-
-  celery-audio:
-    user: ${DOCKER_USER:-1000}
-    image: dictaphone:backend-production
-    command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "INFO", "--concurrency=1", "-Q", "dictaphone-audio"]
-    environment:
-      - DJANGO_CONFIGURATION=Demo
+      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
+      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
       - env.d/development/common
       - env.d/development/postgresql

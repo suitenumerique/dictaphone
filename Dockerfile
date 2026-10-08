@@ -71,7 +71,6 @@ RUN apk --no-cache add \
   gettext \
   libffi-dev \
   pango \
-  ffmpeg \
   # Infering mimetype from file
   libmagic \
   shared-mime-info

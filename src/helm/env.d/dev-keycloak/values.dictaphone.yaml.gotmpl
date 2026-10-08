@@ -70,6 +70,8 @@ backend:
     DATA_POLICY_CONFIGURATIONS: '{"default":{"default":True,"bucket":"default"},"alpha":{"domains":["alpha.example"],"bucket":"alpha","file_auto_hard_delete_after_days":14,"original_file_data_delete_after_days":7},"beta":{"domains":["beta.example"],"bucket":"beta","file_auto_hard_delete_after_days":30,"original_file_data_delete_after_days":14}}'
     MEDIA_BASE_URL: https://dictaphone.127.0.0.1.nip.io
     SSL_CERT_FILE: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
+    AUDIO_EXTRACTOR_TRANSCODING_TOKEN: local-development-transcoding-token
+    AUDIO_EXTRACTOR_VALIDATION_TOKEN: local-development-validation-token
     CELERY_ENABLED: "True"
     CELERY_BROKER_URL: redis://default:pass@redis-master:6379/1
     CELERY_RESULT_BACKEND: redis://default:pass@redis-master:6379/1
@@ -129,7 +131,7 @@ celeryBackend:
     - "-Q"
     - "dictaphone-backend"
 
-celeryAudioExtractor:
+audioExtractor:
   transcodingReplicas: 1
   validationReplicas: 1
   envVars:
@@ -138,10 +140,6 @@ celeryAudioExtractor:
     AUDIO_EXTRACTOR_TOKEN: local-development-transcoding-token
   validationEnvVars:
     AUDIO_EXTRACTOR_TOKEN: local-development-validation-token
-  command:
-    - "python"
-    - "-m"
-    - "audio_extractor"
 
 frontend:
   envVars:

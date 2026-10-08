@@ -1,10 +1,11 @@
 {{- define "dictaphone.audioExtractor.deployment" -}}
 {{- $root := index . 0 -}}
 {{- $mode := index . 1 -}}
-{{- $config := $root.Values.celeryAudioExtractor -}}
+{{- $config := $root.Values.audioExtractor -}}
 {{- $modeVarsKey := printf "%sEnvVars" $mode -}}
 {{- $modeReplicasKey := printf "%sReplicas" $mode -}}
-{{- $envVars := mergeOverwrite (deepCopy (default dict $config.envVars)) (deepCopy (default dict (index $config $modeVarsKey))) (dict "AUDIO_EXTRACTOR_MODE" $mode) -}}
+{{- $timeout := dig "AUDIO_JOB_TIMEOUT_SECONDS" 300 $root.Values.backend.envVars -}}
+{{- $envVars := mergeOverwrite (deepCopy (default dict $config.envVars)) (deepCopy (default dict (index $config $modeVarsKey))) (dict "AUDIO_EXTRACTOR_MODE" $mode "AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS" $timeout) -}}
 {{- $env := include "dictaphone.env.transformDict" $envVars -}}
 {{- $fullName := printf "%s-%s" (include "dictaphone.audioExtractor.fullname" $root) $mode | trunc 63 | trimSuffix "-" -}}
 {{- $component := printf "audio-worker-%s" $mode -}}
@@ -75,11 +76,6 @@ spec:
           volumeMounts:
             - name: work
               mountPath: /work
-            {{- range $index, $value := $root.Values.mountFiles }}
-            - name: "files-{{ $index }}"
-              mountPath: {{ $value.path }}
-              subPath: content
-            {{- end }}
             {{- range $name, $volume := $config.persistence }}
             - name: "{{ $name }}"
               mountPath: "{{ $volume.mountPath }}"
@@ -106,11 +102,6 @@ spec:
         - name: work
           emptyDir:
             sizeLimit: 4Gi
-        {{- range $index, $value := $root.Values.mountFiles }}
-        - name: "files-{{ $index }}"
-          configMap:
-            name: "{{ include "dictaphone.fullname" $root }}-files-{{ $index }}"
-        {{- end }}
         {{- range $name, $volume := $config.persistence }}
         - name: "{{ $name }}"
           {{- if eq $volume.type "emptyDir" }}

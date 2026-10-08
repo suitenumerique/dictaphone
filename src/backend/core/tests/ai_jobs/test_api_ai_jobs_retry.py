@@ -300,7 +300,7 @@ def test_api_ai_jobs_retry_audio_extraction_failed_bad_request(mock_task):
     mock_task.assert_not_called()
 
 
-@patch("core.tasks.file.queue_audio_extraction")
+@patch("core.tasks.file.start_audio_extraction")
 def test_api_ai_jobs_retry_pending_audio_extraction_queues_processing(mock_queue):
     """Retry should extract first when the audio is not yet validated."""
     user = factories.UserFactory()
@@ -324,11 +324,7 @@ def test_api_ai_jobs_retry_pending_audio_extraction_queues_processing(mock_queue
     new_job = ai_job.file.ai_jobs.get(id=new_job_id)
     assert new_job.status == AiJobStatusChoices.PENDING
     assert response.json()["processing_expected_end_at"] is None
-    mock_queue.assert_called_once_with(
-        ai_job.file_id,
-        ai_job_id=new_job.id,
-        language="fr",
-    )
+    mock_queue.assert_called_once_with(ai_job.file_id)
 
 
 @patch("core.api.viewsets.call_transcribe_service")

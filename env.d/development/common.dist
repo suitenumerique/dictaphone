@@ -11,6 +11,8 @@ OIDC_STORE_REFRESH_TOKEN=False
 PYTHONPATH=/app
 
 # Dictaphone settings
+AUDIO_EXTRACTOR_TRANSCODING_TOKEN=local-development-transcoding-token
+AUDIO_EXTRACTOR_VALIDATION_TOKEN=local-development-validation-token
 
 # Mail
 DJANGO_EMAIL_HOST="mailcatcher"

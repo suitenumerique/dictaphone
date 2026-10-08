@@ -14,8 +14,8 @@ import pytest
 from core import factories
 from core.admin import (
     AiFileJobAdmin,
+    AudioExtractionStatusFilter,
     FileAdmin,
-    FileAdminForm,
     LatestTranscriptJobStatusFilter,
 )
 from core.models import (
@@ -100,35 +100,25 @@ def test_file_admin_displays_audio_extraction_status():
     admin_instance = FileAdmin(File, Mock())
 
     assert "audio_extraction_status" in admin_instance.list_display
-    assert "audio_extraction_state" in admin_instance.list_filter
-    assert "audio_extraction_state" not in admin_instance.readonly_fields
+    assert AudioExtractionStatusFilter in admin_instance.list_filter
+    assert "audio_extraction_state" in admin_instance.readonly_fields
     assert admin_instance.audio_extraction_status(file) == "Audio extraction done"
 
 
-def test_file_admin_can_only_reset_audio_extraction_to_pending():
-    """Admins can reset extraction but cannot manually mark it successful."""
-    pending = FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-    done = FileAudioExtractionStateChoices.EXTRACTION_DONE
-    file = factories.FileFactory(audio_extraction_state=done)
-
-    form = FileAdminForm(instance=file)
-    assert [value for value, _ in form.fields["audio_extraction_state"].choices] == [
-        done,
-        pending,
-    ]
-
-    reset_form = FileAdminForm(
-        data={**form.initial, "audio_extraction_state": pending},
-        instance=file,
+def test_file_admin_starts_new_extraction_and_preserves_history():
+    """Admin resets create a new attempt; historical results remain inspectable."""
+    file = factories.FileFactory(
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE
     )
-    assert reset_form.is_valid()
-
-    pending_file = factories.FileFactory(audio_extraction_state=pending)
-    successful_form = FileAdminForm(
-        data={"audio_extraction_state": done},
-        instance=pending_file,
+    admin_instance = FileAdmin(File, Mock())
+    with patch.object(admin_instance, "message_user"):
+        admin_instance.start_audio_extraction(Mock(), File.objects.filter(pk=file.pk))
+        admin_instance.start_audio_extraction(Mock(), File.objects.filter(pk=file.pk))
+    assert file.audio_jobs.count() == 3
+    assert (
+        file.audio_extraction_state
+        == FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
     )
-    assert "audio_extraction_state" in successful_form.errors
 
 
 @pytest.mark.parametrize(

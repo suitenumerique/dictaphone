@@ -12,6 +12,7 @@ RUN apk update && \
 
 # Install audio processing tools
 RUN apk --no-cache add \
+  coreutils \
   ffmpeg \
   opus-tools
 
@@ -67,6 +68,7 @@ RUN mkdir -p /work && \
 # Copy the application from the builder
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/audio_extractor /app/audio_extractor
+COPY src/audio-extractor/run-worker.sh /app/run-worker.sh
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
@@ -80,5 +82,5 @@ USER ${DOCKER_USER}
 
 VOLUME ["/work"]
 
-# Run the audio extractor
-CMD ["python", "-m", "audio_extractor"]
+# Run one attempt with the same hard deadline as the backend's audio job lease.
+CMD ["sh", "/app/run-worker.sh"]
