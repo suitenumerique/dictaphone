@@ -26,9 +26,9 @@ spec:
       labels:
         {{- include "dictaphone.common.selectorLabels" (list . $component) | nindent 8 }}
     spec:
-      {{- if $.Values.image.credentials }}
+      {{- if $.Values.images.credentials }}
       imagePullSecrets:
-        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" $.Values.image.credentials) }}
+        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" $.Values.images.credentials) }}
       {{- end }}
       shareProcessNamespace: {{ .Values.celeryBackend.shareProcessNamespace }}
       containers:
@@ -36,8 +36,8 @@ spec:
           {{- toYaml . | nindent 8 }}
         {{- end }}
         - name: {{ .Chart.Name }}
-          image: "{{ (.Values.backend.image | default dict).repository | default .Values.image.repository }}:{{ (.Values.backend.image | default dict).tag | default .Values.image.tag }}"
-          imagePullPolicy: {{ (.Values.backend.image | default dict).pullPolicy | default .Values.image.pullPolicy }}
+          image: "{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag }}"
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
           {{- with .Values.celeryBackend.command }}
           command:
             {{- toYaml . | nindent 12 }}

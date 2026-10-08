@@ -6,13 +6,19 @@
 
 | Name                                                                              | Description                                            | Value                                                            |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
-| `image.repository`                                                                | Repository to use to pull dictaphone's container image | `lasuite/dictaphone-backend`                                     |
-| `image.tag`                                                                       | dictaphone's container tag                             | `latest`                                                         |
-| `image.pullPolicy`                                                                | Container image pull policy                            | `IfNotPresent`                                                   |
-| `image.credentials.username`                                                      | Username for container registry authentication         |                                                                  |
-| `image.credentials.password`                                                      | Password for container registry authentication         |                                                                  |
-| `image.credentials.registry`                                                      | Registry url for which the credentials are specified   |                                                                  |
-| `image.credentials.name`                                                          | Name of the generated secret for imagePullSecrets      |                                                                  |
+| `images.backend.repository` | Backend image repository | `lasuite/dictaphone-backend` |
+| `images.backend.tag` | Backend image tag | `latest` |
+| `images.backend.pullPolicy` | Backend image pull policy | `IfNotPresent` |
+| `images.frontend.repository` | Frontend image repository | `lasuite/dictaphone-frontend` |
+| `images.frontend.tag` | Frontend image tag | `latest` |
+| `images.frontend.pullPolicy` | Frontend image pull policy | `IfNotPresent` |
+| `images.audioExtractor.repository` | Audio extractor image repository | `lasuite/dictaphone-audio-extractor` |
+| `images.audioExtractor.tag` | Audio extractor image tag | `latest` |
+| `images.audioExtractor.pullPolicy` | Audio extractor image pull policy | `IfNotPresent` |
+| `images.credentials.username` | Username for container registry authentication | |
+| `images.credentials.password` | Password for container registry authentication | |
+| `images.credentials.registry` | Registry url for which the credentials are specified | |
+| `images.credentials.name` | Name of the generated secret for imagePullSecrets | |
 | `nameOverride`                                                                    | Override the chart name                                | `""`                                                             |
 | `fullnameOverride`                                                                | Override the full application name                     | `""`                                                             |
 | `ingress.enabled`                                                                 | whether to enable the Ingress or not                   | `false`                                                          |
@@ -182,9 +188,6 @@ add_header Content-Disposition "attachment";
 | Name                        | Description                                                    | Value                                                                                       |
 | --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `celeryAudioExtractor.dpAnnotations` | Annotations to add to the audio worker Deployment       | `{}`                                                                                        |
-| `celeryAudioExtractor.image.repository` | Audio extractor image repository                    | `lasuite/dictaphone-audio-extractor` |
-| `celeryAudioExtractor.image.tag`        | Audio extractor image tag                             | `latest` |
-| `celeryAudioExtractor.image.pullPolicy` | Audio extractor image pull policy                     | `IfNotPresent` |
 | `celeryAudioExtractor.command`          | Command used by the audio extraction worker           | `["python","-m","audio_extractor"]` |
 | `celeryAudioExtractor.args`          | Additional audio worker arguments                        | `[]`                                                                                        |
 | `celeryAudioExtractor.transcodingReplicas` | Amount of transcoding worker replicas             | `1` |
@@ -212,9 +215,6 @@ add_header Content-Disposition "attachment";
 
 | Name                                                   | Description                                                                         | Value                         |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------- |
-| `frontend.image.repository`                            | Repository to use to pull dictaphone's frontend container image                     | `lasuite/dictaphone-frontend` |
-| `frontend.image.tag`                                   | dictaphone's frontend container tag                                                 | `latest`                      |
-| `frontend.image.pullPolicy`                            | frontend container image pull policy                                                | `IfNotPresent`                |
 | `frontend.dpAnnotations`                               | Annotations to add to the frontend Deployment                                       | `{}`                          |
 | `frontend.command`                                     | Override the frontend container command                                             | `[]`                          |
 | `frontend.args`                                        | Override the frontend container args                                                | `[]`                          |

@@ -193,14 +193,14 @@ as a list, while additional entries get a stable name-specific suffix.
 {{- end }}
 
 {{/*
-Usage : {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.path.to.the.image1) }}
+Usage : {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.images.credentials) }}
 */}}
 {{- define "dictaphone.secret.dockerconfigjson.name" }}
 {{- if (default (dict) .imageCredentials).name }}{{ .imageCredentials.name }}{{ else }}{{ .fullname | trunc 63 | trimSuffix "-" }}-dockerconfig{{ end -}}
 {{- end }}
 
 {{/*
-Usage : {{ include "dictaphone.secret.dockerconfigjson" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.path.to.the.image1) }}
+Usage : {{ include "dictaphone.secret.dockerconfigjson" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.images.credentials) }}
 */}}
 {{- define "dictaphone.secret.dockerconfigjson" }}
 {{- if .imageCredentials -}}

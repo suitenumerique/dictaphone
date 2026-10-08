@@ -24,9 +24,9 @@ items:
             metadata:
               name: {{ $fullName }}-{{ .name }}
             spec:
-              {{- if $.Values.image.credentials }}
+              {{- if $.Values.images.credentials }}
               imagePullSecrets:
-                - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" $.Values.image.credentials) }}
+                - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" $.Values.images.credentials) }}
               {{- end}}
               shareProcessNamespace: {{ $.Values.backend.shareProcessNamespace }}
               containers:
@@ -34,8 +34,8 @@ items:
                   {{- toYaml . | nindent 18 }}
                 {{- end }}
                 - name: {{ $.Chart.Name }}
-                  image: "{{ ($.Values.backend.image | default dict).repository | default $.Values.image.repository }}:{{ ($.Values.backend.image | default dict).tag | default $.Values.image.tag }}"
-                  imagePullPolicy: {{ ($.Values.backend.image | default dict).pullPolicy | default $.Values.image.pullPolicy }}
+                  image: "{{ $.Values.images.backend.repository }}:{{ $.Values.images.backend.tag }}"
+                  imagePullPolicy: {{ $.Values.images.backend.pullPolicy }}
                   args:
                     {{- toYaml .command | nindent 22 }}
                   env:

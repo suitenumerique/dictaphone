@@ -42,9 +42,9 @@ spec:
         fsGroup: 10000
         seccompProfile:
           type: RuntimeDefault
-      {{- if $root.Values.image.credentials }}
+      {{- if $root.Values.images.credentials }}
       imagePullSecrets:
-        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" $root) "imageCredentials" $root.Values.image.credentials) }}
+        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" $root) "imageCredentials" $root.Values.images.credentials) }}
       {{- end }}
       shareProcessNamespace: {{ $config.shareProcessNamespace }}
       containers:
@@ -52,8 +52,8 @@ spec:
           {{- toYaml . | nindent 8 }}
         {{- end }}
         - name: {{ $root.Chart.Name }}
-          image: "{{ $config.image.repository }}:{{ $config.image.tag }}"
-          imagePullPolicy: {{ $config.image.pullPolicy }}
+          image: "{{ $root.Values.images.audioExtractor.repository }}:{{ $root.Values.images.audioExtractor.tag }}"
+          imagePullPolicy: {{ $root.Values.images.audioExtractor.pullPolicy }}
           {{- with $config.command }}
           command:
             {{- toYaml . | nindent 12 }}
