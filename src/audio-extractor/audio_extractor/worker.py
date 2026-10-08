@@ -144,7 +144,7 @@ def process_transcoding_job(config: Settings, job: TranscodingJob) -> None:
             duration_seconds=duration,
             metadata=metadata,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _log_job_failure(
             "Transcoding",
             job.id,
@@ -184,7 +184,7 @@ def process_validation_job(config: Settings, job: ValidationJob) -> None:
                 lambda: _validate_opus(source, config.command_timeout),
             )
         payload = ValidationCompletion(id=job.id, status="success", metadata=metadata)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _log_job_failure("Validation", job.id, job.source_url, exc)
         payload = ValidationCompletion(
             id=job.id,

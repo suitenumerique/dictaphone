@@ -44,6 +44,8 @@ COMPOSE_EXEC        = $(COMPOSE) exec
 COMPOSE_EXEC_APP    = $(COMPOSE_EXEC) app-dev
 COMPOSE_RUN         = $(COMPOSE) run --rm
 COMPOSE_RUN_APP     = $(COMPOSE_RUN) app-dev
+COMPOSE_RUN_APP_NO_DEPS = $(COMPOSE) run --rm --no-deps app-dev
+COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS = $(COMPOSE) run --rm --no-deps audio-extractor-dev
 COMPOSE_RUN_CROWDIN = $(COMPOSE_RUN) crowdin crowdin
 WAIT_DB             = @$(COMPOSE_RUN) dockerize -wait tcp://$(DB_HOST):$(DB_PORT) -timeout 60s
 
@@ -91,14 +93,18 @@ bootstrap: \
 
 # -- Docker/compose
 build: ## build the project containers
+	@$(MAKE) build-audio-extractor
 	@$(MAKE) build-backend
 	@$(MAKE) build-frontend
 .PHONY: build
 
+build-audio-extractor: ## build the isolated audio extractor container
+	@$(COMPOSE) build audio-extractor-dev
+.PHONY: build-audio-extractor
+
 build-backend: ## build the app-dev container
 	@$(COMPOSE) build app-dev
 .PHONY: build-backend
-
 
 build-frontend: ## build the frontend container
 	@$(COMPOSE) build frontend
@@ -113,7 +119,8 @@ logs: ## display app-dev logs (follow mode)
 .PHONY: logs
 
 run-backend: ## start only the backend application and all needed services
-	@$(COMPOSE) up --force-recreate -d celery-dev celery-audio-dev --remove-orphans
+	@$(COMPOSE) up --force-recreate -d celery-dev celery-audio-dev \
+	  audio-extractor-transcoding-dev audio-extractor-validation-dev --remove-orphans
 	@$(COMPOSE) up --force-recreate -d nginx
 	@echo "Wait for postgresql to be up..."
 	@$(WAIT_DB)
@@ -170,32 +177,65 @@ demo: ## flush db then create a demo for load testing purpose
 	@$(MANAGE) create_demo
 .PHONY: demo
 
-# Nota bene: Black should come after isort just in case they don't agree...
 lint: ## lint back-end python sources
 lint: \
-  lint-ruff-format \
-  lint-ruff-check \
-  lint-pylint
+  lint-backend \
+  lint-audio-extractor
 .PHONY: lint
 
-lint-ruff-format: ## format back-end python sources with ruff
-	@echo 'lint:ruff-format started…'
-	@$(COMPOSE_RUN_APP) ruff format .
-.PHONY: lint-ruff-format
+# Nota bene: Black should come after isort just in case they don't agree...
+lint-backend: ## lint back-end python sources
+lint-backend: \
+  lint-ruff-format-backend \
+  lint-ruff-check-backend \
+  lint-pylint-backend
+.PHONY: lint-backend
 
-lint-ruff-check: ## lint back-end python sources with ruff
-	@echo 'lint:ruff-check started…'
-	@$(COMPOSE_RUN_APP) ruff check . --fix
-.PHONY: lint-ruff-check
+lint-ruff-format-backend: ## format back-end Python sources with Ruff
+	@echo 'lint:backend:ruff-format started…'
+	@$(COMPOSE_RUN_APP_NO_DEPS) ruff format .
+.PHONY: lint-ruff-format-backend
 
-lint-pylint: ## lint back-end python sources with pylint only on changed files from main
-	@echo 'lint:pylint started…'
-	@$(COMPOSE_RUN_APP) pylint dictaphone demo core
-.PHONY: lint-pylint
+lint-ruff-check-backend: ## lint back-end Python sources with Ruff
+	@echo 'lint:backend:ruff-check started…'
+	@$(COMPOSE_RUN_APP_NO_DEPS) ruff check . --fix
+.PHONY: lint-ruff-check-backend
+lint-pylint-backend: ## lint back-end Python sources with pylint
+	@echo 'lint:backend:pylint started…'
+	@$(COMPOSE_RUN_APP_NO_DEPS) pylint dictaphone demo core
+.PHONY: lint-pylint-backend
+
+# Nota bene: Black should come after isort just in case they don't agree...
+lint-audio-extractor: ## lint back-end python sources
+lint-audio-extractor: \
+  lint-ruff-format-audio-extractor \
+  lint-ruff-check-audio-extractor \
+  lint-pylint-audio-extractor
+.PHONY: lint-audio-extractor
+
+lint-ruff-format-audio-extractor: ## format back-end Python sources with Ruff
+	@echo 'lint:audio-extractor:ruff-format started…'
+	@$(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) ruff format .
+.PHONY: lint-ruff-format-audio-extractor
+
+lint-ruff-check-audio-extractor: ## lint back-end Python sources with Ruff
+	@echo 'lint:audio-extractor:ruff-check started…'
+	@$(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) ruff check . --fix
+.PHONY: lint-ruff-check-audio-extractor
+lint-pylint-audio-extractor: ## lint back-end Python sources with pylint
+	@echo 'lint:audio-extractor:pylint started…'
+	@$(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) pylint audio_extractor
+.PHONY: lint-pylint-audio-extractor
+
 
 test: ## run project tests
+	@$(MAKE) test-audio-extractor
 	@$(MAKE) test-back-parallel
 .PHONY: test
+
+test-audio-extractor: ## run audio extractor tests
+	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) pytest $${args}
+.PHONY: test-audio-extractor
 
 test-back: ## run back-end tests
 	@args="$(filter-out $@,$(MAKECMDGOALS))" && \
