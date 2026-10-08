@@ -27,7 +27,26 @@ def test_job_models_validate_required_urls_and_preserve_signed_urls():
 
     assert transcoding_job.source_url == source_url
     assert transcoding_job.destination_url == destination_url
+    assert transcoding_job.destination_headers == {}
     assert validation_job.source_url == source_url
+
+
+def test_transcoding_job_accepts_acl():
+    job = TranscodingJob(
+        job_kind="transcoding",
+        id="job-123",
+        source_url="https://storage.example/source",
+        destination_url="https://storage.example/destination",
+        destination_headers={
+            "X-amz-acl": "private",
+            "x-amz-server-side-encryption": "AES256",
+        },
+    )
+
+    assert job.destination_headers == {
+        "X-amz-acl": "private",
+        "x-amz-server-side-encryption": "AES256",
+    }
 
 
 @pytest.mark.parametrize(

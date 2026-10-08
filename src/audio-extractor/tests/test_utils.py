@@ -39,6 +39,29 @@ def test_upload_uses_signed_put_url_and_ogg_content_type(tmp_path):
     put.assert_called_once()
 
 
+def test_upload_sends_acl_header_when_configured(tmp_path):
+    source = tmp_path / "audio.ogg"
+    source.write_bytes(b"ogg data")
+    response = Mock()
+
+    with patch("audio_extractor.utils.requests.put", return_value=response) as put:
+        _upload(
+            "https://storage.test/signed-put",
+            source,
+            19,
+            destination_headers={
+                "X-amz-acl": "private",
+                "x-amz-server-side-encryption": "AES256",
+            },
+        )
+
+    assert put.call_args.kwargs["headers"] == {
+        "Content-Type": "audio/ogg",
+        "X-amz-acl": "private",
+        "x-amz-server-side-encryption": "AES256",
+    }
+
+
 @pytest.mark.parametrize(
     ("url", "expected"),
     [

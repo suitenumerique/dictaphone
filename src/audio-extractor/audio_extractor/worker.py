@@ -136,7 +136,12 @@ def process_transcoding_job(config: Settings, job: TranscodingJob) -> None:
             _measure_step(
                 metadata,
                 "upload",
-                lambda: _upload(job.destination_url, output, config.request_timeout),
+                lambda: _upload(
+                    job.destination_url,
+                    output,
+                    config.request_timeout,
+                    destination_headers=job.destination_headers,
+                ),
             )
         payload = TranscodingCompletion(
             id=job.id,
@@ -144,7 +149,7 @@ def process_transcoding_job(config: Settings, job: TranscodingJob) -> None:
             duration_seconds=duration,
             metadata=metadata,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         _log_job_failure(
             "Transcoding",
             job.id,
@@ -184,7 +189,7 @@ def process_validation_job(config: Settings, job: ValidationJob) -> None:
                 lambda: _validate_opus(source, config.command_timeout),
             )
         payload = ValidationCompletion(id=job.id, status="success", metadata=metadata)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         _log_job_failure("Validation", job.id, job.source_url, exc)
         payload = ValidationCompletion(
             id=job.id,

@@ -108,12 +108,16 @@ def _download(url: str, destination: Path, timeout: float, max_bytes: int) -> No
 
 
 @retry(retries=3, retry_if=_is_retryable_transfer_error)
-def _upload(url: str, source: Path, timeout: float) -> None:
+def _upload(
+    url: str,
+    source: Path,
+    timeout: float,
+    destination_headers: dict[str, str] | None = None,
+) -> None:
     """Upload an OGG file directly to its signed destination URL."""
+    headers = {"Content-Type": "audio/ogg", **(destination_headers or {})}
     with source.open("rb") as media:
-        response = requests.put(
-            url, data=media, headers={"Content-Type": "audio/ogg"}, timeout=timeout
-        )
+        response = requests.put(url, data=media, headers=headers, timeout=timeout)
         response.raise_for_status()
 
 

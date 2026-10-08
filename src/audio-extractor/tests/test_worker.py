@@ -38,6 +38,7 @@ def test_transcoding_success_uploads_and_reports_duration(config, task):
     convert_mock.assert_called_once()
     upload.assert_called_once()
     assert upload.call_args.args[0] == task.destination_url
+    assert upload.call_args.kwargs["destination_headers"] == {}
     post.assert_called_once()
     assert post.call_args.args[0] == (
         "https://api.example.test/audio-jobs/transcoding/complete"
@@ -57,6 +58,37 @@ def test_transcoding_success_uploads_and_reports_duration(config, task):
     }
     assert post.call_args.kwargs["timeout"] == 30
     response.raise_for_status.assert_called_once()
+
+
+def test_transcoding_worker_passes_job_acl_to_upload(config, task):
+    task = task.model_copy(
+        update={
+            "destination_headers": {
+                "X-amz-acl": "private",
+                "x-amz-server-side-encryption": "AES256",
+            }
+        }
+    )
+
+    def download(_url, destination, *_args):
+        destination.write_bytes(b"source")
+
+    def convert(_source, output, *_args, **_kwargs):
+        output.write_bytes(b"converted")
+        return 12.5
+
+    with (
+        patch("audio_extractor.worker._download", side_effect=download),
+        patch("audio_extractor.worker._convert", side_effect=convert),
+        patch("audio_extractor.worker._upload") as upload,
+        patch("audio_extractor.worker.requests.post"),
+    ):
+        process_transcoding_job(config, task)
+
+    assert upload.call_args.kwargs["destination_headers"] == {
+        "X-amz-acl": "private",
+        "x-amz-server-side-encryption": "AES256",
+    }
 
 
 def test_validation_mode_validates_without_upload_or_duration(config, task):

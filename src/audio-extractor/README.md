@@ -19,9 +19,14 @@ The transcoding worker polls `GET /audio-jobs/transcoding/next`. A job looks lik
   "id": "job-id",
   "job_kind": "transcoding",
   "source_url": "https://storage.example/signed-get",
-  "destination_url": "https://storage.example/signed-put"
+  "destination_url": "https://storage.example/signed-put",
+  "destination_headers": {"X-amz-acl": "private"}
 }
 ```
+
+`destination_headers` is optional and defaults to an empty object. The worker sends
+these headers with the upload. Include any headers required by the signed
+destination URL, such as `X-amz-acl` when the URL was signed with an ACL.
 
 It downloads the source, converts the first audio stream to mono OGG Opus, uploads
 it to the signed destination URL, then posts to

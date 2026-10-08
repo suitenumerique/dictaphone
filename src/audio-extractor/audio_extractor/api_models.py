@@ -29,6 +29,7 @@ class AudioJob(BaseModel):
     @field_validator("source_url")
     @classmethod
     def validate_source_url(cls, value: str) -> str:
+        """Require a valid HTTP source URL without rewriting it."""
         return _validate_url(value)
 
 
@@ -37,10 +38,12 @@ class TranscodingJob(AudioJob):
 
     job_kind: Literal["transcoding"]
     destination_url: str
+    destination_headers: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("destination_url")
     @classmethod
     def validate_destination_url(cls, value: str) -> str:
+        """Require a valid HTTP destination URL without rewriting it."""
         return _validate_url(value)
 
 
