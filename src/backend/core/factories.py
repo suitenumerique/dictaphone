@@ -47,11 +47,38 @@ class FileFactory(factory.django.DjangoModelFactory):
         "pyfloat", positive=True, right_digits=2, max_value=3600
     )
     upload_state = None
-    audio_extraction_state = (
-        models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-    )
     lifecycle_state = models.FileLifecycleStateChoices.ACTIVE
     size = None
+
+    @factory.post_generation
+    def audio_extraction_state(self, create, extracted, **kwargs):
+        """Build attempt history while retaining expressive file fixtures."""
+        if not create or extracted is None:
+            return
+        self.upload_state = models.FileUploadStateChoices.READY
+        self.save(update_fields=["upload_state"])
+        states = models.FileAudioExtractionStateChoices
+        statuses = models.AudioJobStatusChoices
+        status = {
+            states.PENDING_AUDIO_EXTRACTION: statuses.PENDING,
+            states.EXTRACTING_AUDIO: statuses.PROCESSING,
+            states.EXTRACTION_DONE: statuses.SUCCESS,
+            states.AUDIO_EXTRACTION_FAILED: statuses.FAILED,
+        }[extracted]
+        job = models.AudioJob.objects.create(
+            file=self,
+            mode=models.AudioJobModeChoices.TRANSCODING,
+            status=status,
+            duration_seconds=self.duration_seconds,
+        )
+        if extracted == states.EXTRACTION_DONE:
+            models.AudioJob.objects.create(
+                file=self,
+                mode=models.AudioJobModeChoices.VALIDATION,
+                status=statuses.SUCCESS,
+                source_job=job,
+                extraction_id=job.extraction_id,
+            )
 
     @factory.post_generation
     def update_upload_state(self, create, extracted, **kwargs):
@@ -77,7 +104,7 @@ class FileFactory(factory.django.DjangoModelFactory):
             storage = get_storage_for_file(self)
             storage.save(self.file_key, BytesIO(content))
             if (
-                self.audio_extraction_state
+                self.audio_extraction_state  # pylint: disable=comparison-with-callable
                 == models.FileAudioExtractionStateChoices.EXTRACTION_DONE
             ):
                 storage.save(self.audio_file_key, BytesIO(content))

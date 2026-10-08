@@ -7,7 +7,7 @@ from time import perf_counter
 from urllib.parse import quote
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -49,7 +49,13 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
                 "created_at",
                 "updated_at",
                 "file__duration_seconds",
-                "file__audio_extraction_state",
+            )
+            .annotate(
+                audio_state=Subquery(
+                    models.File.objects.with_audio_state()
+                    .filter(pk=OuterRef("file_id"))
+                    .values("inferred_audio_state")[:1]
+                )
             )
             .order_by("created_at", "id")
         )
@@ -60,7 +66,7 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
         for ai_job in ai_jobs:
             is_pending = ai_job.status == models.AiJobStatusChoices.PENDING
             if is_pending and (
-                ai_job.file.audio_extraction_state
+                ai_job.audio_state
                 != models.FileAudioExtractionStateChoices.EXTRACTION_DONE
             ):
                 # The transcription queue does not contain this job yet. Its
@@ -220,6 +226,10 @@ class ListFileSerializer(serializers.ModelSerializer):
     creator = UserLightSerializer(read_only=True)
     abilities = serializers.SerializerMethodField(read_only=True)
     ai_jobs = AiJobSerializer(many=True, read_only=True)
+    audio_extraction_state = serializers.ChoiceField(
+        choices=models.FileAudioExtractionStateChoices.choices,
+        read_only=True,
+    )
 
     original_file_file_delete_at = serializers.SerializerMethodField(read_only=True)
     will_auto_delete_at = serializers.SerializerMethodField(read_only=True)

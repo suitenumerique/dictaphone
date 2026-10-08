@@ -4,33 +4,30 @@ Tasks related to files.
 
 import json
 import logging
-from datetime import datetime
-from time import monotonic
+from math import ceil
 from urllib.parse import urljoin
 
 from django.conf import settings
+from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 import requests as requests_lib
 
 from core import analytics
-from core.audio import (
-    AudioExtractionError,
-    AudioExtractionRetryableError,
-    NoAudioStreamError,
-    extract_audio_to_storage,
-)
+from core.audio_jobs import start_audio_extraction
 from core.configuration import get_profile_for_email
 from core.models import (
     AiFileJob,
     AiJobStatusChoices,
     AiJobTypeChoices,
+    AudioJobStatusChoices,
     File,
     FileAudioExtractionStateChoices,
     FileLifecycleStateChoices,
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
-from core.tasks.constants import AUDIO_EXTRACTION_QUEUE, BACKEND_QUEUE
+from core.tasks.constants import BACKEND_QUEUE
 from core.tasks.mail import send_transcription_ready_email
 from core.tasks.retry import build_retry_task_options
 from core.utils import format_transcript, generate_download_file_url
@@ -50,6 +47,7 @@ session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 
 
 @app.task(queue=BACKEND_QUEUE)
+@transaction.atomic
 def process_file_deletion(file_id):
     """
     Process the deletion of a file.
@@ -58,7 +56,9 @@ def process_file_deletion(file_id):
     """
     logger.info("Processing file deletion for %s", file_id)
     try:
-        file = File.objects.prefetch_related("ai_jobs").get(id=file_id)
+        file = (
+            File.objects.select_for_update().prefetch_related("ai_jobs").get(id=file_id)
+        )
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
         return
@@ -67,33 +67,68 @@ def process_file_deletion(file_id):
         logger.error("To process a file deletion, it must be hard deleted first.")
         return
 
+    if _defer_audio_cleanup(file, process_file_deletion):
+        return
+
+    storage = get_storage_for_file(file)
     for ai_job in file.ai_jobs.iterator():
         logger.info("Deleting AI job %s for file %s", ai_job.id, file.id)
-        ai_job.delete()
+        # Delete artifacts before committing the cascade, retaining keys if S3 fails.
+        storage.delete(ai_job.key)
 
     logger.info("Deleting file %s", file.file_key)
-    storage = get_storage_for_file(file)
     storage.delete(file.file_key)
-    storage.delete(file.audio_file_key)
+    _delete_audio_and_temporary_objects(file, storage)
 
     file.delete()
 
 
 @app.task(queue=BACKEND_QUEUE)
+@transaction.atomic
 def process_original_file_data_deletion(file_id):
     """Delete only original source file data and keep DB record."""
     logger.info("Processing original file data deletion for %s", file_id)
     try:
-        file = File.objects.get(id=file_id)
+        file = File.objects.select_for_update().get(id=file_id)
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
         return
 
+    if file.hard_deleted_at is not None:
+        return
+    file.lifecycle_state = FileLifecycleStateChoices.PENDING_ORIGINAL_DATA_DELETION
+    file.save(update_fields=["lifecycle_state"])
+    if _defer_audio_cleanup(file, process_original_file_data_deletion):
+        return
     storage = get_storage_for_file(file)
     storage.delete(file.file_key)
-    storage.delete(file.audio_file_key)
+    _delete_audio_and_temporary_objects(file, storage)
     file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     file.save(update_fields=["lifecycle_state"])
+
+
+def _defer_audio_cleanup(file, task):
+    """Keep keys and tombstones until outstanding signed uploads expire."""
+    deadline = file.audio_jobs.aggregate(deadline=Max("expires_at"))["deadline"]
+    if deadline and deadline > timezone.now():
+        countdown = ceil((deadline - timezone.now()).total_seconds()) + 1
+        transaction.on_commit(
+            lambda: task.apply_async(args=[file.id], countdown=countdown)
+        )
+        return True
+    return False
+
+
+def _delete_audio_and_temporary_objects(file, storage):
+    """Delete every attempted output, including legacy and incomplete uploads."""
+    keys = set(
+        file.audio_jobs.exclude(output_key__isnull=True).values_list(
+            "output_key", flat=True
+        )
+    )
+    keys.update({file.legacy_audio_file_key, file.temporary_file_key})
+    for key in keys:
+        storage.delete(key)
 
 
 # Build retry options separately for each task: Celery mutates the nested
@@ -139,13 +174,6 @@ def call_transcribe_service(file_id, language=None, ai_job_id=None):
     if file.lifecycle_state != FileLifecycleStateChoices.ACTIVE:
         raise ValueError("Cannot transcribe when file is not in active state")
 
-    if (
-        file.audio_extraction_state
-        == FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
-    ):
-        _mark_transcription_job_failed(ai_job_id)
-        raise ValueError("Cannot transcribe when audio extraction has failed")
-
     if language is None:
         language = file.language
 
@@ -159,27 +187,29 @@ def call_transcribe_service(file_id, language=None, ai_job_id=None):
         )
     else:
         ai_transcribe_job = AiFileJob.objects.get(
-            id=ai_job_id, type=AiJobTypeChoices.TRANSCRIPT
+            id=ai_job_id, file=file, type=AiJobTypeChoices.TRANSCRIPT
         )
+        if ai_transcribe_job.remote_job_id is not None:
+            return ai_transcribe_job.id
 
+    validation = ai_transcribe_job.validated_audio_job or file.latest_audio_job
     extraction_done = (
-        file.audio_extraction_state == FileAudioExtractionStateChoices.EXTRACTION_DONE
-        and get_storage_for_file(file).exists(file.audio_file_key)
+        validation is not None
+        and validation.mode == "validation"
+        and validation.status == AudioJobStatusChoices.SUCCESS
+        and get_storage_for_file(file).exists(validation.source_job.output_key)
     )
     if not extraction_done:
         if (
             file.audio_extraction_state
-            == FileAudioExtractionStateChoices.EXTRACTING_AUDIO
+            == FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
         ):
-            File.objects.filter(pk=file.pk).update(
-                audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-            )
-        queue_audio_extraction(
-            file.id,
-            ai_job_id=ai_transcribe_job.id,
-            language=language,
-        )
+            _mark_transcription_job_failed(ai_transcribe_job.pk)
+            raise ValueError("Cannot transcribe when audio extraction has failed")
+        start_audio_extraction(file.id)
         return ai_transcribe_job.id
+    ai_transcribe_job.validated_audio_job = validation
+    ai_transcribe_job.save(update_fields=["validated_audio_job"])
 
     if not _duration_is_allowed(file):
         ai_transcribe_job.status = AiJobStatusChoices.FAILED
@@ -198,7 +228,7 @@ def call_transcribe_service(file_id, language=None, ai_job_id=None):
                     file,
                     expires_in=60 * 60 * 24,
                     override_domain=False,
-                    key=file.audio_file_key,
+                    key=validation.source_job.output_key,
                 ),
             },
             headers={

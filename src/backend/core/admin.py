@@ -4,11 +4,11 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
-from django.core.exceptions import ValidationError
 from django.db.models import OuterRef, Subquery
 from django.utils.translation import gettext_lazy as _
 
 from . import models
+from .audio_jobs import start_audio_extraction
 from .tasks.file import call_transcribe_service, process_file_deletion
 
 
@@ -60,50 +60,41 @@ class RetryTranscriptActionForm(ActionForm):
     language = forms.ChoiceField(choices=models.ISO_639_1_CHOICES, required=False)
 
 
-class FileAdminForm(forms.ModelForm):
-    """Allow admins to reset extraction without manually completing it."""
+class AudioExtractionStatusFilter(admin.SimpleListFilter):
+    """Filter files using the same inferred state as the public API."""
 
-    class Meta:
-        model = models.File
-        fields = (
-            "type",
-            "title",
-            "creator",
-            "deleted_at",
-            "hard_deleted_at",
-            "filename",
-            "duration_seconds",
-            "upload_state",
-            "audio_extraction_state",
-            "lifecycle_state",
-            "mimetype",
-            "size",
-            "language",
-            "description",
-            "malware_detection_info",
-            "source",
-        )
+    title = _("audio extraction status")
+    parameter_name = "audio_extraction_state"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        pending_state = models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-        current_state = self.instance.audio_extraction_state
-        state_labels = dict(models.FileAudioExtractionStateChoices.choices)
-        choices = [(current_state, state_labels[current_state])]
-        if current_state != pending_state:
-            choices.append((pending_state, state_labels[pending_state]))
-        self.fields["audio_extraction_state"].choices = choices
+    def lookups(self, request, model_admin):
+        return models.FileAudioExtractionStateChoices.choices
 
-    def clean_audio_extraction_state(self):
-        """Reject manually setting extraction to any non-pending state."""
-        state = self.cleaned_data["audio_extraction_state"]
-        current_state = self.instance.audio_extraction_state
-        pending_state = models.FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-        if state not in {current_state, pending_state}:
-            raise ValidationError(
-                _("Audio extraction can only be reset to pending by an admin.")
-            )
-        return state
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(inferred_audio_state=self.value())
+        return queryset
+
+
+class AudioJobInline(admin.TabularInline):
+    """Read-only attempt history on a file."""
+
+    model = models.AudioJob
+    extra = 0
+    fields = (
+        "id",
+        "mode",
+        "status",
+        "attempt_number",
+        "created_at",
+        "started_at",
+        "completed_at",
+    )
+    readonly_fields = fields
+    can_delete = False
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class LatestTranscriptJobStatusFilter(admin.SimpleListFilter):
@@ -220,10 +211,10 @@ class UserAdmin(auth_admin.UserAdmin):
 class FileAdmin(admin.ModelAdmin):
     """Admin class for the File model."""
 
-    form = FileAdminForm
-    inlines = (AiFileJobInline,)
+    inlines = (AiFileJobInline, AudioJobInline)
     action_form = RetryTranscriptActionForm
     actions = (
+        "start_audio_extraction",
         "retry_transcript_generation",
         "retry_transcript_generation_with_latest_language",
     )
@@ -249,7 +240,7 @@ class FileAdmin(admin.ModelAdmin):
     list_filter = (
         "type",
         "upload_state",
-        "audio_extraction_state",
+        AudioExtractionStatusFilter,
         LatestTranscriptJobStatusFilter,
         "lifecycle_state",
         "created_at",
@@ -270,6 +261,7 @@ class FileAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     readonly_fields = (
         "id",
+        "audio_extraction_state",
         "creator",
         "created_at",
         "updated_at",
@@ -374,6 +366,7 @@ class FileAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
+            .with_audio_state()
             .filter(hard_deleted_at__isnull=True)
             .annotate(
                 latest_transcript_job_status=Subquery(
@@ -396,7 +389,7 @@ class FileAdmin(admin.ModelAdmin):
 
     @admin.display(
         description=_("Audio extraction status"),
-        ordering="audio_extraction_state",
+        ordering="inferred_audio_state",
     )
     def audio_extraction_status(self, obj):
         """Display the localized audio extraction state."""
@@ -414,10 +407,33 @@ class FileAdmin(admin.ModelAdmin):
         """Hard delete instead of calling model.delete()."""
         hard_delete_file(obj)
 
+    def get_deleted_objects(self, objs, request):
+        """File deletion owns attempt cleanup even though attempts are read-only."""
+        deleted, counts, permissions_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        permissions_needed.discard(models.AudioJob._meta.verbose_name)  # noqa: SLF001
+        return deleted, counts, permissions_needed, protected
+
     def delete_queryset(self, request, queryset):
         """Hard delete all selected files."""
         for file in queryset:
             hard_delete_file(file)
+
+    @admin.action(description=_("Start audio extraction"))
+    def start_audio_extraction(self, request, queryset):
+        """Start fresh work for eligible files without duplicating active attempts."""
+        count = 0
+        for file in queryset:
+            try:
+                start_audio_extraction(file.pk)
+            except models.File.DoesNotExist:
+                continue
+            count += 1
+        self.message_user(
+            request,
+            _("%(count)s file(s) queued for audio extraction.") % {"count": count},
+        )
 
     @admin.action(description=_("Retry transcript generation"))
     def retry_transcript_generation(self, request, queryset):
@@ -534,3 +550,47 @@ class AiFileJobAdmin(admin.ModelAdmin):
         """Delete selected AI jobs with per-object cleanup."""
         for ai_job in queryset.iterator():
             ai_job.delete()
+
+
+@admin.register(models.AudioJob)
+class AudioJobAdmin(admin.ModelAdmin):
+    """Immutable attempt identity and lifecycle history; cleanup belongs to files."""
+
+    list_display = (
+        "id",
+        "file",
+        "mode",
+        "status",
+        "attempt_number",
+        "created_at",
+        "started_at",
+        "completed_at",
+    )
+    list_filter = ("mode", "status", "created_at", "started_at")
+    search_fields = ("id", "file__id", "file__title", "extraction_id")
+    ordering = ("-created_at", "-id")
+    readonly_fields = (
+        "id",
+        "file",
+        "mode",
+        "status",
+        "extraction_id",
+        "attempt_number",
+        "retry_of",
+        "source_job",
+        "output_key",
+        "created_at",
+        "updated_at",
+        "started_at",
+        "expires_at",
+        "completed_at",
+        "duration_seconds",
+        "error",
+        "metadata",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
