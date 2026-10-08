@@ -28,9 +28,7 @@ def test_upload_uses_signed_put_url_and_ogg_content_type(tmp_path):
         uploaded["kwargs"] = kwargs
         return response
 
-    with patch(
-        "audio_extractor.utils.requests.put", side_effect=capture_upload
-    ) as put:
+    with patch("audio_extractor.utils.requests.put", side_effect=capture_upload) as put:
         _upload("https://storage.test/signed-put", source, 19)
 
     assert uploaded["url"] == "https://storage.test/signed-put"

@@ -46,7 +46,9 @@ class TranscodingJob(AudioJob):
 
 class ValidationJob(AudioJob):
     """A job that only requires validating its source audio."""
+
     job_kind: Literal["validation"]
+
 
 class TranscodingCompletion(BaseModel):
     """Completion payload accepted by the transcoding endpoint."""
@@ -55,6 +57,7 @@ class TranscodingCompletion(BaseModel):
     status: Literal["success", "failure"]
     duration_seconds: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     error: str | None = Field(default=None, max_length=1000)
+    metadata: dict[str, float | int] | None = None
 
     @model_validator(mode="after")
     def require_result_fields(self) -> "TranscodingCompletion":
@@ -76,6 +79,7 @@ class ValidationCompletion(BaseModel):
     id: str = Field(min_length=1)
     status: Literal["success", "failure"]
     error: str | None = Field(default=None, max_length=1000)
+    metadata: dict[str, float | int] | None = None
 
     @model_validator(mode="after")
     def require_error_on_failure(self) -> "ValidationCompletion":

@@ -3,6 +3,7 @@
 import logging
 import re
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -20,10 +21,20 @@ from audio_extractor.settings import Settings
 from audio_extractor.utils import (
     _clean_work_dir,
     _download,
-    _upload, _redact_url,
+    _redact_url,
+    _upload,
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _measure_step(metadata: dict[str, float | int], name: str, action):
+    """Run one processing step and record its elapsed time, including failures."""
+    started = time.perf_counter()
+    try:
+        return action()
+    finally:
+        metadata[f"{name}_seconds"] = round(time.perf_counter() - started, 6)
 
 
 def _authorization_headers(config: Settings) -> dict[str, str]:
@@ -94,28 +105,44 @@ def _prepare_job_directory(config: Settings) -> tempfile.TemporaryDirectory[str]
 
 def process_transcoding_job(config: Settings, job: TranscodingJob) -> None:
     """Download, transcode, upload, and complete one transcoding job."""
+    metadata: dict[str, float | int] = {}
     try:
         with _prepare_job_directory(config) as directory:
             source = Path(directory) / "source.media"
             output = Path(directory) / "audio.ogg"
-            _download(
-                job.source_url,
-                source,
-                config.request_timeout,
-                config.max_input_bytes,
+            _measure_step(
+                metadata,
+                "download",
+                lambda: _download(
+                    job.source_url,
+                    source,
+                    config.request_timeout,
+                    config.max_input_bytes,
+                ),
             )
-            duration = _convert(
-                source,
-                output,
-                config.command_timeout,
-                output_sample_rate=config.output_sample_rate,
-                output_bitrate=config.output_bitrate,
+            metadata["download_file_size_bytes"] = source.stat().st_size
+            duration = _measure_step(
+                metadata,
+                "convert",
+                lambda: _convert(
+                    source,
+                    output,
+                    config.command_timeout,
+                    output_sample_rate=config.output_sample_rate,
+                    output_bitrate=config.output_bitrate,
+                ),
             )
-            _upload(job.destination_url, output, config.request_timeout)
+            metadata["result_file_size_bytes"] = output.stat().st_size
+            _measure_step(
+                metadata,
+                "upload",
+                lambda: _upload(job.destination_url, output, config.request_timeout),
+            )
         payload = TranscodingCompletion(
             id=job.id,
             status="success",
             duration_seconds=duration,
+            metadata=metadata,
         )
     except Exception as exc:
         _log_job_failure(
@@ -129,29 +156,41 @@ def process_transcoding_job(config: Settings, job: TranscodingJob) -> None:
             id=job.id,
             status="failure",
             error=str(exc).strip()[:1000] or type(exc).__name__,
+            metadata=metadata,
         )
     _post_completion(config, "audio-jobs/transcoding/complete", payload)
 
 
 def process_validation_job(config: Settings, job: ValidationJob) -> None:
     """Download, validate, and complete one validation job."""
+    metadata: dict[str, float | int] = {}
     try:
         with _prepare_job_directory(config) as directory:
             source = Path(directory) / "source.media"
-            _download(
-                job.source_url,
-                source,
-                config.request_timeout,
-                config.max_input_bytes,
+            _measure_step(
+                metadata,
+                "download",
+                lambda: _download(
+                    job.source_url,
+                    source,
+                    config.request_timeout,
+                    config.max_input_bytes,
+                ),
             )
-            _validate_opus(source, config.command_timeout)
-        payload = ValidationCompletion(id=job.id, status="success")
+            metadata["download_file_size_bytes"] = source.stat().st_size
+            _measure_step(
+                metadata,
+                "validate",
+                lambda: _validate_opus(source, config.command_timeout),
+            )
+        payload = ValidationCompletion(id=job.id, status="success", metadata=metadata)
     except Exception as exc:
         _log_job_failure("Validation", job.id, job.source_url, exc)
         payload = ValidationCompletion(
             id=job.id,
             status="failure",
             error=str(exc).strip()[:1000] or type(exc).__name__,
+            metadata=metadata,
         )
     _post_completion(config, "audio-jobs/validation/complete", payload)
 

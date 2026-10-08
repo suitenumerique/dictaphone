@@ -17,9 +17,13 @@ def test_job_models_validate_required_urls_and_preserve_signed_urls():
 
     transcoding_job = TranscodingJob(
         job_kind="transcoding",
-        id="job-123", source_url=source_url, destination_url=destination_url
+        id="job-123",
+        source_url=source_url,
+        destination_url=destination_url,
     )
-    validation_job = ValidationJob(job_kind="validation", id="job-123", source_url=source_url)
+    validation_job = ValidationJob(
+        job_kind="validation", id="job-123", source_url=source_url
+    )
 
     assert transcoding_job.source_url == source_url
     assert transcoding_job.destination_url == destination_url
