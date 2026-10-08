@@ -123,6 +123,96 @@ services:
     depends_on:
       - app-dev
 
+  audio-extractor-dev:
+    build:
+      context: .
+      dockerfile: src/audio-extractor/Dockerfile
+      target: development
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:audio-extractor-development
+    working_dir: /app
+    volumes:
+      - ./src/audio-extractor:/app
+      - /app/.venv
+
+  audio-extractor-transcoding-dev:
+    build:
+      context: .
+      dockerfile: src/audio-extractor/Dockerfile
+      target: audio-extractor-production
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:audio-extractor
+    environment:
+      AUDIO_EXTRACTOR_API_URL: http://app-dev:8000
+      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
+      AUDIO_EXTRACTOR_MODE: transcoding
+    depends_on:
+      - app-dev
+    tmpfs:
+      - /work:size=1g
+    restart: unless-stopped
+
+  audio-extractor-validation-dev:
+    build:
+      context: .
+      dockerfile: src/audio-extractor/Dockerfile
+      target: audio-extractor-production
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:audio-extractor
+    environment:
+      AUDIO_EXTRACTOR_API_URL: http://app-dev:8000
+      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
+      AUDIO_EXTRACTOR_MODE: validation
+    depends_on:
+      - app-dev
+    tmpfs:
+      - /work:size=1g
+    restart: unless-stopped
+
+  audio-extractor-transcoding:
+    build:
+      context: .
+      dockerfile: src/audio-extractor/Dockerfile
+      target: audio-extractor-production
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:audio-extractor-production
+    environment:
+      AUDIO_EXTRACTOR_API_URL: http://app:8000
+      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
+      AUDIO_EXTRACTOR_MODE: transcoding
+    depends_on:
+      - app
+    tmpfs:
+      - /work:size=1g
+    restart: unless-stopped
+
+  audio-extractor-validation:
+    build:
+      context: .
+      dockerfile: src/audio-extractor/Dockerfile
+      target: audio-extractor-production
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: dictaphone:audio-extractor-production
+    environment:
+      AUDIO_EXTRACTOR_API_URL: http://app:8000
+      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
+      AUDIO_EXTRACTOR_MODE: validation
+    depends_on:
+      - app
+    tmpfs:
+      - /work:size=1g
+    restart: unless-stopped
+
   app:
     build:
       context: .
