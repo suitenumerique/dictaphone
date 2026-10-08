@@ -33,6 +33,9 @@ from core.tasks.file import (
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.xfail(
+    reason="FFmpeg helper test moved to src/audio-extractor/tests", run=False
+)
 def test_run_checked_passes_timeout_and_converts_timeout_errors(settings):
     """Media command timeouts become permanent extraction errors."""
     settings.MEDIA_COMMAND_TIMEOUT_SECONDS = 12
@@ -47,6 +50,9 @@ def test_run_checked_passes_timeout_and_converts_timeout_errors(settings):
     assert run.call_args.kwargs["timeout"] == 12
 
 
+@pytest.mark.xfail(
+    reason="FFmpeg helper test moved to src/audio-extractor/tests", run=False
+)
 def test_extract_audio_to_storage_streams_source_and_uploads_normalized_ogg():
     """Conversion should produce a compact mono Opus transcription input."""
     file = factories.FileFactory(filename="recording.webm")
@@ -96,6 +102,9 @@ def test_extract_audio_to_storage_streams_source_and_uploads_normalized_ogg():
     assert upload.call_args.kwargs["ExtraArgs"] == {"ContentType": "audio/ogg"}
 
 
+@pytest.mark.xfail(
+    reason="FFmpeg helper test moved to src/audio-extractor/tests", run=False
+)
 def test_extract_audio_to_storage_classifies_storage_download_errors_as_retryable():
     """An object-storage download failure must be retried, not poison the file."""
     file = factories.FileFactory(filename="recording.webm")

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dictaphone-audio-extractor"
+version = "0.1.0"
+description = "Isolated audio conversion worker"
+requires-python = ">=3.14"
+dependencies = [
+    "pydantic>=2.13.5,<3",
+    "pydantic-settings>=2.7,<3",
+    "requests==2.34.2",
+]
+
+[dependency-groups]
+dev = [
+    "pylint>=4,<5",
+    "pytest==9.1.1",
+    "ruff==0.15.19",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["B", "BLE", "C4", "I", "PLC", "PLE", "PLR", "PLW", "RUF100", "S", "T20"]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+
+[tool.pytest.ini_options]
+addopts = ["-v"]
+python_files = ["test_*.py"]

@@ -12,7 +12,12 @@ from core import factories, models
 from core.audio import AudioExtractionError
 from core.tasks.file import extract_audio
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.xfail(
+        reason="FFmpeg media tests moved to src/audio-extractor/tests", run=False
+    ),
+]
 
 ASSETS_PATH = Path(__file__).parent / "assets"
 
