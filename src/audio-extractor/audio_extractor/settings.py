@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     api_url: str
     token: SecretStr = Field(min_length=32)
+    sentry_dsn: SecretStr | None = None
+    sentry_environment: str | None = None
+    sentry_release: str | None = None
     mode: Literal["transcoding", "validation"] = "transcoding"
     output_sample_rate: int = Field(default=16000, gt=0)
     output_bitrate: str = Field(default="64k", pattern=r"^[1-9][0-9]*[kKmM]$")
