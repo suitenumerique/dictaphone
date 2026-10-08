@@ -31,6 +31,14 @@ docker_build(
 clean_old_images('localhost:5001/dictaphone-backend')
 
 docker_build(
+    'localhost:5001/dictaphone-audio-extractor:latest',
+    context='..',
+    dockerfile='../src/audio-extractor/Dockerfile',
+    only=['./src/audio-extractor'],
+)
+clean_old_images('localhost:5001/dictaphone-audio-extractor')
+
+docker_build(
     'localhost:5001/dictaphone-frontend-dinum:latest',
     context='..',
     dockerfile='../docker/dinum-frontend/Dockerfile',
@@ -58,7 +66,8 @@ k8s_yaml(local('cd ../src/helm && helmfile -n dictaphone -e ${DEV_ENV:-dev} temp
 
 k8s_resource('rustfs-bucket', resource_deps=['rustfs'])
 k8s_resource('dictaphone-celery-backend', resource_deps=['redis'])
-k8s_resource('dictaphone-celery-audio-extractor', resource_deps=['redis'])
+k8s_resource('dictaphone-audio-extractor-transcoding', resource_deps=['dictaphone-backend-migrate'])
+k8s_resource('dictaphone-audio-extractor-validation', resource_deps=['dictaphone-backend-migrate'])
 k8s_resource('dictaphone-backend', resource_deps=['postgresql', 'rustfs', 'redis'])
 k8s_resource('dictaphone-backend-migrate', resource_deps=['dictaphone-backend'])
 k8s_resource('keycloak', resource_deps=['kc-postgresql'])

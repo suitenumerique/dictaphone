@@ -406,25 +406,31 @@ celeryBackend:
 
 ## @section celeryAudioExtractor
 celeryAudioExtractor:
+  ## @param celeryAudioExtractor.image.repository Audio extractor image repository
+  ## @param celeryAudioExtractor.image.tag Audio extractor image tag
+  ## @param celeryAudioExtractor.image.pullPolicy Audio extractor image pull policy
   ## @param celeryAudioExtractor.dpAnnotations Annotations to add to the audio worker Deployment
   dpAnnotations: {}
 
+  image:
+    repository: lasuite/dictaphone-audio-extractor
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
   ## @param celeryAudioExtractor.command Command used by the audio extraction worker
   command:
-    - "celery"
-    - "-A"
-    - "dictaphone.celery_app"
-    - "worker"
-    - "--loglevel=info"
-    - "--concurrency=1"
-    - "-Q"
-    - "dictaphone-audio"
+    - "python"
+    - "-m"
+    - "audio_extractor"
 
   ## @param celeryAudioExtractor.args Additional audio worker arguments
   args: []
 
-  ## @param celeryAudioExtractor.replicas Amount of audio worker replicas
-  replicas: 1
+  ## @param celeryAudioExtractor.transcodingReplicas Amount of transcoding worker replicas
+  transcodingReplicas: 1
+
+  ## @param celeryAudioExtractor.validationReplicas Amount of validation worker replicas
+  validationReplicas: 1
 
   ## @param celeryAudioExtractor.shareProcessNamespace Enable share process namespace between containers
   shareProcessNamespace: false
@@ -433,12 +439,25 @@ celeryAudioExtractor:
   sidecars: []
 
   ## @param celeryAudioExtractor.securityContext Configure audio worker container security context
-  securityContext: null
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 10000
+    runAsGroup: 10000
+    capabilities:
+      drop: ["ALL"]
 
   ## @param celeryAudioExtractor.envVars Configure audio worker environment variables
   ## @skip celeryAudioExtractor.envVars
   envVars:
     <<: *commonEnvVars
+
+  ## @param celeryAudioExtractor.transcodingEnvVars Environment variables for the transcoding worker; configure its dedicated API token here
+  transcodingEnvVars: {}
+
+  ## @param celeryAudioExtractor.validationEnvVars Environment variables for the validation worker; configure its dedicated API token here
+  validationEnvVars: {}
 
   ## @param celeryAudioExtractor.podAnnotations Annotations to add to the audio worker Pod
   podAnnotations: {}

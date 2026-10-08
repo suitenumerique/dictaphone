@@ -1,98 +1,117 @@
-{{- $envVars := include "dictaphone.env.transformDict" (mergeOverwrite (default dict .Values.backend.envVars) (default dict .Values.celeryAudioExtractor.envVars)) -}}
-{{- $fullName := include "dictaphone.celeryAudioExtractor.fullname" . -}}
-{{- $component := "audio-worker" -}}
+{{- define "dictaphone.audioExtractor.deployment" -}}
+{{- $root := index . 0 -}}
+{{- $mode := index . 1 -}}
+{{- $config := $root.Values.celeryAudioExtractor -}}
+{{- $modeVarsKey := printf "%sEnvVars" $mode -}}
+{{- $modeReplicasKey := printf "%sReplicas" $mode -}}
+{{- $envVars := mergeOverwrite (deepCopy (default dict $config.envVars)) (deepCopy (default dict (index $config $modeVarsKey))) (dict "AUDIO_EXTRACTOR_MODE" $mode) -}}
+{{- $env := include "dictaphone.env.transformDict" $envVars -}}
+{{- $fullName := printf "%s-%s" (include "dictaphone.audioExtractor.fullname" $root) $mode | trunc 63 | trimSuffix "-" -}}
+{{- $component := printf "audio-worker-%s" $mode -}}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $fullName }}
   annotations:
-     {{- with .Values.celeryAudioExtractor.dpAnnotations }}
+     {{- with $config.dpAnnotations }}
      {{- toYaml . | nindent 4 }}
      {{- end }}
-  namespace: {{ .Release.Namespace | quote }}
+  namespace: {{ $root.Release.Namespace | quote }}
   labels:
-    {{- include "dictaphone.common.labels" (list . $component) | nindent 4 }}
+    {{- include "dictaphone.common.labels" (list $root $component) | nindent 4 }}
 spec:
-  replicas: {{ .Values.celeryAudioExtractor.replicas }}
+  replicas: {{ index $config $modeReplicasKey }}
   selector:
     matchLabels:
-      {{- include "dictaphone.common.selectorLabels" (list . $component) | nindent 6 }}
+      {{- include "dictaphone.common.selectorLabels" (list $root $component) | nindent 6 }}
   template:
     metadata:
       annotations:
-        {{- with .Values.celeryAudioExtractor.podAnnotations }}
+        {{- with $config.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "dictaphone.common.selectorLabels" (list . $component) | nindent 8 }}
+        {{- include "dictaphone.common.selectorLabels" (list $root $component) | nindent 8 }}
     spec:
-      {{- if $.Values.image.credentials }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if $root.Values.image.credentials }}
       imagePullSecrets:
-        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" $.Values.image.credentials) }}
+        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" $root) "imageCredentials" $root.Values.image.credentials) }}
       {{- end }}
-      shareProcessNamespace: {{ .Values.celeryAudioExtractor.shareProcessNamespace }}
+      shareProcessNamespace: {{ $config.shareProcessNamespace }}
       containers:
-        {{- with .Values.celeryAudioExtractor.sidecars }}
+        {{- with $config.sidecars }}
           {{- toYaml . | nindent 8 }}
         {{- end }}
-        - name: {{ .Chart.Name }}
-          image: "{{ (.Values.backend.image | default dict).repository | default .Values.image.repository }}:{{ (.Values.backend.image | default dict).tag | default .Values.image.tag }}"
-          imagePullPolicy: {{ (.Values.backend.image | default dict).pullPolicy | default .Values.image.pullPolicy }}
-          {{- with .Values.celeryAudioExtractor.command }}
+        - name: {{ $root.Chart.Name }}
+          image: "{{ $config.image.repository }}:{{ $config.image.tag }}"
+          imagePullPolicy: {{ $config.image.pullPolicy }}
+          {{- with $config.command }}
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.celeryAudioExtractor.args }}
+          {{- with $config.args }}
           args:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
-            {{- if $envVars }}
-            {{- $envVars | indent 12 }}
-            {{- end }}
-          {{- with .Values.celeryAudioExtractor.securityContext }}
+            {{- $env | nindent 12 }}
+          {{- with $config.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.celeryAudioExtractor.resources }}
+          {{- with $config.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
-            {{- range $index, $value := .Values.mountFiles }}
+            - name: work
+              mountPath: /work
+            {{- range $index, $value := $root.Values.mountFiles }}
             - name: "files-{{ $index }}"
               mountPath: {{ $value.path }}
               subPath: content
             {{- end }}
-            {{- range $name, $volume := .Values.celeryAudioExtractor.persistence }}
+            {{- range $name, $volume := $config.persistence }}
             - name: "{{ $name }}"
               mountPath: "{{ $volume.mountPath }}"
             {{- end }}
-            {{- range .Values.celeryAudioExtractor.extraVolumeMounts }}
+            {{- range $config.extraVolumeMounts }}
             - name: {{ .name }}
               mountPath: {{ .mountPath }}
               subPath: {{ .subPath | default "" }}
               readOnly: {{ .readOnly }}
             {{- end }}
-      {{- with .Values.celeryAudioExtractor.nodeSelector }}
+      {{- with $config.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.celeryAudioExtractor.affinity }}
+      {{- with $config.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.celeryAudioExtractor.tolerations }}
+      {{- with $config.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- range $index, $value := .Values.mountFiles }}
+        - name: work
+          emptyDir:
+            sizeLimit: 4Gi
+        {{- range $index, $value := $root.Values.mountFiles }}
         - name: "files-{{ $index }}"
           configMap:
-            name: "{{ include "dictaphone.fullname" $ }}-files-{{ $index }}"
+            name: "{{ include "dictaphone.fullname" $root }}-files-{{ $index }}"
         {{- end }}
-        {{- range $name, $volume := .Values.celeryAudioExtractor.persistence }}
+        {{- range $name, $volume := $config.persistence }}
         - name: "{{ $name }}"
           {{- if eq $volume.type "emptyDir" }}
           emptyDir: {}
@@ -101,7 +120,7 @@ spec:
             claimName: "{{ $fullName }}-{{ $name }}"
           {{- end }}
         {{- end }}
-        {{- range .Values.celeryAudioExtractor.extraVolumes }}
+        {{- range $config.extraVolumes }}
         - name: {{ .name }}
           {{- if .existingClaim }}
           persistentVolumeClaim:
@@ -122,16 +141,19 @@ spec:
           emptyDir: {}
           {{- end }}
         {{- end }}
+{{- if $config.pdb.enabled }}
 ---
-{{ if .Values.celeryAudioExtractor.pdb.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ $fullName }}
-  namespace: {{ .Release.Namespace | quote }}
+  namespace: {{ $root.Release.Namespace | quote }}
 spec:
   maxUnavailable: 1
   selector:
     matchLabels:
-      {{- include "dictaphone.common.selectorLabels" (list . $component) | nindent 6 }}
-{{ end }}
+      {{- include "dictaphone.common.selectorLabels" (list $root $component) | nindent 6 }}
+{{- end }}
+{{- end }}
+{{ include "dictaphone.audioExtractor.deployment" (list . "transcoding") }}
+{{ include "dictaphone.audioExtractor.deployment" (list . "validation") }}
