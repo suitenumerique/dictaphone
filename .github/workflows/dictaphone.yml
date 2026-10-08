@@ -160,6 +160,43 @@ jobs:
       - name: Run tests
         run: uv run pytest -n 2
 
+  lint-audio-extractor:
+    permissions:
+      contents: read
+    uses: suitenumerique/ci/.github/workflows/_python-lint.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
+    with:
+      working_directory: src/audio-extractor
+      pylint_targets: audio_extractor
+
+  test-audio-extractor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: src/audio-extractor
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: src/audio-extractor/pyproject.toml
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Install the dependencies
+        run: uv sync --locked --all-extras
+      - name: Install media tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg opus-tools
+      - name: Install the project
+        run: uv sync --locked --all-groups
+      - name: Run tests
+        run: uv run pytest -n 2
+
   lint-front:
     runs-on: ubuntu-latest
     permissions:

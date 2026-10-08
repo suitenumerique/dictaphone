@@ -31,6 +31,22 @@ jobs:
       DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
       DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
+  build-and-push-audio-extractor:
+    permissions:
+      contents: read
+    uses: suitenumerique/ci/.github/workflows/_docker-publish.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
+    with:
+      image_name: lasuite/dictaphone-audio-extractor
+      context: .
+      file: src/audio-extractor/Dockerfile
+      target: audio-extractor-production
+      docker_user: "1001:127"
+      should_push: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'integration/') }}
+      trivy_scan: ${{ vars.TRIVY_SCAN_ENABLED == 'true' }}
+    secrets:
+      DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+      DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
   build-and-push-frontend-generic:
     permissions:
       contents: read
@@ -68,6 +84,7 @@ jobs:
       - build-and-push-frontend-generic
       - build-and-push-frontend-dinum
       - build-and-push-backend
+      - build-and-push-audio-extractor
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
     permissions: {}
