@@ -1,7 +1,16 @@
-image:
-  repository: localhost:5001/dictaphone-backend
-  pullPolicy: Always
-  tag: "latest"
+images:
+  backend:
+    repository: localhost:5001/dictaphone-backend
+    pullPolicy: Always
+    tag: "latest"
+  frontend:
+    repository: localhost:5001/dictaphone-frontend-generic
+    pullPolicy: Always
+    tag: "latest"
+  audioExtractor:
+    repository: localhost:5001/dictaphone-audio-extractor
+    pullPolicy: Always
+    tag: "latest"
 
 backend:
   replicas: 1
@@ -123,10 +132,6 @@ celeryBackend:
 celeryAudioExtractor:
   transcodingReplicas: 1
   validationReplicas: 1
-  image:
-    repository: localhost:5001/dictaphone-audio-extractor
-    pullPolicy: Always
-    tag: "latest"
   envVars:
     AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend:8000
   transcodingEnvVars:
@@ -146,11 +151,6 @@ frontend:
     VITE_API_BASE_URL: https://dictaphone.127.0.0.1.nip.io/
 
   replicas: 1
-
-  image:
-    repository: localhost:5001/dictaphone-frontend-generic
-    pullPolicy: Always
-    tag: "latest"
 
 ingress:
   enabled: true

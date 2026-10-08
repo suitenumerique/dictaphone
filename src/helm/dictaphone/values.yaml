@@ -4,17 +4,34 @@
 
 ## @section General configuration
 
-## @param image.repository Repository to use to pull dictaphone's container image
-## @param image.tag dictaphone's container tag
-## @param image.pullPolicy Container image pull policy
-## @extra image.credentials.username Username for container registry authentication
-## @extra image.credentials.password Password for container registry authentication
-## @extra image.credentials.registry Registry url for which the credentials are specified
-## @extra image.credentials.name Name of the generated secret for imagePullSecrets
-image:
-  repository: lasuite/dictaphone-backend
-  pullPolicy: IfNotPresent
-  tag: "latest"
+## @section Images
+## @param images.backend.repository Repository for the backend and backend jobs
+## @param images.backend.tag Backend image tag
+## @param images.backend.pullPolicy Backend image pull policy
+## @param images.frontend.repository Frontend image repository
+## @param images.frontend.tag Frontend image tag
+## @param images.frontend.pullPolicy Frontend image pull policy
+## @param images.audioExtractor.repository Audio extractor image repository
+## @param images.audioExtractor.tag Audio extractor image tag
+## @param images.audioExtractor.pullPolicy Audio extractor image pull policy
+## @extra images.credentials.username Username for container registry authentication
+## @extra images.credentials.password Password for container registry authentication
+## @extra images.credentials.registry Registry url for which the credentials are specified
+## @extra images.credentials.name Name of the generated secret for imagePullSecrets
+images:
+  backend:
+    repository: lasuite/dictaphone-backend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  frontend:
+    repository: lasuite/dictaphone-frontend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  audioExtractor:
+    repository: lasuite/dictaphone-audio-extractor
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  credentials: {}
 
 ## @param nameOverride Override the chart name
 ## @param fullnameOverride Override the full application name
@@ -406,16 +423,8 @@ celeryBackend:
 
 ## @section celeryAudioExtractor
 celeryAudioExtractor:
-  ## @param celeryAudioExtractor.image.repository Audio extractor image repository
-  ## @param celeryAudioExtractor.image.tag Audio extractor image tag
-  ## @param celeryAudioExtractor.image.pullPolicy Audio extractor image pull policy
   ## @param celeryAudioExtractor.dpAnnotations Annotations to add to the audio worker Deployment
   dpAnnotations: {}
-
-  image:
-    repository: lasuite/dictaphone-audio-extractor
-    tag: "latest"
-    pullPolicy: IfNotPresent
 
   ## @param celeryAudioExtractor.command Command used by the audio extraction worker
   command:
@@ -493,14 +502,6 @@ celeryAudioExtractor:
 ## @section frontend
 
 frontend:
-  ## @param frontend.image.repository Repository to use to pull dictaphone's frontend container image
-  ## @param frontend.image.tag dictaphone's frontend container tag
-  ## @param frontend.image.pullPolicy frontend container image pull policy
-  image:
-    repository: lasuite/dictaphone-frontend
-    pullPolicy: IfNotPresent
-    tag: "latest"
-
   ## @param frontend.dpAnnotations Annotations to add to the frontend Deployment
   dpAnnotations: {}
 
