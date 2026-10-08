@@ -18,10 +18,10 @@ sequenceDiagram
     API-->>Validator: 204 or job id, source_url
     Validator->>FileStore: GET source_url and validate with opusinfo + opusdec
     Validator->>API: POST /audio-jobs/validation/complete<br/>id, status, error on failure
-    API->>DB: Mark EXTRACTION_DONE after validation succeeds
-    API->>Queue: call_transcribe_service.delay(file_id)<br/>queue: dictaphone-backend
+    API->>DB: Record successful validation attempt<br/>derived state becomes EXTRACTION_DONE<br/>persist transcription intent
+    API->>Queue: call_transcribe_service.delay(file_id, ai_job_id)<br/>after commit, queue: dictaphone-backend
     Queue->>Backend: call_transcribe_service(file_id)<br/>queue: dictaphone-backend
-    Backend->>DB: Create PENDING transcription job
+    Backend->>DB: Load PENDING transcription job<br/>and its validated audio attempt
     Backend->>FileStore: Generate signed GET URL for derived audio
     Backend->>Summary: POST /api/v2/async-jobs/transcribe
 

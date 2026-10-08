@@ -7,10 +7,33 @@ without processing a job.
 Set `AUDIO_EXTRACTOR_MODE` to `transcoding` or `validation` to choose the queue.
 Transcoding is the default.
 
+Container restart after each attempt is an intentional security measure: it
+discards process state after handling untrusted media. The container command
+uses GNU `timeout` to kill the worker and its subprocesses after
+`AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` (300 seconds by default), even if processing
+hangs. Set it to the same value as the backend's `AUDIO_JOB_TIMEOUT_SECONDS`.
+Helm and Docker Compose pass the backend value under the worker's variable name.
+Values must be positive integers; zero would disable GNU `timeout` and is rejected
+by the container command.
+
 ## API
 
 The worker sends its token as a bearer token when polling and reporting completion.
 The API returns HTTP 204 when the selected queue is empty.
+
+The backend creates one `AudioJob` row per attempt, recording creation, claim,
+deadline, and completion times. Successful transcoding queues independent
+validation of that attempt's output. Only validation success starts transcription.
+Failures and expired leases create new attempts, up to `AUDIO_JOB_MAX_RETRIES`
+(default: three retries per stage). Each transcoding attempt uploads to a unique
+key. Late completions receive HTTP 409 and duplicate matching completions are
+accepted without scheduling further work.
+
+Configure the backend's `AUDIO_EXTRACTOR_TRANSCODING_TOKEN` and
+`AUDIO_EXTRACTOR_VALIDATION_TOKEN` to match each worker's `AUDIO_EXTRACTOR_TOKEN`.
+`AUDIO_JOB_TIMEOUT_SECONDS` (default: 300) controls both the claim deadline and
+the validity of all signed URLs. The API URL is the backend origin, without the
+public `/api/v1.0/` prefix.
 
 The transcoding worker polls `GET /audio-jobs/transcoding/next`. A job looks like:
 
@@ -59,10 +82,11 @@ worker also includes processing metadata in completion reports.
 
 ## Configuration
 
-All settings use the `AUDIO_EXTRACTOR_` prefix:
+Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` | No | `300` | Hard deadline for the entire container command, matching the backend's `AUDIO_JOB_TIMEOUT_SECONDS` lease and signed URL duration |
 | `AUDIO_EXTRACTOR_API_URL` | Yes | — | API base URL, such as `http://localhost:8000` |
 | `AUDIO_EXTRACTOR_TOKEN` | Yes | — | Bearer token, at least 32 characters long |
 | `AUDIO_EXTRACTOR_MODE` | No | `transcoding` | Queue to process: `transcoding` or `validation` |

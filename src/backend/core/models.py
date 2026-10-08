@@ -294,11 +294,6 @@ class File(BaseModel):
         max_length=25,
         choices=FileUploadStateChoices.choices,
     )
-    audio_extraction_state = models.CharField(
-        max_length=30,
-        choices=FileAudioExtractionStateChoices.choices,
-        default=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
-    )
     lifecycle_state = models.CharField(
         max_length=30,
         choices=FileLifecycleStateChoices.choices,

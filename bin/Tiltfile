@@ -22,10 +22,6 @@ docker_build(
     target = 'backend-production',
     live_update=[
         sync('../src/backend', '/app'),
-        run(
-            'pip install -r /app/requirements.txt',
-            trigger=['./api/requirements.txt']
-        )
     ]
 )
 clean_old_images('localhost:5001/dictaphone-backend')

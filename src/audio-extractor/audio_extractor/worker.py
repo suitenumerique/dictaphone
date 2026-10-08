@@ -44,7 +44,9 @@ def _measure_step(
     finally:
         elapsed = round(time.perf_counter() - started, 6)
         metadata[f"{name}_seconds"] = elapsed
-        LOGGER.info("%s job %s: %s ended after %.3f seconds", mode, job_id, name, elapsed)
+        LOGGER.info(
+            "%s job %s: %s ended after %.3f seconds", mode, job_id, name, elapsed
+        )
 
 
 def _authorization_headers(config: Settings) -> dict[str, str]:

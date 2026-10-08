@@ -10,6 +10,8 @@ from audio_extractor.worker import run
 
 def main() -> None:
     """Poll for one task and exit after it has been handled."""
+    # Container restart after each attempt is an intentional security measure:
+    # discard process state after parsing untrusted media before taking more work.
     parser = argparse.ArgumentParser(description="Pull and process audio tasks")
     parser.parse_args()
     logging.basicConfig(

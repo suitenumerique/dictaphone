@@ -69,7 +69,7 @@ def test_api_file_upload_ended_on_wrong_upload_state():
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("core.api.viewsets.queue_audio_extraction")
+@patch("core.api.viewsets.start_audio_extraction")
 def test_api_file_upload_ended_success(mock_queue, settings):
     """
     Users should be able to end an upload on files that are files and in the UPLOADING upload state.
@@ -129,7 +129,7 @@ def test_api_file_upload_ended_success(mock_queue, settings):
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("core.api.viewsets.queue_audio_extraction")
+@patch("core.api.viewsets.start_audio_extraction")
 def test_api_file_upload_ended_uses_file_language_for_transcription(
     mock_queue, settings
 ):
@@ -204,7 +204,7 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
     assert not default_storage.exists(file.file_key)
 
 
-@patch("core.api.viewsets.queue_audio_extraction")
+@patch("core.api.viewsets.start_audio_extraction")
 def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     mock_post, settings
 ):
@@ -247,7 +247,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
 @patch(
     "core.api.viewsets.utils.detect_mimetype", return_value="audio/webm; codecs=opus"
 )
-@patch("core.api.viewsets.queue_audio_extraction")
+@patch("core.api.viewsets.start_audio_extraction")
 def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     mock_post, mock_detect_mimetype, settings
 ):
@@ -291,7 +291,7 @@ def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     assert response.json()["mimetype"] == "audio/webm; codecs=opus"
 
 
-@patch("core.api.viewsets.queue_audio_extraction")
+@patch("core.api.viewsets.start_audio_extraction")
 def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     mock_post, settings, caplog
 ):
@@ -359,7 +359,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
 
 @pytest.mark.parametrize("declared_content_type", ["audio/mp4", "audio/x-m4a"])
 @patch("core.api.viewsets.utils.detect_mimetype", return_value="video/mp4")
-@patch("core.api.viewsets.queue_audio_extraction")
+@patch("core.api.viewsets.start_audio_extraction")
 def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     mock_post, mock_detect_mimetype, settings, caplog, declared_content_type
 ):

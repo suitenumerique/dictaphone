@@ -32,6 +32,7 @@ from rest_framework import (
 
 from core import analytics, models, utils, webhook_models
 from core.api.filters import ListFileFilter
+from core.audio_jobs import start_audio_extraction
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
 from core.storage import get_storage_bucket_name, get_storage_for_file
@@ -41,7 +42,6 @@ from core.tasks.file import (
     create_document_in_docs,
     handle_transcript_received,
     process_file_deletion,
-    queue_audio_extraction,
     store_summary,
 )
 
@@ -267,6 +267,7 @@ class FileViewSet(
                 lifecycle_state=models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
             )
             .select_related("creator")
+            .with_audio_state()
             .prefetch_related(
                 Prefetch("ai_jobs", queryset=AiFileJob.objects.order_by("-created_at"))
             )
@@ -484,7 +485,7 @@ class FileViewSet(
 
         serializer = self.get_serializer(file)
 
-        queue_audio_extraction(file.id)
+        start_audio_extraction(file.id)
 
         analytics.capture_event(
             analytics.EventName.FILE_UPLOADED,

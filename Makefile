@@ -119,7 +119,7 @@ logs: ## display app-dev logs (follow mode)
 .PHONY: logs
 
 run-backend: ## start only the backend application and all needed services
-	@$(COMPOSE) up --force-recreate -d celery-dev celery-audio-dev \
+	@$(COMPOSE) up --force-recreate -d celery-dev \
 	  audio-extractor-transcoding-dev audio-extractor-validation-dev --remove-orphans
 	@$(COMPOSE) up --force-recreate -d nginx
 	@echo "Wait for postgresql to be up..."
