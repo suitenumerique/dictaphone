@@ -121,16 +121,22 @@ celeryBackend:
     - "dictaphone-backend"
 
 celeryAudioExtractor:
-  replicas: 1
+  transcodingReplicas: 1
+  validationReplicas: 1
+  image:
+    repository: localhost:5001/dictaphone-audio-extractor
+    pullPolicy: Always
+    tag: "latest"
+  envVars:
+    AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend:8000
+  transcodingEnvVars:
+    AUDIO_EXTRACTOR_TOKEN: local-development-transcoding-token
+  validationEnvVars:
+    AUDIO_EXTRACTOR_TOKEN: local-development-validation-token
   command:
-    - "celery"
-    - "-A"
-    - "dictaphone.celery_app"
-    - "worker"
-    - "--loglevel=info"
-    - "--concurrency=1"
-    - "-Q"
-    - "dictaphone-audio"
+    - "python"
+    - "-m"
+    - "audio_extractor"
 
 frontend:
   envVars:

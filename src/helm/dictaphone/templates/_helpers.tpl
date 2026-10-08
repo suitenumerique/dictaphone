@@ -172,8 +172,8 @@ Full name for the audio extraction worker
 
 Requires top level scope
 */}}
-{{- define "dictaphone.celeryAudioExtractor.fullname" -}}
-{{ include "dictaphone.fullname" . }}-celery-audio-extractor
+{{- define "dictaphone.audioExtractor.fullname" -}}
+{{ include "dictaphone.fullname" . }}-audio-extractor
 {{- end }}
 
 {{/*

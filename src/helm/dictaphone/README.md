@@ -182,15 +182,21 @@ add_header Content-Disposition "attachment";
 | Name                        | Description                                                    | Value                                                                                       |
 | --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `celeryAudioExtractor.dpAnnotations` | Annotations to add to the audio worker Deployment       | `{}`                                                                                        |
-| `celeryAudioExtractor.command`       | Command used by the audio extraction worker             | `["celery","-A","dictaphone.celery_app","worker","--loglevel=info","--concurrency=1","-Q","dictaphone-audio"]` |
+| `celeryAudioExtractor.image.repository` | Audio extractor image repository                    | `lasuite/dictaphone-audio-extractor` |
+| `celeryAudioExtractor.image.tag`        | Audio extractor image tag                             | `latest` |
+| `celeryAudioExtractor.image.pullPolicy` | Audio extractor image pull policy                     | `IfNotPresent` |
+| `celeryAudioExtractor.command`          | Command used by the audio extraction worker           | `["python","-m","audio_extractor"]` |
 | `celeryAudioExtractor.args`          | Additional audio worker arguments                        | `[]`                                                                                        |
-| `celeryAudioExtractor.replicas`      | Amount of audio worker replicas                         | `1`                                                                                         |
+| `celeryAudioExtractor.transcodingReplicas` | Amount of transcoding worker replicas             | `1` |
+| `celeryAudioExtractor.validationReplicas`  | Amount of validation worker replicas              | `1` |
 | `celeryAudioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
 | `celeryAudioExtractor.sidecars`      | Add sidecars containers to audio worker deployment       | `[]`                                                                                        |
-| `celeryAudioExtractor.securityContext` | Configure audio worker container security context     | `nil`                                                                                       |
-| `celeryAudioExtractor.envVars`       | Configure audio worker environment variables            | `undefined`                                                                                 |
+| `celeryAudioExtractor.securityContext` | Configure audio worker container security context     | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, capabilities: {drop: [ALL]}}`                                                                                       |
+| `celeryAudioExtractor.envVars`       | Environment variables shared by both audio workers      | `{}`                                                                                        |
+| `celeryAudioExtractor.transcodingEnvVars` | Environment variables for the transcoding worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
+| `celeryAudioExtractor.validationEnvVars` | Environment variables for the validation worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
 | `celeryAudioExtractor.podAnnotations` | Annotations to add to the audio worker Pod             | `{}`                                                                                        |
-| `celeryAudioExtractor.resources`      | Resource requirements for the audio worker container    | `{}`                                                                                        |
+| `celeryAudioExtractor.resources`      | Resource requirements for the audio worker container    | `{}` |
 | `celeryAudioExtractor.nodeSelector`   | Node selector for the audio worker Pod                  | `{}`                                                                                        |
 | `celeryAudioExtractor.tolerations`    | Tolerations for the audio worker Pod                    | `[]`                                                                                        |
 | `celeryAudioExtractor.affinity`       | Affinity for the audio worker Pod                       | `{}`                                                                                        |
