@@ -80,15 +80,38 @@ def _process_attempt(config, job, claimed_at, stop, health):
     budget = min(budget, (job.expires_at - datetime.now(UTC)).total_seconds())
     deadline = time.monotonic() + max(0, budget)
     reserve = min(5, max(0, budget) / 10)
+    LOGGER.info(
+        "%s job %s started; budget_seconds=%.3f",
+        config.mode,
+        job.id,
+        max(0, budget),
+    )
     try:
         completed = False
         if budget > reserve and not stop.is_set():
             completed = _run_child(config, job, deadline - reserve, stop, health)
+            LOGGER.info(
+                "%s job %s processing %s",
+                config.mode,
+                job.id,
+                "completed" if completed else "did not complete",
+            )
         if not completed and not stop.is_set() and time.monotonic() < deadline:
-            LOGGER.warning("Attempt %s did not complete; reporting failure", job.id)
-            _run_child(config, job, deadline, stop, health, failure=True)
+            LOGGER.warning(
+                "%s job %s did not complete; reporting failure",
+                config.mode,
+                job.id,
+            )
+            reported = _run_child(config, job, deadline, stop, health, failure=True)
+            LOGGER.info(
+                "%s job %s failure report %s",
+                config.mode,
+                job.id,
+                "completed" if reported else "did not complete",
+            )
     finally:
         _clean_work_dir(config.work_dir)
+        LOGGER.info("%s job %s attempt finished", config.mode, job.id)
 
 
 def _pull_job(config):
@@ -124,6 +147,8 @@ def supervise(config: Settings) -> None:
     started = time.monotonic()
     old_handlers = _install_signal_handlers(stop)
     handled = 0
+    pull_attempts = 0
+    polling_failures = 0
     retry_delay = 1.0
     reason = "fatal_error"
     try:
@@ -133,24 +158,44 @@ def supervise(config: Settings) -> None:
             while not stop.is_set() and time.monotonic() < deadline:
                 health.update()
                 claimed_at = time.monotonic()
+                pull_attempts += 1
+                if pull_attempts == 1 or pull_attempts % 5 == 0:
+                    LOGGER.info(
+                        "Pulling %s job (attempt %d; logged every 5 attempts)",
+                        config.mode,
+                        pull_attempts,
+                    )
                 try:
                     job = _pull_job(config)
                 except (requests.RequestException, ValueError) as exc:
                     # Do not expose signed URLs or credentials from invalid responses.
-                    LOGGER.warning(
-                        "Queue polling failed (%s); retrying", type(exc).__name__
-                    )
-                    health.update(available=False)
+                    polling_failures += 1
                     delay = min(30, retry_delay) * random.uniform(0.8, 1.2)  # noqa: S311
                     retry_delay = min(30, retry_delay * 2)
+                    LOGGER.warning(
+                        "Pull attempt %d failed (%s); retrying in %.1f seconds "
+                        "(consecutive failures=%d)",
+                        pull_attempts,
+                        type(exc).__name__,
+                        delay,
+                        polling_failures,
+                    )
+                    health.update(available=False)
                     _wait(min(delay, max(0, deadline - time.monotonic())), stop, health)
                     continue
                 retry_delay = 1.0
+                polling_failures = 0
                 health.update(
                     available=True,
                     draining=stop.is_set() or time.monotonic() >= deadline,
                 )
                 if job is None:
+                    if pull_attempts == 1 or pull_attempts % 5 == 0:
+                        LOGGER.info(
+                            "Pull attempt %d found no %s job (logged every 5 attempts)",
+                            pull_attempts,
+                            config.mode,
+                        )
                     _wait(
                         min(
                             config.poll_interval_seconds,
@@ -160,6 +205,12 @@ def supervise(config: Settings) -> None:
                         health,
                     )
                     continue
+                LOGGER.info(
+                    "Pull attempt %d claimed %s job %s",
+                    pull_attempts,
+                    config.mode,
+                    job.id,
+                )
                 # A claim begun before the cutoff is honored even if it returns late.
                 health.update(draining=time.monotonic() >= deadline)
                 _process_attempt(config, job, claimed_at, stop, health)
@@ -171,8 +222,11 @@ def supervise(config: Settings) -> None:
             signal.signal(signum, handler)
         _clean_work_dir(config.work_dir)
         LOGGER.info(
-            "Worker stopped: reason=%s uptime_seconds=%.3f tasks_handled=%d",
+            "Worker stopped: reason=%s uptime_seconds=%.3f tasks_handled=%d "
+            "pull_attempts=%d polling_failures=%d",
             reason,
             time.monotonic() - started,
             handled,
+            pull_attempts,
+            polling_failures,
         )
