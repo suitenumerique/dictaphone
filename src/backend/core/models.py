@@ -15,7 +15,7 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.core import validators
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
-from django.db.models import F, Q
+from django.db.models import Case, F, OuterRef, Q, Subquery, Value, When
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -267,6 +267,41 @@ class FileSourceChoices(models.TextChoices):
     MOBILE_FILE_UPLOAD = "mobile_file_upload", _("Mobile file upload")
 
 
+class FileQuerySet(models.QuerySet):
+    """File queries with the same extraction state used by API and admin."""
+
+    def with_audio_state(self):
+        """Resolve current attempt in SQL without fetching job histories."""
+        latest = AudioJob.objects.filter(file_id=OuterRef("pk")).order_by(
+            "-created_at", "-id"
+        )
+        return self.annotate(
+            latest_audio_status=Subquery(latest.values("status")[:1]),
+            latest_audio_mode=Subquery(latest.values("mode")[:1]),
+        ).annotate(
+            inferred_audio_state=Case(
+                When(
+                    latest_audio_status=AudioJobStatusChoices.PROCESSING,
+                    then=Value(FileAudioExtractionStateChoices.EXTRACTING_AUDIO),
+                ),
+                When(
+                    latest_audio_status=AudioJobStatusChoices.SUCCESS,
+                    latest_audio_mode=AudioJobModeChoices.VALIDATION,
+                    then=Value(FileAudioExtractionStateChoices.EXTRACTION_DONE),
+                ),
+                When(
+                    latest_audio_status__in=[
+                        AudioJobStatusChoices.FAILED,
+                        AudioJobStatusChoices.STALE,
+                    ],
+                    then=Value(FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED),
+                ),
+                default=Value(FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION),
+                output_field=models.CharField(),
+            )
+        )
+
+
 class File(BaseModel):
     """File uploaded by a user."""
 
@@ -325,6 +360,8 @@ class File(BaseModel):
     file_auto_hard_delete_at_with_grace_period = models.DateTimeField()
     trashbin_purge_at = models.DateTimeField(null=True, blank=True)
     trashbin_purge_at_with_grace_period = models.DateTimeField(null=True, blank=True)
+
+    objects = FileQuerySet.as_manager()
 
     class Meta:
         db_table = "file"
@@ -514,9 +551,59 @@ class File(BaseModel):
         return f"{self.temporary_key_base}{extension!s}"
 
     @property
-    def audio_file_key(self):
-        """Key used to store the validated OGG audio representation."""
+    def legacy_audio_file_key(self):
+        """Old fixed key, retained for migration and storage cleanup."""
         return f"{self.key_base}.audio.ogg"
+
+    @property
+    def latest_audio_job(self):
+        """Return the current attempt, including its transcoding source."""
+        return (
+            self.audio_jobs.select_related("source_job")
+            .order_by("-created_at", "-id")
+            .first()
+        )
+
+    @property
+    def audio_extraction_state(self):
+        """Expose the existing API state from the latest attempt."""
+        if hasattr(self, "inferred_audio_state"):
+            return self.inferred_audio_state
+        job = self.latest_audio_job
+        if job is None or job.status == AudioJobStatusChoices.PENDING:
+            return FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+        if job.status == AudioJobStatusChoices.PROCESSING:
+            return FileAudioExtractionStateChoices.EXTRACTING_AUDIO
+        if (
+            job.status == AudioJobStatusChoices.SUCCESS
+            and job.mode == AudioJobModeChoices.VALIDATION
+        ):
+            return FileAudioExtractionStateChoices.EXTRACTION_DONE
+        if job.status in {AudioJobStatusChoices.FAILED, AudioJobStatusChoices.STALE}:
+            return FileAudioExtractionStateChoices.AUDIO_EXTRACTION_FAILED
+        return FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
+
+    def get_audio_extraction_state_display(self):
+        """Return the localized extraction state label for the admin."""
+        return dict(FileAudioExtractionStateChoices.choices)[
+            self.audio_extraction_state
+        ]
+
+    @property
+    def audio_file_key(self):
+        """Resolve the latest audio artifact, with a legacy fallback for cleanup."""
+        job = self.latest_audio_job
+        if job is None:
+            return self.legacy_audio_file_key
+        return (
+            job.output_key
+            if job.mode == AudioJobModeChoices.TRANSCODING
+            else (
+                job.source_job.output_key
+                if job.source_job_id
+                else self.legacy_audio_file_key
+            )
+        )
 
     def get_abilities(self, user):
         """
@@ -634,6 +721,80 @@ class File(BaseModel):
         )
 
 
+class AudioJobModeChoices(models.TextChoices):
+    """Stages of audio preparation."""
+
+    TRANSCODING = "transcoding", _("Transcoding")
+    VALIDATION = "validation", _("Validation")
+
+
+class AudioJobStatusChoices(models.TextChoices):
+    """Lifecycle of one attempt; retries always create another row."""
+
+    PENDING = "pending", _("Pending")
+    PROCESSING = "processing", _("Processing")
+    SUCCESS = "success", _("Success")
+    FAILED = "failed", _("Failed")
+    STALE = "stale", _("Stale")
+
+
+class AudioJob(BaseModel):
+    """One worker attempt, with a permanent identity and storage destination."""
+
+    file = models.ForeignKey(File, on_delete=models.CASCADE, related_name="audio_jobs")
+    extraction_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    mode = models.CharField(max_length=12, choices=AudioJobModeChoices.choices)
+    status = models.CharField(
+        max_length=12,
+        choices=AudioJobStatusChoices.choices,
+        default=AudioJobStatusChoices.PENDING,
+    )
+    attempt_number = models.PositiveIntegerField(default=0)
+    retry_of = models.OneToOneField(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="retry"
+    )
+    source_job = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="validations",
+    )
+    output_key = models.CharField(max_length=1024, null=True, blank=True, unique=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.FloatField(null=True, blank=True)
+    error = models.TextField(blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "audio_job"
+        ordering = ("created_at", "id")
+        indexes = [
+            models.Index(fields=["file", "-created_at", "-id"]),
+            models.Index(fields=["mode", "status", "created_at"]),
+            models.Index(fields=["status", "expires_at"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["extraction_id", "mode", "attempt_number"],
+                name="audio_job_unique_attempt",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.file_id} - {self.mode} - {self.status} - {self.id}"
+
+    def save(self, *args, **kwargs):
+        """Allocate the key before issuing a signed upload URL."""
+        if self._state.adding and self.mode == AudioJobModeChoices.TRANSCODING:
+            self.output_key = (
+                self.output_key or f"{self.file.key_base}/audio/{self.id}.ogg"
+            )
+        super().save(*args, **kwargs)
+
+
 class AiJobStatusChoices(models.TextChoices):
     """Possible states of a file."""
 
@@ -671,6 +832,13 @@ class AiFileJob(BaseModel):
     )
     docs_app_id = models.CharField(max_length=255, null=True, blank=True)
     docs_creation_in_progress = models.BooleanField(default=False)
+    validated_audio_job = models.ForeignKey(
+        AudioJob,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transcriptions",
+    )
 
     class Meta:
         db_table = "ai_job"
