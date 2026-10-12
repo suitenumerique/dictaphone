@@ -143,6 +143,17 @@ services:
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
       AUDIO_EXTRACTOR_MODE: transcoding
       AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
+      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
+      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
+      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     depends_on:
       - app-dev
     tmpfs:
@@ -163,6 +174,17 @@ services:
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
       AUDIO_EXTRACTOR_MODE: validation
       AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
+      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
+      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
+      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     depends_on:
       - app-dev
     tmpfs:
@@ -183,6 +205,17 @@ services:
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
       AUDIO_EXTRACTOR_MODE: transcoding
       AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
+      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
+      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
+      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     depends_on:
       - app
     tmpfs:
@@ -203,6 +236,17 @@ services:
       AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
       AUDIO_EXTRACTOR_MODE: validation
       AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
+      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
+      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
+      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
+      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     depends_on:
       - app
     tmpfs:

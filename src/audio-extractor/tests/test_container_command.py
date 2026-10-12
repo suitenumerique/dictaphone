@@ -1,4 +1,4 @@
-"""The container must stop after one attempt and enforce the backend deadline."""
+"""The container watchdog requests clean shutdown and bounds hung processes."""
 
 import os
 import subprocess
@@ -17,9 +17,10 @@ def worker_environment(tmp_path, *, timeout=None, command='printf "%s\\n" "$@"')
     python.chmod(0o755)
     environment = os.environ.copy()
     environment["PATH"] = f"{tmp_path}:{environment['PATH']}"
-    environment.pop("AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS", None)
+    environment.pop("AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS", None)
+    environment["AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS"] = "1"
     if timeout is not None:
-        environment["AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS"] = timeout
+        environment["AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS"] = timeout
     return environment
 
 
@@ -51,8 +52,7 @@ def test_container_command_rejects_invalid_deadlines(tmp_path, timeout):
 
     assert result.returncode == 2
     assert (
-        "AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS must be a positive integer"
-        in result.stderr
+        "Process timeout and shutdown grace must be positive integers" in result.stderr
     )
     assert result.stdout == ""
 
@@ -67,7 +67,7 @@ def test_container_command_kills_hung_worker(tmp_path):
         check=False,
     )
 
-    assert result.returncode in {-9, 137}
+    assert result.returncode in {124, -9, 137}
     assert time.monotonic() - started < 5
 
 
@@ -81,4 +81,34 @@ def test_container_command_also_kills_worker_subprocesses(tmp_path):
         check=False,
     )
 
+    assert result.returncode in {124, -9, 137}
+
+
+def test_container_command_requests_clean_shutdown(tmp_path):
+    result = subprocess.run(
+        ["sh", str(WORKER_COMMAND)],
+        env=worker_environment(
+            tmp_path,
+            timeout="1",
+            command="trap 'echo cleaned; exit 0' TERM\nwhile :; do sleep 0.1; done",
+        ),
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode == 124
+    assert "cleaned" in result.stdout
+
+
+def test_container_command_escalates_when_term_is_ignored(tmp_path):
+    result = subprocess.run(
+        ["sh", str(WORKER_COMMAND)],
+        env=worker_environment(
+            tmp_path, timeout="1", command="trap '' TERM\nsleep 30 &\nwait"
+        ),
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
     assert result.returncode in {-9, 137}

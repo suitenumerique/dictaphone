@@ -82,5 +82,5 @@ USER ${DOCKER_USER}
 
 VOLUME ["/work"]
 
-# Run one attempt with the same hard deadline as the backend's audio job lease.
+# Recycle after 15 minutes, with an independent 20-minute shutdown watchdog.
 CMD ["sh", "/app/run-worker.sh"]

@@ -1,0 +1,50 @@
+stateDiagram-v2
+    [*] --> Running: Kubernetes starts the Deployment container
+
+    state "Worker supervisor + independent timeout wrapper" as Running {
+        [*] --> Startup
+        Startup --> ClaimCutoff: Clean workspace and initialize health server
+        ClaimCutoff --> Poll: Uptime below 900 seconds
+        ClaimCutoff --> Draining: Uptime at least 900 seconds
+        Poll --> Idle: HTTP 204
+        Idle --> ClaimCutoff: Interruptible 5-second wait with heartbeat
+        Poll --> Retry: API failure or invalid response
+        Retry --> ClaimCutoff: Exponential retry with jitter and heartbeat
+        Poll --> Attempt: Claimed job, even if response crosses the cutoff
+        Attempt --> Cleanup: Child reports completion and exits
+        Attempt --> ReportFailure: Child crashes or processing budget expires
+        ReportFailure --> Cleanup: Kill process group, bounded failure-report child
+        Cleanup --> ClaimCutoff: Reap child and clean workspace
+        Draining --> CleanExit: Active attempt already finished
+
+        note right of Attempt
+            One fresh process per attempt.
+            Whole-attempt deadline is the smaller
+            of local job budget and server lease.
+            Reserve up to 5 seconds for failure reporting.
+            At minute 15, readiness becomes false,
+            the active attempt continues until its deadline.
+        end note
+
+        note right of Retry
+            Dependency failures affect readiness,
+            while the supervisor remains live.
+        end note
+    }
+
+    Running --> Cancelling: SIGTERM or SIGINT, including watchdog TERM at 1200 seconds
+    Cancelling --> CleanExit: Stop claims, kill active process group, reap and clean up
+    Cancelling --> ForcedExit: Watchdog KILL after 30-second grace if still running
+    Running --> ForcedExit: Fatal failure or Kubernetes termination after grace
+    CleanExit --> Restart: Container exits, normal recycling exits 0
+    ForcedExit --> Restart: Unreported attempts recover through backend lease expiry
+    Restart --> [*]: Kubernetes restarts the container according to its restart policy
+
+    note left of Running
+        Kubelet probes local HTTP endpoints:
+        /startupz = initialization complete
+        /livez = recent supervisor progress
+        /readyz = successful queue response and not draining
+        Idle and busy workers remain healthy.
+        HTTP server responsiveness alone is insufficient.
+    end note

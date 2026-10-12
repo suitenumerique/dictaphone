@@ -426,7 +426,7 @@ audioExtractor:
   ## @param audioExtractor.dpAnnotations Annotations to add to the audio worker Deployment
   dpAnnotations: {}
 
-  ## @param audioExtractor.command Command used by the audio extraction worker, enforcing its job deadline
+  ## @param audioExtractor.command Command used by the audio extraction worker, enforcing its process watchdog
   command:
     - "sh"
     - "/app/run-worker.sh"
@@ -439,6 +439,40 @@ audioExtractor:
 
   ## @param audioExtractor.validationReplicas Amount of validation worker replicas
   validationReplicas: 1
+
+  ## @param audioExtractor.terminationGracePeriodSeconds Time for bounded cancellation and cleanup
+  terminationGracePeriodSeconds: 45
+
+  ## @param audioExtractor.strategy Deployment rollout strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  ## @param audioExtractor.probes Kubernetes HTTP probes; set an individual probe to null to disable it
+  probes:
+    startup:
+      httpGet:
+        path: /startupz
+        port: health
+      periodSeconds: 2
+      timeoutSeconds: 1
+      failureThreshold: 30
+    liveness:
+      httpGet:
+        path: /livez
+        port: health
+      periodSeconds: 10
+      timeoutSeconds: 2
+      failureThreshold: 3
+    readiness:
+      httpGet:
+        path: /readyz
+        port: health
+      periodSeconds: 5
+      timeoutSeconds: 2
+      failureThreshold: 2
 
   ## @param audioExtractor.shareProcessNamespace Enable share process namespace between containers
   shareProcessNamespace: false
@@ -459,7 +493,12 @@ audioExtractor:
   ## @param audioExtractor.envVars Configure audio worker environment variables
   ## @skip audioExtractor.envVars
   envVars:
-    AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend:8000
+    AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend.dictaphone.svc.cluster.local
+    AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: 900
+    AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: 1200
+    AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: 30
+    AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: 5
+    AUDIO_EXTRACTOR_HEALTH_PORT: 8080
 
   ## @param audioExtractor.transcodingEnvVars Environment variables for the transcoding worker; configure its dedicated API token here
   transcodingEnvVars: {}

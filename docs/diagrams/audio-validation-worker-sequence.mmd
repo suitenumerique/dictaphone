@@ -1,28 +1,44 @@
 sequenceDiagram
     autonumber
-    participant Worker@{ "type": "control" } as HTTP audio validation worker
-    participant Validators@{ "type": "entity" } as opusinfo + opusdec<br/>inside this worker
+    participant Worker@{ "type": "control" } as HTTP validation supervisor
+    participant Child@{ "type": "control" } as Fresh attempt process
+    participant Validators@{ "type": "entity" } as opusinfo + opusdec<br/>inside the attempt process
     participant API@{ "type": "control" } as Dictaphone API
     participant FileStore@{ "type": "database" } as File-linked object storage
 
-    Worker->>API: GET /audio-jobs/validation/next<br/>Authorization: Bearer worker token
-    alt No job available
-        API-->>Worker: 204 No Content
-    else Validation job available
-        API-->>Worker: Job id, job_kind, signed source_url
-        Worker->>Worker: Create temporary job directory under work_dir
-        Worker->>FileStore: GET source_url
-        Worker->>Validators: Run opusinfo, then<br/>opusdec --quiet source /dev/null
-
-        alt Download or validation fails
-            Worker->>Worker: Build failure completion with error message
-            Worker->>API: POST /audio-jobs/validation/complete<br/>Bearer token<br/>id and status=failure with error
-        else Validation succeeds
-            Validators-->>Worker: Audio stream validated
-            Worker->>API: POST /audio-jobs/validation/complete<br/>Bearer token<br/>id and status=success
+    Worker->>Worker: Clean work_dir and initialize health endpoints
+    loop Before 15-minute claim cutoff and no termination requested
+        Worker->>API: GET /audio-jobs/validation/next<br/>Authorization: Bearer worker token
+        alt No job available
+            API-->>Worker: 204 No Content
+            Worker->>Worker: Wait 5 seconds, keeping supervisor heartbeat fresh
+        else API failure or invalid response
+            API-->>Worker: Error
+            Worker->>Worker: Fail readiness, remain live,<br/>retry with exponential backoff and jitter
+        else Validation job available
+            API-->>Worker: Job id, job_kind, expires_at,<br/>signed source_url
+            Worker->>Child: Spawn a fresh process, pass settings and job over stdin
+            Note over Worker,Child: Whole-attempt budget is bounded by the configured job timeout<br/>and server lease, reserve up to 5 seconds for failure reporting.
+            Child->>Child: Create temporary job directory under work_dir
+            Child->>FileStore: GET source_url
+            Child->>Validators: Run opusinfo, then<br/>opusdec --quiet source /dev/null
+            alt Download, media processing, or upload fails
+                Child->>API: POST /audio-jobs/validation/complete<br/>Bearer token, id, status=failure, error, metadata
+            else Validation succeeds
+                Validators-->>Child: Audio stream validated
+                Child->>API: POST /audio-jobs/validation/complete<br/>Bearer token, id, status=success, metadata
+            end
+            alt Child exits successfully after reporting completion
+                Child-->>Worker: Exit 0
+            else Child crashes or exceeds its processing budget
+                Worker->>Child: Kill the entire attempt process group and reap the child
+                Worker->>API: Fresh reporting child attempts failure completion<br/>POST /audio-jobs/validation/complete within remaining lease
+                Note over Worker,API: If completion cannot be reported, the backend recovers<br/>the attempt when its lease expires.
+            end
+            Worker->>Worker: Remove remaining descendants and clean work_dir
         end
     end
-    Worker->>Worker: Clean work_dir in finally block
+    Worker->>Worker: Clean workspace and exit 0 after normal drain
 
-    Note over Worker,API: The worker polls once, processes at most one job, reports to the fixed completion endpoint, and exits.
-    Note over Worker,Validators: Both validation commands run inside this worker's isolated environment.
+    Note over Worker,Child: At minute 15, readiness fails and new claims stop,<br/>an already claimed attempt finishes before normal exit.
+    Note over Worker,Child: SIGTERM cancels the active attempt rather than draining it.<br/>The independent watchdog sends TERM at minute 20 and KILL 30 seconds later.

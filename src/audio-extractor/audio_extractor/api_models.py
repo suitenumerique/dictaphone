@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import (
     AnyHttpUrl,
+    AwareDatetime,
     BaseModel,
     Field,
     TypeAdapter,
@@ -25,6 +26,7 @@ class AudioJob(BaseModel):
 
     id: str = Field(min_length=1)
     source_url: str
+    expires_at: AwareDatetime
 
     @field_validator("source_url")
     @classmethod

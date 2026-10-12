@@ -18,8 +18,8 @@ from audio_extractor.api_models import (
 from audio_extractor.audio_transcode import _convert
 from audio_extractor.audio_validate import _validate_opus
 from audio_extractor.settings import Settings
+from audio_extractor.supervisor import supervise
 from audio_extractor.utils import (
-    _clean_work_dir,
     _download,
     _redact_url,
     _upload,
@@ -252,53 +252,7 @@ def process_validation_job(config: Settings, job: ValidationJob) -> None:
     _post_completion(config, "audio-jobs/validation/complete", payload)
 
 
-def run_transcoding_worker(config: Settings) -> None:
-    """Poll and process one job from the transcoding queue."""
-    url = urljoin(config.api_url, "/audio-jobs/transcoding/next")
-    LOGGER.info("Polling the transcoding queue")
-    response = requests.get(
-        url,
-        headers=_authorization_headers(config),
-        timeout=config.request_timeout,
-    )
-    if response.status_code == 204:
-        LOGGER.info("No transcoding job is available")
-        return
-    response.raise_for_status()
-    job = TranscodingJob.model_validate(response.json())
-    LOGGER.info("Received transcoding job %s", job.id)
-    process_transcoding_job(config, job)
-
-
-def run_validation_worker(config: Settings) -> None:
-    """Poll and process one job from the validation queue."""
-    url = urljoin(config.api_url, "/audio-jobs/validation/next")
-    LOGGER.info("Polling the validation queue")
-    response = requests.get(
-        url,
-        headers=_authorization_headers(config),
-        timeout=config.request_timeout,
-    )
-    if response.status_code == 204:
-        LOGGER.info("No validation job is available")
-        return
-    response.raise_for_status()
-    job = ValidationJob.model_validate(response.json())
-    LOGGER.info("Received validation job %s", job.id)
-    process_validation_job(config, job)
-
-
 def run(config: Settings) -> None:
-    """Run the worker selected by AUDIO_EXTRACTOR_MODE."""
+    """Run the periodically recycled supervisor for the selected queue."""
     LOGGER.info("Audio extractor starting in %s mode", config.mode)
-    _clean_work_dir(config.work_dir)
-    try:
-        if config.mode == "transcoding":
-            run_transcoding_worker(config)
-        elif config.mode == "validation":
-            run_validation_worker(config)
-        else:
-            raise ValueError(f"Invalid mode: {config.mode}")
-    finally:
-        _clean_work_dir(config.work_dir)
-        LOGGER.info("Audio extractor finished in %s mode", config.mode)
+    supervise(config)

@@ -18,11 +18,15 @@ def test_job_models_validate_required_urls_and_preserve_signed_urls():
     transcoding_job = TranscodingJob(
         job_kind="transcoding",
         id="job-123",
+        expires_at="2026-10-12T12:05:00Z",
         source_url=source_url,
         destination_url=destination_url,
     )
     validation_job = ValidationJob(
-        job_kind="validation", id="job-123", source_url=source_url
+        job_kind="validation",
+        id="job-123",
+        expires_at="2026-10-12T12:05:00Z",
+        source_url=source_url,
     )
 
     assert transcoding_job.source_url == source_url
@@ -35,6 +39,7 @@ def test_transcoding_job_accepts_acl():
     job = TranscodingJob(
         job_kind="transcoding",
         id="job-123",
+        expires_at="2026-10-12T12:05:00Z",
         source_url="https://storage.example/source",
         destination_url="https://storage.example/destination",
         destination_headers={
@@ -58,12 +63,16 @@ def test_transcoding_job_accepts_acl():
 )
 def test_validation_job_rejects_invalid_response(values):
     with pytest.raises(ValidationError):
-        ValidationJob.model_validate(values)
+        ValidationJob.model_validate(
+            {"job_kind": "validation", "expires_at": "2026-10-12T12:05:00Z", **values}
+        )
 
 
 def test_transcoding_completion_requires_duration_on_success():
     completion = TranscodingCompletion(
-        id="job-123", status="success", duration_seconds=3.5
+        id="job-123",
+        status="success",
+        duration_seconds=3.5,
     )
 
     assert completion.model_dump(exclude_none=True) == {
@@ -77,7 +86,9 @@ def test_transcoding_completion_requires_duration_on_success():
 
 def test_validation_completion_requires_error_on_failure():
     completion = ValidationCompletion(
-        id="job-123", status="failure", error="invalid audio"
+        id="job-123",
+        status="failure",
+        error="invalid audio",
     )
 
     assert completion.model_dump(exclude_none=True) == {

@@ -50,3 +50,28 @@ def test_settings_accept_custom_output_parameters():
 def test_settings_reject_legacy_or_unknown_modes(mode):
     with pytest.raises(ValidationError):
         Settings(api_url="https://api.example.test", token=VALID_TOKEN, mode=mode)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "max_runtime_seconds",
+        "process_timeout_seconds",
+        "job_timeout_seconds",
+        "poll_interval_seconds",
+        "shutdown_grace_seconds",
+        "health_port",
+    ],
+)
+def test_lifecycle_settings_reject_zero(field):
+    with pytest.raises(ValidationError):
+        Settings(api_url="https://api.example.test", token=VALID_TOKEN, **{field: 0})
+
+
+def test_worker_runtime_must_precede_watchdog():
+    with pytest.raises(ValidationError):
+        Settings(
+            api_url="https://api.example.test",
+            token=VALID_TOKEN,
+            max_runtime_seconds=1200,
+        )

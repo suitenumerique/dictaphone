@@ -93,7 +93,12 @@ def test_transcoding_worker_passes_job_acl_to_upload(config, task):
 
 def test_validation_mode_validates_without_upload_or_duration(config, task):
     config = config.model_copy(update={"mode": "validation"})
-    task = ValidationJob(job_kind="validation", id=task.id, source_url=task.source_url)
+    task = ValidationJob(
+        job_kind="validation",
+        id=task.id,
+        source_url=task.source_url,
+        expires_at=task.expires_at,
+    )
     response = Mock()
 
     def download(_url, destination, *_args):
@@ -179,7 +184,8 @@ def test_source_download_failure_is_reported_to_callback(config, task):
     assert payload["metadata"]["download_seconds"] >= 0
 
 
-def test_run_cleans_work_directory_and_sends_worker_bearer(config, tmp_path):
+def test_run_cleans_work_directory_and_sends_worker_bearer(lifecycle, tmp_path):
+    config, _, _ = lifecycle
     stale_file = config.work_dir / "stale"
     stale_file.write_text("old task")
     external_directory = tmp_path.parent / "external"
@@ -189,7 +195,7 @@ def test_run_cleans_work_directory_and_sends_worker_bearer(config, tmp_path):
     stale_link = config.work_dir / "link"
     stale_link.symlink_to(external_directory, target_is_directory=True)
     response = Mock(status_code=204)
-    with patch("audio_extractor.worker.requests.get", return_value=response) as get:
+    with patch("audio_extractor.supervisor.requests.get", return_value=response) as get:
         run(config)
 
     assert not stale_file.exists()
@@ -202,10 +208,11 @@ def test_run_cleans_work_directory_and_sends_worker_bearer(config, tmp_path):
     )
 
 
-def test_validation_worker_polls_validation_route(config):
+def test_validation_worker_polls_validation_route(lifecycle):
+    config, _, _ = lifecycle
     config = config.model_copy(update={"mode": "validation"})
     response = Mock(status_code=204)
-    with patch("audio_extractor.worker.requests.get", return_value=response) as get:
+    with patch("audio_extractor.supervisor.requests.get", return_value=response) as get:
         run(config)
 
     assert (
@@ -213,13 +220,16 @@ def test_validation_worker_polls_validation_route(config):
     )
 
 
-def test_run_processes_a_returned_task(config, task):
+def test_run_processes_a_returned_task(lifecycle, task):
+    config, _, _ = lifecycle
     response = Mock(status_code=200)
     response.json.return_value = task.model_dump()
     with (
-        patch("audio_extractor.worker.requests.get", return_value=response),
-        patch("audio_extractor.worker.process_transcoding_job") as process,
+        patch("audio_extractor.supervisor.requests.get", return_value=response),
+        patch("audio_extractor.supervisor._process_attempt") as process,
     ):
+        process.side_effect = lambda *_args: lifecycle[2].set()
         run(config)
 
-    process.assert_called_once_with(config, task)
+    assert process.call_count == 1
+    assert process.call_args.args[:2] == (config, task)

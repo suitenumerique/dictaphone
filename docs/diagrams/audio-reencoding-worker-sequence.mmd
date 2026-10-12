@@ -1,29 +1,45 @@
 sequenceDiagram
     autonumber
-    participant Worker@{ "type": "control" } as HTTP audio transcoding worker
-    participant FFmpeg@{ "type": "entity" } as FFmpeg executable<br/>inside this worker
+    participant Worker@{ "type": "control" } as HTTP transcoding supervisor
+    participant Child@{ "type": "control" } as Fresh attempt process
+    participant FFmpeg@{ "type": "entity" } as FFmpeg executable<br/>inside the attempt process
     participant API@{ "type": "control" } as Dictaphone API
     participant FileStore@{ "type": "database" } as File-linked object storage
 
-    Worker->>API: GET /audio-jobs/transcoding/next<br/>Authorization: Bearer worker token
-    alt No job available
-        API-->>Worker: 204 No Content
-    else Transcoding job available
-        API-->>Worker: Job id, job_kind, signed source_url and destination_url
-        Worker->>Worker: Create temporary job directory under work_dir
-        Worker->>FileStore: GET source_url
-        Worker->>FFmpeg: Convert source to OGG/Opus<br/>and calculate duration
-
-        alt Download, conversion, or upload fails
-            Worker->>Worker: Build failure completion with error message
-            Worker->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token<br/>id and status=failure with error
-        else Conversion succeeds
-            FFmpeg-->>Worker: OGG/Opus file and duration_seconds
-            Worker->>FileStore: PUT destination_url
-            Worker->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token<br/>id and status=success with duration_seconds
+    Worker->>Worker: Clean work_dir and initialize health endpoints
+    loop Before 15-minute claim cutoff and no termination requested
+        Worker->>API: GET /audio-jobs/transcoding/next<br/>Authorization: Bearer worker token
+        alt No job available
+            API-->>Worker: 204 No Content
+            Worker->>Worker: Wait 5 seconds, keeping supervisor heartbeat fresh
+        else API failure or invalid response
+            API-->>Worker: Error
+            Worker->>Worker: Fail readiness, remain live,<br/>retry with exponential backoff and jitter
+        else Transcoding job available
+            API-->>Worker: Job id, job_kind, expires_at,<br/>signed source_url, destination_url, and destination_headers
+            Worker->>Child: Spawn a fresh process, pass settings and job over stdin
+            Note over Worker,Child: Whole-attempt budget is bounded by the configured job timeout<br/>and server lease, reserve up to 5 seconds for failure reporting.
+            Child->>Child: Create temporary job directory under work_dir
+            Child->>FileStore: GET source_url
+            Child->>FFmpeg: Convert source to OGG/Opus<br/>and calculate duration
+            alt Download, media processing, or upload fails
+                Child->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token, id, status=failure, error, metadata
+            else Transcoding succeeds
+                FFmpeg-->>Child: OGG/Opus file and duration_seconds
+                Child->>FileStore: PUT destination_url with destination_headers
+                Child->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token, id, status=success, duration_seconds, metadata
+            end
+            alt Child exits successfully after reporting completion
+                Child-->>Worker: Exit 0
+            else Child crashes or exceeds its processing budget
+                Worker->>Child: Kill the entire attempt process group and reap the child
+                Worker->>API: Fresh reporting child attempts failure completion<br/>POST /audio-jobs/transcoding/complete within remaining lease
+                Note over Worker,API: If completion cannot be reported, the backend recovers<br/>the attempt when its lease expires.
+            end
+            Worker->>Worker: Remove remaining descendants and clean work_dir
         end
     end
-    Worker->>Worker: Clean work_dir in finally block
+    Worker->>Worker: Clean workspace and exit 0 after normal drain
 
-    Note over Worker,API: The worker polls once, processes at most one job, reports to the fixed completion endpoint, and exits.
-    Note over Worker,FFmpeg: FFmpeg runs inside this worker's isolated environment.
+    Note over Worker,Child: At minute 15, readiness fails and new claims stop,<br/>an already claimed attempt finishes before normal exit.
+    Note over Worker,Child: SIGTERM cancels the active attempt rather than draining it.<br/>The independent watchdog sends TERM at minute 20 and KILL 30 seconds later.

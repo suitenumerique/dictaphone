@@ -16,18 +16,24 @@ flowchart LR
         DB[("PostgreSQL<br/>users, files, AI jobs")]
         Redis[("Redis<br/>sessions, cache, Celery broker/result")]
         BackendWorker["Celery backend worker<br/>dictaphone-backend"]
-        subgraph ReencodingWorker["Audio re-encoding worker (isolated)"]
+        subgraph ReencodingWorker["Audio re-encoding Deployment"]
             direction TB
-            Reencoder["HTTP task poller and processor"]
-            FFmpeg["FFmpeg executable<br/>runs inside this worker"]
-            Reencoder -->|"executes locally"| FFmpeg
+            Reencoder["HTTP polling supervisor<br/>15-minute claim lifetime + health endpoints"]
+            TranscodingAttempt["Fresh child process per attempt<br/>bounded by job lease"]
+            FFmpeg["FFmpeg executable<br/>runs inside the attempt process"]
+            Reencoder -->|"spawns and supervises"| TranscodingAttempt
+            TranscodingAttempt -->|"executes locally"| FFmpeg
         end
-        subgraph ValidationWorker["Audio validation worker (isolated)"]
+        subgraph ValidationWorker["Audio validation Deployment"]
             direction TB
-            Validator["HTTP task poller and processor"]
-            OpusTools["opusinfo + opusdec<br/>run inside this worker"]
-            Validator -->|"executes locally"| OpusTools
+            Validator["HTTP polling supervisor<br/>15-minute claim lifetime + health endpoints"]
+            ValidationAttempt["Fresh child process per attempt<br/>bounded by job lease"]
+            OpusTools["opusinfo + opusdec<br/>run inside the attempt process"]
+            Validator -->|"spawns and supervises"| ValidationAttempt
+            ValidationAttempt -->|"executes locally"| OpusTools
         end
+        Kubelet["Kubernetes kubelet<br/>startup, liveness, readiness probes<br/>container restarts"]
+        Watchdog["Per-container timeout wrapper<br/>TERM at 20 minutes<br/>KILL after 30-second grace"]
         MediaIngress["Media-files Ingress<br/>Nginx auth subrequest"]
 
         subgraph DictaphoneStorage["Dictaphone S3 storage<br/>one or more policy-linked buckets"]
@@ -76,14 +82,19 @@ flowchart LR
     BackendWorker -->|"read/write media and AI results"| StoragePolicy
 
     Reencoder -->|"poll with bearer token<br/>GET /audio-jobs/transcoding/next"| API
-    API -->|"job: id, job_kind, source_url, destination_url"| Reencoder
-    Reencoder -->|"GET source_url / PUT destination_url"| StoragePolicy
-    Reencoder -->|"bearer token + result payload<br/>POST /audio-jobs/transcoding/complete"| API
+    API -->|"job: id, job_kind, expires_at,<br/>source_url, destination_url, destination_headers"| Reencoder
+    TranscodingAttempt -->|"GET source_url / PUT destination_url"| StoragePolicy
+    TranscodingAttempt -->|"bearer token + result payload<br/>POST /audio-jobs/transcoding/complete"| API
 
     Validator -->|"poll with bearer token<br/>GET /audio-jobs/validation/next"| API
-    API -->|"job: id, job_kind, source_url"| Validator
-    Validator -->|"GET source_url"| StoragePolicy
-    Validator -->|"bearer token + result payload<br/>POST /audio-jobs/validation/complete"| API
+    API -->|"job: id, job_kind, expires_at, source_url"| Validator
+    ValidationAttempt -->|"GET source_url"| StoragePolicy
+    ValidationAttempt -->|"bearer token + result payload<br/>POST /audio-jobs/validation/complete"| API
+
+    Kubelet -.->|"probe local HTTP health endpoints"| Reencoder
+    Kubelet -.->|"probe local HTTP health endpoints"| Validator
+    Watchdog -.->|"bound process lifetime"| Reencoder
+    Watchdog -.->|"bound process lifetime"| Validator
 
     BackendWorker -->|"start transcribe or summarize job"| SummaryAPI
     SummaryWorker -->|"GET media via signed URL"| StoragePolicy
@@ -103,7 +114,8 @@ flowchart LR
 
     class Web,Mobile client
     class Ingress,Frontend,API,BackendWorker,Reencoder,Validator,MediaIngress dictaphoneApp
-    class FFmpeg,OpusTools workerTool
+    class FFmpeg,OpusTools,TranscodingAttempt,ValidationAttempt workerTool
+    class Kubelet,Watchdog routing
     class SummaryAPI,SummaryWorker summaryApp
     class DB,Redis,DefaultBucket,DomainBucket,AdditionalBuckets,SummaryStore data
     class StoragePolicy routing

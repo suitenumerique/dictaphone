@@ -1,20 +1,54 @@
 # Audio extractor
 
-The audio extractor is a command-line worker meant to run audio stream extraction & validation with FFmpeg and opusdec. Each process handles at most one job
-from one queue (exposed as an HTTP endpoint), reports the result, and exits. If the queue is empty, it exits
-without processing a job.
+The audio extractor continuously polls an HTTP queue and processes one attempt
+at a time. Set `AUDIO_EXTRACTOR_MODE` to `transcoding` (the default) or `validation`.
+An empty queue does not stop the worker; it waits five seconds before polling again.
+API failures use exponential retries with jitter, capped at approximately 30 seconds.
 
-Set `AUDIO_EXTRACTOR_MODE` to `transcoding` or `validation` to choose the queue.
-Transcoding is the default.
+## Worker lifecycle and health
 
-Container restart after each attempt is an intentional security measure: it
-discards process state after handling untrusted media. The container command
-uses GNU `timeout` to kill the worker and its subprocesses after
-`AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` (300 seconds by default), even if processing
-hangs. Set it to the same value as the backend's `AUDIO_JOB_TIMEOUT_SECONDS`.
-Helm and Docker Compose pass the backend value under the worker's variable name.
-Values must be positive integers; zero would disable GNU `timeout` and is rejected
-by the container command.
+The supervisor accepts tasks for `AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS` (900 seconds,
+15 minutes). This includes idle time. At that deadline it stops claiming new work,
+finishes the current attempt, cleans its workspace, and exits successfully.
+Deployments restart the container. Normal 15-minute runs exceed Kubernetes' usual
+ten-minute restart-backoff reset period; genuine early crashes can still back off.
+
+Every attempt runs in a fresh child process to discard process state after parsing
+untrusted media. `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` limits the whole attempt,
+including downloads, media commands, retries, uploads, and completion reporting.
+Set it to the backend's `AUDIO_JOB_TIMEOUT_SECONDS`; Helm and Compose pass that value.
+When the API provides `expires_at`, the worker also respects the server's lease.
+It reserves up to five seconds of the budget for reporting an interrupted attempt.
+At the deadline it kills the child's process group, including media commands,
+and removes temporary files. Unreported attempts recover through backend lease expiry.
+
+The container wrapper independently sends SIGTERM after
+`AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS` (1200 seconds, 20 minutes), then SIGKILL
+if the process remains after `AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS` (30 seconds).
+The absolute watchdog bound is therefore 20 minutes 30 seconds by default.
+SIGTERM and SIGINT stop claims and cancel the active child; they do not drain a
+full task. Polling HTTP requests retain their configured request timeout, and the
+outer watchdog/Kubernetes grace period bounds an unresponsive supervisor.
+Timeout and grace values must be positive integers. The normal runtime must be
+less than the process timeout.
+
+The supervisor serves HTTP health probes on `AUDIO_EXTRACTOR_HEALTH_PORT` (8080):
+
+- `/startupz`: initialization is complete.
+- `/livez`: supervisor progress is recent; idle queues and API outages stay live.
+- `/readyz`: the queue API has responded successfully and the worker is not draining.
+
+Busy workers remain ready until the lifetime deadline. Probe handlers use local
+state and make no backend or storage requests. A stalled supervisor becomes
+unhealthy even if the HTTP server still responds. Readiness reports availability;
+the supervisor itself stops claiming work when draining.
+
+Helm configures all three probes on both worker Deployments, a 45-second Pod
+termination grace period, and a rolling update with zero unavailable replicas
+and one surge replica. Configure `audioExtractor.probes`, `strategy`, and
+`terminationGracePeriodSeconds` to override these defaults. No Service is needed.
+The root filesystem remains read-only; `/work` is cleaned on startup, after each
+attempt, and on shutdown because its `emptyDir` survives container restarts.
 
 ## API
 
@@ -41,6 +75,7 @@ The transcoding worker polls `GET /audio-jobs/transcoding/next`. A job looks lik
 {
   "id": "job-id",
   "job_kind": "transcoding",
+  "expires_at": "2026-10-12T12:05:00+00:00",
   "source_url": "https://storage.example/signed-get",
   "destination_url": "https://storage.example/signed-put",
   "destination_headers": {"X-amz-acl": "private"}
@@ -66,6 +101,7 @@ The validation worker polls `GET /audio-jobs/validation/next`. Its job looks lik
 {
   "id": "job-id",
   "job_kind": "validation",
+  "expires_at": "2026-10-12T12:05:00+00:00",
   "source_url": "https://storage.example/signed-get"
 }
 ```
@@ -86,7 +122,12 @@ Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` | No | `300` | Hard deadline for the entire container command, matching the backend's `AUDIO_JOB_TIMEOUT_SECONDS` lease and signed URL duration |
+| `AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS` | No | `900` | Stop claiming tasks after this worker lifetime; finish the current attempt |
+| `AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS` | No | `1200` | Independent process watchdog; sends SIGTERM |
+| `AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS` | No | `30` | Watchdog grace before SIGKILL |
+| `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` | No | `300` | Whole-attempt budget, matching the backend lease and signed URL duration |
+| `AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS` | No | `5` | Wait after an empty queue response |
+| `AUDIO_EXTRACTOR_HEALTH_PORT` | No | `8080` | HTTP startup, liveness, and readiness port |
 | `AUDIO_EXTRACTOR_API_URL` | Yes | — | API base URL, such as `http://localhost:8000` |
 | `AUDIO_EXTRACTOR_TOKEN` | Yes | — | Bearer token, at least 32 characters long |
 | `AUDIO_EXTRACTOR_MODE` | No | `transcoding` | Queue to process: `transcoding` or `validation` |

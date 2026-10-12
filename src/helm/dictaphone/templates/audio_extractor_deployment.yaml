@@ -23,6 +23,8 @@ metadata:
     {{- include "dictaphone.common.labels" (list $root $component) | nindent 4 }}
 spec:
   replicas: {{ index $config $modeReplicasKey }}
+  strategy:
+    {{- toYaml $config.strategy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "dictaphone.common.selectorLabels" (list $root $component) | nindent 6 }}
@@ -36,6 +38,7 @@ spec:
         {{- include "dictaphone.common.selectorLabels" (list $root $component) | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ $config.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 10000
@@ -65,6 +68,21 @@ spec:
           {{- end }}
           env:
             {{- $env | nindent 12 }}
+          ports:
+            - name: health
+              containerPort: {{ dig "AUDIO_EXTRACTOR_HEALTH_PORT" 8080 $envVars }}
+          {{- with $config.probes.startup }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.probes.liveness }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.probes.readiness }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $config.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
