@@ -48,13 +48,50 @@ class FileInline(admin.TabularInline):
         return super().get_queryset(request).filter(hard_deleted_at__isnull=True)
 
 
-class AiFileJobInline(admin.TabularInline):
+class AiJobDurationMixin:
+    """Display elapsed AI job time using the available lifecycle timestamps."""
+
+    @admin.display(description=_("Computed duration (s)"))
+    def computed_duration(self, obj):
+        """Use the last update as the end time for a finished AI job."""
+        if (
+            obj.status
+            not in {
+                models.AiJobStatusChoices.SUCCESS,
+                models.AiJobStatusChoices.FAILED,
+            }
+            or obj.created_at is None
+            or obj.updated_at is None
+        ):
+            return None
+        return round((obj.updated_at - obj.created_at).total_seconds(), 2)
+
+
+class AudioJobDurationMixin:
+    """Display elapsed audio worker time from its lifecycle timestamps."""
+
+    @admin.display(description=_("Computed duration (s)"))
+    def computed_duration(self, obj):
+        """Compute worker duration when both start and completion are known."""
+        if obj.started_at is None or obj.completed_at is None:
+            return None
+        return round((obj.completed_at - obj.started_at).total_seconds(), 2)
+
+
+class AiFileJobInline(AiJobDurationMixin, admin.TabularInline):
     """Inline class for the AiFileJob model."""
 
     model = models.AiFileJob
     extra = 0
-    fields = ("id", "remote_job_id", "type", "status", "created_at")
-    readonly_fields = ("id", "created_at")
+    fields = (
+        "id",
+        "remote_job_id",
+        "type",
+        "status",
+        "created_at",
+        "computed_duration",
+    )
+    readonly_fields = ("id", "created_at", "computed_duration")
     show_change_link = True
 
     def has_add_permission(self, request, obj=None):
@@ -87,7 +124,7 @@ class AudioExtractionStatusFilter(admin.SimpleListFilter):
         return queryset
 
 
-class AudioJobInline(admin.TabularInline):
+class AudioJobInline(AudioJobDurationMixin, admin.TabularInline):
     """Read-only attempt history on a file."""
 
     model = models.AudioJob
@@ -100,6 +137,7 @@ class AudioJobInline(admin.TabularInline):
         "created_at",
         "started_at",
         "completed_at",
+        "computed_duration",
     )
     readonly_fields = fields
     can_delete = False
@@ -514,7 +552,7 @@ class FileAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.AiFileJob)
-class AiFileJobAdmin(admin.ModelAdmin):
+class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
     """Admin class for the AiFileJob model."""
 
     list_display = (
@@ -526,6 +564,7 @@ class AiFileJobAdmin(admin.ModelAdmin):
         "file",
         "created_at",
         "updated_at",
+        "computed_duration",
     )
     list_filter = (
         "type",
@@ -541,7 +580,7 @@ class AiFileJobAdmin(admin.ModelAdmin):
         "file__filename",
     )
     ordering = ("-created_at",)
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "created_at", "updated_at", "computed_duration")
     autocomplete_fields = ("file",)
     fieldsets = (
         (
@@ -556,7 +595,10 @@ class AiFileJobAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
+        (
+            _("Timestamps"),
+            {"fields": ("created_at", "updated_at", "computed_duration")},
+        ),
     )
 
     def has_add_permission(self, request):
@@ -569,7 +611,7 @@ class AiFileJobAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.AudioJob)
-class AudioJobAdmin(admin.ModelAdmin):
+class AudioJobAdmin(AudioJobDurationMixin, admin.ModelAdmin):
     """Immutable attempt identity and lifecycle history; cleanup belongs to files."""
 
     list_display = (
@@ -581,6 +623,7 @@ class AudioJobAdmin(admin.ModelAdmin):
         "created_at",
         "started_at",
         "completed_at",
+        "computed_duration",
     )
     list_filter = ("mode", "status", "created_at", "started_at")
     search_fields = ("id", "file__id", "file__title", "extraction_id")
@@ -600,6 +643,7 @@ class AudioJobAdmin(admin.ModelAdmin):
         "started_at",
         "expires_at",
         "completed_at",
+        "computed_duration",
         "duration_seconds",
         "error",
         "metadata",

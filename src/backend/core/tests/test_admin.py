@@ -1,5 +1,6 @@
 """Tests for admin classes."""
 
+from datetime import timedelta
 from io import BytesIO
 from unittest.mock import Mock, patch
 
@@ -8,6 +9,7 @@ from django.contrib import admin, messages
 from django.core.files.storage import default_storage
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 import pytest
 
@@ -16,6 +18,8 @@ from core.admin import (
     AiFileJobAdmin,
     AiFileJobInline,
     AudioExtractionStatusFilter,
+    AudioJobAdmin,
+    AudioJobInline,
     FileAdmin,
     FileInline,
     LatestTranscriptJobStatusFilter,
@@ -24,12 +28,56 @@ from core.models import (
     AiFileJob,
     AiJobStatusChoices,
     AiJobTypeChoices,
+    AudioJob,
     File,
     FileAudioExtractionStateChoices,
     User,
 )
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.parametrize("admin_class", [AiFileJobAdmin, AiFileJobInline])
+@pytest.mark.parametrize(
+    ("status", "expected_duration"),
+    [
+        (AiJobStatusChoices.SUCCESS, 65.25),
+        (AiJobStatusChoices.FAILED, 65.25),
+        (AiJobStatusChoices.PENDING, None),
+    ],
+)
+def test_ai_job_admin_computed_duration(admin_class, status, expected_duration):
+    """AI job timing is only available once the job has finished."""
+    created_at = timezone.now()
+    job = AiFileJob(
+        status=status,
+        created_at=created_at,
+        updated_at=created_at + timedelta(seconds=65.25),
+    )
+    admin_instance = admin_class(AiFileJob, Mock())
+
+    assert admin_instance.computed_duration(job) == expected_duration
+
+
+@pytest.mark.parametrize("admin_class", [AudioJobAdmin, AudioJobInline])
+@pytest.mark.parametrize(
+    ("has_started", "has_completed", "expected_duration"),
+    [(True, True, 65.25), (True, False, None), (False, False, None)],
+)
+def test_audio_job_admin_computed_duration(
+    admin_class, has_started, has_completed, expected_duration
+):
+    """Audio worker duration excludes queue time and differs from media duration."""
+    started_at = timezone.now()
+    job = AudioJob(
+        created_at=started_at - timedelta(minutes=5),
+        started_at=started_at if has_started else None,
+        completed_at=started_at + timedelta(seconds=65.25) if has_completed else None,
+        duration_seconds=3600,
+    )
+    admin_instance = admin_class(AudioJob, Mock())
+
+    assert admin_instance.computed_duration(job) == expected_duration
 
 
 def test_file_admin_displays_latest_transcript_job_status():
