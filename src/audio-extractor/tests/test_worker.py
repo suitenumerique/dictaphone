@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from audio_extractor.api_models import ValidationJob
+from audio_extractor.http_client import configure_session
 from audio_extractor.utils import ProcessingError
 from audio_extractor.worker import (
     _log_job_failure,
@@ -14,10 +15,10 @@ from audio_extractor.worker import (
 )
 
 
-def test_transcoding_success_uploads_and_reports_duration(config, task):
+def test_transcoding_success_uploads_and_reports_duration(config, task, http_session):
     response = Mock()
 
-    def download(_url, destination, *_args):
+    def download(_url, destination, *_args, **_kwargs):
         destination.write_bytes(b"source")
 
     def convert(_source, output, *_args, **_kwargs):
@@ -30,7 +31,7 @@ def test_transcoding_success_uploads_and_reports_duration(config, task):
         ) as download_mock,
         patch("audio_extractor.worker._convert", side_effect=convert) as convert_mock,
         patch("audio_extractor.worker._upload") as upload,
-        patch("audio_extractor.worker.requests.post", return_value=response) as post,
+        patch.object(http_session, "post", return_value=response) as post,
     ):
         process_transcoding_job(config, task)
 
@@ -56,11 +57,14 @@ def test_transcoding_success_uploads_and_reports_duration(config, task):
     assert post.call_args.kwargs["headers"] == {
         "Authorization": "Bearer worker-token-for-tests-0123456789"
     }
+    assert http_session.headers["User-Agent"] == (
+        "dictaphone-audio-extractor (mode=transcoding)"
+    )
     assert post.call_args.kwargs["timeout"] == 30
     response.raise_for_status.assert_called_once()
 
 
-def test_transcoding_worker_passes_job_acl_to_upload(config, task):
+def test_transcoding_worker_passes_job_acl_to_upload(config, task, http_session):
     task = task.model_copy(
         update={
             "destination_headers": {
@@ -70,7 +74,7 @@ def test_transcoding_worker_passes_job_acl_to_upload(config, task):
         }
     )
 
-    def download(_url, destination, *_args):
+    def download(_url, destination, *_args, **_kwargs):
         destination.write_bytes(b"source")
 
     def convert(_source, output, *_args, **_kwargs):
@@ -81,7 +85,7 @@ def test_transcoding_worker_passes_job_acl_to_upload(config, task):
         patch("audio_extractor.worker._download", side_effect=download),
         patch("audio_extractor.worker._convert", side_effect=convert),
         patch("audio_extractor.worker._upload") as upload,
-        patch("audio_extractor.worker.requests.post"),
+        patch.object(http_session, "post"),
     ):
         process_transcoding_job(config, task)
 
@@ -91,7 +95,9 @@ def test_transcoding_worker_passes_job_acl_to_upload(config, task):
     }
 
 
-def test_validation_mode_validates_without_upload_or_duration(config, task):
+def test_validation_mode_validates_without_upload_or_duration(
+    config, task, http_session
+):
     config = config.model_copy(update={"mode": "validation"})
     task = ValidationJob(
         job_kind="validation",
@@ -100,15 +106,16 @@ def test_validation_mode_validates_without_upload_or_duration(config, task):
         expires_at=task.expires_at,
     )
     response = Mock()
+    http_session = configure_session(config)
 
-    def download(_url, destination, *_args):
+    def download(_url, destination, *_args, **_kwargs):
         destination.write_bytes(b"source")
 
     with (
         patch("audio_extractor.worker._download", side_effect=download),
         patch("audio_extractor.worker._validate_opus") as validate,
         patch("audio_extractor.worker._upload") as upload,
-        patch("audio_extractor.worker.requests.post", return_value=response) as post,
+        patch.object(http_session, "post", return_value=response) as post,
     ):
         process_validation_job(config, task)
 
@@ -126,17 +133,20 @@ def test_validation_mode_validates_without_upload_or_duration(config, task):
     assert post.call_args.kwargs["headers"] == {
         "Authorization": "Bearer worker-token-for-tests-0123456789"
     }
+    assert http_session.headers["User-Agent"] == (
+        "dictaphone-audio-extractor (mode=validation)"
+    )
 
 
 def test_processing_error_is_reported_and_logged_without_signed_urls(
-    config, task, caplog
+    config, task, caplog, http_session
 ):
     with (
         patch(
             "audio_extractor.worker._download",
             side_effect=ProcessingError("bad media"),
         ),
-        patch("audio_extractor.worker.requests.post") as post,
+        patch.object(http_session, "post") as post,
     ):
         process_transcoding_job(config, task)
 
@@ -166,14 +176,14 @@ def test_exception_urls_are_redacted_in_logs(task, caplog):
     assert "signature=unchanged" not in caplog.text
 
 
-def test_source_download_failure_is_reported_to_callback(config, task):
+def test_source_download_failure_is_reported_to_callback(config, task, http_session):
     """A storage transfer outage is reported as a failed task."""
     with (
         patch(
             "audio_extractor.worker._download",
             side_effect=requests.ConnectionError("temporary storage outage"),
         ),
-        patch("audio_extractor.worker.requests.post") as post,
+        patch.object(http_session, "post") as post,
     ):
         process_transcoding_job(config, task)
 
@@ -195,7 +205,7 @@ def test_run_cleans_work_directory_and_sends_worker_bearer(lifecycle, tmp_path):
     stale_link = config.work_dir / "link"
     stale_link.symlink_to(external_directory, target_is_directory=True)
     response = Mock(status_code=204)
-    with patch("audio_extractor.supervisor.requests.get", return_value=response) as get:
+    with patch("requests.Session.get", return_value=response) as get:
         run(config)
 
     assert not stale_file.exists()
@@ -203,7 +213,9 @@ def test_run_cleans_work_directory_and_sends_worker_bearer(lifecycle, tmp_path):
     assert outside_file.read_text() == "keep"
     get.assert_called_once_with(
         "https://api.example.test/audio-jobs/transcoding/next",
-        headers={"Authorization": "Bearer worker-token-for-tests-0123456789"},
+        headers={
+            "Authorization": "Bearer worker-token-for-tests-0123456789",
+        },
         timeout=30,
     )
 
@@ -212,12 +224,15 @@ def test_validation_worker_polls_validation_route(lifecycle):
     config, _, _ = lifecycle
     config = config.model_copy(update={"mode": "validation"})
     response = Mock(status_code=204)
-    with patch("audio_extractor.supervisor.requests.get", return_value=response) as get:
+    with patch("requests.Session.get", return_value=response) as get:
         run(config)
 
     assert (
         get.call_args.args[0] == "https://api.example.test/audio-jobs/validation/next"
     )
+    assert get.call_args.kwargs["headers"] == {
+        "Authorization": "Bearer worker-token-for-tests-0123456789"
+    }
 
 
 def test_run_processes_a_returned_task(lifecycle, task):
@@ -225,7 +240,7 @@ def test_run_processes_a_returned_task(lifecycle, task):
     response = Mock(status_code=200)
     response.json.return_value = task.model_dump()
     with (
-        patch("audio_extractor.supervisor.requests.get", return_value=response),
+        patch("requests.Session.get", return_value=response),
         patch("audio_extractor.supervisor._process_attempt") as process,
     ):
         process.side_effect = lambda *_args: lifecycle[2].set()

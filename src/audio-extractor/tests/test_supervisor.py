@@ -21,7 +21,7 @@ def test_multiple_attempts_then_idle_until_recycling(lifecycle, task):
     task_response.json.return_value = task.model_dump()
     with (
         patch(
-            "audio_extractor.supervisor.requests.get",
+            "requests.Session.get",
             side_effect=[task_response, task_response, Mock(status_code=204)],
         ) as claim,
         patch("audio_extractor.supervisor._process_attempt") as process,
@@ -34,9 +34,7 @@ def test_multiple_attempts_then_idle_until_recycling(lifecycle, task):
 def test_api_outage_retries_without_exiting_early(lifecycle):
     config, clock, _ = lifecycle
     config = config.model_copy(update={"max_runtime_seconds": 20})
-    with patch(
-        "audio_extractor.supervisor.requests.get", side_effect=requests.ConnectionError
-    ) as claim:
+    with patch("requests.Session.get", side_effect=requests.ConnectionError) as claim:
         supervise(config)
     assert claim.call_count > 2
     assert clock[0] == 20
@@ -52,7 +50,7 @@ def test_late_claim_is_drained_without_claiming_again(lifecycle, task):
         return response
 
     with (
-        patch("audio_extractor.supervisor.requests.get", side_effect=claim) as get,
+        patch("requests.Session.get", side_effect=claim) as get,
         patch("audio_extractor.supervisor._process_attempt") as process,
     ):
         supervise(config)

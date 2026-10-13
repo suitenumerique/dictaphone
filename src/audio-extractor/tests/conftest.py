@@ -7,6 +7,7 @@ import pytest
 
 from audio_extractor import supervisor
 from audio_extractor.api_models import TranscodingJob
+from audio_extractor.http_client import close_session, configure_session, get_session
 from audio_extractor.settings import Settings
 
 
@@ -17,6 +18,22 @@ def config(tmp_path):
         token="worker-token-for-tests-0123456789",
         work_dir=tmp_path,
     )
+
+
+@pytest.fixture(autouse=True)
+def configured_http_session():
+    settings = Settings(
+        api_url="https://api.example.test",
+        token="worker-token-for-tests-0123456789",
+    )
+    session = configure_session(settings)
+    yield session
+    close_session()
+
+
+@pytest.fixture
+def http_session(configured_http_session):
+    return get_session()
 
 
 @pytest.fixture

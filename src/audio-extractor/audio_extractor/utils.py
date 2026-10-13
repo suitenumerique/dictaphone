@@ -12,6 +12,8 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
+from audio_extractor.http_client import get_session
+
 LOGGER = logging.getLogger(__name__)
 
 CHUNK_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -91,9 +93,14 @@ def _run(command: list[str], timeout: float, *, capture_output: bool = False) ->
 
 
 @retry(retries=3, retry_if=_is_retryable_transfer_error)
-def _download(url: str, destination: Path, timeout: float, max_bytes: int) -> None:
+def _download(
+    url: str,
+    destination: Path,
+    timeout: float,
+    max_bytes: int,
+) -> None:
     """Stream an input media object to the bounded work volume."""
-    with requests.get(url, stream=True, timeout=timeout) as response:
+    with get_session().get(url, stream=True, timeout=timeout) as response:
         response.raise_for_status()
         with destination.open("wb") as output:
             downloaded = 0
@@ -115,9 +122,14 @@ def _upload(
     destination_headers: dict[str, str] | None = None,
 ) -> None:
     """Upload an OGG file directly to its signed destination URL."""
-    headers = {"Content-Type": "audio/ogg", **(destination_headers or {})}
+    transfer_headers = {
+        key: value
+        for key, value in (destination_headers or {}).items()
+        if key.lower() != "user-agent"
+    }
+    headers = {"Content-Type": "audio/ogg", **transfer_headers}
     with source.open("rb") as media:
-        response = requests.put(url, data=media, headers=headers, timeout=timeout)
+        response = get_session().put(url, data=media, headers=headers, timeout=timeout)
         response.raise_for_status()
 
 

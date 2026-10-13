@@ -16,6 +16,7 @@ import requests
 
 from audio_extractor.api_models import TranscodingJob, ValidationJob
 from audio_extractor.health import HealthServer, HealthState
+from audio_extractor.http_client import close_session, configure_session, get_session
 from audio_extractor.settings import Settings
 from audio_extractor.utils import _clean_work_dir
 
@@ -115,7 +116,7 @@ def _process_attempt(config, job, claimed_at, stop, health):
 
 
 def _pull_job(config):
-    response = requests.get(
+    response = get_session().get(
         urljoin(config.api_url + "/", f"audio-jobs/{config.mode}/next"),
         headers={"Authorization": f"Bearer {config.token.get_secret_value()}"},
         timeout=config.request_timeout,
@@ -138,7 +139,7 @@ def _install_signal_handlers(stop):
     return old_handlers
 
 
-def supervise(config: Settings) -> None:
+def supervise(config: Settings) -> None:  # noqa: PLR0915
     """Poll until the lifetime deadline; drain normally, cancel on termination."""
     # pylint: disable=too-many-locals
     stop = threading.Event()
@@ -153,6 +154,7 @@ def supervise(config: Settings) -> None:
     reason = "fatal_error"
     try:
         _clean_work_dir(config.work_dir)
+        configure_session(config)
         with HealthServer(health, config.health_port):
             health.update(initialized=True)
             while not stop.is_set() and time.monotonic() < deadline:
@@ -218,6 +220,7 @@ def supervise(config: Settings) -> None:
             health.update(draining=True)
         reason = "termination_requested" if stop.is_set() else "lifetime_reached"
     finally:
+        close_session()
         for signum, handler in old_handlers.items():
             signal.signal(signum, handler)
         _clean_work_dir(config.work_dir)

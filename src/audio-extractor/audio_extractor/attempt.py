@@ -10,6 +10,7 @@ from audio_extractor.api_models import (
     ValidationCompletion,
     ValidationJob,
 )
+from audio_extractor.http_client import close_session, configure_session
 from audio_extractor.sentry import init_sentry
 from audio_extractor.settings import Settings
 from audio_extractor.worker import (
@@ -29,25 +30,29 @@ def main() -> None:
     model = TranscodingJob if settings.mode == "transcoding" else ValidationJob
     job = model.model_validate(payload["job"])
     init_sentry(settings)
-    if payload["report_failure"]:
-        completion = (
-            TranscodingCompletion
-            if settings.mode == "transcoding"
-            else ValidationCompletion
-        )
-        _post_completion(
-            settings,
-            f"audio-jobs/{settings.mode}/complete",
-            completion(
-                id=job.id,
-                status="failure",
-                error="Attempt exceeded its deadline or its child process failed",
-            ),
-        )
-    elif settings.mode == "transcoding":
-        process_transcoding_job(settings, job)
-    else:
-        process_validation_job(settings, job)
+    configure_session(settings)
+    try:
+        if payload["report_failure"]:
+            completion = (
+                TranscodingCompletion
+                if settings.mode == "transcoding"
+                else ValidationCompletion
+            )
+            _post_completion(
+                settings,
+                f"audio-jobs/{settings.mode}/complete",
+                completion(
+                    id=job.id,
+                    status="failure",
+                    error="Attempt exceeded its deadline or its child process failed",
+                ),
+            )
+        elif settings.mode == "transcoding":
+            process_transcoding_job(settings, job)
+        else:
+            process_validation_job(settings, job)
+    finally:
+        close_session()
 
 
 if __name__ == "__main__":

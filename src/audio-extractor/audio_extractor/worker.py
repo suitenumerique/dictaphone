@@ -7,8 +7,6 @@ import time
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
-import requests
-
 from audio_extractor.api_models import (
     TranscodingCompletion,
     TranscodingJob,
@@ -17,6 +15,7 @@ from audio_extractor.api_models import (
 )
 from audio_extractor.audio_transcode import _convert
 from audio_extractor.audio_validate import _validate_opus
+from audio_extractor.http_client import get_session
 from audio_extractor.settings import Settings
 from audio_extractor.supervisor import supervise
 from audio_extractor.utils import (
@@ -100,7 +99,7 @@ def _post_completion(
 ) -> None:
     """Send a validated completion payload to its mode-specific endpoint."""
     url = urljoin(config.api_url + "/", endpoint)
-    response = requests.post(
+    response = get_session().post(
         url,
         json=payload.model_dump(exclude_none=True),
         headers=_authorization_headers(config),

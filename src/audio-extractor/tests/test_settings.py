@@ -46,6 +46,21 @@ def test_settings_accept_custom_output_parameters():
     assert settings.output_bitrate == "96k"
 
 
+def test_user_agent_uses_configured_release_and_environment(config):
+    settings = config.model_copy(
+        update={"release": "dictaphone@abc123", "environment": "staging"}
+    )
+
+    assert settings.user_agent == (
+        "dictaphone-audio-extractor/dictaphone@abc123 "
+        "(mode=transcoding, environment=staging)"
+    )
+
+
+def test_user_agent_omits_unconfigured_release(config):
+    assert config.user_agent == "dictaphone-audio-extractor (mode=transcoding)"
+
+
 @pytest.mark.parametrize("mode", ["ffmpeg", "opus", "other"])
 def test_settings_reject_legacy_or_unknown_modes(mode):
     with pytest.raises(ValidationError):

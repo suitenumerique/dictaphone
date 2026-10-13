@@ -37,8 +37,8 @@ def init_sentry(settings: Settings) -> None:
 
     sentry_sdk.init(
         dsn=settings.sentry_dsn.get_secret_value(),
-        environment=settings.sentry_environment,
-        release=settings.sentry_release,
+        environment=settings.environment,
+        release=settings.release,
         send_default_pii=False,
         include_local_variables=False,
         max_request_body_size="never",

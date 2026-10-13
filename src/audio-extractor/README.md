@@ -138,8 +138,8 @@ Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 | `AUDIO_EXTRACTOR_MAX_INPUT_BYTES` | No | `1073741824` | Maximum downloaded file size in bytes (1 GiB) |
 | `AUDIO_EXTRACTOR_WORK_DIR` | No | `/work` | Directory for temporary job files |
 | `AUDIO_EXTRACTOR_SENTRY_DSN` | No | — | Sentry DSN; Sentry is disabled when unset |
-| `AUDIO_EXTRACTOR_SENTRY_ENVIRONMENT` | No | — | Sentry environment name |
-| `AUDIO_EXTRACTOR_SENTRY_RELEASE` | No | — | Sentry release identifier |
+| `AUDIO_EXTRACTOR_ENVIRONMENT` | No | — | Deployment environment used by Sentry and the HTTP user agent |
+| `AUDIO_EXTRACTOR_RELEASE` | No | — | Release identifier used by Sentry and the HTTP user agent; defaults to the package version in the user agent |
 
 Before sending an event or breadcrumb, the worker strips credentials, query
 parameters, and fragments from HTTP and HTTPS URLs in Sentry data while preserving
