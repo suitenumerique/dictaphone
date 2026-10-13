@@ -20,8 +20,10 @@ from audio_extractor.settings import Settings
 from audio_extractor.supervisor import supervise
 from audio_extractor.utils import (
     _download,
+    _is_retryable_transfer_error,
     _redact_url,
     _upload,
+    retry,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -92,6 +94,7 @@ def _log_job_failure(
     )
 
 
+@retry(retries=3, retry_if=_is_retryable_transfer_error)
 def _post_completion(
     config: Settings,
     endpoint: str,
