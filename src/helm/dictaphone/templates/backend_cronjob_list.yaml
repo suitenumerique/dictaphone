@@ -23,6 +23,9 @@ items:
           template:
             metadata:
               name: {{ $fullName }}-{{ .name }}
+              labels:
+                {{- include "dictaphone.common.selectorLabels" (list $ $component) | nindent 16 }}
+                cronjob-name: {{ .name | quote }}
             spec:
               {{- if $.Values.images.credentials }}
               imagePullSecrets:
