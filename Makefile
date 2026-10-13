@@ -229,13 +229,18 @@ lint-pylint-audio-extractor: ## lint back-end Python sources with pylint
 
 
 test: ## run project tests
-	@$(MAKE) test-audio-extractor
+	@$(MAKE) test-audio-extractor-parallel
 	@$(MAKE) test-back-parallel
 .PHONY: test
 
 test-audio-extractor: ## run audio extractor tests
 	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) pytest $${args}
 .PHONY: test-audio-extractor
+
+
+test-audio-extractor-parallel: ## run audio extractor tests
+	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) pytest -n auto $${args}
+.PHONY: test-audio-extractor-parallel
 
 test-back: ## run back-end tests
 	@args="$(filter-out $@,$(MAKECMDGOALS))" && \
