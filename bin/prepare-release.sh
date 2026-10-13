@@ -10,6 +10,7 @@ NEW_VERSION="$1"
 
 BACKEND_FILE="src/backend/pyproject.toml"
 FRONTEND_FILE="src/frontend/package.json"
+AUDIO_EXTRACTOR_FILE="src/audio-extractor/pyproject.toml"
 
 echo "== Backend =="
 
@@ -33,9 +34,38 @@ NEW_BACKEND_VERSION=$(
 echo "Updated version: $NEW_BACKEND_VERSION"
 
 echo
+echo "== Audio extractor =="
+
+OLD_AUDIO_EXTRACTOR_VERSION=$(
+    grep '^version *= *"' "$AUDIO_EXTRACTOR_FILE" \
+    | sed -E 's/version *= *"([^"]+)"/\1/'
+)
+
+echo "Current version: $OLD_AUDIO_EXTRACTOR_VERSION"
+
+sed -Ei.bak \
+    "s/^version *= *\"[^\"]+\"/version = \"$NEW_VERSION\"/" \
+    "$AUDIO_EXTRACTOR_FILE"
+rm "$AUDIO_EXTRACTOR_FILE.bak"
+
+NEW_AUDIO_EXTRACTOR_VERSION=$(
+    grep '^version *= *"' "$AUDIO_EXTRACTOR_FILE" \
+    | sed -E 's/version *= *"([^"]+)"/\1/'
+)
+
+echo "Updated version: $NEW_AUDIO_EXTRACTOR_VERSION"
+
+echo
 echo "Running uv lock..."
 (
     cd src/backend
+    uv lock
+)
+
+echo
+echo "Running audio-extractor uv lock..."
+(
+    cd src/audio-extractor
     uv lock
 )
 
