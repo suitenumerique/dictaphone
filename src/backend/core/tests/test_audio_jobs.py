@@ -199,6 +199,58 @@ def test_validation_schedules_transcription_once(
     )
 
 
+@pytest.mark.parametrize("reuse_intent", [True, False])
+def test_validation_reuses_newest_unlinked_transcript_intent(
+    reuse_intent, django_capture_on_commit_callbacks
+):
+    """Reuse the latest intent's language and leave ineligible jobs untouched."""
+    file = ready_file(language="fr")
+    start_audio_extraction(file.id)
+    finish_transcoding(file)
+    assert poll("validation").status_code == 200
+    validation = file.latest_audio_job
+    defaults = {
+        "file": file,
+        "type": "transcript",
+        "status": "pending",
+        "remote_job_id": None,
+    }
+    intents = (
+        [factories.AiFileJobFactory(**defaults, language="en") for _ in range(2)]
+        if reuse_intent
+        else []
+    )
+    excluded = [
+        factories.AiFileJobFactory(**defaults, validated_audio_job=validation),
+        factories.AiFileJobFactory(**{**defaults, "remote_job_id": "submitted"}),
+        factories.AiFileJobFactory(**{**defaults, "status": "success"}),
+        factories.AiFileJobFactory(**{**defaults, "status": "failed"}),
+        factories.AiFileJobFactory(**{**defaults, "type": "summary"}),
+        factories.AiFileJobFactory(**{**defaults, "file": ready_file()}),
+    ]
+    before = list(models.AiFileJob.objects.order_by("id").values())
+    with patch("core.tasks.file.call_transcribe_service.delay") as transcribe:
+        with django_capture_on_commit_callbacks(execute=True):
+            assert complete(validation).status_code == 200
+        job = file.ai_jobs.order_by("-created_at", "-id").first()
+        if reuse_intent:
+            job = intents[-1]
+            job.refresh_from_db()
+            assert models.AiFileJob.objects.count() == len(before)
+            intents[0].refresh_from_db()
+            assert intents[0].validated_audio_job_id is None
+        else:
+            assert models.AiFileJob.objects.count() == len(before) + 1
+        assert job.validated_audio_job_id == validation.id
+        transcribe.assert_called_once_with(
+            file.id, ai_job_id=job.id, language="en" if reuse_intent else "fr"
+        )
+    excluded_ids = [job.pk for job in excluded]
+    assert list(
+        models.AiFileJob.objects.filter(pk__in=excluded_ids).order_by("id").values()
+    ) == [job for job in before if job["id"] in excluded_ids]
+
+
 @pytest.mark.parametrize("mode", ["transcoding", "validation"])
 def test_failure_retry_limit_preserves_all_attempts(mode):
     """Each stage has three retries and failures never overwrite previous rows/keys."""

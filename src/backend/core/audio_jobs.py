@@ -186,14 +186,29 @@ def _worker_payload(job):
 
 
 def _queue_transcription(file, validation):
-    """Create a transcription linked to successful validation, then dispatch it."""
-    ai_job = AiFileJob.objects.create(
-        file=file,
-        type=AiJobTypeChoices.TRANSCRIPT,
-        status=AiJobStatusChoices.PENDING,
-        language=file.language,
-        validated_audio_job=validation,
+    """Link the newest unlinked intent or create one, under the caller's file lock."""
+    ai_job = (
+        AiFileJob.objects.filter(
+            file=file,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            status=AiJobStatusChoices.PENDING,
+            remote_job_id__isnull=True,
+            validated_audio_job__isnull=True,
+        )
+        .order_by("-created_at", "-id")
+        .first()
     )
+    if ai_job is None:
+        ai_job = AiFileJob.objects.create(
+            file=file,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            status=AiJobStatusChoices.PENDING,
+            language=file.language,
+            validated_audio_job=validation,
+        )
+    else:
+        ai_job.validated_audio_job = validation
+        ai_job.save(update_fields=["validated_audio_job", "updated_at"])
     transaction.on_commit(
         lambda: current_app.tasks["core.tasks.file.call_transcribe_service"].delay(
             file.id,
