@@ -39,6 +39,10 @@ class FileInline(admin.TabularInline):
     readonly_fields = ("id", "created_at", "upload_state", "type")
     show_change_link = True
 
+    def has_add_permission(self, request, obj=None):
+        """Prevent creating files through the user inline."""
+        return False
+
     def get_queryset(self, request):
         """Hide hard deleted files in the inline."""
         return super().get_queryset(request).filter(hard_deleted_at__isnull=True)
@@ -52,6 +56,14 @@ class AiFileJobInline(admin.TabularInline):
     fields = ("id", "remote_job_id", "type", "status", "created_at")
     readonly_fields = ("id", "created_at")
     show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        """Prevent creating AI jobs through the file inline."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deleting AI jobs through the file inline."""
+        return False
 
 
 class RetryTranscriptActionForm(ActionForm):
@@ -357,6 +369,10 @@ class FileAdmin(admin.ModelAdmin):
         (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )
 
+    def has_add_permission(self, request):
+        """Prevent creating files through the admin."""
+        return False
+
     def get_queryset(self, request):
         """Hide hard deleted files in admin listing and lookups."""
         latest_transcript_job = models.AiFileJob.objects.filter(
@@ -408,11 +424,12 @@ class FileAdmin(admin.ModelAdmin):
         hard_delete_file(obj)
 
     def get_deleted_objects(self, objs, request):
-        """File deletion owns attempt cleanup even though attempts are read-only."""
+        """File deletion owns job cleanup even when jobs cannot be deleted directly."""
         deleted, counts, permissions_needed, protected = super().get_deleted_objects(
             objs, request
         )
         permissions_needed.discard(models.AudioJob._meta.verbose_name)  # noqa: SLF001
+        permissions_needed.discard(models.AiFileJob._meta.verbose_name)  # noqa: SLF001
         return deleted, counts, permissions_needed, protected
 
     def delete_queryset(self, request, queryset):
@@ -542,14 +559,13 @@ class AiFileJobAdmin(admin.ModelAdmin):
         (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )
 
-    def delete_model(self, request, obj):
-        """Delete the AI job and its storage artifact."""
-        obj.delete()
+    def has_add_permission(self, request):
+        """Prevent creating AI jobs through the admin."""
+        return False
 
-    def delete_queryset(self, request, queryset):
-        """Delete selected AI jobs with per-object cleanup."""
-        for ai_job in queryset.iterator():
-            ai_job.delete()
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deleting AI jobs through the admin."""
+        return False
 
 
 @admin.register(models.AudioJob)

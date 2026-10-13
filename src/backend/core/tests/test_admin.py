@@ -4,7 +4,7 @@ from io import BytesIO
 from unittest.mock import Mock, patch
 
 from django.conf import settings
-from django.contrib import messages
+from django.contrib import admin, messages
 from django.core.files.storage import default_storage
 from django.test import override_settings
 from django.urls import reverse
@@ -14,8 +14,10 @@ import pytest
 from core import factories
 from core.admin import (
     AiFileJobAdmin,
+    AiFileJobInline,
     AudioExtractionStatusFilter,
     FileAdmin,
+    FileInline,
     LatestTranscriptJobStatusFilter,
 )
 from core.models import (
@@ -24,6 +26,7 @@ from core.models import (
     AiJobTypeChoices,
     File,
     FileAudioExtractionStateChoices,
+    User,
 )
 
 pytestmark = pytest.mark.django_db
@@ -255,18 +258,27 @@ def test_admin_action_retry_transcript_generation_with_latest_language(mock_dela
     )
 
 
-def test_admin_ai_file_job_delete_model_removes_storage_file():
-    """Single AI job deletion in admin should remove storage object."""
-    ai_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
-    default_storage.save(ai_job.key, BytesIO(b"summary"))
+@pytest.mark.parametrize("model_name", ["file", "aifilejob"])
+@pytest.mark.parametrize("method", ["get", "post"])
+def test_admin_cannot_add_files_or_ai_jobs(client, model_name, method):
+    """Even superusers cannot create files or AI jobs through admin endpoints."""
+    admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
+    client.force_login(admin_user)
 
-    admin_instance = AiFileJobAdmin(AiFileJob, Mock())
+    response = getattr(client, method)(reverse(f"admin:core_{model_name}_add"))
 
-    assert default_storage.exists(ai_job.key)
-    admin_instance.delete_model(request=Mock(), obj=ai_job)
+    assert response.status_code == 403
 
-    assert not AiFileJob.objects.filter(id=ai_job.id).exists()
-    assert not default_storage.exists(ai_job.key)
+
+@pytest.mark.parametrize(
+    ("inline_class", "parent_model"),
+    [(FileInline, User), (AiFileJobInline, File)],
+)
+def test_admin_cannot_add_files_or_ai_jobs_inline(inline_class, parent_model):
+    """Inline forms must reject creation as well as standalone admin forms."""
+    admin_instance = inline_class(parent_model, Mock())
+
+    assert admin_instance.has_add_permission(Mock()) is False
 
 
 @pytest.mark.django_db(transaction=True)
@@ -338,22 +350,33 @@ def test_file_admin_bulk_delete_selected_files(client):
     assert not any(default_storage.exists(key) for key in storage_keys)
 
 
-@pytest.mark.django_db(transaction=True)
-def test_admin_ai_file_job_delete_queryset_removes_storage_files():
-    """Bulk AI job deletion in admin should remove all storage objects."""
-    ai_job_1 = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
-    ai_job_2 = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
-    default_storage.save(ai_job_1.key, BytesIO(b'{"segments": []}'))
-    default_storage.save(ai_job_2.key, BytesIO(b"summary"))
+@pytest.mark.parametrize("method", ["get", "post"])
+def test_admin_cannot_delete_ai_job(client, method):
+    """Even superusers cannot delete an AI job through its admin endpoint."""
+    admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
+    ai_job = factories.AiFileJobFactory()
+    client.force_login(admin_user)
 
-    admin_instance = AiFileJobAdmin(AiFileJob, Mock())
-    queryset = AiFileJob.objects.filter(id__in=[ai_job_1.id, ai_job_2.id])
+    response = getattr(client, method)(
+        reverse("admin:core_aifilejob_delete", args=[ai_job.pk]),
+        data={"post": "yes"},
+    )
 
-    assert default_storage.exists(ai_job_1.key)
-    assert default_storage.exists(ai_job_2.key)
-    admin_instance.delete_queryset(request=Mock(), queryset=queryset)
+    assert response.status_code == 403
+    assert AiFileJob.objects.filter(pk=ai_job.pk).exists()
 
-    assert not AiFileJob.objects.filter(id=ai_job_1.id).exists()
-    assert not AiFileJob.objects.filter(id=ai_job_2.id).exists()
-    assert not default_storage.exists(ai_job_1.key)
-    assert not default_storage.exists(ai_job_2.key)
+
+def test_admin_ai_file_job_has_no_bulk_delete_action():
+    """The bulk delete action must be unavailable for AI jobs."""
+    admin_instance = AiFileJobAdmin(AiFileJob, admin.site)
+    request = Mock()
+    request.GET = {}
+
+    assert "delete_selected" not in admin_instance.get_actions(request)
+
+
+def test_admin_cannot_delete_ai_jobs_inline():
+    """AI job inline forms must reject deletion."""
+    admin_instance = AiFileJobInline(File, Mock())
+
+    assert admin_instance.has_delete_permission(Mock()) is False
