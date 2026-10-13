@@ -41,6 +41,14 @@ class DocumentCreationAlreadyInProgress(Exception):
     """Raised when another worker already owns the Docs creation claim."""
 
 
+class TranscriptionAlreadyPending(ValueError):
+    """Raised when a user retries a file with a pending transcript job."""
+
+
+class PermanentTranscriptionError(RuntimeError):
+    """A remote submission error that should not trigger another attempt."""
+
+
 session = requests_lib.Session()
 session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 
@@ -144,44 +152,10 @@ def _duration_is_allowed(file):
     )
 
 
-# Build retry options separately for each task: Celery mutates the nested
-# ``retry_kwargs`` dictionary when it computes a backoff countdown.
-@app.task(
-    queue=BACKEND_QUEUE,
-    **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
-)
-def call_transcribe_service(file_id, language=None, ai_job_id=None):
-    """
-    Call the transcribe service for a given file.
-
-    Require successful audio validation before creating a transcription job.
-    If language is not provided, use the existing job's or file's language.
-    """
-    try:
-        file = File.objects.get(id=file_id)
-    except File.DoesNotExist:
-        logger.error("Item %s does not exist", file_id)
-        return None
-
+def _validate_transcription_audio(file, validation):
+    """Require an active file and an existing, successfully validated audio output."""
     if file.lifecycle_state != FileLifecycleStateChoices.ACTIVE:
         raise ValueError("Cannot transcribe when file is not in active state")
-
-    ai_transcribe_job = None
-    if ai_job_id is not None:
-        ai_transcribe_job = AiFileJob.objects.get(
-            id=ai_job_id, file=file, type=AiJobTypeChoices.TRANSCRIPT
-        )
-        if ai_transcribe_job.remote_job_id is not None:
-            return ai_transcribe_job.id
-
-    if language is None:
-        language = ai_transcribe_job.language if ai_transcribe_job else file.language
-
-    validation = (
-        ai_transcribe_job.validated_audio_job
-        if ai_transcribe_job
-        else file.latest_audio_job
-    )
     extraction_done = (
         validation is not None
         and validation.file_id == file.pk
@@ -193,54 +167,132 @@ def call_transcribe_service(file_id, language=None, ai_job_id=None):
     if not extraction_done:
         raise ValueError("Cannot transcribe without successfully validated audio")
 
-    if ai_transcribe_job is None:
-        ai_transcribe_job = AiFileJob.objects.create(
-            file=file,
-            type=AiJobTypeChoices.TRANSCRIPT,
-            status=AiJobStatusChoices.PENDING,
-            language=language,
-            validated_audio_job=validation,
+
+@transaction.atomic
+def create_transcription_job(file_id, language=None, *, allow_pending=True):
+    """Reserve a transcript job and its input before invoking the submission task."""
+    file = File.objects.select_for_update().get(pk=file_id)
+    if (
+        not allow_pending
+        and file.ai_jobs.filter(
+            type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+        ).exists()
+    ):
+        raise TranscriptionAlreadyPending(
+            "Cannot retry when there is a pending job already."
         )
+    validation = file.latest_audio_job
+    _validate_transcription_audio(file, validation)
+    return AiFileJob.objects.create(
+        file=file,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+        language=file.language if language is None else language,
+        validated_audio_job=validation,
+    )
 
-    if not _duration_is_allowed(file):
-        ai_transcribe_job.status = AiJobStatusChoices.FAILED
-        logger.warning("File duration exceeds maximum allowed for type %s", file.type)
-        ai_transcribe_job.save(update_fields=["status"])
-        return ai_transcribe_job.id
 
-    try:
-        response = session.post(
-            settings.AI_SERVICE_URL + "async-jobs/transcribe/",
-            json={
-                "user_sub": file.creator.sub,
-                "user_email": file.creator.email,
-                "language": language,
-                "cloud_storage_url": generate_download_file_url(
-                    file,
-                    expires_in=60 * 60 * 24,
-                    override_domain=False,
-                    key=validation.source_job.output_key,
-                ),
-            },
-            headers={
-                "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
-            },
-            timeout=10,
+def _is_retryable_transcription_error(error):
+    """Retry transport errors, throttling, timeouts, and server failures."""
+    if not isinstance(error, requests_lib.RequestException):
+        return False
+    if isinstance(error, requests_lib.exceptions.JSONDecodeError):
+        return False
+    if isinstance(error, requests_lib.HTTPError) and error.response is not None:
+        return (
+            error.response.status_code in {408, 429}
+            or error.response.status_code >= 500
         )
-        response.raise_for_status()
-    except Exception as e:
-        logger.error("Creating transcription job failed for file %s: %s", file_id, e)
-        ai_transcribe_job.status = AiJobStatusChoices.FAILED
-        ai_transcribe_job.save()
-        raise e
+    return True
 
-    data = response.json()
 
-    ai_transcribe_job.remote_job_id = data["job_id"]
-    ai_transcribe_job.save()
+# Build retry options separately for each task: Celery mutates the nested
+# ``retry_kwargs`` dictionary when it computes a backoff countdown.
+@app.task(
+    queue=BACKEND_QUEUE,
+    **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
+)
+def call_transcribe_service(ai_job_id):
+    """Submit a reserved job, preserving its input and identity across retries."""
+    error = None
+    retryable = False
+    with transaction.atomic():
+        try:
+            ai_job = (
+                AiFileJob.objects.select_for_update(of=("self",))
+                .select_related("file__creator", "validated_audio_job__source_job")
+                .get(pk=ai_job_id, type=AiJobTypeChoices.TRANSCRIPT)
+            )
+        except AiFileJob.DoesNotExist:
+            logger.error("Transcript job %s does not exist", ai_job_id)
+            return None
 
-    logger.info("Transcription job created for file %s", file_id)
-    return ai_transcribe_job.id
+        if (
+            ai_job.remote_job_id is not None
+            or ai_job.status != AiJobStatusChoices.PENDING
+        ):
+            return ai_job.id
+
+        file = ai_job.file
+        validation = ai_job.validated_audio_job
+        try:
+            _validate_transcription_audio(file, validation)
+            if not _duration_is_allowed(file):
+                ai_job.status = AiJobStatusChoices.FAILED
+                ai_job.save(update_fields=["status", "updated_at"])
+                logger.warning(
+                    "File duration exceeds maximum allowed for type %s", file.type
+                )
+                return ai_job.id
+
+            response = session.post(
+                settings.AI_SERVICE_URL + "async-jobs/transcribe/",
+                json={
+                    "user_sub": file.creator.sub,
+                    "user_email": file.creator.email,
+                    "language": ai_job.language,
+                    "cloud_storage_url": generate_download_file_url(
+                        file,
+                        expires_in=60 * 60 * 24,
+                        override_domain=False,
+                        key=validation.source_job.output_key,
+                    ),
+                },
+                headers={"Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}"},
+                timeout=10,
+            )
+            response.raise_for_status()
+            remote_job_id = response.json()["job_id"]
+            if not isinstance(remote_job_id, str) or not remote_job_id:
+                raise ValueError("Transcription service returned an invalid job ID")
+        except (
+            requests_lib.RequestException,
+            ValueError,
+            KeyError,
+            TypeError,
+            RuntimeError,
+        ) as exc:
+            error = exc
+            retryable = _is_retryable_transcription_error(exc)
+            if (
+                not retryable
+                or call_transcribe_service.request.retries
+                >= call_transcribe_service.retry_kwargs["max_retries"]
+            ):
+                ai_job.status = AiJobStatusChoices.FAILED
+                ai_job.save(update_fields=["status", "updated_at"])
+            logger.exception("Submitting transcript job %s failed", ai_job.id)
+        else:
+            ai_job.remote_job_id = remote_job_id
+            ai_job.save(update_fields=["remote_job_id", "updated_at"])
+            logger.info("Transcription job submitted for file %s", file.id)
+
+    # Commit terminal failure before raising; autoretry runs outside the job lock.
+    if error is not None:
+        if isinstance(error, requests_lib.RequestException) and not retryable:
+            raise PermanentTranscriptionError(str(error)) from error
+        raise error
+    return ai_job.id
 
 
 @app.task(

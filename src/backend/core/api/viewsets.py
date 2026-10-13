@@ -6,13 +6,16 @@ from logging import getLogger
 from urllib.parse import unquote, urljoin, urlparse
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Prefetch
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from django_filters import rest_framework as django_filters
 from pydantic import ValidationError
+from requests import RequestException
 from rest_framework import (
     decorators,
     filters,
@@ -38,8 +41,11 @@ from core.configuration import filter_files_by_policy_cutoff, get_bucket_configu
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.file import (
     DocumentCreationAlreadyInProgress,
+    PermanentTranscriptionError,
+    TranscriptionAlreadyPending,
     call_transcribe_service,
     create_document_in_docs,
+    create_transcription_job,
     handle_transcript_received,
     process_file_deletion,
     store_summary,
@@ -787,7 +793,8 @@ class AiJobViewSet(
         )
 
     @decorators.action(detail=True, methods=["post"], url_path="retry")
-    def retry(self, request, *args, **kwargs):
+    # pylint: disable=too-many-branches
+    def retry(self, request, *args, **kwargs):  # noqa: PLR0912, R0912
         """Retry a transcript job."""
         ai_job = self.get_object()
         serializer = serializers.AiJobRetrySerializer(data=request.data)
@@ -867,11 +874,37 @@ class AiJobViewSet(
                 code="ai_job_retry_audio_not_validated",
             )
 
-        new_ai_job_id = call_transcribe_service(ai_job.file_id, language=language)
         try:
-            new_ai_job = AiFileJob.objects.get(id=new_ai_job_id)
-        except AiFileJob.DoesNotExist as exc:
-            raise drf_exceptions.NotFound() from exc
+            reserved_job = create_transcription_job(
+                ai_job.file_id, language=language, allow_pending=False
+            )
+        except TranscriptionAlreadyPending as exc:
+            raise drf_exceptions.ValidationError(
+                {"state": str(exc)}, code="ai_job_retry_pending"
+            ) from exc
+        except ValueError as exc:
+            raise drf_exceptions.ValidationError(
+                {"state": str(exc)}, code="ai_job_retry_audio_not_validated"
+            ) from exc
+        try:
+            new_ai_job_id = call_transcribe_service(reserved_job.id)
+        except PermanentTranscriptionError, ValueError:
+            new_ai_job_id = reserved_job.id
+        except RequestException:
+            reserved_job.refresh_from_db()
+            if reserved_job.status != AiJobStatusChoices.PENDING:
+                raise
+            # Direct task calls cannot publish Celery autoretries. Continue the
+            # same job asynchronously, counting this failed submission attempt.
+            transaction.on_commit(
+                lambda: call_transcribe_service.apply_async(
+                    args=[reserved_job.id],
+                    retries=1,
+                    countdown=settings.CELERY_TASK_RETRY_BACKOFF_SECONDS,
+                )
+            )
+            new_ai_job_id = reserved_job.id
+        new_ai_job = get_object_or_404(AiFileJob, id=new_ai_job_id)
 
         return drf_response.Response(
             self.serializer_class(new_ai_job, context={"request": request}).data,

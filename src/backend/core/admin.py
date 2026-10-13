@@ -1,15 +1,41 @@
 """Admin classes and registrations for core app."""
 
+import logging
+
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
+from django.db import transaction
 from django.db.models import OuterRef, Subquery
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+from kombu.exceptions import KombuError
 
 from . import models
 from .audio_jobs import start_audio_extraction
-from .tasks.file import call_transcribe_service, process_file_deletion
+from .tasks.file import (
+    TranscriptionAlreadyPending,
+    call_transcribe_service,
+    create_transcription_job,
+    process_file_deletion,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _publish_transcript_job(job_id):
+    """Release an unsubmitted reservation if publishing fails."""
+    try:
+        call_transcribe_service.delay(job_id)
+    except KombuError:
+        models.AiFileJob.objects.filter(
+            pk=job_id,
+            status=models.AiJobStatusChoices.PENDING,
+            remote_job_id__isnull=True,
+        ).update(status=models.AiJobStatusChoices.FAILED, updated_at=timezone.now())
+        logger.exception("Publishing transcript job %s failed", job_id)
 
 
 def hard_delete_file(file):
@@ -18,6 +44,13 @@ def hard_delete_file(file):
         file.soft_delete()
     file.hard_delete()
     process_file_deletion.delay(file.id)
+
+
+@transaction.atomic
+def _queue_transcript_job(file_id, language):
+    """Reserve the input and publish the task after the job has committed."""
+    job = create_transcription_job(file_id, language=language, allow_pending=False)
+    transaction.on_commit(lambda: _publish_transcript_job(job.id))
 
 
 class FileInlineFormSet(forms.BaseInlineFormSet):
@@ -507,14 +540,33 @@ class FileAdmin(admin.ModelAdmin):
             )
             return
 
+        enqueued_count = 0
+        skipped_count = 0
+        pending_count = 0
         for file in queryset:
-            call_transcribe_service.delay(file.id, language=language)
+            try:
+                _queue_transcript_job(file.id, language)
+            except TranscriptionAlreadyPending:
+                pending_count += 1
+                continue
+            except ValueError, models.File.DoesNotExist:
+                skipped_count += 1
+                continue
+            enqueued_count += 1
 
         self.message_user(
             request,
             _("%(count)s transcript retry job(s) enqueued.")
-            % {"count": queryset.count()},
+            % {"count": enqueued_count},
         )
+        if skipped_count:
+            self.message_user(
+                request,
+                _("%(count)s file(s) skipped because validated audio is unavailable.")
+                % {"count": skipped_count},
+                level=messages.WARNING,
+            )
+        self._report_pending_transcripts(request, pending_count)
 
     @admin.action(description=_("Retry transcript generation with latest job language"))
     def retry_transcript_generation_with_latest_language(self, request, queryset):
@@ -531,14 +583,20 @@ class FileAdmin(admin.ModelAdmin):
 
         enqueued_count = 0
         skipped_count = 0
+        unavailable_count = 0
+        pending_count = 0
         for file in files:
             if file.latest_transcript_job_language is None:
                 skipped_count += 1
                 continue
-            call_transcribe_service.delay(
-                file.id,
-                language=file.latest_transcript_job_language,
-            )
+            try:
+                _queue_transcript_job(file.id, file.latest_transcript_job_language)
+            except TranscriptionAlreadyPending:
+                pending_count += 1
+                continue
+            except ValueError, models.File.DoesNotExist:
+                unavailable_count += 1
+                continue
             enqueued_count += 1
 
         self.message_user(
@@ -551,6 +609,26 @@ class FileAdmin(admin.ModelAdmin):
                 request,
                 _("%(count)s file(s) skipped because no transcript job was found.")
                 % {"count": skipped_count},
+                level=messages.WARNING,
+            )
+        if unavailable_count:
+            self.message_user(
+                request,
+                _("%(count)s file(s) skipped because validated audio is unavailable.")
+                % {"count": unavailable_count},
+                level=messages.WARNING,
+            )
+        self._report_pending_transcripts(request, pending_count)
+
+    def _report_pending_transcripts(self, request, count):
+        """Report files skipped because another transcript is already pending."""
+        if count:
+            self.message_user(
+                request,
+                _(
+                    "%(count)s file(s) skipped because a transcript job is already pending."
+                )
+                % {"count": count},
                 level=messages.WARNING,
             )
 

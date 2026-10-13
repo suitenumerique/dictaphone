@@ -7,11 +7,13 @@ from uuid import uuid4
 from django.utils import timezone
 
 import pytest
+import requests
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
 from core.models import (
+    AiFileJob,
     AiJobStatusChoices,
     AiJobTypeChoices,
     FileAudioExtractionStateChoices,
@@ -171,15 +173,10 @@ def test_api_ai_jobs_retry_failed_transcript_allowed(mock_task):
         status=AiJobStatusChoices.FAILED,
         language="fr",
         file__creator=user,
+        file__upload_bytes=b"audio",
         file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
-    retried_job = factories.AiFileJobFactory(
-        type=AiJobTypeChoices.TRANSCRIPT,
-        status=AiJobStatusChoices.SUCCESS,
-        language="fr",
-        file=ai_job.file,
-    )
-    mock_task.return_value = retried_job.id
+    mock_task.side_effect = lambda job_id: job_id
 
     client = APIClient()
     client.force_login(user)
@@ -190,9 +187,14 @@ def test_api_ai_jobs_retry_failed_transcript_allowed(mock_task):
     )
 
     assert response.status_code == status.HTTP_201_CREATED
+    retried_job = AiFileJob.objects.get(pk=response.json()["id"])
+    assert retried_job.pk != ai_job.pk
     assert response.json()["id"] == str(retried_job.id)
     assert response.json()["language"] == "fr"
-    mock_task.assert_called_once_with(ai_job.file_id, language="fr")
+    assert retried_job.status == AiJobStatusChoices.PENDING
+    assert retried_job.validated_audio_job_id == ai_job.file.latest_audio_job.id
+    assert ai_job.file.ai_jobs.count() == 2
+    mock_task.assert_called_once_with(retried_job.id)
 
 
 @patch("core.api.viewsets.call_transcribe_service")
@@ -204,15 +206,10 @@ def test_api_ai_jobs_retry_language_change_allowed(mock_task):
         status=AiJobStatusChoices.SUCCESS,
         language="fr",
         file__creator=user,
+        file__upload_bytes=b"audio",
         file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
-    retried_job = factories.AiFileJobFactory(
-        type=AiJobTypeChoices.TRANSCRIPT,
-        status=AiJobStatusChoices.SUCCESS,
-        language="en",
-        file=ai_job.file,
-    )
-    mock_task.return_value = retried_job.id
+    mock_task.side_effect = lambda job_id: job_id
 
     client = APIClient()
     client.force_login(user)
@@ -223,9 +220,94 @@ def test_api_ai_jobs_retry_language_change_allowed(mock_task):
     )
 
     assert response.status_code == status.HTTP_201_CREATED
+    retried_job = AiFileJob.objects.get(pk=response.json()["id"])
+    assert retried_job.pk != ai_job.pk
     assert response.json()["id"] == str(retried_job.id)
     assert response.json()["language"] == "en"
-    mock_task.assert_called_once_with(ai_job.file_id, language="en")
+    assert retried_job.validated_audio_job_id == ai_job.file.latest_audio_job.id
+    mock_task.assert_called_once_with(retried_job.id)
+
+
+@patch("core.api.viewsets.call_transcribe_service.apply_async")
+@patch("core.tasks.file.session.post", side_effect=requests.ConnectionError("offline"))
+def test_api_ai_jobs_retry_transient_failure_queues_reserved_job(
+    mock_post, mock_publish, django_capture_on_commit_callbacks, settings
+):
+    """Synchronous submission failures continue on the same reserved job in Celery."""
+    user = factories.UserFactory()
+    old_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__creator=user,
+        file__upload_bytes=b"audio",
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    client = APIClient()
+    client.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            f"/api/v1.0/ai-jobs/{old_job.pk}/retry/", {"language": "en"}
+        )
+        mock_publish.assert_not_called()
+
+    assert response.status_code == status.HTTP_201_CREATED
+    job = AiFileJob.objects.get(pk=response.json()["id"])
+    assert old_job.file.ai_jobs.count() == 2
+    assert job.status == AiJobStatusChoices.PENDING
+    assert job.remote_job_id is None
+    assert job.language == "en"
+    mock_post.assert_called_once()
+    mock_publish.assert_called_once_with(
+        args=[job.pk], retries=1, countdown=settings.CELERY_TASK_RETRY_BACKOFF_SECONDS
+    )
+
+
+@pytest.mark.parametrize("failure", ["http_error", "invalid_job_id", "missing_audio"])
+@patch("core.api.viewsets.call_transcribe_service.apply_async")
+@patch("core.tasks.file.session.post")
+def test_api_ai_jobs_retry_returns_permanently_failed_job(
+    mock_post, mock_publish, failure
+):
+    """Terminal submission errors return the reserved failed job without retrying."""
+    old_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__upload_bytes=b"audio",
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    if failure == "http_error":
+        response = requests.Response()
+        response.status_code = 400
+        mock_post.return_value.raise_for_status.side_effect = requests.HTTPError(
+            "invalid request", response=response
+        )
+    elif failure == "invalid_job_id":
+        mock_post.return_value.json.return_value = {"job_id": ""}
+
+    client = APIClient()
+    client.force_login(old_job.file.creator)
+
+    if failure == "missing_audio":
+        # Audio can disappear after reservation and before the task validates it.
+        with patch("core.tasks.file._validate_transcription_audio") as validate:
+            validate.side_effect = [None, ValueError("audio disappeared")]
+            response = client.post(
+                f"/api/v1.0/ai-jobs/{old_job.pk}/retry/", {"language": "en"}
+            )
+    else:
+        response = client.post(
+            f"/api/v1.0/ai-jobs/{old_job.pk}/retry/", {"language": "en"}
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    job = AiFileJob.objects.get(pk=response.json()["id"])
+    assert job.pk != old_job.pk
+    assert job.status == AiJobStatusChoices.FAILED
+    assert response.json()["status"] == AiJobStatusChoices.FAILED
+    assert job.remote_job_id is None
+    assert old_job.file.ai_jobs.count() == 2
+    mock_publish.assert_not_called()
 
 
 @patch("core.api.viewsets.call_transcribe_service")
@@ -237,6 +319,7 @@ def test_api_ai_jobs_retry_task_returns_unknown_job_id(mock_task):
         status=AiJobStatusChoices.FAILED,
         language="fr",
         file__creator=user,
+        file__upload_bytes=b"audio",
         file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
     mock_task.return_value = uuid4()
@@ -350,6 +433,7 @@ def test_api_ai_jobs_retry_file_duration_above_limit_bad_request(mock_task, sett
         status=AiJobStatusChoices.FAILED,
         file__creator=user,
         file__type=FileTypeChoices.AUDIO_RECORDING,
+        file__upload_bytes=b"audio",
         file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         file__duration_seconds=max_duration_seconds + 1,
     )

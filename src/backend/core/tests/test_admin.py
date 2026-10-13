@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 import pytest
+from kombu.exceptions import OperationalError
 
 from core import factories
 from core.admin import (
@@ -259,10 +260,18 @@ def test_file_admin_filters_by_latest_transcript_job_status(
 
 
 @patch("core.admin.call_transcribe_service.delay")
-def test_admin_action_retry_transcript_generation_on_files(mock_delay):
+def test_admin_action_retry_transcript_generation_on_files(
+    mock_delay, django_capture_on_commit_callbacks
+):
     """Admin action should enqueue transcript retries for selected files."""
-    file1 = factories.FileFactory()
-    file2 = factories.FileFactory()
+    file1 = factories.FileFactory(
+        upload_bytes=b"audio",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    file2 = factories.FileFactory(
+        upload_bytes=b"audio",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
 
     admin_instance = FileAdmin(File, Mock())
     admin_instance.message_user = Mock()
@@ -270,12 +279,38 @@ def test_admin_action_retry_transcript_generation_on_files(mock_delay):
     request.POST = {"language": "en"}
     queryset = File.objects.filter(id__in=[file1.id, file2.id])
 
-    admin_instance.retry_transcript_generation(request, queryset)
+    with django_capture_on_commit_callbacks(execute=True):
+        admin_instance.retry_transcript_generation(request, queryset)
+        mock_delay.assert_not_called()
 
     assert mock_delay.call_count == 2
-    mock_delay.assert_any_call(file1.id, language="en")
-    mock_delay.assert_any_call(file2.id, language="en")
+    for file in (file1, file2):
+        job = file.ai_jobs.get()
+        assert job.language == "en"
+        assert job.status == AiJobStatusChoices.PENDING
+        assert job.validated_audio_job_id == file.latest_audio_job.id
+        mock_delay.assert_any_call(job.id)
     admin_instance.message_user.assert_called_once()
+
+
+@patch("core.admin.call_transcribe_service.delay")
+def test_admin_action_retry_skips_files_without_validated_audio(mock_delay):
+    """An unavailable audio input cannot leave an unsubmitted pending job."""
+    file = factories.FileFactory()
+    admin_instance = FileAdmin(File, Mock())
+    admin_instance.message_user = Mock()
+    request = Mock()
+    request.POST = {"language": "en"}
+
+    admin_instance.retry_transcript_generation(request, File.objects.filter(pk=file.pk))
+
+    mock_delay.assert_not_called()
+    assert not file.ai_jobs.exists()
+    admin_instance.message_user.assert_any_call(
+        request,
+        "1 file(s) skipped because validated audio is unavailable.",
+        level=messages.WARNING,
+    )
 
 
 @patch("core.admin.call_transcribe_service.delay")
@@ -300,25 +335,36 @@ def test_admin_action_retry_transcript_generation_invalid_language(mock_delay):
 
 
 @patch("core.admin.call_transcribe_service.delay")
-def test_admin_action_retry_transcript_generation_with_latest_language(mock_delay):
+def test_admin_action_retry_transcript_generation_with_latest_language(
+    mock_delay, django_capture_on_commit_callbacks
+):
     """Admin action should reuse each file's latest transcript job language."""
-    file1 = factories.FileFactory()
-    file2 = factories.FileFactory()
+    file1 = factories.FileFactory(
+        upload_bytes=b"audio",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    file2 = factories.FileFactory(
+        upload_bytes=b"audio",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
     file_without_transcript = factories.FileFactory()
     factories.AiFileJobFactory(
         file=file1,
         type=AiJobTypeChoices.TRANSCRIPT,
         language="en",
+        status=AiJobStatusChoices.SUCCESS,
     )
     factories.AiFileJobFactory(
         file=file1,
         type=AiJobTypeChoices.TRANSCRIPT,
         language="fr",
+        status=AiJobStatusChoices.SUCCESS,
     )
     factories.AiFileJobFactory(
         file=file2,
         type=AiJobTypeChoices.TRANSCRIPT,
         language="en",
+        status=AiJobStatusChoices.SUCCESS,
     )
     factories.AiFileJobFactory(
         file=file2,
@@ -333,17 +379,99 @@ def test_admin_action_retry_transcript_generation_with_latest_language(mock_dela
         id__in=[file1.id, file2.id, file_without_transcript.id]
     )
 
-    admin_instance.retry_transcript_generation_with_latest_language(request, queryset)
+    with django_capture_on_commit_callbacks(execute=True):
+        admin_instance.retry_transcript_generation_with_latest_language(
+            request, queryset
+        )
 
     assert mock_delay.call_count == 2
-    mock_delay.assert_any_call(file1.id, language="fr")
-    mock_delay.assert_any_call(file2.id, language="en")
+    for file, language in ((file1, "fr"), (file2, "en")):
+        job = file.ai_jobs.latest("created_at")
+        assert job.language == language
+        assert job.validated_audio_job_id == file.latest_audio_job.id
+        mock_delay.assert_any_call(job.id)
     assert admin_instance.message_user.call_count == 2
     admin_instance.message_user.assert_any_call(
         request,
         "1 file(s) skipped because no transcript job was found.",
         level=messages.WARNING,
     )
+
+
+@pytest.mark.parametrize(
+    "action",
+    ["retry_transcript_generation", "retry_transcript_generation_with_latest_language"],
+)
+@patch("core.admin.call_transcribe_service.delay")
+def test_admin_retry_skips_pending_transcript(mock_delay, action):
+    """Neither admin retry action may reserve a duplicate pending transcript."""
+    file = factories.FileFactory(
+        upload_bytes=b"audio",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+        remote_job_id=None,
+    )
+    admin_instance = FileAdmin(File, Mock())
+    admin_instance.message_user = Mock()
+    request = Mock()
+    request.POST = {"language": "en"}
+
+    getattr(admin_instance, action)(request, File.objects.filter(pk=file.pk))
+
+    mock_delay.assert_not_called()
+    assert list(file.ai_jobs.all()) == [job]
+    admin_instance.message_user.assert_any_call(
+        request,
+        "0 transcript retry job(s) enqueued.",
+    )
+    admin_instance.message_user.assert_any_call(
+        request,
+        "1 file(s) skipped because a transcript job is already pending.",
+        level=messages.WARNING,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "action",
+    ["retry_transcript_generation", "retry_transcript_generation_with_latest_language"],
+)
+@patch("core.admin.call_transcribe_service.delay")
+def test_admin_retry_recovers_publish_failure_and_continues(mock_delay, action):
+    """A failed publication frees the reservation and does not abort the batch."""
+    files = [
+        factories.FileFactory(
+            upload_bytes=b"audio",
+            audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        )
+        for _ in range(2)
+    ]
+    for file in files:
+        factories.AiFileJobFactory(
+            file=file,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            status=AiJobStatusChoices.FAILED,
+        )
+    mock_delay.side_effect = [OperationalError("broker unavailable"), None]
+    admin_instance = FileAdmin(File, Mock())
+    admin_instance.message_user = Mock()
+    request = Mock()
+    request.POST = {"language": "en"}
+    queryset = File.objects.filter(pk__in=[file.pk for file in files]).order_by("pk")
+
+    getattr(admin_instance, action)(request, queryset)
+
+    assert mock_delay.call_count == 2
+    failed_job = AiFileJob.objects.get(pk=mock_delay.call_args_list[0].args[0])
+    queued_job = AiFileJob.objects.get(pk=mock_delay.call_args_list[1].args[0])
+    assert failed_job.status == AiJobStatusChoices.FAILED
+    assert failed_job.remote_job_id is None
+    assert queued_job.status == AiJobStatusChoices.PENDING
+    assert all(file.ai_jobs.count() == 2 for file in files)
 
 
 @pytest.mark.parametrize("model_name", ["file", "aifilejob"])

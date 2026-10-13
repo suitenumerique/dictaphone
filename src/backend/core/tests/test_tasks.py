@@ -23,6 +23,7 @@ from core.tasks.file import (
     DocumentCreationAlreadyInProgress,
     call_transcribe_service,
     create_document_in_docs,
+    create_transcription_job,
     handle_transcript_received,
     process_file_deletion,
     process_original_file_data_deletion,
@@ -102,8 +103,8 @@ def test_task_process_original_file_data_deletion_missing_file():
 
 
 @patch("core.tasks.file.session.post")
-def test_task_call_transcribe_service_file_does_not_exist(mock_post):
-    """External API should not be called when the file does not exist."""
+def test_task_call_transcribe_service_job_does_not_exist(mock_post):
+    """External API should not be called when the reserved job no longer exists."""
     call_transcribe_service(uuid4())
 
     assert mock_post.call_count == 0
@@ -111,23 +112,30 @@ def test_task_call_transcribe_service_file_does_not_exist(mock_post):
 
 @patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_rejects_non_accessible_file(mock_post):
-    """No AI job should be created when file is not active anymore."""
+    """A queued job must fail if its file is no longer active."""
     file = factories.FileFactory(upload_bytes=b"hello")
+    job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+        remote_job_id=None,
+    )
     file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     file.save(update_fields=["lifecycle_state"])
 
     with pytest.raises(
         ValueError, match="Cannot transcribe when file is not in active state"
     ):
-        call_transcribe_service(file.id)
+        call_transcribe_service(job.id)
 
     mock_post.assert_not_called()
-    assert not AiFileJob.objects.filter(file=file).exists()
+    job.refresh_from_db()
+    assert job.status == AiJobStatusChoices.FAILED
 
 
 @patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_success(mock_post, settings):
-    """Transcribe task should call AI service and create a pending transcript job."""
+    """Transcribe task should submit the reserved pending transcript job."""
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
@@ -146,7 +154,8 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     response.json.return_value = {"job_id": "remote-transcript-job-id"}
     mock_post.return_value = response
 
-    call_transcribe_service(file.id)
+    reserved_job = create_transcription_job(file.id)
+    call_transcribe_service(reserved_job.id)
 
     assert mock_post.call_count == 1
     _, kwargs = mock_post.call_args
@@ -157,6 +166,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     assert kwargs["json"]["cloud_storage_url"]
 
     ai_job = AiFileJob.objects.get(remote_job_id="remote-transcript-job-id")
+    assert ai_job.id == reserved_job.id
     assert ai_job.file == file
     assert ai_job.type == AiJobTypeChoices.TRANSCRIPT
     assert ai_job.status == AiJobStatusChoices.PENDING
@@ -178,7 +188,7 @@ def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
     response.json.return_value = {"job_id": "remote-transcript-job-id-en"}
     mock_post.return_value = response
 
-    call_transcribe_service(file.id, language="en")
+    call_transcribe_service(create_transcription_job(file.id, language="en").id)
 
     _, kwargs = mock_post.call_args
     assert kwargs["json"]["language"] == "en"
@@ -205,7 +215,7 @@ def test_task_call_transcribe_service_http_error(mock_post, settings):
     mock_post.return_value = response
 
     with pytest.raises(RuntimeError, match="transcribe failure"):
-        call_transcribe_service(file.id)
+        call_transcribe_service(create_transcription_job(file.id).id)
 
     ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
     assert ai_job.status == AiJobStatusChoices.FAILED
@@ -231,7 +241,7 @@ def test_task_call_transcribe_service_fails_on_invalid_duration(
         duration_seconds=duration_seconds,
     )
 
-    call_transcribe_service(file.id)
+    call_transcribe_service(create_transcription_job(file.id).id)
 
     mock_post.assert_not_called()
     ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
@@ -838,7 +848,7 @@ def test_task_call_transcribe_service_retries_on_request_error(mock_post, settin
         side_effect=Retry(),
     ) as mock_retry:
         with pytest.raises(Retry):
-            call_transcribe_service(file.id)
+            call_transcribe_service(create_transcription_job(file.id).id)
 
     _, kwargs = mock_retry.call_args
     assert isinstance(kwargs["exc"], requests.HTTPError)

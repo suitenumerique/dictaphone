@@ -211,9 +211,7 @@ def _queue_transcription(file, validation):
         ai_job.save(update_fields=["validated_audio_job", "updated_at"])
     transaction.on_commit(
         lambda: current_app.tasks["core.tasks.file.call_transcribe_service"].delay(
-            file.id,
-            ai_job_id=ai_job.id,
-            language=ai_job.language,
+            ai_job.id,
         )
     )
 

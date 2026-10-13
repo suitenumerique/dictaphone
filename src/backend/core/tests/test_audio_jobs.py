@@ -245,9 +245,8 @@ def test_validation_reuses_newest_unlinked_transcript_intent(
         else:
             assert models.AiFileJob.objects.count() == len(before) + 1
         assert job.validated_audio_job_id == validation.id
-        transcribe.assert_called_once_with(
-            file.id, ai_job_id=job.id, language="en" if reuse_intent else "fr"
-        )
+        transcribe.assert_called_once_with(job.id)
+        assert job.language == ("en" if reuse_intent else "fr")
     excluded_ids = [job.pk for job in excluded]
     assert list(
         models.AiFileJob.objects.filter(pk__in=excluded_ids).order_by("id").values()
@@ -475,7 +474,7 @@ def test_linked_transcription_uses_its_validated_output_after_new_extraction():
         raise_for_status=lambda: None, json=lambda: {"job_id": "stable-audio-result"}
     )
     with patch("core.tasks.file.session.post", return_value=response) as post:
-        call_transcribe_service(file.pk, ai_job_id=job.pk)
+        call_transcribe_service(job.pk)
     assert (
         validation.source_job.output_key
         in post.call_args.kwargs["json"]["cloud_storage_url"]
