@@ -858,6 +858,15 @@ class AiJobViewSet(
                 code="ai_job_retry_file_not_active",
             )
 
+        if (
+            file.audio_extraction_state
+            != models.FileAudioExtractionStateChoices.EXTRACTION_DONE
+        ):
+            raise drf_exceptions.ValidationError(
+                {"state": "Cannot retry before audio validation has succeeded."},
+                code="ai_job_retry_audio_not_validated",
+            )
+
         new_ai_job_id = call_transcribe_service(ai_job.file_id, language=language)
         try:
             new_ai_job = AiFileJob.objects.get(id=new_ai_job_id)

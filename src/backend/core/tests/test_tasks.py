@@ -161,6 +161,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     assert ai_job.type == AiJobTypeChoices.TRANSCRIPT
     assert ai_job.status == AiJobStatusChoices.PENDING
     assert ai_job.language == "en"
+    assert ai_job.validated_audio_job_id == file.latest_audio_job.id
 
 
 @patch("core.tasks.file.session.post")

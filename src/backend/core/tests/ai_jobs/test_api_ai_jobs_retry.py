@@ -171,6 +171,7 @@ def test_api_ai_jobs_retry_failed_transcript_allowed(mock_task):
         status=AiJobStatusChoices.FAILED,
         language="fr",
         file__creator=user,
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
     retried_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
@@ -203,6 +204,7 @@ def test_api_ai_jobs_retry_language_change_allowed(mock_task):
         status=AiJobStatusChoices.SUCCESS,
         language="fr",
         file__creator=user,
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
     retried_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
@@ -235,6 +237,7 @@ def test_api_ai_jobs_retry_task_returns_unknown_job_id(mock_task):
         status=AiJobStatusChoices.FAILED,
         language="fr",
         file__creator=user,
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
     mock_task.return_value = uuid4()
 
@@ -300,16 +303,23 @@ def test_api_ai_jobs_retry_audio_extraction_failed_bad_request(mock_task):
     mock_task.assert_not_called()
 
 
-@patch("core.tasks.file.start_audio_extraction")
-def test_api_ai_jobs_retry_pending_audio_extraction_queues_processing(mock_queue):
-    """Retry should extract first when the audio is not yet validated."""
+@patch("core.api.viewsets.call_transcribe_service")
+@pytest.mark.parametrize(
+    "audio_state",
+    [
+        FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
+        FileAudioExtractionStateChoices.EXTRACTING_AUDIO,
+    ],
+)
+def test_api_ai_jobs_retry_requires_validated_audio(mock_task, audio_state):
+    """Retry cannot create an AI job while audio processing is pending."""
     user = factories.UserFactory()
     ai_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.FAILED,
         file__creator=user,
         file__duration_seconds=120,
-        file__audio_extraction_state=FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION,
+        file__audio_extraction_state=audio_state,
     )
     client = APIClient()
     client.force_login(user)
@@ -319,12 +329,12 @@ def test_api_ai_jobs_retry_pending_audio_extraction_queues_processing(mock_queue
         {"language": "fr"},
     )
 
-    assert response.status_code == status.HTTP_201_CREATED, response.json()
-    new_job_id = response.json()["id"]
-    new_job = ai_job.file.ai_jobs.get(id=new_job_id)
-    assert new_job.status == AiJobStatusChoices.PENDING
-    assert response.json()["processing_expected_end_at"] is None
-    mock_queue.assert_called_once_with(ai_job.file_id)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST, response.json()
+    assert response.json() == {
+        "state": "Cannot retry before audio validation has succeeded."
+    }
+    assert ai_job.file.ai_jobs.count() == 1
+    mock_task.assert_not_called()
 
 
 @patch("core.api.viewsets.call_transcribe_service")
