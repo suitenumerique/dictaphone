@@ -222,6 +222,13 @@ def _capture_outcome(job, *, success):
             if attempt.started_at
         ),
     }
+    for attempt in attempts:
+        properties.update(
+            {
+                f"metadata_{attempt.mode}_{key}": value
+                for key, value in (attempt.metadata or {}).items()
+            }
+        )
     event = (
         analytics.EventName.AUDIO_EXTRACTION_SUCCESS
         if success
