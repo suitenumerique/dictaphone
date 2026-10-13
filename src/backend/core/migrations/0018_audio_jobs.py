@@ -2,55 +2,7 @@
 
 import django.db.models.deletion
 import uuid
-from django.conf import settings
 from django.db import migrations, models
-
-
-def backfill_audio_jobs(apps, schema_editor):
-    """Reference legacy objects in place; never access object storage here."""
-    File = apps.get_model("core", "File")
-    AudioJob = apps.get_model("core", "AudioJob")
-    AiFileJob = apps.get_model("core", "AiFileJob")
-    db = schema_editor.connection.alias
-    for file in File.objects.using(db).iterator(chunk_size=500):
-        done = file.audio_extraction_state == "extraction_done"
-        failed = file.audio_extraction_state == "audio_extraction_failed"
-        job_id = uuid.uuid4()
-        job = AudioJob.objects.using(db).create(
-            id=job_id, file_id=file.pk, mode="transcoding",
-            extraction_id=uuid.uuid4(),
-            status="success" if done else "failed" if failed else "pending",
-            duration_seconds=file.duration_seconds if done else None,
-            output_key=(f"{settings.FILE_UPLOAD_PATH}/{file.pk}.audio.ogg" if done
-                        else f"{settings.FILE_UPLOAD_PATH}/{file.pk}/audio/{job_id}.ogg"),
-            metadata={"migrated": True},
-        )
-        if done:
-            validation = AudioJob.objects.using(db).create(
-                file_id=file.pk, mode="validation", status="success",
-                extraction_id=job.extraction_id, source_job_id=job.pk,
-                metadata={"migrated": True},
-            )
-            AiFileJob.objects.using(db).filter(file_id=file.pk, type="transcript").update(
-                validated_audio_job_id=validation.pk
-            )
-
-
-def restore_file_states(apps, schema_editor):
-    """Restore the inferred value when rolling the schema back."""
-    File = apps.get_model("core", "File")
-    AudioJob = apps.get_model("core", "AudioJob")
-    db = schema_editor.connection.alias
-    for file in File.objects.using(db).iterator(chunk_size=500):
-        job = AudioJob.objects.using(db).filter(file_id=file.pk).order_by("-created_at", "-id").first()
-        state = "pending_audio_extraction"
-        if job and job.status == "processing":
-            state = "extracting_audio"
-        elif job and job.status in {"failed", "stale"}:
-            state = "audio_extraction_failed"
-        elif job and job.status == "success" and job.mode == "validation":
-            state = "extraction_done"
-        File.objects.using(db).filter(pk=file.pk).update(audio_extraction_state=state)
 
 
 class Migration(migrations.Migration):
@@ -107,6 +59,4 @@ class Migration(migrations.Migration):
             model_name='audiojob',
             constraint=models.UniqueConstraint(fields=('extraction_id', 'mode', 'attempt_number'), name='audio_job_unique_attempt'),
         ),
-        migrations.RunPython(backfill_audio_jobs, restore_file_states),
-        migrations.RemoveField(model_name="file", name="audio_extraction_state"),
     ]

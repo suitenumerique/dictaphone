@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from importlib import import_module
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -554,7 +555,7 @@ def test_migration_preserves_all_states_and_legacy_keys_without_storage_operatio
     states = models.FileAudioExtractionStateChoices.values
     executor = MigrationExecutor(connection)
     old_target = [("core", "0017_aifilejob_docs_creation_in_progress")]
-    target = [("core", "0018_audio_jobs")]
+    target = [("core", "0020_remove_file_audio_extraction_state")]
     try:
         executor.migrate(old_target)
         old_file = executor.loader.project_state(old_target).apps.get_model(
@@ -562,10 +563,21 @@ def test_migration_preserves_all_states_and_legacy_keys_without_storage_operatio
         )
         for file, state in zip(files, states, strict=True):
             old_file.objects.filter(pk=file.pk).update(audio_extraction_state=state)
+        backfill_target = [("core", "0018_audio_jobs")]
+        MigrationExecutor(connection).migrate(backfill_target)
+        historical_apps = executor.loader.project_state(backfill_target).apps
+        audio_job = historical_apps.get_model("core", "AudioJob")
+        migration = import_module("core.migrations.0019_backfill_audio_jobs")
         with (
             patch("core.storage.get_storage_for_file") as storage,
             patch("core.tasks.file.call_transcribe_service.delay") as transcribe,
+            patch.object(migration, "BATCH_SIZE", 2),
         ):
+            with connection.schema_editor() as schema_editor:
+                migration.backfill_audio_jobs(historical_apps, schema_editor)
+                job_ids = set(audio_job.objects.values_list("pk", flat=True))
+                migration.backfill_audio_jobs(historical_apps, schema_editor)
+                assert set(audio_job.objects.values_list("pk", flat=True)) == job_ids
             MigrationExecutor(connection).migrate(target)
             storage.assert_not_called()
             transcribe.assert_not_called()
