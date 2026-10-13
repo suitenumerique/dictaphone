@@ -107,9 +107,10 @@ time.sleep(30)
     assert not result
     pid = int(pid_file.read_text())
     # A killed orphan can briefly be a zombie until the host reaps it.
+    # Reaping during the procfs read can raise ProcessLookupError instead of ENOENT.
     try:
         state = Path(f"/proc/{pid}/stat").read_text().split()[2]
-    except FileNotFoundError:
+    except FileNotFoundError, ProcessLookupError:
         state = None
     assert state in {None, "Z"}
 
