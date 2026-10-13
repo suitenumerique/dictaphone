@@ -30,7 +30,8 @@ the following command inside your docker container:
    Completed files keep their existing results and are not transcribed again.
 4. Helm users: rename `celeryAudioExtractor` values to `audioExtractor`. The two
    HTTP worker deployments replace the legacy audio Celery worker. Worker API
-   URLs use the backend origin (the `/audio-jobs/...` endpoints are at the root).
+   URLs must include `/api/internal/${API_VERSION}` (currently `v1.0`), for example
+   `http://dictaphone-backend/api/internal/v1.0`.
 5. Enable the HTTP workers and resume uploads. `AUDIO_JOB_TIMEOUT_SECONDS`
    defaults to 300 and governs leases, signed URLs, and the worker's hard process
    timeout. Workers read `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS`; set it to the same

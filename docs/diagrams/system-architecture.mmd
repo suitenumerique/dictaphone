@@ -81,15 +81,15 @@ flowchart LR
     BackendWorker --> DB
     BackendWorker -->|"read/write media and AI results"| StoragePolicy
 
-    Reencoder -->|"poll with bearer token<br/>GET /audio-jobs/transcoding/next"| API
+    Reencoder -->|"poll with bearer token<br/>GET /api/internal/v1.0/audio-jobs/transcoding/next"| API
     API -->|"job: id, job_kind, expires_at,<br/>source_url, destination_url, destination_headers"| Reencoder
     TranscodingAttempt -->|"GET source_url / PUT destination_url"| StoragePolicy
-    TranscodingAttempt -->|"bearer token + result payload<br/>POST /audio-jobs/transcoding/complete"| API
+    TranscodingAttempt -->|"bearer token + result payload<br/>POST /api/internal/v1.0/audio-jobs/transcoding/complete"| API
 
-    Validator -->|"poll with bearer token<br/>GET /audio-jobs/validation/next"| API
+    Validator -->|"poll with bearer token<br/>GET /api/internal/v1.0/audio-jobs/validation/next"| API
     API -->|"job: id, job_kind, expires_at, source_url"| Validator
     ValidationAttempt -->|"GET source_url"| StoragePolicy
-    ValidationAttempt -->|"bearer token + result payload<br/>POST /audio-jobs/validation/complete"| API
+    ValidationAttempt -->|"bearer token + result payload<br/>POST /api/internal/v1.0/audio-jobs/validation/complete"| API
 
     Kubelet -.->|"probe local HTTP health endpoints"| Reencoder
     Kubelet -.->|"probe local HTTP health endpoints"| Validator

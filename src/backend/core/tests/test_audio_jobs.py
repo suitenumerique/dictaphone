@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
+from django.conf import settings as django_settings
 from django.core.management import call_command
 from django.db import connection, connections
 from django.db.migrations.executor import MigrationExecutor
@@ -60,13 +61,15 @@ def ready_file(**kwargs):
 
 def poll(mode="transcoding"):
     """Poll one queue through its token-authenticated endpoint."""
-    return worker(mode).get(f"/audio-jobs/{mode}/next")
+    return worker(mode).get(
+        f"/api/internal/{django_settings.API_VERSION}/audio-jobs/{mode}/next"
+    )
 
 
 def complete(job, outcome="success", **kwargs):
     """Report a completion through the actual worker API."""
     return worker(job.mode).post(
-        f"/audio-jobs/{job.mode}/complete",
+        f"/api/internal/{django_settings.API_VERSION}/audio-jobs/{job.mode}/complete",
         {"id": str(job.id), "status": outcome, **kwargs},
         format="json",
     )
@@ -85,7 +88,7 @@ def finish_transcoding(file):
 def test_worker_auth_requires_matching_bearer_token(mode, settings):
     """User sessions, raw tokens, other modes, and empty secrets cannot authenticate."""
     client = APIClient()
-    url = f"/audio-jobs/{mode}/next"
+    url = f"/api/internal/{django_settings.API_VERSION}/audio-jobs/{mode}/next"
     assert client.get(url).status_code == 401
     client.force_login(factories.UserFactory())
     assert client.get(url).status_code == 401
@@ -368,7 +371,7 @@ def test_invalid_completion_does_not_change_attempt(payload):
     job = start_audio_extraction(file.id)
     poll()
     response = worker().post(
-        "/audio-jobs/transcoding/complete",
+        f"/api/internal/{django_settings.API_VERSION}/audio-jobs/transcoding/complete",
         {"id": str(job.id), **payload},
         format="json",
     )
@@ -386,7 +389,7 @@ def test_completion_requires_claim_output_and_correct_mode():
     poll()
     assert complete(job, duration_seconds=2).status_code == 409
     response = worker("validation").post(
-        "/audio-jobs/validation/complete",
+        f"/api/internal/{django_settings.API_VERSION}/audio-jobs/validation/complete",
         {"id": str(job.id), "status": "success"},
         format="json",
     )

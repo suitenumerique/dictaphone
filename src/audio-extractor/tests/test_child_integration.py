@@ -29,12 +29,23 @@ class QueueHandler(BaseHTTPRequestHandler):
             self.server.claimed.set()
         if self.path == "/source":
             self.reply(200, b"fake opus data")
-        elif self.server.jobs:
-            self.reply(200, json.dumps(self.server.jobs.pop(0)).encode())
-        else:
+        elif self.path == "/api/internal/v1.0/audio-jobs/validation/next":
+            if self.server.jobs:
+                self.reply(200, json.dumps(self.server.jobs.pop(0)).encode())
+            else:
+                self.reply(204, b"")
+        elif self.path == "/api/internal/v1.0/audio-jobs/transcoding/next":
             self.reply(204, b"")
+        else:
+            self.reply(404, b"")
 
     def do_POST(self):
+        if self.path not in {
+            "/api/internal/v1.0/audio-jobs/transcoding/complete",
+            "/api/internal/v1.0/audio-jobs/validation/complete",
+        }:
+            self.reply(404, b"")
+            return
         body = self.rfile.read(int(self.headers["Content-Length"]))
         self.server.completions.append(json.loads(body))
         self.reply(200, b"{}")
@@ -69,7 +80,7 @@ def test_supervisor_runs_multiple_fresh_children_and_reports_results(
     thread.start()
     config = config.model_copy(
         update={
-            "api_url": origin,
+            "api_url": origin + "/api/internal/v1.0",
             "mode": "validation",
             "work_dir": tmp_path / "work",
             "max_runtime_seconds": 2,
@@ -97,7 +108,7 @@ def test_failure_report_child_posts_attempt_failure(config, task):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     config = config.model_copy(
-        update={"api_url": f"http://127.0.0.1:{server.server_port}"}
+        update={"api_url": f"http://127.0.0.1:{server.server_port}/api/internal/v1.0"}
     )
     try:
         assert _run_child(
@@ -129,7 +140,9 @@ def test_real_wrapper_forwards_term_and_worker_cleans_up(config, tmp_path):
     environment.update(
         {
             "PATH": f"{Path(sys.executable).parent}:{environment['PATH']}",
-            "AUDIO_EXTRACTOR_API_URL": f"http://127.0.0.1:{server.server_port}",
+            "AUDIO_EXTRACTOR_API_URL": (
+                f"http://127.0.0.1:{server.server_port}/api/internal/v1.0"
+            ),
             "AUDIO_EXTRACTOR_TOKEN": config.token.get_secret_value(),
             "AUDIO_EXTRACTOR_WORK_DIR": str(tmp_path / "work"),
             "AUDIO_EXTRACTOR_HEALTH_PORT": str(port),

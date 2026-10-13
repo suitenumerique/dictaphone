@@ -8,7 +8,7 @@ sequenceDiagram
 
     Worker->>Worker: Clean work_dir and initialize health endpoints
     loop Before 15-minute claim cutoff and no termination requested
-        Worker->>API: GET /audio-jobs/transcoding/next<br/>Authorization: Bearer worker token
+        Worker->>API: GET /api/internal/v1.0/audio-jobs/transcoding/next<br/>Authorization: Bearer worker token
         alt No job available
             API-->>Worker: 204 No Content
             Worker->>Worker: Wait 5 seconds, keeping supervisor heartbeat fresh
@@ -23,17 +23,17 @@ sequenceDiagram
             Child->>FileStore: GET source_url
             Child->>FFmpeg: Convert source to OGG/Opus<br/>and calculate duration
             alt Download, media processing, or upload fails
-                Child->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token, id, status=failure, error, metadata
+                Child->>API: POST /api/internal/v1.0/audio-jobs/transcoding/complete<br/>Bearer token, id, status=failure, error, metadata
             else Transcoding succeeds
                 FFmpeg-->>Child: OGG/Opus file and duration_seconds
                 Child->>FileStore: PUT destination_url with destination_headers
-                Child->>API: POST /audio-jobs/transcoding/complete<br/>Bearer token, id, status=success, duration_seconds, metadata
+                Child->>API: POST /api/internal/v1.0/audio-jobs/transcoding/complete<br/>Bearer token, id, status=success, duration_seconds, metadata
             end
             alt Child exits successfully after reporting completion
                 Child-->>Worker: Exit 0
             else Child crashes or exceeds its processing budget
                 Worker->>Child: Kill the entire attempt process group and reap the child
-                Worker->>API: Fresh reporting child attempts failure completion<br/>POST /audio-jobs/transcoding/complete within remaining lease
+                Worker->>API: Fresh reporting child attempts failure completion<br/>POST /api/internal/v1.0/audio-jobs/transcoding/complete within remaining lease
                 Note over Worker,API: If completion cannot be reported, the backend recovers<br/>the attempt when its lease expires.
             end
             Worker->>Worker: Remove remaining descendants and clean work_dir

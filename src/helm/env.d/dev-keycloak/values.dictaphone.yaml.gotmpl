@@ -135,7 +135,7 @@ audioExtractor:
   transcodingReplicas: 1
   validationReplicas: 1
   envVars:
-    AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend.dictaphone.svc.cluster.local
+    AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend.dictaphone.svc.cluster.local/api/internal/v1.0
   transcodingEnvVars:
     AUDIO_EXTRACTOR_TOKEN: local-development-transcoding-token
   validationEnvVars:

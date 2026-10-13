@@ -25,7 +25,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    api_url: str
+    api_url: str = Field(
+        description="Internal API base URL including /api/internal/${API_VERSION}"
+    )
     token: SecretStr = Field(min_length=32)
     sentry_dsn: SecretStr | None = None
     environment: str | None = None

@@ -66,10 +66,12 @@ accepted without scheduling further work.
 Configure the backend's `AUDIO_EXTRACTOR_TRANSCODING_TOKEN` and
 `AUDIO_EXTRACTOR_VALIDATION_TOKEN` to match each worker's `AUDIO_EXTRACTOR_TOKEN`.
 `AUDIO_JOB_TIMEOUT_SECONDS` (default: 300) controls both the claim deadline and
-the validity of all signed URLs. The API URL is the backend origin, without the
-public `/api/v1.0/` prefix.
+the validity of all signed URLs. Set the API URL to the backend origin followed
+by `/api/internal/${API_VERSION}`, where `API_VERSION` is the backend setting
+(currently `v1.0`). For example: `http://localhost:8000/api/internal/v1.0`.
 
-The transcoding worker polls `GET /audio-jobs/transcoding/next`. A job looks like:
+The transcoding worker polls `GET /api/internal/v1.0/audio-jobs/transcoding/next`.
+A job looks like:
 
 ```json
 {
@@ -88,14 +90,15 @@ destination URL, such as `X-amz-acl` when the URL was signed with an ACL.
 
 It downloads the source, converts the first audio stream to mono OGG Opus, uploads
 it to the signed destination URL, then posts to
-`POST /audio-jobs/transcoding/complete`. A successful response includes the audio
-duration:
+`POST /api/internal/v1.0/audio-jobs/transcoding/complete`. A successful response
+includes the audio duration:
 
 ```json
 {"id": "job-id", "status": "success", "duration_seconds": 12.5}
 ```
 
-The validation worker polls `GET /audio-jobs/validation/next`. Its job looks like:
+The validation worker polls `GET /api/internal/v1.0/audio-jobs/validation/next`.
+Its job looks like:
 
 ```json
 {
@@ -107,7 +110,7 @@ The validation worker polls `GET /audio-jobs/validation/next`. Its job looks lik
 ```
 
 It downloads the source and checks the OGG Opus stream with `opusinfo` and
-`opusdec`, then posts to `POST /audio-jobs/validation/complete`:
+`opusdec`, then posts to `POST /api/internal/v1.0/audio-jobs/validation/complete`:
 
 ```json
 {"id": "job-id", "status": "success"}
@@ -128,7 +131,7 @@ Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 | `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` | No | `300` | Whole-attempt budget, matching the backend lease and signed URL duration |
 | `AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS` | No | `5` | Wait after an empty queue response |
 | `AUDIO_EXTRACTOR_HEALTH_PORT` | No | `8080` | HTTP startup, liveness, and readiness port |
-| `AUDIO_EXTRACTOR_API_URL` | Yes | — | API base URL, such as `http://localhost:8000` |
+| `AUDIO_EXTRACTOR_API_URL` | Yes | — | Internal API base URL including `/api/internal/${API_VERSION}`, such as `http://localhost:8000/api/internal/v1.0` |
 | `AUDIO_EXTRACTOR_TOKEN` | Yes | — | Bearer token, at least 32 characters long |
 | `AUDIO_EXTRACTOR_MODE` | No | `transcoding` | Queue to process: `transcoding` or `validation` |
 | `AUDIO_EXTRACTOR_OUTPUT_SAMPLE_RATE` | No | `16000` | Output sample rate in Hz: `8000`, `12000`, `16000`, `24000`, or `48000` |
@@ -154,7 +157,7 @@ the dependencies, set the required environment variables, and run the worker:
 ```sh
 cd src/audio-extractor
 uv sync --all-groups
-export AUDIO_EXTRACTOR_API_URL=http://localhost:8000
+export AUDIO_EXTRACTOR_API_URL=http://localhost:8000/api/internal/v1.0
 export AUDIO_EXTRACTOR_TOKEN=replace-with-a-token-at-least-32-characters
 uv run python -m audio_extractor
 ```

@@ -14,7 +14,7 @@ from audio_extractor.settings import Settings
 @pytest.fixture
 def config(tmp_path):
     return Settings(
-        api_url="https://api.example.test",
+        api_url="https://api.example.test/api/internal/v1.0",
         token="worker-token-for-tests-0123456789",
         work_dir=tmp_path,
     )
@@ -23,7 +23,7 @@ def config(tmp_path):
 @pytest.fixture(autouse=True)
 def configured_http_session():
     settings = Settings(
-        api_url="https://api.example.test",
+        api_url="https://api.example.test/api/internal/v1.0",
         token="worker-token-for-tests-0123456789",
     )
     session = configure_session(settings)

@@ -10,12 +10,12 @@ VALID_TOKEN = "worker-token-for-tests-0123456789"
 
 def test_settings_accept_http_url_and_normalize_trailing_slash(tmp_path):
     settings = Settings(
-        api_url="https://api.example.test/",
+        api_url="https://api.example.test/api/internal/v1.0/",
         token=VALID_TOKEN,
         work_dir=tmp_path,
     )
 
-    assert settings.api_url == "https://api.example.test"
+    assert settings.api_url == "https://api.example.test/api/internal/v1.0"
 
 
 @pytest.mark.parametrize("api_url", ["", "api.example.test", "ftp://example.test"])
@@ -26,17 +26,19 @@ def test_settings_reject_invalid_api_url(api_url):
 
 def test_settings_reject_empty_token():
     with pytest.raises(ValidationError):
-        Settings(api_url="https://api.example.test", token="")
+        Settings(api_url="https://api.example.test/api/internal/v1.0", token="")
 
 
 def test_settings_reject_short_token():
     with pytest.raises(ValidationError):
-        Settings(api_url="https://api.example.test", token="too-short")
+        Settings(
+            api_url="https://api.example.test/api/internal/v1.0", token="too-short"
+        )
 
 
 def test_settings_accept_custom_output_parameters():
     settings = Settings(
-        api_url="https://api.example.test",
+        api_url="https://api.example.test/api/internal/v1.0",
         token=VALID_TOKEN,
         output_sample_rate=24000,
         output_bitrate="96k",
@@ -64,7 +66,11 @@ def test_user_agent_omits_unconfigured_release(config):
 @pytest.mark.parametrize("mode", ["ffmpeg", "opus", "other"])
 def test_settings_reject_legacy_or_unknown_modes(mode):
     with pytest.raises(ValidationError):
-        Settings(api_url="https://api.example.test", token=VALID_TOKEN, mode=mode)
+        Settings(
+            api_url="https://api.example.test/api/internal/v1.0",
+            token=VALID_TOKEN,
+            mode=mode,
+        )
 
 
 @pytest.mark.parametrize(
@@ -80,13 +86,17 @@ def test_settings_reject_legacy_or_unknown_modes(mode):
 )
 def test_lifecycle_settings_reject_zero(field):
     with pytest.raises(ValidationError):
-        Settings(api_url="https://api.example.test", token=VALID_TOKEN, **{field: 0})
+        Settings(
+            api_url="https://api.example.test/api/internal/v1.0",
+            token=VALID_TOKEN,
+            **{field: 0},
+        )
 
 
 def test_worker_runtime_must_precede_watchdog():
     with pytest.raises(ValidationError):
         Settings(
-            api_url="https://api.example.test",
+            api_url="https://api.example.test/api/internal/v1.0",
             token=VALID_TOKEN,
             max_runtime_seconds=1200,
         )

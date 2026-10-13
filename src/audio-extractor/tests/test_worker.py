@@ -42,7 +42,7 @@ def test_transcoding_success_uploads_and_reports_duration(config, task, http_ses
     assert upload.call_args.kwargs["destination_headers"] == {}
     post.assert_called_once()
     assert post.call_args.args[0] == (
-        "https://api.example.test/audio-jobs/transcoding/complete"
+        "https://api.example.test/api/internal/v1.0/audio-jobs/transcoding/complete"
     )
     payload = post.call_args.kwargs["json"]
     assert payload["id"] == "job-123"
@@ -122,7 +122,7 @@ def test_validation_mode_validates_without_upload_or_duration(
     validate.assert_called_once()
     upload.assert_not_called()
     assert post.call_args.args[0] == (
-        "https://api.example.test/audio-jobs/validation/complete"
+        "https://api.example.test/api/internal/v1.0/audio-jobs/validation/complete"
     )
     payload = post.call_args.kwargs["json"]
     assert payload["id"] == "job-123"
@@ -151,7 +151,7 @@ def test_processing_error_is_reported_and_logged_without_signed_urls(
         process_transcoding_job(config, task)
 
     assert post.call_args.args[0] == (
-        "https://api.example.test/audio-jobs/transcoding/complete"
+        "https://api.example.test/api/internal/v1.0/audio-jobs/transcoding/complete"
     )
     payload = post.call_args.kwargs["json"]
     assert payload["id"] == "job-123"
@@ -212,7 +212,7 @@ def test_run_cleans_work_directory_and_sends_worker_bearer(lifecycle, tmp_path):
     assert not stale_link.exists()
     assert outside_file.read_text() == "keep"
     get.assert_called_once_with(
-        "https://api.example.test/audio-jobs/transcoding/next",
+        "https://api.example.test/api/internal/v1.0/audio-jobs/transcoding/next",
         headers={
             "Authorization": "Bearer worker-token-for-tests-0123456789",
         },
@@ -228,7 +228,8 @@ def test_validation_worker_polls_validation_route(lifecycle):
         run(config)
 
     assert (
-        get.call_args.args[0] == "https://api.example.test/audio-jobs/validation/next"
+        get.call_args.args[0]
+        == "https://api.example.test/api/internal/v1.0/audio-jobs/validation/next"
     )
     assert get.call_args.kwargs["headers"] == {
         "Authorization": "Bearer worker-token-for-tests-0123456789"

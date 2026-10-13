@@ -22,15 +22,22 @@ router.register("files", viewsets.FileViewSet, basename="files")
 router.register("ai-jobs", viewsets.AiJobViewSet, basename="ai-jobs")
 
 urlpatterns = [
-    re_path(
-        r"^audio-jobs/(?P<mode>transcoding|validation)/next$",
-        AudioJobViewSet.as_view({"get": "next"}),
-        name="audio-jobs-next",
-    ),
-    re_path(
-        r"^audio-jobs/(?P<mode>transcoding|validation)/complete$",
-        AudioJobViewSet.as_view({"post": "complete"}),
-        name="audio-jobs-complete",
+    path(
+        f"api/internal/{settings.API_VERSION}/",
+        include(
+            [
+                re_path(
+                    r"^audio-jobs/(?P<mode>transcoding|validation)/next$",
+                    AudioJobViewSet.as_view({"get": "next"}),
+                    name="audio-jobs-next",
+                ),
+                re_path(
+                    r"^audio-jobs/(?P<mode>transcoding|validation)/complete$",
+                    AudioJobViewSet.as_view({"post": "complete"}),
+                    name="audio-jobs-complete",
+                ),
+            ]
+        ),
     ),
     path(
         f"api/{settings.API_VERSION}/",
