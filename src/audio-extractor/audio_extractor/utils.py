@@ -1,8 +1,10 @@
 """Shared command, download, upload, and work-directory helpers."""
 
 import logging
+import os
 import shutil
 import subprocess
+import threading
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -17,6 +19,7 @@ from audio_extractor.http_client import get_session
 LOGGER = logging.getLogger(__name__)
 
 CHUNK_SIZE = 10 * 1024 * 1024  # 10 MB
+STDERR_TAIL_BYTES = 64 * 1024
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -73,19 +76,37 @@ def _is_retryable_transfer_error(exc: Exception) -> bool:
     )
 
 
+def _capture_stderr(stream, tail: bytearray) -> None:
+    """Drain stderr continuously, retaining only a bounded diagnostic tail."""
+    while chunk := stream.read1(8192):
+        tail.extend(chunk)
+        del tail[:-STDERR_TAIL_BYTES]
+
+
 def _run(command: list[str], timeout: float, *, capture_output: bool = False) -> str:
-    """Run a fixed media command with a hard timeout."""
+    """Run a fixed media command with a hard timeout and capture error details."""
+    tail = bytearray()
     try:
-        result = subprocess.run(  # noqa: S603 - command is assembled internally
-            command,
-            check=True,
-            stdout=subprocess.PIPE if capture_output else subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            timeout=timeout,
-        )
+        read_fd, write_fd = os.pipe()
+        with os.fdopen(read_fd, "rb") as reader, os.fdopen(write_fd, "wb") as writer:
+            drain = threading.Thread(target=_capture_stderr, args=(reader, tail))
+            drain.start()
+            try:
+                result = subprocess.run(  # noqa: S603 - assembled internally
+                    command,
+                    check=True,
+                    stdout=subprocess.PIPE if capture_output else subprocess.DEVNULL,
+                    stderr=writer,
+                    text=True,
+                    timeout=timeout,
+                )
+            finally:
+                writer.close()
+                drain.join()
     except (OSError, subprocess.SubprocessError) as exc:
-        details = getattr(exc, "stderr", None)
+        details = tail.decode(errors="replace")
+        if isinstance(exc, (subprocess.CalledProcessError, subprocess.TimeoutExpired)):
+            exc.stderr = details
         raise ProcessingError(
             f"Media command failed: {str(details or exc).strip()}"
         ) from exc

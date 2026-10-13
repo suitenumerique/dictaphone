@@ -1,13 +1,16 @@
 """Shared media command and transfer utility tests."""
 
 import subprocess
+import sys
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
 
 from audio_extractor.utils import (
+    STDERR_TAIL_BYTES,
     ProcessingError,
+    _capture_stderr,
     _download,
     _redact_url,
     _run,
@@ -166,6 +169,24 @@ def test_download_retries_transient_failures_three_times(tmp_path, http_session)
     assert destination.read_bytes() == b"audio"
 
 
+@pytest.mark.parametrize("capture_output", [False, True])
+def test_media_command_failure_includes_stderr(capture_output):
+    """Actual subprocess stderr reaches the processing error in both modes."""
+    command = [
+        sys.executable,
+        "-c",
+        "import sys; sys.stderr.write('Invalid audio data\\n'); sys.exit(1)",
+    ]
+
+    with pytest.raises(
+        ProcessingError, match="^Media command failed: Invalid audio data$"
+    ) as error:
+        _run(command, 17, capture_output=capture_output)
+
+    assert isinstance(error.value.__cause__, subprocess.CalledProcessError)
+    assert error.value.__cause__.stderr == "Invalid audio data\n"
+
+
 def test_media_command_timeout_becomes_processing_error():
     """Media command timeouts are wrapped in a processing error."""
     with (
@@ -178,3 +199,46 @@ def test_media_command_timeout_becomes_processing_error():
         _run(["ffmpeg"], 17)
 
     assert run_command.call_args.kwargs["timeout"] == 17
+
+
+def test_stderr_capture_stays_bounded_while_reading():
+    """Each read discards old diagnostics before requesting further output."""
+    tail = bytearray()
+    reads = 0
+
+    def read(size):
+        nonlocal reads
+        assert len(tail) <= STDERR_TAIL_BYTES
+        reads += 1
+        return b"x" * size if reads <= 1000 else b""
+
+    _capture_stderr(Mock(read1=read), tail)
+    assert tail == b"x" * STDERR_TAIL_BYTES
+
+
+@pytest.mark.parametrize("capture_output", [False, True])
+def test_noisy_media_command_retains_only_stderr_tail(capture_output):
+    """Large stderr does not block the command or hide its final diagnostic."""
+    command = [
+        sys.executable,
+        "-c",
+        "import sys; sys.stderr.write('x' * 2_000_000 + 'final diagnostic'); "
+        "sys.stdout.write('output'); sys.exit(1)",
+    ]
+    with pytest.raises(ProcessingError, match="final diagnostic$") as error:
+        _run(command, 17, capture_output=capture_output)
+    assert len(error.value.__cause__.stderr) == STDERR_TAIL_BYTES
+    assert error.value.__cause__.stdout == ("output" if capture_output else None)
+
+
+def test_noisy_media_command_timeout_retains_stderr_tail():
+    command = [
+        sys.executable,
+        "-c",
+        "import sys, time; sys.stderr.write('x' * 2_000_000 + 'final diagnostic'); "
+        "sys.stderr.flush(); time.sleep(30)",
+    ]
+    with pytest.raises(ProcessingError, match="final diagnostic$") as error:
+        _run(command, 1)
+    assert isinstance(error.value.__cause__, subprocess.TimeoutExpired)
+    assert len(error.value.__cause__.stderr) == STDERR_TAIL_BYTES

@@ -139,7 +139,7 @@ Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 | `AUDIO_EXTRACTOR_WORK_DIR` | No | `/work` | Directory for temporary job files |
 | `AUDIO_EXTRACTOR_SENTRY_DSN` | No | — | Sentry DSN; Sentry is disabled when unset |
 | `AUDIO_EXTRACTOR_ENVIRONMENT` | No | — | Deployment environment used by Sentry and the HTTP user agent |
-| `AUDIO_EXTRACTOR_RELEASE` | No | — | Release identifier used by Sentry and the HTTP user agent; defaults to the package version in the user agent |
+| `AUDIO_EXTRACTOR_RELEASE` | No | — | Release identifier used by Sentry and the HTTP user agent; omitted from the HTTP user agent when unset |
 
 Before sending an event or breadcrumb, the worker strips credentials, query
 parameters, and fragments from HTTP and HTTPS URLs in Sentry data while preserving
