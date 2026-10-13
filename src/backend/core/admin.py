@@ -91,7 +91,7 @@ class AiFileJobInline(AiJobDurationMixin, admin.TabularInline):
         "created_at",
         "computed_duration",
     )
-    readonly_fields = ("id", "created_at", "computed_duration")
+    readonly_fields = fields
     show_change_link = True
 
     def has_add_permission(self, request, obj=None):
@@ -100,6 +100,10 @@ class AiFileJobInline(AiJobDurationMixin, admin.TabularInline):
 
     def has_delete_permission(self, request, obj=None):
         """Prevent deleting AI jobs through the file inline."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Keep AI jobs viewable without allowing inline edits."""
         return False
 
 
@@ -580,8 +584,20 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
         "file__filename",
     )
     ordering = ("-created_at",)
-    readonly_fields = ("id", "created_at", "updated_at", "computed_duration")
-    autocomplete_fields = ("file",)
+    readonly_fields = (
+        "id",
+        "remote_job_id",
+        "type",
+        "status",
+        "file",
+        "language",
+        "docs_app_id",
+        "docs_creation_in_progress",
+        "validated_audio_job",
+        "created_at",
+        "updated_at",
+        "computed_duration",
+    )
     fieldsets = (
         (
             None,
@@ -607,6 +623,10 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         """Prevent deleting AI jobs through the admin."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Keep AI jobs viewable without allowing edits."""
         return False
 
 

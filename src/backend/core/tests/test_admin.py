@@ -37,6 +37,46 @@ from core.models import (
 pytestmark = pytest.mark.django_db
 
 
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
+def test_ai_job_admin_is_view_only(client):
+    """Superusers can inspect AI jobs but cannot submit edits."""
+    admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
+    job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
+    client.force_login(admin_user)
+    url = reverse("admin:core_aifilejob_change", args=[job.pk])
+
+    response = client.get(url)
+
+    assert response.status_code == 200
+    assert b'name="status"' not in response.content
+    assert b'name="_save"' not in response.content
+
+    response = client.post(url, {"status": AiJobStatusChoices.SUCCESS})
+
+    assert response.status_code == 403
+    job.refresh_from_db()
+    assert job.status == AiJobStatusChoices.PENDING
+
+
+def test_ai_job_inline_has_no_editable_fields():
+    """The file inline must expose only read-only AI job information."""
+    admin_instance = AiFileJobInline(File, admin.site)
+    request = Mock()
+    request.user = factories.UserFactory(is_staff=True, is_superuser=True)
+
+    formset = admin_instance.get_formset(request)
+
+    assert not formset.form.base_fields
+    assert admin_instance.has_change_permission(request) is False
+
+
 @pytest.mark.parametrize("admin_class", [AiFileJobAdmin, AiFileJobInline])
 @pytest.mark.parametrize(
     ("status", "expected_duration"),
