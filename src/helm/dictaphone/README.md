@@ -198,7 +198,7 @@ The worker's `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` is copied from
 | `audioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
 | `audioExtractor.sidecars`      | Add sidecars containers to audio worker deployment       | `[]`                                                                                        |
 | `audioExtractor.securityContext` | Configure audio worker container security context     | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, capabilities: {drop: [ALL]}}`                                                                                       |
-| `audioExtractor.envVars`       | Environment variables shared by both audio workers      | `{AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend:8000}` |
+| `audioExtractor.envVars`       | Environment variables shared by both audio workers      | `AUDIO_EXTRACTOR_API_URL not set by the chart` |
 | `audioExtractor.transcodingEnvVars` | Environment variables for the transcoding worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
 | `audioExtractor.validationEnvVars` | Environment variables for the validation worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
 | `audioExtractor.podAnnotations` | Annotations to add to the audio worker Pod             | `{}`                                                                                        |

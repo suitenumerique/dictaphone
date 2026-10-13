@@ -493,7 +493,6 @@ audioExtractor:
   ## @param audioExtractor.envVars Configure audio worker environment variables
   ## @skip audioExtractor.envVars
   envVars:
-    AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend.dictaphone.svc.cluster.local
     AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: 900
     AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: 1200
     AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: 30
