@@ -57,9 +57,7 @@ def test_transcoding_success_uploads_and_reports_duration(config, task, http_ses
     assert post.call_args.kwargs["headers"] == {
         "Authorization": "Bearer worker-token-for-tests-0123456789"
     }
-    assert http_session.headers["User-Agent"] == (
-        "dictaphone-audio-extractor (mode=transcoding)"
-    )
+    assert http_session.headers["User-Agent"] == config.user_agent
     assert post.call_args.kwargs["timeout"] == 30
     response.raise_for_status.assert_called_once()
 
@@ -133,8 +131,9 @@ def test_validation_mode_validates_without_upload_or_duration(
     assert post.call_args.kwargs["headers"] == {
         "Authorization": "Bearer worker-token-for-tests-0123456789"
     }
-    assert http_session.headers["User-Agent"] == (
-        "dictaphone-audio-extractor (mode=validation)"
+    assert (
+        http_session.headers["User-Agent"]
+        == config.model_copy(update={"mode": "validation"}).user_agent
     )
 
 

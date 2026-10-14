@@ -68,6 +68,7 @@ RUN mkdir -p /work && \
 # Copy the application from the builder
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/audio_extractor /app/audio_extractor
+COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 COPY src/audio-extractor/run-worker.sh /app/run-worker.sh
 
 ENV PATH="/app/.venv/bin:$PATH" \

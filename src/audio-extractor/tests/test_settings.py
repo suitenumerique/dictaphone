@@ -60,7 +60,9 @@ def test_user_agent_uses_configured_release_and_environment(config):
 
 
 def test_user_agent_omits_unconfigured_release(config):
-    assert config.user_agent == "dictaphone-audio-extractor (mode=transcoding)"
+    settings = config.model_copy(update={"release": ""})
+
+    assert settings.user_agent == "dictaphone-audio-extractor (mode=transcoding)"
 
 
 @pytest.mark.parametrize("mode", ["ffmpeg", "opus", "other"])

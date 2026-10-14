@@ -140,14 +140,17 @@ Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 | `AUDIO_EXTRACTOR_COMMAND_TIMEOUT` | No | `900` | Timeout for each media command in seconds |
 | `AUDIO_EXTRACTOR_MAX_INPUT_BYTES` | No | `1073741824` | Maximum downloaded file size in bytes (1 GiB) |
 | `AUDIO_EXTRACTOR_WORK_DIR` | No | `/work` | Directory for temporary job files |
-| `AUDIO_EXTRACTOR_SENTRY_DSN` | No | — | Sentry DSN; Sentry is disabled when unset |
+| `SENTRY_DSN` | No | — | Sentry DSN; Sentry is disabled when unset |
+| `SENTRY_TRACES_SAMPLE_RATE` | No | `0.0` | Fraction of transactions to trace, from `0.0` (none) to `1.0` (all) |
 | `AUDIO_EXTRACTOR_ENVIRONMENT` | No | — | Deployment environment used by Sentry and the HTTP user agent |
-| `AUDIO_EXTRACTOR_RELEASE` | No | — | Release identifier used by Sentry and the HTTP user agent; omitted from the HTTP user agent when unset |
+
+The Sentry release and HTTP user agent version are read from the package version in
+`pyproject.toml`; they are not configurable through an environment variable.
 
 Before sending an event or breadcrumb, the worker strips credentials, query
 parameters, and fragments from HTTP and HTTPS URLs in Sentry data while preserving
-the URL path. Local variables, request bodies, tracing, and Sentry logs are disabled
-to reduce the chance of a signed URL being included through another SDK field.
+the URL path. Trace sampling is controlled by `SENTRY_TRACES_SAMPLE_RATE` and is
+off by default.
 
 ## Run locally
 

@@ -1,5 +1,7 @@
 """Validated settings for the audio extraction worker."""
 
+import tomllib
+from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
@@ -16,6 +18,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 USER_AGENT_NAME = "dictaphone-audio-extractor"
 
 
+def get_release() -> str:
+    """Return the audio-extractor project version for Sentry."""
+    try:
+        with (Path(__file__).parent.parent / "pyproject.toml").open("rb") as pyproject:
+            return tomllib.load(pyproject)["project"]["version"]
+    except FileNotFoundError, KeyError, tomllib.TOMLDecodeError:
+        return "NA"  # Default: not available
+
+
 class Settings(BaseSettings):
     """Worker settings loaded from AUDIO_EXTRACTOR_* environment variables."""
 
@@ -29,9 +40,14 @@ class Settings(BaseSettings):
         description="Internal API base URL including /api/internal/${API_VERSION}"
     )
     token: SecretStr = Field(min_length=32)
-    sentry_dsn: SecretStr | None = None
+    sentry_dsn: SecretStr | None = Field(
+        default=None,
+        validation_alias="SENTRY_DSN",
+    )
+    sentry_traces_sample_rate: float = Field(
+        default=0.0, ge=0.0, le=1.0, validation_alias="SENTRY_TRACES_SAMPLE_RATE"
+    )
     environment: str | None = None
-    release: str | None = None
     mode: Literal["transcoding", "validation"] = "transcoding"
     output_sample_rate: int = Field(default=16000, gt=0)
     output_bitrate: str = Field(default="64k", pattern=r"^[1-9][0-9]*[kKmM]$")
@@ -45,6 +61,11 @@ class Settings(BaseSettings):
     poll_interval_seconds: float = Field(default=5, gt=0)
     shutdown_grace_seconds: int = Field(default=30, gt=0)
     health_port: int = Field(default=8080, ge=1, le=65535)
+
+    @cached_property
+    def release(self) -> str:
+        """Return the audio-extractor project version."""
+        return get_release()
 
     @property
     def user_agent(self) -> str:
