@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
+from django.conf import settings as django_settings
 from django.db import connections
 from django.utils import timezone
 
@@ -15,6 +16,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core import factories
+from core.configuration import clear_configuration_cache
 from core.models import File, FileTypeChoices, FileUploadStateChoices
 
 pytestmark = pytest.mark.django_db
@@ -112,10 +114,17 @@ def test_api_files_create_file_authenticated_no_filename():
     assert response.json() == {"filename": ["This field is required."]}
 
 
-def test_api_files_create_file_authenticated_success():
+def test_api_files_create_file_authenticated_success(monkeypatch):
     """
     Authenticated users should be able to create a file file and must provide a filename.
     """
+    monkeypatch.setitem(
+        django_settings.S3_BUCKET_CONFIGURATIONS["default"],
+        "upload_acl",
+        "private",
+    )
+    clear_configuration_cache()
+
     user = factories.UserFactory()
 
     client = APIClient()
