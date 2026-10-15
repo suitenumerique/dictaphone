@@ -217,3 +217,7 @@ data:
   .dockerconfigjson: {{ template "dictaphone.secret.dockerconfigjson.data" .imageCredentials }}
 {{- end -}}
 {{- end }}
+
+{{- define "dictaphone.s3Gateway.fullname" -}}
+{{- printf "%s-s3-gateway" (include "dictaphone.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}

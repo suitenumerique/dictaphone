@@ -739,3 +739,90 @@ extraManifests: []
 #        {
 #          "feature": "enabled"
 #        }
+
+# Restricted S3 proxy using the audio extractor image. Supply explicit provider rules.
+s3Gateway:
+  enabled: true
+  replicas: 2
+  rules: []
+  ## @param s3Gateway.dpAnnotations Annotations for the gateway Deployment
+  dpAnnotations: {}
+  ## @param s3Gateway.podAnnotations Annotations for gateway Pods
+  podAnnotations: {}
+  ## @param s3Gateway.strategy Deployment update strategy
+  strategy: {}
+  ## @param s3Gateway.automountServiceAccountToken Mount a service-account token in gateway Pods
+  automountServiceAccountToken: false
+  ## @param s3Gateway.serviceAccountName Existing service account for gateway Pods
+  serviceAccountName: ""
+  ## @param s3Gateway.podSecurityContext Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10000
+    runAsGroup: 10000
+    seccompProfile:
+      type: RuntimeDefault
+  ## @param s3Gateway.securityContext Gateway container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  ## @param s3Gateway.command Override the gateway container command
+  command: ["python", "-m", "audio_extractor.s3_gateway"]
+  ## @param s3Gateway.args Arguments for the gateway container
+  args: []
+  ## @param s3Gateway.shareProcessNamespace Share the process namespace between containers
+  shareProcessNamespace: false
+  ## @param s3Gateway.sidecars Additional containers in gateway Pods
+  sidecars: []
+  ## @param s3Gateway.initContainers Init containers in gateway Pods
+  initContainers: []
+  ## @param s3Gateway.extraVolumes Additional Kubernetes volume definitions
+  extraVolumes: []
+  ## @param s3Gateway.extraVolumeMounts Additional Kubernetes volume mounts for the gateway container
+  extraVolumeMounts: []
+  ## @param s3Gateway.service.type Gateway Service type
+  ## @param s3Gateway.service.port Gateway Service port used by workers
+  ## @param s3Gateway.service.targetPort Gateway container listening port
+  ## @param s3Gateway.service.annotations Annotations for the gateway Service
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    annotations: {}
+  ## @param s3Gateway.probes.readiness Kubernetes readiness probe; null disables it
+  ## @param s3Gateway.probes.liveness Kubernetes liveness probe; null disables it
+  ## @param s3Gateway.probes.startup Optional Kubernetes startup probe
+  probes:
+    readiness:
+      httpGet:
+        path: /healthz
+        port: http
+    liveness:
+      httpGet:
+        path: /healthz
+        port: http
+    startup: null
+  ## @param s3Gateway.pdb.enabled Create a gateway PodDisruptionBudget
+  ## @param s3Gateway.pdb.maxUnavailable Maximum unavailable gateway Pods (count or percentage)
+  pdb:
+    enabled: true
+    maxUnavailable: 1
+  terminationGracePeriodSeconds: 45
+  envVars:
+    S3_GATEWAY_FORCE_HTTPS: true
+    S3_GATEWAY_MAX_UPLOAD_BYTES: "1073741824"
+    S3_GATEWAY_MAX_CONCURRENT_REQUESTS: 20
+    S3_GATEWAY_TIMEOUT_SECONDS: 3600
+    S3_GATEWAY_SHUTDOWN_GRACE_SECONDS: 30
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 256Mi
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []

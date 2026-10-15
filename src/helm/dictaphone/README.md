@@ -316,3 +316,67 @@ set an individual probe to `null` to disable it.
 | `extraManifests[].kind`       | Kind of the resource (Deployment, Service, ConfigMap, etc.) |       |
 | `extraManifests[].metadata`   | Resource metadata                                           |       |
 | `extraManifests[].spec`       | Resource specification                                      |       |
+
+### s3Gateway
+
+The S3 proxy is enabled by default and runs the existing audio extractor image.
+Provide a nonempty `s3Gateway.rules` YAML array with
+`endpoint`, `addressing_style` (`path` or `virtual`), and explicit bucket GET/PUT
+prefixes. Both audio worker Deployments then receive its internal proxy URL.
+
+Probes accept native Kubernetes definitions; set an individual probe to `null`
+to disable it. Worker connections follow `service.port`, while the gateway
+listener follows `service.targetPort`.
+
+| Name | Description | Value |
+| ---- | ----------- | ----- |
+| `s3Gateway.enabled` | Deploy the gateway and route both audio workers through it | `true` |
+| `s3Gateway.replicas` | Number of gateway replicas | `2` |
+| `s3Gateway.rules` | Required nonempty array of storage provider rules when enabled | `[]` |
+| `s3Gateway.rules[].endpoint` | Storage origin without a path; HTTPS and no explicit port by default | |
+| `s3Gateway.rules[].addressing_style` | Bucket addressing style: `path` or `virtual` | |
+| `s3Gateway.rules[].buckets` | Map of bucket names to GET/PUT prefix lists; prefixes must end in `/` | |
+| `s3Gateway.dpAnnotations` | Annotations for the gateway Deployment | `{}` |
+| `s3Gateway.podAnnotations` | Annotations for gateway Pods | `{}` |
+| `s3Gateway.strategy` | Deployment update strategy; empty uses Kubernetes defaults | `{}` |
+| `s3Gateway.automountServiceAccountToken` | Mount a service-account token in gateway Pods | `false` |
+| `s3Gateway.serviceAccountName` | Existing service account for gateway Pods; empty uses the namespace default | `""` |
+| `s3Gateway.podSecurityContext` | Pod security context | `{runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, seccompProfile: {type: RuntimeDefault}}` |
+| `s3Gateway.securityContext` | Gateway container security context | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}` |
+| `s3Gateway.command` | Override the gateway container command | `["python","-m","audio_extractor.s3_gateway"]` |
+| `s3Gateway.args` | Arguments for the gateway container | `[]` |
+| `s3Gateway.shareProcessNamespace` | Share the process namespace between containers | `false` |
+| `s3Gateway.sidecars` | Additional containers in gateway Pods | `[]` |
+| `s3Gateway.initContainers` | Init containers in gateway Pods | `[]` |
+| `s3Gateway.extraVolumes` | Additional native Kubernetes volume definitions | `[]` |
+| `s3Gateway.extraVolumeMounts` | Additional native Kubernetes volume mounts for the gateway container | `[]` |
+| `s3Gateway.service.type` | Gateway Service type | `ClusterIP` |
+| `s3Gateway.service.port` | Gateway Service port used by workers | `8080` |
+| `s3Gateway.service.targetPort` | Gateway container listening port; also sets `S3_GATEWAY_PORT` | `8080` |
+| `s3Gateway.service.annotations` | Annotations for the gateway Service | `{}` |
+| `s3Gateway.probes.readiness` | Readiness probe; `null` disables it | `{httpGet: {path: /healthz, port: http}}` |
+| `s3Gateway.probes.liveness` | Liveness probe; `null` disables it | `{httpGet: {path: /healthz, port: http}}` |
+| `s3Gateway.probes.startup` | Optional startup probe | `null` |
+| `s3Gateway.pdb.enabled` | Create a gateway PodDisruptionBudget | `true` |
+| `s3Gateway.pdb.maxUnavailable` | Maximum unavailable gateway Pods, as a count or percentage | `1` |
+| `s3Gateway.terminationGracePeriodSeconds` | Pod termination grace period in seconds | `45` |
+| `s3Gateway.envVars` | Gateway environment variables; supports direct values, ConfigMap references, and Secret references | See individual settings below |
+| `s3Gateway.envVars.S3_GATEWAY_FORCE_HTTPS` | Require HTTPS storage endpoints and public destination addresses | `true` |
+| `s3Gateway.envVars.S3_GATEWAY_MAX_UPLOAD_BYTES` | Maximum upload size in bytes (1 GiB); keep this value quoted | `"1073741824"` |
+| `s3Gateway.envVars.S3_GATEWAY_MAX_CONCURRENT_REQUESTS` | Maximum concurrent transfers per gateway process | `20` |
+| `s3Gateway.envVars.S3_GATEWAY_TIMEOUT_SECONDS` | Transfer deadline and upstream read timeout in seconds | `3600` |
+| `s3Gateway.envVars.S3_GATEWAY_SHUTDOWN_GRACE_SECONDS` | Drain deadline in seconds; keep below the Pod termination grace period | `30` |
+| `s3Gateway.resources` | Gateway container resource requests and limits | `{requests: {cpu: 50m, memory: 128Mi}, limits: {cpu: "1", memory: 256Mi}}` |
+| `s3Gateway.nodeSelector` | Node selector for gateway Pods | `{}` |
+| `s3Gateway.affinity` | Affinity for gateway Pods | `{}` |
+| `s3Gateway.tolerations` | Tolerations for gateway Pods | `[]` |
+
+`S3_GATEWAY_RULES` and `S3_GATEWAY_PORT` are reserved in `envVars`; configure
+`rules` and `service.targetPort` instead.
+
+HTTPS/public DNS upstreams are required by default. Development values explicitly
+allow the local HTTP RustFS endpoint by setting `S3_GATEWAY_FORCE_HTTPS=false`.
+Allow GET on output prefixes for validation and
+restrict worker network egress to enforce the gateway boundary. See the
+[audio extractor gateway documentation](../../audio-extractor/README.md#s3-egress-gateway)
+for configuration, operational limits, security policy, Compose/Tilt usage, and tests.

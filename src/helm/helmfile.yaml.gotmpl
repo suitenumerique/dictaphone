@@ -40,5 +40,8 @@ releases:
   values:
   - env.d/{{ .Environment.Name }}/values.dictaphone.yaml.gotmpl
   - env.d/{{ .Environment.Name }}/values.secrets.yaml
+  {{- if hasKey .Values "s3Gateway" }}
+  - s3Gateway: {{ .Values.s3Gateway | toJson }}
+  {{- end }}
   secrets:
   - env.d/{{ .Environment.Name }}/secrets.enc.yaml

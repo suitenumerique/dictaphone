@@ -193,3 +193,9 @@ serviceMediaFiles:
     host: rustfs.dictaphone.svc.cluster.local
     port: 9000
     annotations: {}
+
+s3Gateway:
+  enabled: true
+  rules: [{"endpoint": "http://rustfs.dictaphone.svc.cluster.local:9000", "addressing_style": "path", "buckets": {"dictaphone-media-storage": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-alpha": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-beta": {"GET": ["files/"], "PUT": ["files/"]}}}, {"endpoint": "http://rustfs.dictaphone.svc.cluster.local:9000", "addressing_style": "virtual", "buckets": {"dictaphone-media-storage": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-alpha": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-beta": {"GET": ["files/"], "PUT": ["files/"]}}}]
+  envVars:
+    S3_GATEWAY_FORCE_HTTPS: false

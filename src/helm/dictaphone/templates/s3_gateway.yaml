@@ -1,0 +1,152 @@
+{{- if .Values.s3Gateway.enabled }}
+{{- $config := .Values.s3Gateway }}
+{{- if or (hasKey $config.envVars "S3_GATEWAY_PORT") (hasKey $config.envVars "S3_GATEWAY_RULES") }}
+{{- fail "Configure s3Gateway.rules and s3Gateway.service.targetPort directly; S3_GATEWAY_PORT and S3_GATEWAY_RULES are reserved" }}
+{{- end }}
+{{- $name := include "dictaphone.s3Gateway.fullname" . }}
+{{- $rules := required "s3Gateway.rules must be nonempty when enabled" $config.rules }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  {{- with $config.dpAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "dictaphone.common.labels" (list . "s3-gateway") | nindent 4 }}
+spec:
+  replicas: {{ $config.replicas }}
+  {{- with $config.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "dictaphone.common.selectorLabels" (list . "s3-gateway") | nindent 6 }}
+  template:
+    metadata:
+      {{- with $config.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "dictaphone.common.selectorLabels" (list . "s3-gateway") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: {{ $config.automountServiceAccountToken }}
+      {{- with $config.serviceAccountName }}
+      serviceAccountName: {{ . | quote }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ $config.terminationGracePeriodSeconds }}
+      {{- with $config.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.images.credentials }}
+      imagePullSecrets:
+        - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" .Values.images.credentials) }}
+      {{- end }}
+      {{- with $config.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $config.shareProcessNamespace }}
+      shareProcessNamespace: true
+      {{- end }}
+      containers:
+        {{- with $config.sidecars }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        - name: s3-gateway
+          image: "{{ .Values.images.audioExtractor.repository }}:{{ .Values.images.audioExtractor.tag }}"
+          imagePullPolicy: {{ .Values.images.audioExtractor.pullPolicy }}
+          {{- with $config.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: S3_GATEWAY_RULES
+              value: {{ $rules | toJson | quote }}
+            - name: S3_GATEWAY_PORT
+              value: {{ $config.service.targetPort | quote }}
+            {{- include "dictaphone.env.transformDict" $config.envVars | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ $config.service.targetPort }}
+          {{- with $config.probes.readiness }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.probes.liveness }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.probes.startup }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $config.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $config.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $config.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $config.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with $config.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $config.service.type }}
+  selector:
+    {{- include "dictaphone.common.selectorLabels" (list . "s3-gateway") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $config.service.port }}
+      targetPort: http
+{{- if $config.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  maxUnavailable: {{ $config.pdb.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "dictaphone.common.selectorLabels" (list . "s3-gateway") | nindent 6 }}
+{{- end }}
+{{- end }}
