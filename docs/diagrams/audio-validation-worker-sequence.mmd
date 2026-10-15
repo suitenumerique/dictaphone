@@ -4,7 +4,11 @@ sequenceDiagram
     participant Child@{ "type": "control" } as Fresh attempt process
     participant Validators@{ "type": "entity" } as opusinfo + opusdec<br/>inside the attempt process
     participant API@{ "type": "control" } as Dictaphone API
+    participant Gateway@{ "type": "control" } as S3 egress gateway
     participant FileStore@{ "type": "database" } as File-linked object storage
+
+    Note over Child,FileStore: Gateway path shown: enabled by default in Helm, Compose, and Tilt.<br/>If S3_GATEWAY_URL is empty, the child transfers directly to storage.<br/>Gateway rejects disallowed requests before contacting storage.
+    Note over Child,API: Transient download and completion errors retry within the attempt budget.
 
     Worker->>Worker: Clean work_dir and initialize health endpoints
     loop Before 15-minute claim cutoff and no termination requested
@@ -20,9 +24,13 @@ sequenceDiagram
             Worker->>Child: Spawn a fresh process, pass settings and job over stdin
             Note over Worker,Child: Whole-attempt budget is bounded by the configured job timeout<br/>and server lease, reserve up to 5 seconds for failure reporting.
             Child->>Child: Create temporary job directory under work_dir
-            Child->>FileStore: GET source_url
+            Child->>Gateway: GET /proxy<br/>X-Target-URL: source_url
+            Gateway->>Gateway: Validate target and headers against allowlist
+            Gateway->>FileStore: GET original signed source_url, no redirects
+            FileStore-->>Gateway: Source object
+            Gateway-->>Child: Stream source object
             Child->>Validators: Run opusinfo, then<br/>opusdec --quiet source /dev/null
-            alt Download, media processing, or upload fails
+            alt Download or validation fails
                 Child->>API: POST /api/internal/v1.0/audio-jobs/validation/complete<br/>Bearer token, id, status=failure, error, metadata
             else Validation succeeds
                 Validators-->>Child: Audio stream validated

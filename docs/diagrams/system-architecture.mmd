@@ -34,6 +34,8 @@ flowchart LR
         end
         Kubelet["Kubernetes kubelet<br/>startup, liveness, readiness probes<br/>container restarts"]
         Watchdog["Per-container timeout wrapper<br/>TERM at 20 minutes<br/>KILL after 30-second grace"]
+        Gateway["S3 gateway Deployment + internal Service<br/>credential-free streaming proxy<br/>endpoint / bucket / method / prefix allowlist"]
+        GatewayConfig["Gateway enabled by default in Helm, Compose, Tilt.<br/>Standalone workers can use direct storage when S3_GATEWAY_URL is empty.<br/>Network isolation requires deployment network policies."]
         MediaIngress["Media-files Ingress<br/>Nginx auth subrequest"]
 
         subgraph DictaphoneStorage["Dictaphone S3 storage<br/>one or more policy-linked buckets"]
@@ -83,14 +85,17 @@ flowchart LR
 
     Reencoder -->|"poll with bearer token<br/>GET /api/internal/v1.0/audio-jobs/transcoding/next"| API
     API -->|"job: id, job_kind, expires_at,<br/>source_url, destination_url, destination_headers"| Reencoder
-    TranscodingAttempt -->|"GET source_url / PUT destination_url"| StoragePolicy
+    TranscodingAttempt -->|"GET /proxy or PUT /proxy<br/>X-Target-URL: signed URL<br/>PUT includes destination headers + Content-Length"| Gateway
     TranscodingAttempt -->|"bearer token + result payload<br/>POST /api/internal/v1.0/audio-jobs/transcoding/complete"| API
 
     Validator -->|"poll with bearer token<br/>GET /api/internal/v1.0/audio-jobs/validation/next"| API
     API -->|"job: id, job_kind, expires_at, source_url"| Validator
-    ValidationAttempt -->|"GET source_url"| StoragePolicy
+    ValidationAttempt -->|"GET /proxy<br/>X-Target-URL: signed source_url"| Gateway
+    Gateway -->|"allowlisted GET / PUT<br/>original presigned URL, no redirects"| StoragePolicy
+    GatewayConfig -.-> Gateway
     ValidationAttempt -->|"bearer token + result payload<br/>POST /api/internal/v1.0/audio-jobs/validation/complete"| API
 
+    Kubelet -.->|"probe /healthz"| Gateway
     Kubelet -.->|"probe local HTTP health endpoints"| Reencoder
     Kubelet -.->|"probe local HTTP health endpoints"| Validator
     Watchdog -.->|"bound process lifetime"| Reencoder
@@ -113,8 +118,9 @@ flowchart LR
     classDef securityNote fill:#fef2f2,stroke:#b91c1c,color:#7f1d1d
 
     class Web,Mobile client
-    class Ingress,Frontend,API,BackendWorker,Reencoder,Validator,MediaIngress dictaphoneApp
+    class Ingress,Frontend,API,BackendWorker,Reencoder,Validator,MediaIngress,Gateway dictaphoneApp
     class FFmpeg,OpusTools,TranscodingAttempt,ValidationAttempt workerTool
+    class GatewayConfig securityNote
     class Kubelet,Watchdog routing
     class SummaryAPI,SummaryWorker summaryApp
     class DB,Redis,DefaultBucket,DomainBucket,AdditionalBuckets,SummaryStore data
