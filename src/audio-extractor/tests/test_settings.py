@@ -102,3 +102,23 @@ def test_worker_runtime_must_precede_watchdog():
             token=VALID_TOKEN,
             max_runtime_seconds=1200,
         )
+
+
+@pytest.mark.parametrize("value", [None, ""])
+def test_empty_gateway_url_preserves_direct_transfers(config, value):
+    settings = Settings(**{**config.model_dump(), "s3_gateway_url": value})
+    assert settings.s3_gateway_url is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://gateway",
+        "http://user:secret@gateway/proxy",
+        "ftp://gateway/proxy",
+        "http://gateway/proxy?token=secret",
+    ],
+)
+def test_gateway_url_rejects_invalid_proxy_addresses(config, value):
+    with pytest.raises(ValueError):
+        Settings(**{**config.model_dump(), "s3_gateway_url": value})

@@ -167,3 +167,77 @@ uv run python -m audio_extractor
 
 Set `AUDIO_EXTRACTOR_MODE=validation` to run the validation worker. The development
 dependency group includes Ruff, Pylint, and pytest.
+
+## S3 egress gateway
+
+The same image can run a credential-free proxy for presigned S3 downloads and
+uploads:
+
+```sh
+python -m audio_extractor.s3_gateway
+```
+
+Set `S3_GATEWAY_RULES` to a JSON array allowing specific endpoints, buckets,
+methods, and key prefixes:
+
+```json
+[
+  {
+    "endpoint": "https://storage.example.com",
+    "addressing_style": "path",
+    "buckets": {
+      "dictaphone-inputs": {"GET": ["files/"]},
+      "dictaphone-outputs": {"GET": ["files/"], "PUT": ["files/"]}
+    }
+  }
+]
+```
+
+Use `addressing_style: "virtual"` for bucket subdomains. Endpoints must be HTTPS
+origins without paths or ports; prefixes must be nonempty directories ending in
+`/`. Allow GET on output prefixes so the validation worker can read them.
+
+Standalone workers use `S3_GATEWAY_URL=http://s3-gateway:8080/proxy`; leaving it
+unset or empty uses direct transfers. The proxy accepts GET/PUT at `/proxy` with
+the presigned URL in `X-Target-URL`, and serves health checks at `/healthz`.
+Only ordinary object downloads and uploads are supported. The gateway preserves
+the provider's `upload_acl` header when supplied by the backend.
+
+Keep the gateway internal and restrict ingress to workers. Enforce worker egress
+through network policies; setting `S3_GATEWAY_URL` alone does not restrict direct
+connections. Storage destinations must resolve to public addresses by default.
+Keep `S3_GATEWAY_FORCE_HTTPS=true` in production, and avoid logging presigned URLs
+or `X-Target-URL`.
+
+### Deployment
+
+Compose, Helm, and Tilt route workers through the gateway by default:
+
+- **Helm:** supply `s3Gateway.rules` as a YAML array; missing rules fail rendering.
+  Set `s3Gateway.enabled: false` to disable the gateway.
+- **Compose:** local RustFS rules live in `env.d/development/s3-gateway.dist`.
+  Set worker `S3_GATEWAY_URL` to an empty value to use direct transfers.
+- **Tilt:** rules come from `src/helm/env.d/<environment>/values.dictaphone.yaml.gotmpl`.
+
+Development configurations allow HTTP RustFS with `S3_GATEWAY_FORCE_HTTPS=false`.
+The gateway defaults to port 8080, a 1 GiB upload
+limit, 20 concurrent transfers, and a one-hour transfer timeout. See
+[audio_extractor/s3_gateway](audio_extractor/s3_gateway/) for all settings and
+validation rules.
+
+To enable Sentry, set `SENTRY_DSN` in the gateway environment (Helm:
+`s3Gateway.envVars`). Optional settings are `S3_GATEWAY_ENVIRONMENT` and
+`SENTRY_TRACES_SAMPLE_RATE` (default: `0`). The gateway release is read from the
+audio-extractor package version, matching the worker. The gateway
+uses the worker's URL scrubbers for events, transactions, and breadcrumbs, with
+request bodies, local variables, and Sentry logs disabled.
+
+### Verification
+
+```sh
+make test-audio-extractor
+```
+
+Storage integration tests use `S3_ENDPOINT_URL` for RustFS and `S3_GATEWAY_URL`
+for the gateway. Without a gateway URL, they start an in-process gateway.
+Standalone `uv run pytest` skips these tests when `S3_ENDPOINT_URL` is unset.

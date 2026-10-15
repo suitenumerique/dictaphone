@@ -58,12 +58,13 @@ docker_build(
 )
 clean_old_images('localhost:5001/dictaphone-frontend-generic')
 
+# The chart enables the gateway by default, including for local RustFS.
 k8s_yaml(local('cd ../src/helm && helmfile -n dictaphone -e ${DEV_ENV:-dev} template .'))
-
+k8s_resource('dictaphone-s3-gateway', resource_deps=['rustfs'])
 k8s_resource('rustfs-bucket', resource_deps=['rustfs'])
 k8s_resource('dictaphone-celery-backend', resource_deps=['redis'])
-k8s_resource('dictaphone-audio-extractor-transcoding', resource_deps=['dictaphone-backend-migrate'])
-k8s_resource('dictaphone-audio-extractor-validation', resource_deps=['dictaphone-backend-migrate'])
+k8s_resource('dictaphone-audio-extractor-transcoding', resource_deps=['dictaphone-backend-migrate', 'dictaphone-s3-gateway'])
+k8s_resource('dictaphone-audio-extractor-validation', resource_deps=['dictaphone-backend-migrate', 'dictaphone-s3-gateway'])
 k8s_resource('dictaphone-backend', resource_deps=['postgresql', 'rustfs', 'redis'])
 k8s_resource('dictaphone-backend-migrate', resource_deps=['dictaphone-backend'])
 k8s_resource('keycloak', resource_deps=['kc-postgresql'])

@@ -76,7 +76,8 @@ create-env-files: \
 	env.d/development/common \
 	env.d/development/crowdin \
 	env.d/development/postgresql \
-	env.d/development/kc_postgresql
+	env.d/development/kc_postgresql \
+	env.d/development/s3-gateway
 .PHONY: create-env-files
 
 bootstrap: ## Prepare Docker images for the project
@@ -98,8 +99,8 @@ build: ## build the project containers
 	@$(MAKE) build-frontend
 .PHONY: build
 
-build-audio-extractor: ## build the isolated audio extractor container
-	@$(COMPOSE) build audio-extractor-dev
+build-audio-extractor: ## build audio extractor and S3 gateway containers
+	@$(COMPOSE) build audio-extractor-dev s3-gateway
 .PHONY: build-audio-extractor
 
 build-backend: ## build the app-dev container
@@ -234,12 +235,12 @@ test: ## run project tests
 .PHONY: test
 
 test-audio-extractor: ## run audio extractor tests
-	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) pytest $${args}
+	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE) run --rm audio-extractor-dev pytest $${args}
 .PHONY: test-audio-extractor
 
 
 test-audio-extractor-parallel: ## run audio extractor tests
-	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE_RUN_AUDIO_EXTRACTOR_NO_DEPS) pytest -n auto $${args}
+	@args="$(filter-out $@,$(MAKECMDGOALS))" && $(COMPOSE) run --rm audio-extractor-dev pytest -n auto $${args}
 .PHONY: test-audio-extractor-parallel
 
 test-back: ## run back-end tests
@@ -309,6 +310,9 @@ env.d/development/kc_postgresql:
 
 env.d/development/crowdin:
 	cp -n env.d/development/crowdin.dist env.d/development/crowdin
+
+env.d/development/s3-gateway:
+	cp -n env.d/development/s3-gateway.dist env.d/development/s3-gateway
 
 crowdin-download: ## Download translated message from Crowdin
 	@$(COMPOSE_RUN_CROWDIN) download -c crowdin/config.yml

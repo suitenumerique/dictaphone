@@ -14,7 +14,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
-from audio_extractor.http_client import get_session
+from audio_extractor.http_client import get_session, storage_target
 
 LOGGER = logging.getLogger(__name__)
 
@@ -121,7 +121,10 @@ def _download(
     max_bytes: int,
 ) -> None:
     """Stream an input media object to the bounded work volume."""
-    with get_session().get(url, stream=True, timeout=timeout) as response:
+    target, headers = storage_target(url)
+    with get_session().get(
+        target, headers=headers, stream=True, timeout=timeout, allow_redirects=False
+    ) as response:
         response.raise_for_status()
         with destination.open("wb") as output:
             downloaded = 0
@@ -135,22 +138,26 @@ def _download(
                     output.write(chunk)
 
 
-@retry(retries=3, retry_if=_is_retryable_transfer_error)
 def _upload(
     url: str,
     source: Path,
     timeout: float,
     destination_headers: dict[str, str] | None = None,
 ) -> None:
-    """Upload an OGG file directly to its signed destination URL."""
+    """Stream one PUT to storage or the gateway without automatic replay."""
     transfer_headers = {
         key: value
         for key, value in (destination_headers or {}).items()
         if key.lower() != "user-agent"
     }
     headers = {"Content-Type": "audio/ogg", **transfer_headers}
+    target, headers = storage_target(url, headers)
+    if target != url:
+        headers["Content-Length"] = str(source.stat().st_size)
     with source.open("rb") as media:
-        response = get_session().put(url, data=media, headers=headers, timeout=timeout)
+        response = get_session().put(
+            target, data=media, headers=headers, timeout=timeout, allow_redirects=False
+        )
         response.raise_for_status()
 
 

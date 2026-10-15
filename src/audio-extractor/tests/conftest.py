@@ -1,5 +1,6 @@
 """Shared fixtures for audio extractor tests."""
 
+import os
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
@@ -21,7 +22,10 @@ def config(tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def configured_http_session():
+def configured_http_session(monkeypatch, storage_gateway_url):
+    # Unit tests configure routing explicitly; only storage integration tests use
+    # the gateway supplied by the environment, captured by storage_gateway_url.
+    monkeypatch.delenv("S3_GATEWAY_URL", raising=False)
     settings = Settings(
         api_url="https://api.example.test/api/internal/v1.0",
         token="worker-token-for-tests-0123456789",
@@ -29,6 +33,12 @@ def configured_http_session():
     session = configure_session(settings)
     yield session
     close_session()
+
+
+@pytest.fixture(scope="session")
+def storage_gateway_url():
+    """Capture stack routing before individual tests isolate worker settings."""
+    return os.getenv("S3_GATEWAY_URL")
 
 
 @pytest.fixture

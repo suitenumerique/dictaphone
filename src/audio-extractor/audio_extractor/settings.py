@@ -48,6 +48,7 @@ class Settings(BaseSettings):
         default=0.0, ge=0.0, le=1.0, validation_alias="SENTRY_TRACES_SAMPLE_RATE"
     )
     environment: str | None = None
+    s3_gateway_url: str | None = Field(default=None, validation_alias="S3_GATEWAY_URL")
     mode: Literal["transcoding", "validation"] = "transcoding"
     output_sample_rate: int = Field(default=16000, gt=0)
     output_bitrate: str = Field(default="64k", pattern=r"^[1-9][0-9]*[kKmM]$")
@@ -67,12 +68,29 @@ class Settings(BaseSettings):
         """Return the audio-extractor project version."""
         return get_release()
 
+    @field_validator("s3_gateway_url")
+    @classmethod
+    def validate_gateway_url(cls, value: str | None) -> str | None:
+        """An empty variable preserves direct mode; gateway URLs are internal HTTP."""
+        if not value:
+            return None
+        parsed = TypeAdapter(AnyHttpUrl).validate_python(value)
+        if (
+            parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path != "/proxy"
+        ):
+            raise ValueError("S3_GATEWAY_URL must be an HTTP(S) /proxy URL")
+        return value
+
     @property
     def user_agent(self) -> str:
         """Identify the extractor release, environment, and processing mode."""
-        identity = (
-            f"{USER_AGENT_NAME}/{self.release}" if self.release else USER_AGENT_NAME
-        )
+        identity = USER_AGENT_NAME
+        if self.release != "":
+            identity = f"{USER_AGENT_NAME}/{self.release}"
         environment = f", environment={self.environment}" if self.environment else ""
         return f"{identity} (mode={self.mode}{environment})"
 

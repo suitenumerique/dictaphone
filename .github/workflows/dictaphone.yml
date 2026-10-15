@@ -175,6 +175,8 @@ jobs:
     defaults:
       run:
         working-directory: src/audio-extractor
+    env:
+      S3_ENDPOINT_URL: http://localhost:9000
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -186,14 +188,31 @@ jobs:
           python-version-file: src/audio-extractor/pyproject.toml
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      - name: Install the dependencies
-        run: uv sync --locked --all-extras
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
       - name: Install media tools
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg opus-tools
-      - name: Install the project
-        run: uv sync --locked --all-groups
+      - name: Create writable /data
+        run: |
+          sudo mkdir -p /data/media && \
+          sudo chown -R 10001:10001 /data/media
+      - name: Start RustFS
+        run: |
+          docker pull rustfs/rustfs:latest
+          docker run -d --name rustfs \
+            -p 9000:9000 \
+            -e "RUSTFS_ACCESS_KEY=dictaphone" \
+            -e "RUSTFS_SECRET_KEY=password" \
+            -v /data/media:/data \
+            rustfs/rustfs:latest /data
+      # Tool to wait for a service to be ready
+      - name: Install Dockerize
+        run: |
+          curl -sSL https://github.com/jwilder/dockerize/releases/download/v0.8.0/dockerize-linux-amd64-v0.8.0.tar.gz | sudo tar -C /usr/local/bin -xzv
+      - name: Wait for RustFS to be ready
+        run: dockerize -wait http://localhost:9000/health/ready -timeout 30s
       - name: Run tests
         run: uv run pytest -n 2
 

@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import requests
 
+from audio_extractor.http_client import configure_session, get_session
+from audio_extractor.settings import Settings
 from audio_extractor.utils import (
     STDERR_TAIL_BYTES,
     ProcessingError,
@@ -87,32 +89,19 @@ def test_redact_url_removes_credentials_query_and_fragment(url, expected):
     assert _redact_url(url) == expected
 
 
-def test_upload_retries_transient_failures_three_times(tmp_path, http_session):
+def test_upload_does_not_replay_transient_failures(tmp_path, http_session):
     source = tmp_path / "audio.ogg"
     source.write_bytes(b"ogg data")
-    response = Mock()
-    put = Mock(
-        side_effect=[
-            requests.ConnectionError("temporary outage"),
-            requests.Timeout("temporary timeout"),
-            requests.ConnectionError("temporary outage"),
-            response,
-        ]
-    )
-
     with (
-        patch.object(http_session, "put", put),
+        patch.object(
+            http_session, "put", side_effect=requests.ConnectionError("outage")
+        ) as put,
         patch("audio_extractor.utils.time.sleep") as sleep,
+        pytest.raises(requests.ConnectionError),
     ):
-        _upload(
-            "https://storage.test/signed-put",
-            source,
-            19,
-        )
-
-    assert put.call_count == 4
-    assert sleep.call_count == 3
-    response.raise_for_status.assert_called_once()
+        _upload("https://storage.test/signed-put", source, 19)
+    put.assert_called_once()
+    sleep.assert_not_called()
 
 
 def test_upload_does_not_retry_client_errors(tmp_path, http_session):
@@ -242,3 +231,40 @@ def test_noisy_media_command_timeout_retains_stderr_tail():
         _run(command, 1)
     assert isinstance(error.value.__cause__, subprocess.TimeoutExpired)
     assert len(error.value.__cause__.stderr) == STDERR_TAIL_BYTES
+
+
+def test_gateway_routes_storage_only_and_preserves_signed_headers(
+    tmp_path, http_session
+):
+    configure_session(
+        Settings(
+            api_url="https://api.example.test/api/internal/v1.0",
+            token="worker-token-for-tests-0123456789",
+            s3_gateway_url="http://s3-gateway:8080/proxy",
+        )
+    )
+    session = get_session()
+    source = tmp_path / "audio.ogg"
+    source.write_bytes(b"ogg data")
+    url = "https://storage.test/files/a?X-Amz-Signature=a%2Bb"
+    response = Mock()
+    with patch.object(session, "put", return_value=response) as put:
+        _upload(
+            url, source, 19, {"Content-Type": "audio/ogg", "x-amz-meta-test": "signed"}
+        )
+    assert put.call_args.args == ("http://s3-gateway:8080/proxy",)
+    assert put.call_args.kwargs["headers"] == {
+        "Content-Type": "audio/ogg",
+        "x-amz-meta-test": "signed",
+        "X-Target-URL": url,
+        "Content-Length": "8",
+    }
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.iter_content.return_value = [b"audio"]
+    with patch.object(session, "get", return_value=response) as get:
+        _download(url, tmp_path / "download", 19, 100)
+    assert get.call_args.args == ("http://s3-gateway:8080/proxy",)
+    assert get.call_args.kwargs["headers"] == {"X-Target-URL": url}
+    assert get.call_args.kwargs["allow_redirects"] is False
+    assert session.headers["User-Agent"].startswith("dictaphone-audio-extractor")
