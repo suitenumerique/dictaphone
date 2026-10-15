@@ -187,6 +187,10 @@ add_header Content-Disposition "attachment";
 
 The worker's `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` is copied from
 `backend.envVars.AUDIO_JOB_TIMEOUT_SECONDS`, defaulting to `300`.
+Settings under `audioExtractor` apply to both transcoding and validation workers.
+As with the gateway, `podSecurityContext` configures the Pod and `securityContext`
+configures the worker container. Probes accept native Kubernetes definitions;
+set an individual probe to `null` to disable it.
 
 | Name                        | Description                                                    | Value                                                                                       |
 | --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -197,6 +201,13 @@ The worker's `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` is copied from
 | `audioExtractor.validationReplicas`  | Amount of validation worker replicas              | `1` |
 | `audioExtractor.shareProcessNamespace` | Enable share process namespace between containers | `false` |
 | `audioExtractor.sidecars`      | Add sidecars containers to audio worker deployment       | `[]`                                                                                        |
+| `audioExtractor.initContainers` | Init containers in audio worker Pods | `[]` |
+| `audioExtractor.automountServiceAccountToken` | Mount a service-account token | `false` |
+| `audioExtractor.serviceAccountName` | Existing service account for audio worker Pods | `""` |
+| `audioExtractor.podSecurityContext` | Pod security context | Non-root UID/GID/fsGroup 10000, RuntimeDefault seccomp |
+| `audioExtractor.strategy` | Deployment rollout strategy | RollingUpdate, maxUnavailable 0, maxSurge 1 |
+| `audioExtractor.probes` | Startup, liveness, and readiness probes | `/startupz`, `/livez`, `/readyz` on port `health` |
+| `audioExtractor.terminationGracePeriodSeconds` | Time for cancellation and cleanup | `45` |
 | `audioExtractor.securityContext` | Configure audio worker container security context     | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, capabilities: {drop: [ALL]}}`                                                                                       |
 | `audioExtractor.envVars`       | Environment variables shared by both audio workers      | `AUDIO_EXTRACTOR_API_URL not set by the chart; include /api/internal/${API_VERSION} in its value` |
 | `audioExtractor.transcodingEnvVars` | Environment variables for the transcoding worker, including its dedicated `AUDIO_EXTRACTOR_TOKEN` | `{}` |
@@ -210,9 +221,11 @@ The worker's `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` is copied from
 | `audioExtractor.persistence.volume-name.size` | Size of the additional volume | |
 | `audioExtractor.persistence.volume-name.type` | Type of the additional volume, persistentVolumeClaim or emptyDir | |
 | `audioExtractor.persistence.volume-name.mountPath` | Path where the volume should be mounted to | |
-| `audioExtractor.extraVolumeMounts` | Additional volumes to mount on the audio worker. | `[]` |
-| `audioExtractor.extraVolumes`    | Additional volumes to mount on the audio worker. | `[]` |
+| `audioExtractor.workVolume` | Kubernetes volume source mounted at `/work` | `{emptyDir: {sizeLimit: 4Gi}}` |
+| `audioExtractor.extraVolumeMounts` | Additional native Kubernetes volume mounts | `[]` |
+| `audioExtractor.extraVolumes` | Additional Kubernetes volumes; also accepts `existingClaim` for PVCs | `[]` |
 | `audioExtractor.pdb.enabled`    | Enable pdb on the audio worker | `false` |
+| `audioExtractor.pdb.maxUnavailable` | Maximum unavailable Pods per worker Deployment | `1` |
 
 ### frontend
 

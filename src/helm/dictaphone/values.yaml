@@ -480,6 +480,24 @@ audioExtractor:
   ## @param audioExtractor.sidecars Add sidecars containers to audio worker deployment
   sidecars: []
 
+  ## @param audioExtractor.initContainers Init containers in audio worker Pods
+  initContainers: []
+
+  ## @param audioExtractor.automountServiceAccountToken Mount a service-account token in audio worker Pods
+  automountServiceAccountToken: false
+
+  ## @param audioExtractor.serviceAccountName Existing service account for audio worker Pods
+  serviceAccountName: ""
+
+  ## @param audioExtractor.podSecurityContext Audio worker Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10000
+    runAsGroup: 10000
+    fsGroup: 10000
+    seccompProfile:
+      type: RuntimeDefault
+
   ## @param audioExtractor.securityContext Configure audio worker container security context
   securityContext:
     allowPrivilegeEscalation: false
@@ -526,14 +544,21 @@ audioExtractor:
   ## @extra audioExtractor.persistence.volume-name.mountPath Path where the volume should be mounted to
   persistence: {}
 
-  ## @param audioExtractor.extraVolumeMounts Additional volumes to mount on the audio worker.
+  ## @param audioExtractor.workVolume Kubernetes volume source for the /work workspace
+  workVolume:
+    emptyDir:
+      sizeLimit: 4Gi
+
+  ## @param audioExtractor.extraVolumeMounts Additional native Kubernetes volume mounts for audio workers
   extraVolumeMounts: []
 
-  ## @param audioExtractor.extraVolumes Additional volumes to mount on the audio worker.
+  ## @param audioExtractor.extraVolumes Additional Kubernetes volumes; existingClaim is also supported for PVCs
   extraVolumes: []
 
   ## @param audioExtractor.pdb.enabled Enable pdb on the audio worker
+  ## @param audioExtractor.pdb.maxUnavailable Maximum unavailable audio worker Pods (count or percentage)
   pdb:
+    maxUnavailable: 1
     enabled: false
 
 ## @section frontend
