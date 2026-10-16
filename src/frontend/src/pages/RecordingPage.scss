@@ -25,6 +25,7 @@ $mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
 
   &__header {
     position: sticky;
+    z-index: 1;
     top: 0;
     background-color: white;
     display: flex;
