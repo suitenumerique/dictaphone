@@ -41,7 +41,7 @@
     "react-i18next": "17.0.15",
     "react-toastify": "11.1.0",
     "uuid": "14.0.2",
-    "wouter": "3.11.0",
+    "wouter": "3.11.1",
     "zustand": "5.0.15"
   },
   "devDependencies": {
@@ -55,7 +55,7 @@
     "eslint": "10.11.0",
     "oxfmt": "0.71.0",
     "oxlint": "1.86.0",
-    "oxc-transform-react": "^0.147.0",
+    "oxc-transform-react": "^0.151.0",
     "postcss": "8.5.28",
     "sass-embedded": "1.105.0",
     "typescript": "7.0.2",
