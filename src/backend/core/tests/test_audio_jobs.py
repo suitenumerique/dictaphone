@@ -530,6 +530,39 @@ def test_api_and_queryset_state_resolvers_agree(state, expected):
     )
 
 
+def test_api_audio_state_stays_extracting_until_validation_succeeds():
+    """A new cycle resets done to pending, then stays extracting through validation."""
+    file = ready_file(
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE
+    )
+    client = APIClient()
+    client.force_login(file.creator)
+
+    def assert_state(expected):
+        assert file.audio_extraction_state == expected
+        response = client.get(f"/api/v1.0/files/{file.id}/")
+        assert response.status_code == 200
+        assert response.data["audio_extraction_state"] == expected
+
+    assert_state("extraction_done")
+    transcoding = start_audio_extraction(file.id)
+    assert_state("pending_audio_extraction")
+    assert poll().status_code == 200
+    assert_state("extracting_audio")
+
+    get_storage_for_file(file).save(transcoding.output_key, BytesIO(b"audio"))
+    assert complete(transcoding, duration_seconds=12.5).status_code == 200
+    assert file.latest_audio_job.mode == models.AudioJobModeChoices.VALIDATION
+    assert file.latest_audio_job.status == models.AudioJobStatusChoices.PENDING
+    assert_state("extracting_audio")
+
+    assert poll("validation").status_code == 200
+    assert_state("extracting_audio")
+    with patch("core.tasks.file.call_transcribe_service.delay"):
+        assert complete(file.latest_audio_job).status_code == 200
+    assert_state("extraction_done")
+
+
 @pytest.mark.parametrize(
     "command",
     [

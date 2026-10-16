@@ -285,6 +285,11 @@ class FileQuerySet(models.QuerySet):
                     then=Value(FileAudioExtractionStateChoices.EXTRACTING_AUDIO),
                 ),
                 When(
+                    latest_audio_status=AudioJobStatusChoices.PENDING,
+                    latest_audio_mode=AudioJobModeChoices.VALIDATION,
+                    then=Value(FileAudioExtractionStateChoices.EXTRACTING_AUDIO),
+                ),
+                When(
                     latest_audio_status=AudioJobStatusChoices.SUCCESS,
                     latest_audio_mode=AudioJobModeChoices.VALIDATION,
                     then=Value(FileAudioExtractionStateChoices.EXTRACTION_DONE),
@@ -570,9 +575,12 @@ class File(BaseModel):
         if hasattr(self, "inferred_audio_state"):
             return self.inferred_audio_state
         job = self.latest_audio_job
-        if job is None or job.status == AudioJobStatusChoices.PENDING:
+        if job is None:
             return FileAudioExtractionStateChoices.PENDING_AUDIO_EXTRACTION
-        if job.status == AudioJobStatusChoices.PROCESSING:
+        if job.status == AudioJobStatusChoices.PROCESSING or (
+            job.status == AudioJobStatusChoices.PENDING
+            and job.mode == AudioJobModeChoices.VALIDATION
+        ):
             return FileAudioExtractionStateChoices.EXTRACTING_AUDIO
         if (
             job.status == AudioJobStatusChoices.SUCCESS
