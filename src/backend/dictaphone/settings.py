@@ -485,7 +485,6 @@ class Base(Configuration):
         "PAGE_SIZE": 20,
         "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
         "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-        "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
         "DEFAULT_THROTTLE_RATES": {
             "file_upload_ended_burst": values.Value(
                 default="10/minute",
@@ -543,10 +542,6 @@ class Base(Configuration):
     }
     RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = values.PositiveIntegerValue(
         24, environ_prefix=None
-    )
-
-    MONITORED_THROTTLE_FAILURE_CALLBACK = (
-        "core.api.throttling.sentry_monitoring_throttle_failure"
     )
 
     SPECTACULAR_SETTINGS = {
