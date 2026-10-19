@@ -61,6 +61,8 @@ class Migration(migrations.Migration):
                 ("ai_job_id", models.UUIDField(unique=True)),
                 ("submitted_at", models.DateTimeField()),
                 ("duration_seconds", models.FloatField()),
+                ("ignored", models.BooleanField(default=False)),
+                ("ignored_reason", models.TextField(blank=True, default="")),
                 (
                     "user",
                     models.ForeignKey(

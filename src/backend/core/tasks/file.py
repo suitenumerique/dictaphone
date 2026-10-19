@@ -223,6 +223,7 @@ def _reserve_transcription_audio(ai_job):
     used_seconds = (
         TranscriptionUsage.objects.filter(
             user_id=file.creator_id,
+            ignored=False,
             submitted_at__gt=now - timedelta(hours=24),
             submitted_at__lte=now,
         ).aggregate(total=Sum("duration_seconds"))["total"]

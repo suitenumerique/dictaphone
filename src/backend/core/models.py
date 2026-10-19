@@ -815,6 +815,8 @@ class TranscriptionUsage(BaseModel):
     ai_job_id = models.UUIDField(unique=True)
     submitted_at = models.DateTimeField()
     duration_seconds = models.FloatField()
+    ignored = models.BooleanField(default=False)
+    ignored_reason = models.TextField(blank=True, default="")
 
     class Meta:
         db_table = "transcription_usage"
@@ -902,11 +904,18 @@ class AiFileJob(BaseModel):
     def __str__(self):
         return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
 
+    @transaction.atomic
     def mark_failed(self, reason=AiJobFailureReasonChoices.UNKNOWN_FAILURE):
-        """Persist a public failure reason alongside the terminal status."""
+        """Persist terminal failure and release its transcription quota charge."""
         self.status = AiJobStatusChoices.FAILED
         self.failure_reason = AiJobFailureReasonChoices(reason)
         self.save(update_fields=["status", "failure_reason", "updated_at"])
+        if self.type == AiJobTypeChoices.TRANSCRIPT:
+            TranscriptionUsage.objects.filter(ai_job_id=self.pk, ignored=False).update(
+                ignored=True,
+                ignored_reason=f"Transcription failed: {self.failure_reason}",
+                updated_at=timezone.now(),
+            )
 
     def delete(self, using=None, keep_parents=False):
         """Delete the AI job and its result file from object storage."""

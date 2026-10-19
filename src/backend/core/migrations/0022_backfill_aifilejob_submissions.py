@@ -27,7 +27,8 @@ def backfill_submissions(apps, schema_editor):
         remote_job_id__isnull=False,
         file__creator_id__isnull=False,
     ).exclude(remote_job_id="").order_by("pk").values_list(
-        "pk", "file__creator_id", "created_at", "file__duration_seconds"
+        "pk", "file__creator_id", "created_at", "file__duration_seconds",
+        "status", "failure_reason",
     )
     for rows in batched(submissions.iterator(chunk_size=BATCH_SIZE), BATCH_SIZE):
         usage.objects.using(db).bulk_create(
@@ -37,8 +38,12 @@ def backfill_submissions(apps, schema_editor):
                     user_id=user_id,
                     submitted_at=created_at,
                     duration_seconds=duration,
+                    ignored=status == "failed",
+                    ignored_reason=(
+                        f"Transcription failed: {reason}" if status == "failed" else ""
+                    ),
                 )
-                for job_id, user_id, created_at, duration in rows
+                for job_id, user_id, created_at, duration, status, reason in rows
             ],
             ignore_conflicts=True,
         )

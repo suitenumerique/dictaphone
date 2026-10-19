@@ -130,6 +130,102 @@ def test_transcription_quota_automatic_retries_charge_once(post):
     assert job.failure_reason == ""
     usage = models.TranscriptionUsage.objects.get(ai_job_id=job.pk)
     assert usage.duration_seconds == 3600
+    assert usage.ignored is False
+
+
+@patch("core.tasks.file.session.post")
+def test_transcription_quota_ignored_charges_do_not_count(post):
+    """Manual exemptions release capacity while retaining the original charge."""
+    job = reserved_job(duration=3600)
+    ignored = factories.TranscriptionUsageFactory(
+        user=job.file.creator, ignored=True, ignored_reason="Support adjustment"
+    )
+    post.return_value.json.return_value = {"job_id": "new-transcript"}
+
+    call_transcribe_service(job.pk)
+
+    post.assert_called_once()
+    ignored.refresh_from_db()
+    assert ignored.ignored_reason == "Support adjustment"
+    assert models.TranscriptionUsage.objects.filter(user=job.file.creator).count() == 2
+
+
+@patch("core.tasks.file.session.post")
+def test_transcription_quota_remains_reserved_between_automatic_retries(post):
+    """A temporary transport error cannot free capacity for another submission."""
+    job = reserved_job(duration=3600)
+    post.side_effect = requests.Timeout("temporary failure")
+    with pytest.raises(requests.Timeout):
+        call_transcribe_service(job.pk)
+    usage = models.TranscriptionUsage.objects.get(ai_job_id=job.pk)
+    assert usage.ignored is False
+    blocked = reserved_job(job.file.creator, duration=1)
+    call_transcribe_service(blocked.pk)
+    blocked.refresh_from_db()
+    assert blocked.failure_reason == "RATE_LIMIT_TRANSCRIPTION_EXCEEDED"
+    post.assert_called_once()
+
+    post.side_effect = None
+    post.return_value.json.return_value = {"job_id": "recovered-transcript"}
+    call_transcribe_service(job.pk)
+    usage.refresh_from_db()
+    assert usage.ignored is False
+    assert models.TranscriptionUsage.objects.filter(ai_job_id=job.pk).count() == 1
+
+
+@pytest.mark.parametrize(
+    "failure", ["client_error", "invalid_response", "retry_exhausted"]
+)
+@patch("core.tasks.file.session.post")
+def test_failed_transcription_releases_quota_for_manual_retry(post, failure):
+    """Permanent failures retain ignored charges and allow a full-size manual retry."""
+    job = reserved_job(duration=3600)
+    if failure == "client_error":
+        response = requests.Response()
+        response.status_code = 400
+        post.return_value = response
+    elif failure == "invalid_response":
+        post.return_value.json.return_value = {"job_id": None}
+    else:
+        post.side_effect = requests.Timeout("service unavailable")
+
+    result = call_transcribe_service.apply(args=[job.pk], throw=False)
+
+    assert result.failed()
+    job.refresh_from_db()
+    assert job.status == models.AiJobStatusChoices.FAILED
+    usage = models.TranscriptionUsage.objects.get(ai_job_id=job.pk)
+    assert usage.ignored is True
+    assert usage.ignored_reason == "Transcription failed: UNKNOWN_FAILURE"
+
+    post.reset_mock(side_effect=True, return_value=True)
+    post.return_value.json.return_value = {"job_id": "manual-retry-transcript"}
+    client = APIClient()
+    client.force_login(job.file.creator)
+    response = client.post(f"/api/v1.0/ai-jobs/{job.pk}/retry/", {"language": "fr"})
+
+    assert response.status_code == 201, response.json()
+    post.assert_called_once()
+    retry_usage = models.TranscriptionUsage.objects.get(ai_job_id=response.json()["id"])
+    assert retry_usage.ignored is False
+    assert retry_usage.duration_seconds == 3600
+    assert models.TranscriptionUsage.objects.filter(user=job.file.creator).count() == 2
+
+
+def test_transcription_failure_preserves_existing_manual_ignore_reason():
+    """Repeated failure handling does not overwrite a support explanation."""
+    job = reserved_job()
+    usage = factories.TranscriptionUsageFactory(
+        ai_job_id=job.pk,
+        user=job.file.creator,
+        ignored=True,
+        ignored_reason="Support adjustment",
+    )
+
+    job.mark_failed()
+
+    usage.refresh_from_db()
+    assert usage.ignored_reason == "Support adjustment"
 
 
 @pytest.mark.parametrize("deleted_resource", ["file", "ai_job"])
@@ -210,6 +306,19 @@ def test_concurrent_transcription_quota_admissions_are_per_user(post):
     ) == 1
 
 
+@pytest.fixture(name="main_schema")
+def fixture_main_schema():
+    """Exercise the upgrade from main's schema and always restore current tables."""
+    executor = MigrationExecutor(connection)
+    latest = executor.loader.graph.leaf_nodes("core")
+    main_target = [("core", "0020_remove_file_audio_extraction_state")]
+    try:
+        executor.migrate(main_target)
+        yield executor.loader.project_state(main_target).apps
+    finally:
+        MigrationExecutor(connection).migrate(latest)
+
+
 @pytest.mark.django_db(transaction=True)
 def test_quota_migrations_upgrade_main_schema_and_backfill_once(main_schema):
     """Upgrade main's real AI rows directly, preserving usage without temporary fields."""
@@ -283,8 +392,12 @@ def test_quota_migrations_upgrade_main_schema_and_backfill_once(main_schema):
         assert usage.user_id == user.pk
         assert usage.submitted_at == submitted_at
         assert usage.duration_seconds == 600
+        assert usage.ignored == (job.status == "failed")
+        assert usage.ignored_reason == (
+            "Transcription failed: UNKNOWN_FAILURE" if job.status == "failed" else ""
+        )
 
-    blocked = reserved_job(user, duration=1801)
+    blocked = reserved_job(user, duration=2401)
     with patch("core.tasks.file.session.post") as post:
         call_transcribe_service(blocked.pk)
     post.assert_not_called()

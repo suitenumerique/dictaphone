@@ -8,7 +8,6 @@ from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth import admin as auth_admin
 from django.db import transaction
 from django.db.models import OuterRef, Subquery
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from kombu.exceptions import KombuError
@@ -30,15 +29,18 @@ def _publish_transcript_job(job_id):
     try:
         call_transcribe_service.delay(job_id)
     except KombuError:
-        models.AiFileJob.objects.filter(
-            pk=job_id,
-            status=models.AiJobStatusChoices.PENDING,
-            remote_job_id__isnull=True,
-        ).update(
-            status=models.AiJobStatusChoices.FAILED,
-            failure_reason=models.AiJobFailureReasonChoices.UNKNOWN_FAILURE,
-            updated_at=timezone.now(),
-        )
+        with transaction.atomic():
+            job = (
+                models.AiFileJob.objects.select_for_update()
+                .filter(
+                    pk=job_id,
+                    status=models.AiJobStatusChoices.PENDING,
+                    remote_job_id__isnull=True,
+                )
+                .first()
+            )
+            if job:
+                job.mark_failed()
         logger.exception("Publishing transcript job %s failed", job_id)
 
 
@@ -714,6 +716,59 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         """Keep AI jobs viewable without allowing edits."""
+        return False
+
+
+class TranscriptionUsageAdminForm(forms.ModelForm):
+    """Require an explanation for manual quota exemptions."""
+
+    class Meta:
+        model = models.TranscriptionUsage
+        fields = ("ignored", "ignored_reason")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("ignored") and not cleaned_data.get("ignored_reason"):
+            self.add_error(
+                "ignored_reason", _("Provide a reason for ignoring this usage.")
+            )
+        return cleaned_data
+
+
+@admin.register(models.TranscriptionUsage)
+class TranscriptionUsageAdmin(admin.ModelAdmin):
+    """Inspect quota charges and edit only their exemption and explanation."""
+
+    form = TranscriptionUsageAdminForm
+    list_display = (
+        "id",
+        "user",
+        "ai_job_id",
+        "duration_seconds",
+        "submitted_at",
+        "ignored",
+        "ignored_reason",
+    )
+    list_filter = ("ignored", "submitted_at")
+    search_fields = ("id", "ai_job_id", "user__email")
+    ordering = ("-submitted_at", "-id")
+    readonly_fields = (
+        "id",
+        "user",
+        "ai_job_id",
+        "duration_seconds",
+        "submitted_at",
+        "created_at",
+        "updated_at",
+    )
+    actions = None
+
+    def has_add_permission(self, request):
+        """Only transcription submission can create a charge."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Preserve the charge and its exemption history."""
         return False
 
 

@@ -206,7 +206,19 @@ def test_api_files_webhook_failure_marks_job_failed(
     payload_type, error_code, reason, settings
 ):
     """Failure webhook events should mark the related job as FAILED."""
-    ai_file_job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
+    ai_file_job = factories.AiFileJobFactory(
+        type=payload_type, status=AiJobStatusChoices.PENDING
+    )
+    transcript = (
+        ai_file_job
+        if payload_type == "transcript"
+        else factories.AiFileJobFactory(
+            file=ai_file_job.file, type="transcript", status=AiJobStatusChoices.SUCCESS
+        )
+    )
+    usage = factories.TranscriptionUsageFactory(
+        ai_job_id=transcript.pk, user=ai_file_job.file.creator
+    )
     settings.AI_WEBHOOK_API_KEY = "good-key"
 
     response = APIClient().post(
@@ -226,3 +238,8 @@ def test_api_files_webhook_failure_marks_job_failed(
     ai_file_job.refresh_from_db()
     assert ai_file_job.status == AiJobStatusChoices.FAILED
     assert ai_file_job.failure_reason == reason
+    usage.refresh_from_db()
+    assert usage.ignored == (payload_type == "transcript")
+    assert usage.ignored_reason == (
+        f"Transcription failed: {reason}" if payload_type == "transcript" else ""
+    )

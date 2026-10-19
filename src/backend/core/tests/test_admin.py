@@ -24,6 +24,7 @@ from core.admin import (
     FileAdmin,
     FileInline,
     LatestTranscriptJobStatusFilter,
+    TranscriptionUsageAdmin,
 )
 from core.models import (
     AiFileJob,
@@ -32,6 +33,7 @@ from core.models import (
     AudioJob,
     File,
     FileAudioExtractionStateChoices,
+    TranscriptionUsage,
     User,
 )
 
@@ -76,6 +78,108 @@ def test_ai_job_inline_has_no_editable_fields():
 
     assert not formset.form.base_fields
     assert admin_instance.has_change_permission(request) is False
+
+
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
+def test_transcription_usage_admin_only_edits_ignore_fields(client):
+    """Admins can exempt and reinstate usage without changing the original charge."""
+    admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
+    usage = factories.TranscriptionUsageFactory()
+    original = (
+        usage.user_id,
+        usage.ai_job_id,
+        usage.duration_seconds,
+        usage.submitted_at,
+    )
+    client.force_login(admin_user)
+    request = Mock(user=admin_user)
+    admin_instance = TranscriptionUsageAdmin(TranscriptionUsage, admin.site)
+    assert set(admin_instance.get_form(request, usage).base_fields) == {
+        "ignored",
+        "ignored_reason",
+    }
+    assert not admin_instance.get_actions(request)
+    url = reverse("admin:core_transcriptionusage_change", args=[usage.pk])
+    assert client.get(url).status_code == 200
+    assert (
+        client.get(reverse("admin:core_transcriptionusage_changelist")).status_code
+        == 200
+    )
+
+    response = client.post(
+        url,
+        {
+            "ignored": "on",
+            "ignored_reason": "Support adjustment",
+            "duration_seconds": "0",
+            "user": str(admin_user.pk),
+            "ai_job_id": str(admin_user.pk),
+        },
+    )
+
+    assert response.status_code == 302
+    usage.refresh_from_db()
+    assert usage.ignored is True
+    assert usage.ignored_reason == "Support adjustment"
+    assert (
+        usage.user_id,
+        usage.ai_job_id,
+        usage.duration_seconds,
+        usage.submitted_at,
+    ) == original
+
+    response = client.post(url, {"ignored_reason": "Reinstated after review"})
+    assert response.status_code == 302
+    usage.refresh_from_db()
+    assert usage.ignored is False
+
+
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
+def test_transcription_usage_admin_requires_ignore_reason(client):
+    """An exemption must have an explanation in the admin."""
+    client.force_login(factories.UserFactory(is_staff=True, is_superuser=True))
+    usage = factories.TranscriptionUsageFactory()
+
+    response = client.post(
+        reverse("admin:core_transcriptionusage_change", args=[usage.pk]),
+        {"ignored": "on", "ignored_reason": "   "},
+    )
+
+    assert response.status_code == 200
+    assert "ignored_reason" in response.context["adminform"].form.errors
+    usage.refresh_from_db()
+    assert usage.ignored is False
+
+
+@pytest.mark.parametrize("method", ["get", "post"])
+@pytest.mark.parametrize("action", ["add", "delete"])
+def test_transcription_usage_admin_disallows_create_and_delete(client, method, action):
+    """Even superusers cannot fabricate or delete quota history through the admin."""
+    client.force_login(factories.UserFactory(is_staff=True, is_superuser=True))
+    usage = factories.TranscriptionUsageFactory()
+    url = reverse(
+        f"admin:core_transcriptionusage_{action}",
+        args=[usage.pk] if action == "delete" else None,
+    )
+
+    response = getattr(client, method)(url)
+
+    assert response.status_code == 403
+    assert TranscriptionUsage.objects.count() == 1
 
 
 @pytest.mark.parametrize("admin_class", [AiFileJobAdmin, AiFileJobInline])
