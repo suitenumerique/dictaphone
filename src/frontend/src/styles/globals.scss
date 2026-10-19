@@ -132,3 +132,7 @@ body,
     margin: var(--c--globals--spacings--xs) 0;
   }
 }
+// Keep modal backdrops above sticky page headers that establish stacking contexts.
+.ReactModal__Overlay {
+  z-index: 2;
+}
