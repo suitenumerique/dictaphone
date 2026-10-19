@@ -219,6 +219,7 @@ def test_task_call_transcribe_service_http_error(mock_post, settings):
 
     ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
     assert ai_job.status == AiJobStatusChoices.FAILED
+    assert ai_job.failure_reason == "UNKNOWN_FAILURE"
     assert ai_job.remote_job_id is None
 
 
@@ -246,6 +247,7 @@ def test_task_call_transcribe_service_fails_on_invalid_duration(
     mock_post.assert_not_called()
     ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
     assert ai_job.status == AiJobStatusChoices.FAILED
+    assert ai_job.failure_reason == "AUDIO_TOO_LONG"
     assert ai_job.remote_job_id is None
 
 
@@ -639,6 +641,7 @@ def test_task_store_transcript_and_call_summary_post_error(
         type=AiJobTypeChoices.SUMMARIZE,
     )
     assert ai_summary_job.status == AiJobStatusChoices.FAILED
+    assert ai_summary_job.failure_reason == "UNKNOWN_FAILURE"
     assert ai_summary_job.remote_job_id is None
     mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
 

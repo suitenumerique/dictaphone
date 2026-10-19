@@ -34,7 +34,11 @@ def _publish_transcript_job(job_id):
             pk=job_id,
             status=models.AiJobStatusChoices.PENDING,
             remote_job_id__isnull=True,
-        ).update(status=models.AiJobStatusChoices.FAILED, updated_at=timezone.now())
+        ).update(
+            status=models.AiJobStatusChoices.FAILED,
+            failure_reason=models.AiJobFailureReasonChoices.UNKNOWN_FAILURE,
+            updated_at=timezone.now(),
+        )
         logger.exception("Publishing transcript job %s failed", job_id)
 
 
@@ -121,6 +125,7 @@ class AiFileJobInline(AiJobDurationMixin, admin.TabularInline):
         "remote_job_id",
         "type",
         "status",
+        "failure_reason",
         "created_at",
         "computed_duration",
     )
@@ -642,6 +647,7 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
         "remote_job_id",
         "type",
         "status",
+        "failure_reason",
         "language",
         "file",
         "created_at",
@@ -651,6 +657,7 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
     list_filter = (
         "type",
         "status",
+        "failure_reason",
         "created_at",
         "updated_at",
     )
@@ -667,6 +674,7 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
         "remote_job_id",
         "type",
         "status",
+        "failure_reason",
         "file",
         "language",
         "docs_app_id",
@@ -685,6 +693,7 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
                     "remote_job_id",
                     "type",
                     "status",
+                    "failure_reason",
                     "file",
                 )
             },

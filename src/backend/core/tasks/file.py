@@ -4,12 +4,13 @@ Tasks related to files.
 
 import json
 import logging
+from datetime import timedelta
 from math import ceil
 from urllib.parse import urljoin
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Sum
 from django.utils import timezone
 
 import requests as requests_lib
@@ -18,12 +19,14 @@ from core import analytics
 from core.configuration import get_profile_for_email
 from core.models import (
     AiFileJob,
+    AiJobFailureReasonChoices,
     AiJobStatusChoices,
     AiJobTypeChoices,
     AudioJobModeChoices,
     AudioJobStatusChoices,
     File,
     FileLifecycleStateChoices,
+    User,
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.constants import BACKEND_QUEUE
@@ -206,6 +209,46 @@ def _is_retryable_transcription_error(error):
     return True
 
 
+def _reserve_transcription_audio(ai_job):
+    """Charge each submission once, serializing admissions for the same user."""
+    if ai_job.submitted_at is not None:
+        return True
+
+    file = ai_job.file
+    # The caller holds the job lock and transaction through the remote call.
+    # A user lock also serializes submissions involving different files.
+    User.objects.select_for_update(no_key=True).get(pk=file.creator_id)
+    now = timezone.now()
+    used_seconds = (
+        AiFileJob.objects.filter(
+            file__creator_id=file.creator_id,
+            type=AiJobTypeChoices.TRANSCRIPT,
+            submitted_at__gt=now - timedelta(hours=24),
+            submitted_at__lte=now,
+        ).aggregate(total=Sum("submitted_audio_duration_seconds"))["total"]
+        or 0
+    )
+    duration = file.duration_seconds
+    limit_seconds = settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H * 3600
+    if duration is None or duration <= 0:
+        ai_job.mark_failed()
+        return False
+    if used_seconds + duration > limit_seconds:
+        ai_job.mark_failed(AiJobFailureReasonChoices.RATE_LIMIT_TRANSCRIPTION_EXCEEDED)
+        return False
+
+    ai_job.submitted_at = now
+    ai_job.submitted_audio_duration_seconds = duration
+    ai_job.save(
+        update_fields=[
+            "submitted_at",
+            "submitted_audio_duration_seconds",
+            "updated_at",
+        ]
+    )
+    return True
+
+
 # Build retry options separately for each task: Celery mutates the nested
 # ``retry_kwargs`` dictionary when it computes a backoff countdown.
 @app.task(
@@ -238,11 +281,13 @@ def call_transcribe_service(ai_job_id):
         try:
             _validate_transcription_audio(file, validation)
             if not _duration_is_allowed(file):
-                ai_job.status = AiJobStatusChoices.FAILED
-                ai_job.save(update_fields=["status", "updated_at"])
+                ai_job.mark_failed(AiJobFailureReasonChoices.AUDIO_TOO_LONG)
                 logger.warning(
                     "File duration exceeds maximum allowed for type %s", file.type
                 )
+                return ai_job.id
+
+            if not _reserve_transcription_audio(ai_job):
                 return ai_job.id
 
             response = session.post(
@@ -279,8 +324,7 @@ def call_transcribe_service(ai_job_id):
                 or call_transcribe_service.request.retries
                 >= call_transcribe_service.retry_kwargs["max_retries"]
             ):
-                ai_job.status = AiJobStatusChoices.FAILED
-                ai_job.save(update_fields=["status", "updated_at"])
+                ai_job.mark_failed()
             logger.exception("Submitting transcript job %s failed", ai_job.id)
         else:
             ai_job.remote_job_id = remote_job_id
@@ -334,6 +378,7 @@ def handle_transcript_received(remote_job_id, url: str | None):
     )
     logger.info("Transcript stored for file %s & url %s", file.id, url)
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
+    ai_transcript_job.failure_reason = ""
     ai_transcript_job.save()
 
     analytics.capture_event(
@@ -388,8 +433,7 @@ def handle_transcript_received(remote_job_id, url: str | None):
         summary_response.raise_for_status()
     except Exception as e:
         logger.error("Creating summary job failed for file %s: %s", file.id, e)
-        ai_summary_job.status = AiJobStatusChoices.FAILED
-        ai_summary_job.save()
+        ai_summary_job.mark_failed()
         raise e
 
     ai_summary_job.remote_job_id = summary_response.json()["job_id"]
@@ -436,6 +480,7 @@ def store_summary(remote_job_id, url):
     )
     logger.info("Summary stored for file %s & url %s", file.id, url)
     ai_summary_job.status = AiJobStatusChoices.SUCCESS
+    ai_summary_job.failure_reason = ""
     ai_summary_job.save()
 
 

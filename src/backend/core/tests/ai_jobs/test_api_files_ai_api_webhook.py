@@ -192,8 +192,19 @@ def test_api_files_summary_webhook_success(
     )
 
 
-@pytest.mark.parametrize("payload_type", ["transcript", "summary"])
-def test_api_files_webhook_failure_marks_job_failed(payload_type, settings):
+@pytest.mark.parametrize(
+    "payload_type,error_code,reason",
+    [
+        ("transcript", "unknown_error", "UNKNOWN_FAILURE"),
+        ("summary", "unknown_error", "UNKNOWN_FAILURE"),
+        ("transcript", "media_duration_too_long", "AUDIO_TOO_LONG"),
+        ("transcript", "unexpected_service_error", "UNKNOWN_FAILURE"),
+        ("summary", "unexpected_service_error", "UNKNOWN_FAILURE"),
+    ],
+)
+def test_api_files_webhook_failure_marks_job_failed(
+    payload_type, error_code, reason, settings
+):
     """Failure webhook events should mark the related job as FAILED."""
     ai_file_job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
     settings.AI_WEBHOOK_API_KEY = "good-key"
@@ -204,7 +215,7 @@ def test_api_files_webhook_failure_marks_job_failed(payload_type, settings):
             "job_id": ai_file_job.remote_job_id,
             "type": payload_type,
             "status": "failure",
-            "error_code": "unknown_error",
+            "error_code": error_code,
         },
         headers={"Authorization": "Bearer good-key"},
     )
@@ -214,3 +225,4 @@ def test_api_files_webhook_failure_marks_job_failed(payload_type, settings):
 
     ai_file_job.refresh_from_db()
     assert ai_file_job.status == AiJobStatusChoices.FAILED
+    assert ai_file_job.failure_reason == reason

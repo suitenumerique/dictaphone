@@ -1000,8 +1000,13 @@ class AiJobViewSet(
                 webhook_models.TranscribeWebhookFailurePayload,
             ),
         ):
-            ai_file_job.status = AiJobStatusChoices.FAILED
-            ai_file_job.save()
+            reason = models.AiJobFailureReasonChoices.UNKNOWN_FAILURE
+            if (
+                isinstance(payload, webhook_models.TranscribeWebhookFailurePayload)
+                and payload.error_code == "media_duration_too_long"
+            ):
+                reason = models.AiJobFailureReasonChoices.AUDIO_TOO_LONG
+            ai_file_job.mark_failed(reason)
             if isinstance(payload, webhook_models.TranscribeWebhookFailurePayload):
                 analytics.capture_event(
                     analytics.EventName.TRANSCRIPT_GENERATION_FAILURE,

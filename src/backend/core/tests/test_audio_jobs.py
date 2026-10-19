@@ -202,6 +202,49 @@ def test_validation_schedules_transcription_once(
     )
 
 
+@pytest.mark.parametrize("used_seconds,allowed", [(0, True), (3600, False)])
+@patch("core.tasks.file.session.post")
+def test_upload_ended_audio_quota(
+    post, settings, django_capture_on_commit_callbacks, used_seconds, allowed
+):
+    """Uploaded audio is checked after validation, just before AI submission."""
+    settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = 1
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
+    file = factories.FileFactory(filename="recording.ogg", duration_seconds=999)
+    get_storage_for_file(file).save(file.temporary_file_key, BytesIO(b"source"))
+    factories.AiFileJobFactory(
+        file__creator=file.creator,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+        submitted_at=timezone.now(),
+        submitted_audio_duration_seconds=used_seconds,
+    )
+    post.return_value.json.return_value = {"job_id": "quota-upload"}
+    client = APIClient()
+    client.force_login(file.creator)
+
+    assert client.post(f"/api/v1.0/files/{file.pk}/upload-ended/").status_code == 200
+    post.assert_not_called()
+    finish_transcoding(file)
+    assert poll("validation").status_code == 200
+    validation = file.latest_audio_job
+    with patch(
+        "core.tasks.file.call_transcribe_service.delay",
+        side_effect=call_transcribe_service,
+    ):
+        with django_capture_on_commit_callbacks(execute=True):
+            assert complete(validation).status_code == 200
+
+    job = file.ai_jobs.get()
+    assert job.status == ("pending" if allowed else "failed")
+    assert job.failure_reason == (
+        "" if allowed else "RATE_LIMIT_TRANSCRIPTION_EXCEEDED"
+    )
+    assert job.submitted_audio_duration_seconds == (12.5 if allowed else None)
+    assert post.call_count == int(allowed)
+    returned_job = client.get(f"/api/v1.0/files/{file.pk}/").json()["ai_jobs"][0]
+    assert returned_job["failure_reason"] == job.failure_reason
+
+
 @pytest.mark.parametrize("reuse_intent", [True, False])
 def test_validation_reuses_newest_unlinked_transcript_intent(
     reuse_intent, django_capture_on_commit_callbacks
@@ -642,7 +685,7 @@ def test_migration_preserves_all_states_and_legacy_keys_without_storage_operatio
     states = models.FileAudioExtractionStateChoices.values
     executor = MigrationExecutor(connection)
     old_target = [("core", "0017_aifilejob_docs_creation_in_progress")]
-    target = [("core", "0020_remove_file_audio_extraction_state")]
+    target = executor.loader.graph.leaf_nodes("core")
     try:
         executor.migrate(old_target)
         old_file = executor.loader.project_state(old_target).apps.get_model(

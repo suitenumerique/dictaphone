@@ -527,11 +527,13 @@ class Base(Configuration):
                 environ_name="RATE_LIMIT_API_AI_JOBS_RESULT_SUSTAINED",
                 environ_prefix=None,
             ),
+            # In case of APP retries, we need a bit of margin here.
             "file_create_burst": values.Value(
                 default="10/minute",
                 environ_name="RATE_LIMIT_API_FILES_CREATE_BURST",
                 environ_prefix=None,
             ),
+            # In case of APP retries, we need a bit of margin here.
             "file_create_sustained": values.Value(
                 default="100/hour",
                 environ_name="RATE_LIMIT_API_FILES_CREATE_SUSTAINED",
@@ -539,6 +541,10 @@ class Base(Configuration):
             ),
         },
     }
+    RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = values.PositiveIntegerValue(
+        24, environ_prefix=None
+    )
+
     MONITORED_THROTTLE_FAILURE_CALLBACK = (
         "core.api.throttling.sentry_monitoring_throttle_failure"
     )

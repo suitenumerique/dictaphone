@@ -818,6 +818,17 @@ class AiJobTypeChoices(models.TextChoices):
     SUMMARIZE = "summary", _("Summary")
 
 
+class AiJobFailureReasonChoices(models.TextChoices):
+    """Public reasons an AI job can fail."""
+
+    AUDIO_TOO_LONG = "AUDIO_TOO_LONG", _("Audio too long")
+    RATE_LIMIT_TRANSCRIPTION_EXCEEDED = (
+        "RATE_LIMIT_TRANSCRIPTION_EXCEEDED",
+        _("Transcription rate limit exceeded"),
+    )
+    UNKNOWN_FAILURE = "UNKNOWN_FAILURE", _("Unknown failure")
+
+
 class AiFileJob(BaseModel):
     """
     A job that is run to process an audio file.
@@ -833,6 +844,14 @@ class AiFileJob(BaseModel):
         max_length=25,
         choices=AiJobStatusChoices.choices,
     )
+    failure_reason = models.CharField(
+        max_length=40,
+        choices=AiJobFailureReasonChoices.choices,
+        blank=True,
+        default="",
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    submitted_audio_duration_seconds = models.FloatField(null=True, blank=True)
     language = models.CharField(
         max_length=2,
         choices=ISO_639_1_CHOICES,
@@ -859,6 +878,12 @@ class AiFileJob(BaseModel):
 
     def __str__(self):
         return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
+
+    def mark_failed(self, reason=AiJobFailureReasonChoices.UNKNOWN_FAILURE):
+        """Persist a public failure reason alongside the terminal status."""
+        self.status = AiJobStatusChoices.FAILED
+        self.failure_reason = AiJobFailureReasonChoices(reason)
+        self.save(update_fields=["status", "failure_reason", "updated_at"])
 
     def delete(self, using=None, keep_parents=False):
         """Delete the AI job and its result file from object storage."""

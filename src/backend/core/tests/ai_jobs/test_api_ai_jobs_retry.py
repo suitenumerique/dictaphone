@@ -36,6 +36,50 @@ def test_api_ai_jobs_retry_anonymous_not_allowed():
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.parametrize("used_seconds,allowed", [(0, True), (3600, False)])
+@patch("core.tasks.file.session.post")
+def test_api_ai_jobs_retry_audio_quota(post, settings, used_seconds, allowed):
+    """Retry uses the same duration quota and returns a persisted failure reason."""
+    settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = 1
+    user = factories.UserFactory()
+    old_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.FAILED,
+        file__creator=user,
+        file__duration_seconds=120,
+        file__upload_bytes=b"audio",
+        file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    factories.AiFileJobFactory(
+        file__creator=user,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        submitted_at=timezone.now(),
+        submitted_audio_duration_seconds=used_seconds,
+    )
+    post.return_value.json.return_value = {"job_id": "quota-retry"}
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(f"/api/v1.0/ai-jobs/{old_job.pk}/retry/", {"language": "en"})
+
+    assert response.status_code == 201
+    new_job = AiFileJob.objects.get(pk=response.json()["id"])
+    assert new_job.status == ("pending" if allowed else "failed")
+    reason = "" if allowed else "RATE_LIMIT_TRANSCRIPTION_EXCEEDED"
+    assert new_job.failure_reason == reason
+    assert response.json()["failure_reason"] == reason
+    assert post.call_count == int(allowed)
+    assert (
+        client.get(f"/api/v1.0/ai-jobs/{new_job.pk}/").json()["failure_reason"]
+        == reason
+    )
+    file_data = client.get(f"/api/v1.0/files/{old_job.file_id}/").json()
+    returned_job = next(
+        job for job in file_data["ai_jobs"] if job["id"] == str(new_job.pk)
+    )
+    assert returned_job["failure_reason"] == reason
+
+
 def test_api_ai_jobs_retry_non_owner_not_found():
     """Users should not retry transcript jobs they don't own."""
     ai_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)

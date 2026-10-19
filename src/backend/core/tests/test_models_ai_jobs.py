@@ -9,9 +9,49 @@ from django.core.files.storage import default_storage
 import pytest
 
 from core import factories
-from core.models import AiFileJob, AiJobStatusChoices, AiJobTypeChoices
+from core.models import (
+    AiFileJob,
+    AiJobFailureReasonChoices,
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+)
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.parametrize("reason", AiJobFailureReasonChoices.values)
+def test_models_ai_job_failure_reason_choices(reason):
+    """Each explicit failure choice is persisted with the failed status."""
+    job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
+
+    job.mark_failed(reason)
+
+    job.refresh_from_db()
+    assert job.status == AiJobStatusChoices.FAILED
+    assert job.failure_reason == reason
+    job.full_clean()
+
+
+def test_models_ai_job_failure_defaults_to_unknown():
+    """Unclassified failures use the public unknown failure choice."""
+    job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
+
+    job.mark_failed()
+
+    job.refresh_from_db()
+    assert job.failure_reason == AiJobFailureReasonChoices.UNKNOWN_FAILURE
+
+
+def test_models_ai_job_failure_rejects_unrecognized_reason():
+    """Service error strings cannot be persisted as public failure reasons."""
+    job = factories.AiFileJobFactory(status=AiJobStatusChoices.PENDING)
+
+    with pytest.raises(ValueError):
+        job.mark_failed("arbitrary_error")
+
+    job.refresh_from_db()
+    assert job.status == AiJobStatusChoices.PENDING
+    assert job.failure_reason == ""
 
 
 def test_models_ai_job_to_markdown_transcript_formats_whisperx_response():
