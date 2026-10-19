@@ -35,6 +35,7 @@ from rest_framework import (
 
 from core import analytics, models, utils, webhook_models
 from core.api.filters import ListFileFilter
+from core.api.throttling import FileCreateThrottleBurst, FileCreateThrottleSustained
 from core.audio_jobs import start_audio_extraction
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
@@ -262,6 +263,12 @@ class FileViewSet(
     }
     filter_backends = (django_filters.DjangoFilterBackend, filters.OrderingFilter)
     filterset_class = ListFileFilter
+
+    def get_throttles(self):
+        """Apply per-user burst and sustained limits to file creation."""
+        if self.action == "create":
+            return [FileCreateThrottleBurst(), FileCreateThrottleSustained()]
+        return super().get_throttles()
 
     def get_queryset(self):
         """Get queryset that defaults to the the current request user."""

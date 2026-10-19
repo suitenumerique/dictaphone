@@ -485,15 +485,16 @@ class Base(Configuration):
         "PAGE_SIZE": 20,
         "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
         "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+        "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
         "DEFAULT_THROTTLE_RATES": {
-            "request_entry": values.Value(
-                default="150/minute",
-                environ_name="REQUEST_ENTRY_THROTTLE_RATES",
+            "file_create_burst": values.Value(
+                default="10/minute",
+                environ_name="API_FILES_CREATE_THROTTLE_RATE_BURST",
                 environ_prefix=None,
             ),
-            "creation_callback": values.Value(
-                default="600/minute",
-                environ_name="CREATION_CALLBACK_THROTTLE_RATES",
+            "file_create_sustained": values.Value(
+                default="100/hour",
+                environ_name="API_FILES_CREATE_THROTTLE_RATE_SUSTAINED",
                 environ_prefix=None,
             ),
         },
