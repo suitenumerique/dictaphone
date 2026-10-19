@@ -193,6 +193,11 @@ class PKCEOAuthTokenExchangeView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    # Deliberately avoid IP-based rate limiting here: users sharing a public IP
+    # would share the allowance and could block each other's token exchanges.
+    # The tokens are lengthy enough that a brute-force attack here
+    # will be impossible.
+    # Audit logging for successful and failed token exchanges remains to be added.
 
     def post(self, request) -> Response:
         """Handles request for PKCE OAuth token exchange."""
