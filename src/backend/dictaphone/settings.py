@@ -487,14 +487,54 @@ class Base(Configuration):
         "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
         "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
         "DEFAULT_THROTTLE_RATES": {
+            "file_upload_ended_burst": values.Value(
+                default="10/minute",
+                environ_name="RATE_LIMIT_API_FILES_UPLOAD_ENDED_BURST",
+                environ_prefix=None,
+            ),
+            "file_upload_ended_sustained": values.Value(
+                default="100/hour",
+                environ_name="RATE_LIMIT_API_FILES_UPLOAD_ENDED_SUSTAINED",
+                environ_prefix=None,
+            ),
+            "ai_job_retry_burst": values.Value(
+                default="3/minute",
+                environ_name="RATE_LIMIT_API_AI_JOBS_RETRY_BURST",
+                environ_prefix=None,
+            ),
+            "ai_job_retry_sustained": values.Value(
+                default="20/hour",
+                environ_name="RATE_LIMIT_API_AI_JOBS_RETRY_SUSTAINED",
+                environ_prefix=None,
+            ),
+            "ai_job_create_in_docs_burst": values.Value(
+                default="5/minute",
+                environ_name="RATE_LIMIT_API_AI_JOBS_CREATE_IN_DOCS_BURST",
+                environ_prefix=None,
+            ),
+            "ai_job_create_in_docs_sustained": values.Value(
+                default="30/hour",
+                environ_name="RATE_LIMIT_API_AI_JOBS_CREATE_IN_DOCS_SUSTAINED",
+                environ_prefix=None,
+            ),
+            "ai_job_result_burst": values.Value(
+                default="60/minute",
+                environ_name="RATE_LIMIT_API_AI_JOBS_RESULT_BURST",
+                environ_prefix=None,
+            ),
+            "ai_job_result_sustained": values.Value(
+                default="500/hour",
+                environ_name="RATE_LIMIT_API_AI_JOBS_RESULT_SUSTAINED",
+                environ_prefix=None,
+            ),
             "file_create_burst": values.Value(
                 default="10/minute",
-                environ_name="API_FILES_CREATE_THROTTLE_RATE_BURST",
+                environ_name="RATE_LIMIT_API_FILES_CREATE_BURST",
                 environ_prefix=None,
             ),
             "file_create_sustained": values.Value(
                 default="100/hour",
-                environ_name="API_FILES_CREATE_THROTTLE_RATE_SUSTAINED",
+                environ_name="RATE_LIMIT_API_FILES_CREATE_SUSTAINED",
                 environ_prefix=None,
             ),
         },

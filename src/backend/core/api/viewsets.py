@@ -35,7 +35,6 @@ from rest_framework import (
 
 from core import analytics, models, utils, webhook_models
 from core.api.filters import ListFileFilter
-from core.api.throttling import FileCreateThrottleBurst, FileCreateThrottleSustained
 from core.audio_jobs import start_audio_extraction
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
@@ -58,7 +57,7 @@ from ..models import (
     AiJobTypeChoices,
     FileSourceChoices,
 )
-from . import permissions, serializers
+from . import permissions, serializers, throttling
 
 # pylint: disable=too-many-ancestors
 
@@ -265,9 +264,17 @@ class FileViewSet(
     filterset_class = ListFileFilter
 
     def get_throttles(self):
-        """Apply per-user burst and sustained limits to file creation."""
+        """Apply per-user limits to file creation and upload finalization."""
         if self.action == "create":
-            return [FileCreateThrottleBurst(), FileCreateThrottleSustained()]
+            return [
+                throttling.FileCreateThrottleBurst(),
+                throttling.FileCreateThrottleSustained(),
+            ]
+        if self.action == "upload_ended":
+            return [
+                throttling.FileUploadEndedThrottleBurst(),
+                throttling.FileUploadEndedThrottleSustained(),
+            ]
         return super().get_throttles()
 
     def get_queryset(self):
@@ -673,6 +680,30 @@ class AiJobViewSet(
     permission_classes = [permissions.AiJobPermission]
     queryset = AiFileJob.objects.select_related("file", "file__creator")
     serializer_class = serializers.AiJobSerializer
+
+    def get_throttles(self):
+        """Apply per-user limits to AI submissions and result downloads."""
+        throttle_classes = {
+            "retry": (
+                throttling.AiJobRetryThrottleBurst,
+                throttling.AiJobRetryThrottleSustained,
+            ),
+            "create_in_docs": (
+                throttling.AiJobCreateInDocsThrottleBurst,
+                throttling.AiJobCreateInDocsThrottleSustained,
+            ),
+            "transcript": (
+                throttling.AiJobResultThrottleBurst,
+                throttling.AiJobResultThrottleSustained,
+            ),
+            "summary": (
+                throttling.AiJobResultThrottleBurst,
+                throttling.AiJobResultThrottleSustained,
+            ),
+        }.get(self.action)
+        if throttle_classes:
+            return [throttle_class() for throttle_class in throttle_classes]
+        return super().get_throttles()
 
     def get_queryset(self):
         """Restrict AI jobs to current user except webhook endpoint."""
