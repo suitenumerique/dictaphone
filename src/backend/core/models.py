@@ -803,6 +803,31 @@ class AudioJob(BaseModel):
         super().save(*args, **kwargs)
 
 
+class TranscriptionUsage(BaseModel):
+    """Audio charged to a user, retained independently of files and AI jobs."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="transcription_usages",
+    )
+    # A plain UUID preserves the charge when the source AI job is deleted.
+    ai_job_id = models.UUIDField(unique=True)
+    submitted_at = models.DateTimeField()
+    duration_seconds = models.FloatField()
+
+    class Meta:
+        db_table = "transcription_usage"
+        indexes = [
+            models.Index(
+                fields=["user", "submitted_at"], name="transcript_usage_user_time_idx"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} - {self.duration_seconds}s - {self.ai_job_id}"
+
+
 class AiJobStatusChoices(models.TextChoices):
     """Possible states of a file."""
 
@@ -850,8 +875,6 @@ class AiFileJob(BaseModel):
         blank=True,
         default="",
     )
-    submitted_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    submitted_audio_duration_seconds = models.FloatField(null=True, blank=True)
     language = models.CharField(
         max_length=2,
         choices=ISO_639_1_CHOICES,

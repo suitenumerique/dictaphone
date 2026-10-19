@@ -3,9 +3,11 @@ Core application factories
 """
 
 from io import BytesIO
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 
 import factory.fuzzy
 from faker import Faker
@@ -29,6 +31,18 @@ class UserFactory(factory.django.DjangoModelFactory):
     language = factory.fuzzy.FuzzyChoice([lang[0] for lang in settings.LANGUAGES])
     password = make_password("password")
     flag_show_mobile_app_popup = True
+
+
+class TranscriptionUsageFactory(factory.django.DjangoModelFactory):
+    """A durable transcription quota charge, independent of file and job rows."""
+
+    class Meta:
+        model = models.TranscriptionUsage
+
+    user = factory.SubFactory(UserFactory)
+    ai_job_id = factory.LazyFunction(uuid4)
+    submitted_at = factory.LazyFunction(timezone.now)
+    duration_seconds = 3600
 
 
 class FileFactory(factory.django.DjangoModelFactory):

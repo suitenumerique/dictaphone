@@ -26,6 +26,7 @@ from core.models import (
     AudioJobStatusChoices,
     File,
     FileLifecycleStateChoices,
+    TranscriptionUsage,
     User,
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
@@ -211,7 +212,7 @@ def _is_retryable_transcription_error(error):
 
 def _reserve_transcription_audio(ai_job):
     """Charge each submission once, serializing admissions for the same user."""
-    if ai_job.submitted_at is not None:
+    if TranscriptionUsage.objects.filter(ai_job_id=ai_job.pk).exists():
         return True
 
     file = ai_job.file
@@ -220,12 +221,11 @@ def _reserve_transcription_audio(ai_job):
     User.objects.select_for_update(no_key=True).get(pk=file.creator_id)
     now = timezone.now()
     used_seconds = (
-        AiFileJob.objects.filter(
-            file__creator_id=file.creator_id,
-            type=AiJobTypeChoices.TRANSCRIPT,
+        TranscriptionUsage.objects.filter(
+            user_id=file.creator_id,
             submitted_at__gt=now - timedelta(hours=24),
             submitted_at__lte=now,
-        ).aggregate(total=Sum("submitted_audio_duration_seconds"))["total"]
+        ).aggregate(total=Sum("duration_seconds"))["total"]
         or 0
     )
     duration = file.duration_seconds
@@ -237,14 +237,11 @@ def _reserve_transcription_audio(ai_job):
         ai_job.mark_failed(AiJobFailureReasonChoices.RATE_LIMIT_TRANSCRIPTION_EXCEEDED)
         return False
 
-    ai_job.submitted_at = now
-    ai_job.submitted_audio_duration_seconds = duration
-    ai_job.save(
-        update_fields=[
-            "submitted_at",
-            "submitted_audio_duration_seconds",
-            "updated_at",
-        ]
+    TranscriptionUsage.objects.create(
+        user_id=file.creator_id,
+        ai_job_id=ai_job.pk,
+        submitted_at=now,
+        duration_seconds=duration,
     )
     return True
 

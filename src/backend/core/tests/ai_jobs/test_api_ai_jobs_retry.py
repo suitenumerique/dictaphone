@@ -50,11 +50,10 @@ def test_api_ai_jobs_retry_audio_quota(post, settings, used_seconds, allowed):
         file__upload_bytes=b"audio",
         file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
-    factories.AiFileJobFactory(
-        file__creator=user,
-        type=AiJobTypeChoices.TRANSCRIPT,
+    factories.TranscriptionUsageFactory(
+        user=user,
         submitted_at=timezone.now(),
-        submitted_audio_duration_seconds=used_seconds,
+        duration_seconds=used_seconds,
     )
     post.return_value.json.return_value = {"job_id": "quota-retry"}
     client = APIClient()

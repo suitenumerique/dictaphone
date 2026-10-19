@@ -1,6 +1,10 @@
-"""Persist AI failure reasons and account for transcription submissions."""
+"""Add AI failure reasons and a durable transcription usage ledger."""
 
+import uuid
+
+from django.conf import settings
 from django.db import migrations, models
+import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
@@ -24,14 +28,56 @@ class Migration(migrations.Migration):
                 max_length=40,
             ),
         ),
-        migrations.AddField(
-            model_name="aifilejob",
-            name="submitted_at",
-            field=models.DateTimeField(blank=True, db_index=True, null=True),
-        ),
-        migrations.AddField(
-            model_name="aifilejob",
-            name="submitted_audio_duration_seconds",
-            field=models.FloatField(blank=True, null=True),
+        migrations.CreateModel(
+            name="TranscriptionUsage",
+            fields=[
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="primary key for the record as UUID",
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="date and time at which a record was created",
+                        verbose_name="created on",
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True,
+                        help_text="date and time at which a record was last updated",
+                        verbose_name="updated on",
+                    ),
+                ),
+                ("ai_job_id", models.UUIDField(unique=True)),
+                ("submitted_at", models.DateTimeField()),
+                ("duration_seconds", models.FloatField()),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="transcription_usages",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+            options={
+                "db_table": "transcription_usage",
+                "indexes": [
+                    models.Index(
+                        fields=["user", "submitted_at"],
+                        name="transcript_usage_user_time_idx",
+                    )
+                ],
+            },
         ),
     ]

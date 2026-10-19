@@ -212,11 +212,10 @@ def test_upload_ended_audio_quota(
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
     file = factories.FileFactory(filename="recording.ogg", duration_seconds=999)
     get_storage_for_file(file).save(file.temporary_file_key, BytesIO(b"source"))
-    factories.AiFileJobFactory(
-        file__creator=file.creator,
-        type=models.AiJobTypeChoices.TRANSCRIPT,
+    factories.TranscriptionUsageFactory(
+        user=file.creator,
         submitted_at=timezone.now(),
-        submitted_audio_duration_seconds=used_seconds,
+        duration_seconds=used_seconds,
     )
     post.return_value.json.return_value = {"job_id": "quota-upload"}
     client = APIClient()
@@ -239,7 +238,14 @@ def test_upload_ended_audio_quota(
     assert job.failure_reason == (
         "" if allowed else "RATE_LIMIT_TRANSCRIPTION_EXCEEDED"
     )
-    assert job.submitted_audio_duration_seconds == (12.5 if allowed else None)
+    assert (
+        models.TranscriptionUsage.objects.filter(ai_job_id=job.pk).exists() == allowed
+    )
+    if allowed:
+        assert (
+            models.TranscriptionUsage.objects.get(ai_job_id=job.pk).duration_seconds
+            == 12.5
+        )
     assert post.call_count == int(allowed)
     returned_job = client.get(f"/api/v1.0/files/{file.pk}/").json()["ai_jobs"][0]
     assert returned_job["failure_reason"] == job.failure_reason
