@@ -127,6 +127,10 @@ export function FileActionMenu({
     () => getMainAiJobs(file.ai_jobs),
     [file.ai_jobs]
   )
+  const hasTranscriptDocsLink = file.ai_jobs.some(
+    (job) => job.type === 'transcript' && Boolean(job.docs_app_id)
+  )
+
   const isRetryPending = lastAiJobTranscript?.status === 'pending'
 
   const retryLanguages = useMemo(() => {
@@ -711,7 +715,13 @@ export function FileActionMenu({
           </>
         }
       >
-        <p>{t('actions.deleteModal.description')}</p>
+        <p>
+          {t(
+            hasTranscriptDocsLink
+              ? 'actions.deleteModal.descriptionWithDocsLink'
+              : 'actions.deleteModal.description'
+          )}
+        </p>
       </Modal>
       <Modal
         size={ModalSize.SMALL}

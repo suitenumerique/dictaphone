@@ -82,7 +82,8 @@
     },
     "deleteModal": {
       "title": "Supprimer l'enregistrement",
-      "description": "Êtes-vous sûr de vouloir supprimer cet enregistrement et son stranscript ? Le transcript exporté dans Docs restera disponible dans Docs."
+      "description": "Êtes-vous sûr de vouloir supprimer cet enregistrement et sa transcription ?",
+      "descriptionWithDocsLink": "Êtes-vous sûr de vouloir supprimer cet enregistrement et sa transcription ? La transcription exportée dans Docs restera disponible dans Docs."
     },
     "restore": {
       "label": "Restaurer",
