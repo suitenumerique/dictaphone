@@ -1,7 +1,5 @@
 import { fetchApi } from '@/api/fetchApi'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiFileItem } from '@/features/files/api/types.ts'
-import { keys } from '@/api/queryKeys.ts'
 import { TranscriptionLanguage } from '@/features/settings/settingsStore'
 
 /**
@@ -75,6 +73,7 @@ export const createPendingAudioFile = async ({
       source,
       language,
     }),
+    rateLimitScope: 'upload',
   })
 
   if (pendingFile.upload_state !== 'pending') {
@@ -87,18 +86,17 @@ export const createPendingAudioFile = async ({
 export const markUploadEnded = async (fileId: string) => {
   return fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
     method: 'POST',
+    rateLimitScope: 'upload',
   })
 }
 
 /**
- * Asynchronously creates a new file and uploads it to the server.
+ * Creates a pending file on the server and uploads the audio to storage.
+ * Finalization is left to the caller, so it can be retried on its own.
  *
- * @param {object} params - The parameters for the file creation and upload process.
- * @param {File} params.file - The file object to be uploaded.
- * @param {function} params.onProgress - A callback function that receives the upload progress as a number (0 to 100).
- * @returns {Promise<ApiFileItem>} A promise that resolves when the file has been successfully uploaded and the server process is completed.
+ * @returns The id of the server file, to pass to `markUploadEnded`.
  */
-export const createFile = async ({
+export const transferAudioFile = async ({
   file,
   durationSeconds,
   onProgress,
@@ -112,7 +110,7 @@ export const createFile = async ({
   createdAt: string
   source: 'web_recording' | 'web_file_upload'
   language: TranscriptionLanguage
-}): Promise<ApiFileItem> => {
+}): Promise<string> => {
   const pendingFile = await createPendingAudioFile({
     filename: file.name,
     durationSeconds,
@@ -121,18 +119,5 @@ export const createFile = async ({
     language,
   })
   await uploadFile(pendingFile.policy, pendingFile.acl, file, onProgress)
-  return markUploadEnded(pendingFile.id)
-}
-
-export const useCreateFile = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: createFile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [keys.files],
-      })
-    },
-  })
+  return pendingFile.id
 }

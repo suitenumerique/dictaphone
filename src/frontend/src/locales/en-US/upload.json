@@ -29,5 +29,13 @@
       "description_done_one": "{{count}} file transferred",
       "description_done_other": "{{count}} files transferred"
     }
+  },
+  "rateLimit": {
+    "title": "Uploads paused: server request limit reached",
+    "resume": "Resume uploads",
+    "paused": "Paused due to the server’s request limit",
+    "keepOpen": "Keep the app open to retain selected files that haven’t finished uploading. If you reload, select those files again.",
+    "saved": "Your browser recording is kept on this device.",
+    "finalizing": "Audio uploaded; waiting to complete the upload."
   }
 }

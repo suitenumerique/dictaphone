@@ -1,13 +1,21 @@
-import { ToasterItem } from '@/features/ui/components/toaster/Toaster'
+import { addToast, ToasterItem } from '@/features/ui/components/toaster/Toaster'
 import { Button } from '@gouvfr-lasuite/ui-components'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import { CircularProgress } from '@/features/ui/components/circular-progress/CircularProgress'
 import prettyBytes from 'pretty-bytes'
-import { ToastContentProps } from 'react-toastify'
+import { toast, type Id, ToastContentProps } from 'react-toastify'
 import { Spinner } from '@gouvfr-lasuite/ui-components'
-import { UploadingState } from '@/hooks/useUpload.tsx'
+import { useUploadsPaused } from '@/api/rateLimits'
+import {
+  useImportUploads,
+  type FileUploadMeta,
+  type UploadingState,
+} from '@/features/files/importUploads'
+
+const isPending = (meta: FileUploadMeta) =>
+  meta.status === 'queued' || meta.status === 'uploading'
 
 export const FileUploadToast = (
   props: {
@@ -16,14 +24,18 @@ export const FileUploadToast = (
 ) => {
   const { t } = useTranslation('upload')
   const [isOpen, setIsOpen] = useState(true)
+  const uploadsPaused = useUploadsPaused()
   const pendingFilesCount = Object.values(
     props.uploadingState.filesMeta
-  ).filter((meta) => meta.status === 'uploading').length
+  ).filter(isPending).length
   const doneFilesCount = Object.values(props.uploadingState.filesMeta).filter(
     (meta) => meta.status === 'done'
   ).length
   const failedFilesCount = Object.values(props.uploadingState.filesMeta).filter(
     (meta) => meta.status === 'error'
+  ).length
+  const pausedCount = Object.values(props.uploadingState.filesMeta).filter(
+    (meta) => uploadsPaused && meta.status === 'queued'
   ).length
   // Does not show the files list and the open button.
   const simpleMode = props.uploadingState.step === 'preparing'
@@ -55,7 +67,10 @@ export const FileUploadToast = (
               return (
                 <div key={name} className="file-upload-toast__files__item">
                   <div className="file-upload-toast__files__item__name">
-                    <span>{name}</span>
+                    <span>{meta.file.name}</span>
+                    {uploadsPaused && meta.status === 'queued' && (
+                      <span>{t('rateLimit.paused')}</span>
+                    )}
                     <span className="file-upload-toast__files__item__size">
                       {prettyBytes(meta.file.size)}
                     </span>
@@ -63,7 +78,7 @@ export const FileUploadToast = (
                   <div className="file-upload-toast__files__item__progress">
                     <CircularProgress
                       progress={meta.progress}
-                      status={meta.status}
+                      status={meta.status === 'queued' ? 'error' : meta.status}
                     />
                   </div>
                 </div>
@@ -80,17 +95,19 @@ export const FileUploadToast = (
               </>
             ) : (
               <>
-                {pendingFilesCount > 0
-                  ? t('uploader.files.description', {
-                      count: pendingFilesCount,
-                    })
-                  : doneFilesCount > 0
-                    ? t('uploader.files.description_done', {
-                        count: doneFilesCount,
+                {pausedCount > 0
+                  ? t('rateLimit.title')
+                  : pendingFilesCount > 0
+                    ? t('uploader.files.description', {
+                        count: pendingFilesCount,
                       })
-                    : failedFilesCount > 0
-                      ? t('errors.uploadFailed')
-                      : null}
+                    : doneFilesCount > 0
+                      ? t('uploader.files.description_done', {
+                          count: doneFilesCount,
+                        })
+                      : failedFilesCount > 0
+                        ? t('errors.uploadFailed')
+                        : null}
               </>
             )}
           </div>
@@ -120,4 +137,59 @@ export const FileUploadToast = (
       </div>
     </ToasterItem>
   )
+}
+
+/** Feedback stays mounted while imports continue across navigation. */
+export function ImportUploadFeedback() {
+  const uploadingState = useImportUploads()
+  const fileUploadsToastId = useRef<Id | null>(null)
+
+  useEffect(() => {
+    if (
+      !fileUploadsToastId.current &&
+      (uploadingState.step === 'preparing' ||
+        Object.values(uploadingState.filesMeta).some(isPending))
+    ) {
+      fileUploadsToastId.current = addToast(
+        <FileUploadToast uploadingState={uploadingState} />,
+        {
+          autoClose: false,
+          toastId: 'import-uploads',
+          onClose: () => {
+            fileUploadsToastId.current = null
+          },
+        }
+      )
+    }
+    if (fileUploadsToastId.current) {
+      // If the uploading state is "upload_files" and there are no files, we dismiss the toast.
+      // It can happen if the upload fails for unknown reasons.
+      if (
+        (uploadingState.step !== 'preparing' &&
+          Object.keys(uploadingState.filesMeta).length === 0) ||
+        uploadingState.step === 'none'
+      ) {
+        toast.dismiss(fileUploadsToastId.current)
+        fileUploadsToastId.current = null
+      } else {
+        toast.update(fileUploadsToastId.current, {
+          render: <FileUploadToast uploadingState={uploadingState} />,
+        })
+      }
+    }
+  }, [uploadingState])
+
+  useEffect(() => {
+    const unloadCallback = (event: BeforeUnloadEvent) => {
+      if (Object.values(uploadingState.filesMeta).some(isPending)) {
+        event.preventDefault()
+      }
+      return ''
+    }
+
+    window.addEventListener('beforeunload', unloadCallback)
+    return () => window.removeEventListener('beforeunload', unloadCallback)
+  }, [uploadingState])
+
+  return null
 }

@@ -1,57 +1,28 @@
 // inspired byhttps://github.com/suitenumerique/drive/blob/c4188f8342ca7aa9096ea8d1aee6bc529d51809f/src/frontend/apps/drive/src/features/explorer/hooks/useUpload.tsx#L200
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { Id, toast } from 'react-toastify'
 import { useDropzone } from 'react-dropzone'
 import { fromEvent, type FileWithPath } from 'file-selector'
 import { COMMON_MIME_TYPES } from 'file-selector/mime'
 import { useTranslation } from 'react-i18next'
 import { addToast, ToasterItem } from '@/features/ui/components/toaster/Toaster'
-import { useCreateFile } from '@/features/files/api/createFile.ts'
-import { FileUploadToast } from '@/features/files/components/FileUploadToast.tsx'
+import {
+  enqueueImportUploads,
+  useImportUploads,
+} from '@/features/files/importUploads'
 import { useConfig } from '@/api/useConfig.ts'
 import prettyBytes from 'pretty-bytes'
 import { getAudioDuration } from '@/features/recordings/utils/getAudioDuration.ts'
 import { intervalToDuration } from 'date-fns'
 import { useSettingsStore } from '@/features/settings/settingsStore'
 
-export type FileUploadMeta = {
-  file: File
-  progress: number
-  status: 'uploading' | 'done' | 'error'
-}
-
-enum UploadingStep {
-  NONE = 'none',
-  PREPARING = 'preparing',
-  UPLOAD_FILES = 'upload_files',
-  DONE = 'done',
-}
-
-export type UploadingState = {
-  step: UploadingStep
-  filesMeta: Record<string, FileUploadMeta>
-}
-
-/**
- * This function removes the leading "./" or "/" from the path.
- */
-const pathNicefy = (path: string) => {
-  return path.replace(/^[./]+/, '')
-}
-
 export const useUploadZone = () => {
   const { t } = useTranslation('upload')
   const { data: appConfig } = useConfig()
 
-  const createFile = useCreateFile()
-
   const fileDragToastId = useRef<Id | null>(null)
-  const fileUploadsToastId = useRef<Id | null>(null)
-  const [uploadingState, setUploadingState] = useState<UploadingState>({
-    step: UploadingStep.NONE,
-    filesMeta: {},
-  })
+  const setUploadingState = useImportUploads.setState
 
   const allowedMimetypes = useMemo(
     () => appConfig?.audio_recording.allowed_mimetypes ?? [],
@@ -151,21 +122,8 @@ export const useUploadZone = () => {
 
       setUploadingState((prev) => ({
         ...prev,
-        step: UploadingStep.PREPARING,
+        step: 'preparing',
       }))
-
-      if (!fileUploadsToastId.current) {
-        fileUploadsToastId.current = addToast(
-          <FileUploadToast uploadingState={uploadingState} />,
-          {
-            autoClose: false,
-            onClose: () => {
-              // We need to set this to null in order to re-show the toast when the user drops another file later.
-              fileUploadsToastId.current = null
-            },
-          }
-        )
-      }
 
       const validFiles: (FileWithPath & { durationSeconds: number })[] = []
 
@@ -221,144 +179,19 @@ export const useUploadZone = () => {
         validFiles.push(file as FileWithPath & { durationSeconds: number })
       }
       if (validFiles.length === 0) {
+        setUploadingState({ step: 'done' })
         return
       }
 
-      // Do not run "setUploadingState({});" because if a uploading is still in progress, it will be overwritten.
-
-      // First, add all the files to the uploading state in order to display them in the toast.
-      const newUploadingState: UploadingState = {
-        step: UploadingStep.UPLOAD_FILES,
-        filesMeta: {},
-      }
-      for (const file of validFiles) {
-        newUploadingState.filesMeta[pathNicefy(file.path!)] = {
+      enqueueImportUploads(
+        validFiles.map((file) => ({
           file,
-          progress: 0,
-          status: 'uploading',
-        }
-      }
-      setUploadingState(newUploadingState)
-
-      // Then, upload all the files sequentially. We are not uploading them in parallel because the backend
-      // does not support it, it causes concurrency issues.
-      const promises = []
-      for (const file of validFiles) {
-        // We do not using "createFile.mutateAsync" because it causes unhandled errors.
-        // Instead, we use a promise that we can await to run all the uploads sequentially.
-        // Using "createFile.mutate" makes the error handled by the mutation hook itself.
-        promises.push(
-          () =>
-            new Promise<void>((resolve) => {
-              createFile.mutate(
-                {
-                  file,
-                  language: selectedLanguage,
-                  createdAt: new Date().toISOString(),
-                  durationSeconds: file.durationSeconds,
-                  source: 'web_file_upload',
-                  onProgress: (progress) => {
-                    setUploadingState((prev) => {
-                      return {
-                        ...prev,
-                        filesMeta: {
-                          ...prev.filesMeta,
-                          [pathNicefy(file.path!)]: {
-                            file,
-                            progress,
-                            status: 'uploading',
-                          },
-                        },
-                      }
-                    })
-                  },
-                },
-                {
-                  onSuccess: () => {
-                    setUploadingState((prev) => {
-                      return {
-                        ...prev,
-                        filesMeta: {
-                          ...prev.filesMeta,
-                          [pathNicefy(file.path!)]: {
-                            file,
-                            progress: 100,
-                            status: 'done',
-                          },
-                        },
-                      }
-                    })
-                  },
-                  onError: () => {
-                    addToast(
-                      <ToasterItem type="error">
-                        <span>{t('errors.uploadFailed')}</span>
-                      </ToasterItem>
-                    )
-                    setUploadingState((prev) => {
-                      return {
-                        ...prev,
-                        filesMeta: {
-                          ...prev.filesMeta,
-                          [pathNicefy(file.path!)]: {
-                            file,
-                            progress:
-                              prev.filesMeta[pathNicefy(file.path!)]
-                                ?.progress ?? 0,
-                            status: 'error',
-                          },
-                        },
-                      }
-                    })
-                  },
-                  onSettled: () => {
-                    resolve()
-                  },
-                }
-              )
-            })
-        )
-      }
-      for (const promise of promises) {
-        await promise()
-      }
-      setUploadingState((prev) => ({
-        ...prev,
-        step: UploadingStep.DONE,
-      }))
+          durationSeconds: file.durationSeconds,
+        })),
+        selectedLanguage
+      )
     },
   })
-
-  useEffect(() => {
-    if (fileUploadsToastId.current) {
-      // If the uploading state is "upload_files" and there are no files, we dismiss the toast.
-      // It can happen if the upload fails for unknown reasons.
-      if (
-        (uploadingState.step === UploadingStep.UPLOAD_FILES &&
-          Object.keys(uploadingState.filesMeta).length === 0) ||
-        uploadingState.step === UploadingStep.NONE
-      ) {
-        toast.dismiss(fileUploadsToastId.current)
-        fileUploadsToastId.current = null
-      } else {
-        toast.update(fileUploadsToastId.current, {
-          render: <FileUploadToast uploadingState={uploadingState} />,
-        })
-      }
-    }
-  }, [uploadingState])
-
-  useEffect(() => {
-    const unloadCallback = (event: BeforeUnloadEvent) => {
-      if (uploadingState.step === UploadingStep.UPLOAD_FILES) {
-        event.preventDefault()
-      }
-      return ''
-    }
-
-    window.addEventListener('beforeunload', unloadCallback)
-    return () => window.removeEventListener('beforeunload', unloadCallback)
-  }, [uploadingState.step])
 
   return {
     dropZone,

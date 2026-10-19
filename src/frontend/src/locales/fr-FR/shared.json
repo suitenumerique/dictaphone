@@ -20,5 +20,18 @@
     "todayAt": "Aujourd'hui à",
     "yesterdayAt": "Hier à",
     "at": "à"
+  },
+  "rateLimit": {
+    "title": "Limite de requêtes du serveur atteinte",
+    "waitUntil": "Veuillez réessayer après {{time}}, à la fin du délai d’attente indiqué par le serveur.",
+    "tryLater": "Le serveur limite temporairement ces requêtes. Veuillez réessayer plus tard.",
+    "ready": "Vous pouvez réessayer maintenant.",
+    "retry": "Réessayer",
+    "scopes": {
+      "upload": "La limite de requêtes du serveur est atteinte. Les imports sont temporairement suspendus.",
+      "transcriptionRetry": "La limite de requêtes du serveur est atteinte. Les nouvelles tentatives de transcription sont temporairement suspendues.",
+      "docsCreate": "La limite de requêtes du serveur est atteinte. La création de documents est temporairement suspendue.",
+      "aiResult": "La limite de requêtes du serveur est atteinte. Le chargement des transcriptions et des synthèses est temporairement suspendu."
+    }
   }
 }

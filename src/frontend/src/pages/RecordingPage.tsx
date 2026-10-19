@@ -1,3 +1,5 @@
+import { addErrorToast } from '@/features/ui/components/RateLimitNotice'
+import { useCooldown } from '@/api/useCooldown'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { useGetFile } from '@/features/files/api/getFile.ts'
 import {
@@ -49,25 +51,16 @@ function OpenInDocsButton({
   supportsSynchronousDocsCreation: boolean
 }) {
   const { t } = useTranslation('recordings')
+  const { isBlocked: docsBlocked } = useCooldown('docsCreate')
   const openInDocs = useOpenInDocsMutation()
   const createInDocs = useCreateInDocsMutation()
 
   const showCreateDocsError = useCallback(
-    () =>
-      addToast(
-        <ToasterItem type="error">
-          <span>{t('transcript.createInDocsError')}</span>
-        </ToasterItem>
-      ),
+    (error: unknown) => addErrorToast(error, t('transcript.createInDocsError')),
     [t]
   )
   const showOpenDocsError = useCallback(
-    () =>
-      addToast(
-        <ToasterItem type="error">
-          <span>{t('transcript.openInDocsError')}</span>
-        </ToasterItem>
-      ),
+    (error: unknown) => addErrorToast(error, t('transcript.openInDocsError')),
     [t]
   )
 
@@ -111,7 +104,11 @@ function OpenInDocsButton({
         onClick={handleOpenInDocs}
         size="small"
         variant="secondary"
-        disabled={isDocsActionPending || !canOpenInDocs}
+        disabled={
+          isDocsActionPending ||
+          !canOpenInDocs ||
+          (!lastAiJobTranscript?.docs_app_id && docsBlocked)
+        }
         aria-label={t('transcript.openInDocsCta')}
         icon={<ArrowUpRight />}
       >

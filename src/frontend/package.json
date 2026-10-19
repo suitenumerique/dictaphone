@@ -10,7 +10,8 @@
     "lint": "oxlint . --deny-warnings --report-unused-disable-directives",
     "preview": "vite preview",
     "format": "oxfmt --write ./src",
-    "check": "oxfmt --check ./src"
+    "check": "oxfmt --check ./src",
+    "test": "vitest"
   },
   "engines": {
     "node": ">=24 <25"

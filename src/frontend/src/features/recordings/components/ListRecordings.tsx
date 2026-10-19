@@ -1,3 +1,4 @@
+import { getFailureMessageKey } from '@/features/ai-jobs/utils/failurePresentation'
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import { useTranslation } from 'react-i18next'
 import { HorizontalSeparator, Spinner } from '@gouvfr-lasuite/ui-components'
@@ -62,10 +63,10 @@ function RecordingStatus({ recording }: { recording: ApiFileItem }) {
 
   if (lastAiJobTranscript?.status === 'failed') {
     return (
-      <Tooltip content={t('transcript.status.failed')}>
+      <Tooltip content={t(getFailureMessageKey(lastAiJobTranscript)!)}>
         <span
           role="img"
-          aria-label={t('transcript.statusPreview.failed')}
+          aria-label={t(getFailureMessageKey(lastAiJobTranscript)!)}
           className="warning"
         >
           <Warning />
@@ -94,6 +95,7 @@ function RecordingMetadata({ recording }: { recording: ApiFileItem }) {
     value: recording.created_at,
   })
 
+  const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
   const formattedProcessingDurationRemaining =
     useFormattedProcessingDuration(recording)
 
@@ -125,11 +127,13 @@ function RecordingMetadata({ recording }: { recording: ApiFileItem }) {
     <div className="recordings-list__item__metadata">
       <span>{durationFormatted}</span>•
       <span>
-        {formattedProcessingDurationRemaining
-          ? t('recordings:transcript.status.processing', {
-              value: formattedProcessingDurationRemaining,
-            })
-          : createdAtFormatted}
+        {lastAiJobTranscript?.status === 'failed'
+          ? t(getFailureMessageKey(lastAiJobTranscript)!)
+          : formattedProcessingDurationRemaining
+            ? t('recordings:transcript.status.processing', {
+                value: formattedProcessingDurationRemaining,
+              })
+            : createdAtFormatted}
       </span>
     </div>
   )

@@ -120,3 +120,15 @@ body,
 .btn-centered {
   justify-content: center;
 }
+
+.limit-alert {
+  margin: var(--c--globals--spacings--base) 0;
+  padding: var(--c--globals--spacings--base);
+  border: 1px solid var(--c--contextuals--border--semantic--warning--primary);
+  border-radius: var(--c--globals--spacings--xxs);
+  background: var(--c--contextuals--background--semantic--warning--tertiary);
+  color: var(--c--contextuals--content--semantic--warning--primary);
+  p {
+    margin: var(--c--globals--spacings--xs) 0;
+  }
+}

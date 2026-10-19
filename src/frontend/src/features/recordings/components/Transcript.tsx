@@ -1,3 +1,6 @@
+import { AiJobFailureAlert } from './AiJobFailureAlert'
+import { RateLimitNotice } from '@/features/ui/components/RateLimitNotice'
+import { isRateLimitError } from '@/api/rateLimits'
 import { useTranscript } from '@/features/ai-jobs/api/fetch.ts'
 import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
@@ -172,9 +175,17 @@ export function Transcript({
       aria-label={t('transcript.title')}
     >
       {lastAiJobTranscript?.status === 'failed' && (
-        <Badge type="danger">{t('transcript.status.failed')}</Badge>
+        <AiJobFailureAlert job={lastAiJobTranscript} />
       )}
 
+      {isRateLimitError(transcriptQ.error) && (
+        <RateLimitNotice
+          scope="aiResult"
+          onRetry={() => {
+            void transcriptQ.refetch()
+          }}
+        />
+      )}
       {transcriptQ.data &&
         transcriptSegments.length === 0 &&
         lastAiJobTranscript?.status === 'success' && (

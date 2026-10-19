@@ -3,6 +3,8 @@ import { keys } from '@/api/queryKeys'
 import { fetchUser } from './fetchUser'
 import { type ApiUser } from './ApiUser'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { clearRateLimits } from '@/api/rateLimits'
+import { useLocalRecordingsStore } from '@/features/recordings/store/useLocalRecordingsStore'
 import { logoutUrl } from '../utils/logoutUrl'
 import { useConfig } from '@/api/useConfig'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
@@ -71,6 +73,8 @@ export const useUser = (
 
     if (previousUserId.current !== currentUserId) {
       previousUserId.current = currentUserId
+      useLocalRecordingsStore.getState().clearFinalizationCheckpoints()
+      clearRateLimits()
       void queryClient.refetchQueries({ queryKey: [keys.config] })
     }
   }, [query.data, query.status])

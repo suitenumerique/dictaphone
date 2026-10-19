@@ -1,5 +1,10 @@
 import { fetchApi } from '@/api/fetchApi'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
 import {
   ApiAiJob,
@@ -9,22 +14,26 @@ import {
 } from '@/features/ai-jobs/api/types.ts'
 
 export const getTranscript = async (
-  aiJob: ApiAiJob | null
+  aiJob: Pick<ApiAiJob, 'id'> | null
 ): Promise<WhisperXResponse> => {
   if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }
   return fetchApi<WhisperXResponse>(`/ai-jobs/${aiJob.id}/transcript/`, {
     method: 'GET',
+    rateLimitScope: 'aiResult',
   })
 }
 
-export const getSummary = async (aiJob: ApiAiJob | null): Promise<string> => {
+export const getSummary = async (
+  aiJob: Pick<ApiAiJob, 'id'> | null
+): Promise<string> => {
   if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }
   return fetchApi<string>(`/ai-jobs/${aiJob.id}/summary/`, {
     method: 'GET',
+    rateLimitScope: 'aiResult',
   })
 }
 
@@ -49,6 +58,7 @@ export const createInDocs = async (
     `/ai-jobs/${aiJob.id}/create-in-docs/`,
     {
       method: 'POST',
+      rateLimitScope: 'docsCreate',
     }
   )
 }
@@ -59,31 +69,40 @@ export const retryWithLanguage = async ({
 }: {
   id: string
   language: TTranscriptionLanguage
-}): Promise<void> => {
+}): Promise<ApiAiJob> => {
   if (!id) {
     throw new Error('Missing aiJob id')
   }
-  return fetchApi<void>(`/ai-jobs/${id}/retry/`, {
+  return fetchApi<ApiAiJob>(`/ai-jobs/${id}/retry/`, {
     method: 'POST',
     body: JSON.stringify({
       language,
     }),
+    rateLimitScope: 'transcriptionRetry',
   })
 }
 
-export const useTranscript = (params: Parameters<typeof getTranscript>[0]) => {
-  return useQuery({
-    queryKey: [keys.aiJobs, params?.id, params],
-    queryFn: () => getTranscript(params),
+// Results of a given job never change, and they count toward a server rate limit.
+export const transcriptQuery = (id: string | null) =>
+  queryOptions({
+    queryKey: [keys.aiJobs, id, 'transcript'],
+    queryFn: () => getTranscript({ id }),
+    staleTime: Infinity,
+  })
+
+export const useTranscript = (params: ApiAiJob | null) =>
+  useQuery({
+    ...transcriptQuery(params?.id ?? null),
     enabled: params?.status === 'success' && Boolean(params?.id),
   })
-}
 
-export const useSummary = (params: Parameters<typeof getSummary>[0]) => {
+export const useSummary = (params: ApiAiJob | null) => {
+  const id = params?.id ?? null
   return useQuery({
-    queryKey: [keys.aiJobs, params?.id, params],
-    queryFn: () => getSummary(params),
+    queryKey: [keys.aiJobs, id, 'summary'],
+    queryFn: () => getSummary({ id }),
     enabled: params?.status === 'success' && Boolean(params?.id),
+    staleTime: Infinity,
   })
 }
 

@@ -1,3 +1,4 @@
+import { useUploadsPaused } from '@/api/rateLimits'
 import {
   createLocalFileFromChunkStore,
   useLocalRecordingsStore,
@@ -34,7 +35,8 @@ const downloadFile = (file: File) => {
 }
 
 export function RecoverList({ addEndSeparator }: { addEndSeparator: boolean }) {
-  const { t } = useTranslation(['recordings', 'shared'])
+  const { t } = useTranslation(['recordings', 'shared', 'upload'])
+  const uploadsPaused = useUploadsPaused()
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const recordingsById = useLocalRecordingsStore(
     (state) => state.recordingsById
@@ -66,13 +68,17 @@ export function RecoverList({ addEndSeparator }: { addEndSeparator: boolean }) {
       <div className="recordings-recovery-alert__list" role="list">
         {queuedRecordings.map((recording, recordingIdx) => {
           const isUploading = recording.status === 'uploading'
-          const isPendingUpload = isUploading || recording.status === 'stopped'
+          const isPaused = uploadsPaused && recording.status === 'stopped'
+          const isPendingUpload =
+            isUploading || (recording.status === 'stopped' && !isPaused)
           const isFailed =
+            isPaused ||
             recording.status === 'upload_failed' ||
             recording.status === 'exited'
 
-          const tooltipLabel =
-            recording.status === 'upload_failed'
+          const tooltipLabel = isPaused
+            ? t('upload:rateLimit.paused')
+            : recording.status === 'upload_failed'
               ? t('recordings:localQueue.tooltip.failedToUpload')
               : recording.status === 'exited'
                 ? t('recordings:localQueue.tooltip.interrupted')
@@ -121,6 +127,15 @@ export function RecoverList({ addEndSeparator }: { addEndSeparator: boolean }) {
                         })}
                       </span>
                     </div>
+                    {isPaused && (
+                      <p>
+                        {t('upload:rateLimit.paused')}{' '}
+                        {t('upload:rateLimit.saved')}
+                      </p>
+                    )}
+                    {isPaused && recording.finalizationFileId && (
+                      <p>{t('upload:rateLimit.finalizing')}</p>
+                    )}
                     <div className="recordings-recovery-alert__item-meta">
                       <span>
                         {t('shared:utils.duration', {
@@ -146,7 +161,7 @@ export function RecoverList({ addEndSeparator }: { addEndSeparator: boolean }) {
                         size="small"
                         variant="tertiary"
                         color="neutral"
-                        disabled={isUploading}
+                        disabled={isUploading || uploadsPaused}
                         aria-label={t(
                           'recordings:localQueue.actions.retryAriaLabel'
                         )}

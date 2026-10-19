@@ -20,5 +20,18 @@
     "todayAt": "Today at",
     "yesterdayAt": "Yesterday at",
     "at": "at"
+  },
+  "rateLimit": {
+    "title": "Server request limit reached",
+    "waitUntil": "Please try again after {{time}}, once the server’s waiting period has ended.",
+    "tryLater": "The server is temporarily limiting these requests. Please try again later.",
+    "ready": "You can try again now.",
+    "retry": "Try again",
+    "scopes": {
+      "upload": "Server request limit reached. Uploads are temporarily paused.",
+      "transcriptionRetry": "Server request limit reached. Transcription retries are temporarily paused.",
+      "docsCreate": "Server request limit reached. Creating documents is temporarily paused.",
+      "aiResult": "Server request limit reached. Loading transcripts and summaries is temporarily paused."
+    }
   }
 }

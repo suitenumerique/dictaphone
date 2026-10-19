@@ -1,3 +1,10 @@
+import { useCooldown } from '@/api/useCooldown'
+import {
+  addErrorToast,
+  RateLimitNotice,
+} from '@/features/ui/components/RateLimitNotice'
+import { canRetryAiJob } from '@/features/ai-jobs/utils/failurePresentation'
+import { AiJobFailureAlert } from './AiJobFailureAlert'
 import { DropdownMenu, DropdownMenuProps } from '@gouvfr-lasuite/ui-components'
 import {
   ArrowUpRight,
@@ -16,6 +23,7 @@ import {
   Select,
 } from '@gouvfr-lasuite/ui-components'
 import { useCallback, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { useTranslation } from 'react-i18next'
 import { useDeleteFile } from '@/features/files/api/deleteFile.ts'
@@ -28,12 +36,15 @@ import {
 } from '@/features/ui/components/toaster/Toaster.tsx'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import {
-  getTranscript,
+  transcriptQuery,
   useCreateInDocsMutation,
   useOpenInDocsMutation,
   useRetryWithLanguageMutation,
 } from '@/features/ai-jobs/api/fetch.ts'
-import { TTranscriptionLanguage } from '@/features/ai-jobs/api/types.ts'
+import {
+  type ApiAiJob,
+  TTranscriptionLanguage,
+} from '@/features/ai-jobs/api/types.ts'
 import { useLocation } from 'wouter'
 import { useConfig } from '@/api/useConfig'
 import {
@@ -86,6 +97,11 @@ export function FileActionMenu({
 }) {
   const { t } = useTranslation(['recordings', 'shared'])
   const { data: config } = useConfig()
+  const queryClient = useQueryClient()
+  const { isBlocked: retryBlocked } = useCooldown('transcriptionRetry')
+  const { isBlocked: docsBlocked } = useCooldown('docsCreate')
+  const { isBlocked: resultBlocked } = useCooldown('aiResult')
+  const [retryFailure, setRetryFailure] = useState<ApiAiJob | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState(file.title)
   const [openRenameModal, setOpenRenameModal] = useState(false)
@@ -125,6 +141,8 @@ export function FileActionMenu({
   }, [lastAiJobTranscript?.language, lastAiJobTranscript?.status, t])
 
   const canOpenRetryModal =
+    canRetryAiJob(lastAiJobTranscript) &&
+    !retryBlocked &&
     file.lifecycle_state === 'active' &&
     Boolean(lastAiJobTranscript?.id) &&
     !isRetryPending &&
@@ -137,6 +155,7 @@ export function FileActionMenu({
       if (!canOpenRetryModal) {
         return
       }
+      setRetryFailure(null)
       setRetryLanguage(retryLanguages.find((el) => !el.disabled)!.value)
       setOpenRetryModal(mode)
     },
@@ -151,7 +170,12 @@ export function FileActionMenu({
     retryWithLanguageMutation.mutate(
       { id: lastAiJobTranscript.id, language: retryLanguage },
       {
-        onSuccess: () => {
+        onSuccess: (job) => {
+          if (job.status === 'failed') {
+            setRetryFailure(job)
+            return
+          }
+          setRetryFailure(null)
           setOpenRetryModal(false)
           setIsOpen(false)
           addToast(
@@ -160,12 +184,7 @@ export function FileActionMenu({
             </ToasterItem>
           )
         },
-        onError: () =>
-          addToast(
-            <ToasterItem type="error">
-              <span>{t('actions.retry.error')}</span>
-            </ToasterItem>
-          ),
+        onError: (error) => addErrorToast(error, t('actions.retry.error')),
       }
     )
   }, [lastAiJobTranscript, retryLanguage, retryWithLanguageMutation, t])
@@ -224,21 +243,11 @@ export function FileActionMenu({
     config?.docs_integration_supports_synchroneous_calls ?? false
 
   const showCreateDocsError = useCallback(
-    () =>
-      addToast(
-        <ToasterItem type="error">
-          <span>{t('transcript.createInDocsError')}</span>
-        </ToasterItem>
-      ),
+    (error: unknown) => addErrorToast(error, t('transcript.createInDocsError')),
     [t]
   )
   const showOpenDocsError = useCallback(
-    () =>
-      addToast(
-        <ToasterItem type="error">
-          <span>{t('transcript.openInDocsError')}</span>
-        </ToasterItem>
-      ),
+    (error: unknown) => addErrorToast(error, t('transcript.openInDocsError')),
     [t]
   )
 
@@ -283,7 +292,9 @@ export function FileActionMenu({
     const copyTranscript = async () => {
       setIsCopyingText(true)
       try {
-        const transcript = await getTranscript(lastAiJobTranscript)
+        const transcript = await queryClient.fetchQuery(
+          transcriptQuery(lastAiJobTranscript.id)
+        )
         const markdown = buildTranscriptMarkdown({
           title: file.title,
           transcriptSegments: buildTranscriptViewSegments(transcript),
@@ -302,17 +313,15 @@ export function FileActionMenu({
         addToast(
           <ToasterItem type="info">{t('transcript.copySuccess')}</ToasterItem>
         )
-      } catch {
-        addToast(
-          <ToasterItem type="error">{t('transcript.copyError')}</ToasterItem>
-        )
+      } catch (error) {
+        addErrorToast(error, t('transcript.copyError'))
       } finally {
         setIsCopyingText(false)
       }
     }
 
     void copyTranscript()
-  }, [file.title, isCopyingText, lastAiJobTranscript, t])
+  }, [file.title, isCopyingText, lastAiJobTranscript, queryClient, t])
 
   const exportFormats = useMemo(
     () => [
@@ -340,7 +349,9 @@ export function FileActionMenu({
     const runExport = async () => {
       setIsExporting(true)
       try {
-        const transcript = await getTranscript(lastAiJobTranscript)
+        const transcript = await queryClient.fetchQuery(
+          transcriptQuery(lastAiJobTranscript.id)
+        )
         const filenameBase = sanitizeFileName(file.title || file.filename)
 
         if (exportFormat === 'markdown') {
@@ -391,10 +402,8 @@ export function FileActionMenu({
         addToast(
           <ToasterItem type="info">{t('actions.export.success')}</ToasterItem>
         )
-      } catch {
-        addToast(
-          <ToasterItem type="error">{t('actions.export.error')}</ToasterItem>
-        )
+      } catch (error) {
+        addErrorToast(error, t('actions.export.error'))
       } finally {
         setIsExporting(false)
       }
@@ -407,6 +416,7 @@ export function FileActionMenu({
     file.title,
     isExporting,
     lastAiJobTranscript,
+    queryClient,
     t,
   ])
 
@@ -418,7 +428,10 @@ export function FileActionMenu({
         icon: <ArrowUpRight size="small" />,
         callback: handleOpenInDocs,
         isDisabled:
-          !canOpenInDocs || openInDocs.isPending || createInDocs.isPending,
+          !canOpenInDocs ||
+          openInDocs.isPending ||
+          createInDocs.isPending ||
+          (!lastAiJobTranscript?.docs_app_id && docsBlocked),
       })
     }
     if (showCopyText) {
@@ -426,7 +439,10 @@ export function FileActionMenu({
         label: t('shared:actions.copyText'),
         icon: <Copy size="small" />,
         callback: handleCopyText,
-        isDisabled: lastAiJobTranscript?.status !== 'success' || isCopyingText,
+        isDisabled:
+          lastAiJobTranscript?.status !== 'success' ||
+          isCopyingText ||
+          resultBlocked,
       })
     }
 
@@ -434,17 +450,22 @@ export function FileActionMenu({
       label: t('actions.export.label'),
       icon: <Download size="small" />,
       callback: () => setOpenExportModal(true),
-      isDisabled: lastAiJobTranscript?.status !== 'success',
+      isDisabled: lastAiJobTranscript?.status !== 'success' || resultBlocked,
     })
 
     out.push({ type: 'separator' })
 
-    if (lastAiJobTranscript?.id && lastAiJobTranscript?.status === 'failed') {
+    if (
+      lastAiJobTranscript?.id &&
+      lastAiJobTranscript?.status === 'failed' &&
+      canRetryAiJob(lastAiJobTranscript)
+    ) {
       out.push({
         label: isRetryPending
           ? t('actions.retry.disabledPendingLabel')
           : t('actions.retry.label'),
-        isDisabled: file.lifecycle_state !== 'active' || isRetryPending,
+        isDisabled:
+          file.lifecycle_state !== 'active' || isRetryPending || retryBlocked,
         icon: <UndoCircle size="small" />,
         callback: canOpenRetryModal
           ? () => handleOpenRetryModal('retry')
@@ -456,7 +477,8 @@ export function FileActionMenu({
       out.push({
         label: t('actions.changeLanguage.label'),
         subText: t('actions.changeLanguage.subLabel'),
-        isDisabled: file.lifecycle_state !== 'active' || isRetryPending,
+        isDisabled:
+          file.lifecycle_state !== 'active' || isRetryPending || retryBlocked,
         icon: <Language size="small" />,
         callback: canOpenRetryModal
           ? () => handleOpenRetryModal('changeLanguage')
@@ -543,10 +565,12 @@ export function FileActionMenu({
   }, [
     showOpenInDocs,
     showCopyText,
+    retryBlocked,
+    docsBlocked,
+    resultBlocked,
+    lastAiJobTranscript,
     t,
     canOpenInDocs,
-    lastAiJobTranscript?.status,
-    lastAiJobTranscript?.id,
     file.abilities.partial_update,
     file.abilities.destroy,
     file.abilities.restore,
@@ -636,13 +660,17 @@ export function FileActionMenu({
             >
               {t('shared:actions.cancel')}
             </Button>
-            <Button onClick={handleExport} disabled={isExporting}>
+            <Button
+              onClick={handleExport}
+              disabled={isExporting || resultBlocked}
+            >
               {t('actions.exportModal.submit')}
             </Button>
           </>
         }
       >
         <p>{t('actions.exportModal.description')}</p>
+        <RateLimitNotice scope="aiResult" />
         <Select
           label={t('actions.exportModal.formatLabel')}
           value={exportFormat}
@@ -757,13 +785,20 @@ export function FileActionMenu({
             </Button>
             <Button
               onClick={handleRetry}
-              disabled={!retryLanguage || retryWithLanguageMutation.isPending}
+              disabled={
+                !retryLanguage ||
+                retryWithLanguageMutation.isPending ||
+                retryBlocked ||
+                !canRetryAiJob(retryFailure)
+              }
             >
               {t('actions.retry.label')}
             </Button>
           </>
         }
       >
+        {retryFailure && <AiJobFailureAlert job={retryFailure} />}
+        <RateLimitNotice scope="transcriptionRetry" />
         <br />
         <Select
           label={t('actions.changeLanguageModal.selectLangLabel')}

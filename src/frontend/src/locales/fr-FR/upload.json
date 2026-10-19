@@ -29,5 +29,13 @@
       "description_done_one": "{{count}} fichier transféré",
       "description_done_other": "{{count}} fichiers transférés"
     }
+  },
+  "rateLimit": {
+    "title": "Imports suspendus : limite de requêtes du serveur atteinte",
+    "resume": "Reprendre les imports",
+    "paused": "En pause : limite de requêtes du serveur atteinte",
+    "keepOpen": "Gardez l’application ouverte pour conserver les fichiers sélectionnés dont l’import n’est pas terminé. Si vous rechargez la page, sélectionnez à nouveau ces fichiers.",
+    "saved": "Votre enregistrement est conservé sur cet appareil.",
+    "finalizing": "Audio envoyé ; en attente de finalisation de l’import."
   }
 }

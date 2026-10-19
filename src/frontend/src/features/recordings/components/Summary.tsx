@@ -1,3 +1,5 @@
+import { RateLimitNotice } from '@/features/ui/components/RateLimitNotice'
+import { isRateLimitError } from '@/api/rateLimits'
 import { useSummary } from '@/features/ai-jobs/api/fetch.ts'
 import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
 import { useTranslation } from 'react-i18next'
@@ -34,6 +36,14 @@ export function Summary({
         </div>
       )}
 
+      {isRateLimitError(summaryQ.error) && (
+        <RateLimitNotice
+          scope="aiResult"
+          onRetry={() => {
+            void summaryQ.refetch()
+          }}
+        />
+      )}
       {summaryQ.data && (
         <div className="recording-page__summary">{summaryQ.data}</div>
       )}

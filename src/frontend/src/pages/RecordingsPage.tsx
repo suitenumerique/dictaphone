@@ -1,3 +1,4 @@
+import { UploadRateLimitAlert } from '@/features/files/components/UploadRateLimitAlert'
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
@@ -235,6 +236,7 @@ export default function RecordingsPage() {
           </div>
         </div>
         <h2 className="sr-only">{t('myRecordings')}</h2>
+        <UploadRateLimitAlert />
         <RecoverList
           addEndSeparator={(filesQ.data?.pages?.[0]?.count ?? 0) > 0}
         />

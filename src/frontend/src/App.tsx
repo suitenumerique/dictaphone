@@ -1,4 +1,6 @@
 import './i18n/init'
+import { ImportUploadFeedback } from '@/features/files/components/FileUploadToast'
+import { RateLimitNotifications } from '@/features/ui/components/RateLimitNotice'
 import React, { Suspense } from 'react'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -127,6 +129,8 @@ function App() {
             <Route component={NotFoundScreen} />
           </Switch>
           <Toaster />
+          <RateLimitNotifications />
+          <ImportUploadFeedback />
           <ReactQueryDevtools
             initialIsOpen={false}
             buttonPosition="bottom-right"

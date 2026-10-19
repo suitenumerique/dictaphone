@@ -1,10 +1,25 @@
 import { ApiError } from './ApiError'
 import { apiUrl } from './apiUrl'
+import {
+  isBlocked,
+  parseRetryAfter,
+  type RateLimitScope,
+  recordRateLimit,
+  useRateLimits,
+} from './rateLimits'
 
 export const fetchApi = async <T = Record<string, unknown>>(
   url: string,
-  options?: RequestInit
+  {
+    rateLimitScope,
+    ...options
+  }: RequestInit & { rateLimitScope?: RateLimitScope } = {}
 ): Promise<T> => {
+  if (rateLimitScope) {
+    // Don't send requests the server would reject anyway.
+    const retryAt = useRateLimits.getState().cooldowns[rateLimitScope]
+    if (isBlocked(retryAt)) throw new ApiError(429, undefined, retryAt)
+  }
   const csrfToken = getCsrfToken()
   const response = await fetch(apiUrl(url), {
     credentials: 'include',
@@ -12,26 +27,35 @@ export const fetchApi = async <T = Record<string, unknown>>(
     headers: {
       'Content-Type': 'application/json',
       ...(!!csrfToken && { 'X-CSRFToken': csrfToken }),
-      ...options?.headers,
+      ...options.headers,
     },
   })
 
-  let result: T
-  if (response.status === 204) {
-    result = undefined as T
-  } else {
-    const contentType = response.headers.get('content-type') ?? ''
-    if (contentType === 'text/plain') {
-      result = (await response.text()) as T
-    } else if (!contentType.includes('application/json')) {
-      result = undefined as T
-    } else {
-      result = (await response.json()) as T
+  const retryAt =
+    response.status === 429
+      ? parseRetryAfter(response.headers.get('Retry-After'))
+      : null
+  if (response.status === 429 && rateLimitScope) {
+    recordRateLimit(rateLimitScope, retryAt)
+  }
+
+  let result = undefined as T
+  try {
+    if (response.status !== 204) {
+      const contentType = response.headers.get('content-type') ?? ''
+      if (contentType.startsWith('text/plain')) {
+        result = (await response.text()) as T
+      } else if (contentType.includes('application/json')) {
+        result = (await response.json()) as T
+      }
     }
+  } catch (error) {
+    // Preserve the HTTP status even when a proxy returns an invalid error body.
+    if (response.ok) throw error
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, result)
+    throw new ApiError(response.status, result, retryAt)
   }
   return result
 }

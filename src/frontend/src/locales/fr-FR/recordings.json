@@ -200,7 +200,6 @@
     "speed15": "Définir la vitesse de lecture à 1,5x (actuellement 1x)",
     "speed2": "Définir la vitesse de lecture à 2x (actuellement 1,5x)",
     "speed1": "Définir la vitesse de lecture à 1x (actuellement 2x)",
-
     "download": "Télécharger",
     "previous": "Précédent",
     "next": "Passer",
@@ -208,5 +207,14 @@
     "loopOff": "Activer la lecture en boucle",
     "volume": "Couper le son",
     "volumeMute": "Activer le son"
+  },
+  "failures": {
+    "tooLong": "Ce média est trop long pour être transcrit.",
+    "tooLongDescription": "La durée maximale est de {{duration}}. Raccourcissez le média puis importez-le à nouveau.",
+    "quota": "Quota de transcription audio atteint.",
+    "quotaDescription": "Le service autorise votre compte à soumettre jusqu’à {{hours}} heures d’audio sur une période glissante de 24 heures, nouvelles tentatives comprises. Réessayez plus tard, lorsque du quota sera de nouveau disponible.",
+    "quotaWithoutLimit": "Le quota de transcription audio fixé par le service pour votre compte est atteint. Réessayez plus tard, lorsque du quota sera de nouveau disponible.",
+    "faq": "Consulter la FAQ",
+    "tooLongFaqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/#1bcb3602-6b40-433b-a23f-c9cde224f5ce"
   }
 }
