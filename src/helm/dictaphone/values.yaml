@@ -240,6 +240,15 @@ backend:
   ## @param backend.cronjobs[1].name Name of the CronJob
   ## @param backend.cronjobs[1].schedule Schedule in cron format
   ## @param backend.cronjobs[1].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[2].name Name of the CronJob
+  ## @param backend.cronjobs[2].schedule Schedule in cron format
+  ## @param backend.cronjobs[2].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[3].name Name of the CronJob
+  ## @param backend.cronjobs[3].schedule Schedule in cron format
+  ## @param backend.cronjobs[3].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[4].name Name of the CronJob
+  ## @param backend.cronjobs[4].schedule Schedule in cron format
+  ## @param backend.cronjobs[4].command The bash command to execute in the CronJob
 
   cronjobs:
     - name: delete-original-files-data
@@ -266,6 +275,12 @@ backend:
         - "/bin/sh"
         - "-c"
         - "python manage.py purge_deleted_files"
+    - name: purge-transcription-usage
+      schedule: "0 1 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "python manage.py purge_transcription_usage"
 
   ## @param backend.probes.liveness.path [nullable] Configure path for backend HTTP liveness probe
   ## @param backend.probes.liveness.targetPort [nullable] Configure port for backend HTTP liveness probe

@@ -561,6 +561,9 @@ class Base(Configuration):
     RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = values.PositiveIntegerValue(
         24, environ_prefix=None
     )
+    TRANSCRIPTION_USAGE_RETENTION_DAYS = values.PositiveIntegerValue(
+        365, environ_prefix=None
+    )
 
     SPECTACULAR_SETTINGS = {
         "TITLE": "Dictaphone API",

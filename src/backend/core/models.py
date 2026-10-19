@@ -824,6 +824,7 @@ class TranscriptionUsage(BaseModel):
             models.Index(
                 fields=["user", "submitted_at"], name="transcript_usage_user_time_idx"
             ),
+            models.Index(fields=["submitted_at"], name="transcript_usage_time_idx"),
         ]
 
     def __str__(self):

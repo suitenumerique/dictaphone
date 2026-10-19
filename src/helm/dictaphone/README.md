@@ -100,12 +100,21 @@ add_header Content-Disposition "attachment";
 
 | Name                                           | Description                                                                        | Value                                                     |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `backend.cronjobs[0].name`                     | Name of the CronJob                                                                | `clean-pending-files`                                     |
-| `backend.cronjobs[0].schedule`                 | Schedule in cron format                                                            | `30 0 * * *`                                              |
-| `backend.cronjobs[0].command`                  | The bash command to execute in the CronJob                                         | `["/bin/sh","-c","python manage.py clean_pending_files"]` |
-| `backend.cronjobs[1].name`                     | Name of the CronJob                                                                | `purge-deleted-files`                                     |
-| `backend.cronjobs[1].schedule`                 | Schedule in cron format                                                            | `45 0 * * *`                                              |
-| `backend.cronjobs[1].command`                  | The bash command to execute in the CronJob                                         | `["/bin/sh","-c","python manage.py purge_deleted_files"]` |
+| `backend.cronjobs[0].name` | Name of the CronJob | `delete-original-files-data` |
+| `backend.cronjobs[0].schedule` | Schedule in cron format | `1 0 * * *` |
+| `backend.cronjobs[0].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py delete_original_files_data"]` |
+| `backend.cronjobs[1].name` | Name of the CronJob | `auto-hard-delete-files` |
+| `backend.cronjobs[1].schedule` | Schedule in cron format | `15 0 * * *` |
+| `backend.cronjobs[1].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py auto_hard_delete_files"]` |
+| `backend.cronjobs[2].name` | Name of the CronJob | `clean-pending-files` |
+| `backend.cronjobs[2].schedule` | Schedule in cron format | `30 0 * * *` |
+| `backend.cronjobs[2].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py clean_pending_files"]` |
+| `backend.cronjobs[3].name` | Name of the CronJob | `purge-deleted-files` |
+| `backend.cronjobs[3].schedule` | Schedule in cron format | `45 0 * * *` |
+| `backend.cronjobs[3].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_deleted_files"]` |
+| `backend.cronjobs[4].name` | Name of the CronJob | `purge-transcription-usage` |
+| `backend.cronjobs[4].schedule` | Schedule in cron format | `0 1 * * *` |
+| `backend.cronjobs[4].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_transcription_usage"]` |
 | `backend.probes.liveness.path`                 | Configure path for backend HTTP liveness probe                                     | `/__heartbeat__`                                          |
 | `backend.probes.liveness.targetPort`           | Configure port for backend HTTP liveness probe                                     | `nil`                                                     |
 | `backend.probes.liveness.initialDelaySeconds`  | Configure initial delay for backend liveness probe                                 | `5`                                                       |
