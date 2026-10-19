@@ -216,6 +216,11 @@ def _reserve_transcription_audio(ai_job):
         return True
 
     file = ai_job.file
+    duration = file.duration_seconds
+    if duration is None or duration <= 0:
+        ai_job.mark_failed()
+        return False
+
     # Serialize this user's quota admissions without blocking user row updates.
     # The transaction-level lock is released with the caller's transaction.
     lock_key = int.from_bytes(
@@ -234,11 +239,7 @@ def _reserve_transcription_audio(ai_job):
         ).aggregate(total=Sum("duration_seconds"))["total"]
         or 0
     )
-    duration = file.duration_seconds
     limit_seconds = settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H * 3600
-    if duration is None or duration <= 0:
-        ai_job.mark_failed()
-        return False
     if used_seconds + duration > limit_seconds:
         ai_job.mark_failed(AiJobFailureReasonChoices.RATE_LIMIT_TRANSCRIPTION_EXCEEDED)
         return False
