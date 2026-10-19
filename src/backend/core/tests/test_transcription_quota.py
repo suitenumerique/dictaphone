@@ -6,7 +6,7 @@ from importlib import import_module
 from threading import Barrier
 from unittest.mock import Mock, patch
 
-from django.db import connection, connections
+from django.db import connection, connections, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
@@ -304,6 +304,40 @@ def test_concurrent_transcription_quota_admissions_are_per_user(post):
     assert [job.failure_reason for job in jobs].count(
         "RATE_LIMIT_TRANSCRIPTION_EXCEEDED"
     ) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("core.tasks.file.session.post")
+def test_transcription_quota_does_not_block_user_updates_during_submission(post):
+    """Login updates can commit while the remote submission holds the quota lock."""
+    job = reserved_job()
+    last_login = timezone.now()
+
+    def update_user():
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("SET LOCAL lock_timeout = '2s'")
+                return models.User.objects.filter(pk=job.file.creator_id).update(
+                    last_login=last_login
+                )
+        finally:
+            connections.close_all()
+
+    def respond(*_args, **_kwargs):
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            assert executor.submit(update_user).result(timeout=5) == 1
+        return Mock(json=Mock(return_value={"job_id": "quota-transcript"}))
+
+    post.side_effect = respond
+
+    call_transcribe_service(job.pk)
+
+    job.refresh_from_db()
+    job.file.creator.refresh_from_db()
+    assert job.remote_job_id == "quota-transcript"
+    assert job.file.creator.last_login == last_login
+    assert models.TranscriptionUsage.objects.filter(ai_job_id=job.pk).count() == 1
 
 
 @pytest.fixture(name="main_schema")

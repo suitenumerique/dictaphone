@@ -5,11 +5,12 @@ Tasks related to files.
 import json
 import logging
 from datetime import timedelta
+from hashlib import sha256
 from math import ceil
 from urllib.parse import urljoin
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Max, Sum
 from django.utils import timezone
 
@@ -27,7 +28,6 @@ from core.models import (
     File,
     FileLifecycleStateChoices,
     TranscriptionUsage,
-    User,
 )
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.constants import BACKEND_QUEUE
@@ -216,9 +216,14 @@ def _reserve_transcription_audio(ai_job):
         return True
 
     file = ai_job.file
-    # The caller holds the job lock and transaction through the remote call.
-    # A user lock also serializes submissions involving different files.
-    User.objects.select_for_update(no_key=True).get(pk=file.creator_id)
+    # Serialize this user's quota admissions without blocking user row updates.
+    # The transaction-level lock is released with the caller's transaction.
+    lock_key = int.from_bytes(
+        sha256(f"transcription-quota:{file.creator_id}".encode()).digest()[:8],
+        signed=True,
+    )
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
     now = timezone.now()
     used_seconds = (
         TranscriptionUsage.objects.filter(
