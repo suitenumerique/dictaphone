@@ -32,6 +32,7 @@ def test_frontend_configuration_contains_mobile_apps(settings):
 def test_frontend_configuration_exposes_base_settings(settings):
     """Frontend configuration should include base app settings and frontend overrides."""
     settings.LANGUAGE_CODE = "fr-fr"
+    settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = 24
     settings.FILE_AUTO_HARD_DELETE_AFTER_DAYS = 365
     settings.ORIGINAL_FILE_DATA_DELETE_AFTER_DAYS = 31
     settings.DOCS_INTEGRATION_ENABLED = True
@@ -42,6 +43,7 @@ def test_frontend_configuration_exposes_base_settings(settings):
     assert response.status_code == 200
     content = response.json()
     assert content["LANGUAGE_CODE"] == "fr-fr"
+    assert content["rate_limit_ai_transcription_audio_hours_per_24h"] == 24
     assert content["data_policy"] == {
         "is_relative_to_user": False,
         "file_auto_hard_delete_after_days": 365,

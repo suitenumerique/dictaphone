@@ -47,6 +47,9 @@ def get_app_configuration(request):
     )
     config = {
         "LANGUAGE_CODE": settings.LANGUAGE_CODE,
+        "rate_limit_ai_transcription_audio_hours_per_24h": (
+            settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H
+        ),
         "audio_recording": {
             "max_count_by_user": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
                 "max_count_by_user"
