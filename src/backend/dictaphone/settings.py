@@ -421,9 +421,11 @@ class Base(Configuration):
         "django.contrib.auth.middleware.AuthenticationMiddleware",
         "django.contrib.messages.middleware.MessageMiddleware",
         "dockerflow.django.middleware.DockerflowMiddleware",
+        "axes.middleware.AxesMiddleware",
     ]
 
     AUTHENTICATION_BACKENDS = [
+        "axes.backends.AxesStandaloneBackend",
         "django.contrib.auth.backends.ModelBackend",
         "core.authentication.backends.OIDCAuthenticationBackend",
     ]
@@ -439,6 +441,7 @@ class Base(Configuration):
         "dockerflow.django",
         "rest_framework",
         "parler",
+        "axes",
         # Django
         "django.contrib.admin",
         "django.contrib.auth",
@@ -452,6 +455,21 @@ class Base(Configuration):
         "mozilla_django_oidc",
         "rest_framework_simplejwt.token_blacklist",
     ]
+
+    # Protect the admin password form against account and IP-based brute-force attacks.
+    AXES_ONLY_ADMIN_SITE = True
+    AXES_HANDLER = "core.authentication.axes.AdminAxesDatabaseHandler"
+    AXES_USERNAME_FORM_FIELD = "username"
+    AXES_LOCKOUT_PARAMETERS = ["username", "ip_address"]
+    AXES_FAILURE_LIMIT = values.PositiveIntegerValue(
+        5, environ_name="RATE_LIMIT_ADMIN_LOGIN_FAILURE_LIMIT", environ_prefix=None
+    )
+    # Axes interprets numeric cool-off values as hours (0.25 = 15 minutes).
+    AXES_COOLOFF_TIME = values.FloatValue(
+        0.25, environ_name="RATE_LIMIT_ADMIN_LOGIN_COOLOFF_HOURS", environ_prefix=None
+    )
+    AXES_RESET_ON_SUCCESS = True
+    AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 
     # Cache
     CACHES = {
