@@ -262,19 +262,23 @@ class FileViewSet(
     }
     filter_backends = (django_filters.DjangoFilterBackend, filters.OrderingFilter)
     filterset_class = ListFileFilter
+    throttle_classes_by_action = {
+        "create": (
+            throttling.FileCreateThrottleBurst,
+            throttling.FileCreateThrottleSustained,
+        ),
+        "upload_ended": (
+            throttling.FileUploadEndedThrottleBurst,
+            throttling.FileUploadEndedThrottleSustained,
+        ),
+    }
 
     def get_throttles(self):
         """Apply per-user limits to file creation and upload finalization."""
-        if self.action == "create":
-            return [
-                throttling.FileCreateThrottleBurst(),
-                throttling.FileCreateThrottleSustained(),
-            ]
-        if self.action == "upload_ended":
-            return [
-                throttling.FileUploadEndedThrottleBurst(),
-                throttling.FileUploadEndedThrottleSustained(),
-            ]
+        throttle_classes = self.throttle_classes_by_action.get(self.action)
+        if throttle_classes:
+            # DRF throttles hold request state, so instances must not be shared.
+            return [throttle_class() for throttle_class in throttle_classes]
         return super().get_throttles()
 
     def get_queryset(self):
@@ -680,28 +684,30 @@ class AiJobViewSet(
     permission_classes = [permissions.AiJobPermission]
     queryset = AiFileJob.objects.select_related("file", "file__creator")
     serializer_class = serializers.AiJobSerializer
+    throttle_classes_by_action = {
+        "retry": (
+            throttling.AiJobRetryThrottleBurst,
+            throttling.AiJobRetryThrottleSustained,
+        ),
+        "create_in_docs": (
+            throttling.AiJobCreateInDocsThrottleBurst,
+            throttling.AiJobCreateInDocsThrottleSustained,
+        ),
+        "transcript": (
+            throttling.AiJobResultThrottleBurst,
+            throttling.AiJobResultThrottleSustained,
+        ),
+        "summary": (
+            throttling.AiJobResultThrottleBurst,
+            throttling.AiJobResultThrottleSustained,
+        ),
+    }
 
     def get_throttles(self):
         """Apply per-user limits to AI submissions and result downloads."""
-        throttle_classes = {
-            "retry": (
-                throttling.AiJobRetryThrottleBurst,
-                throttling.AiJobRetryThrottleSustained,
-            ),
-            "create_in_docs": (
-                throttling.AiJobCreateInDocsThrottleBurst,
-                throttling.AiJobCreateInDocsThrottleSustained,
-            ),
-            "transcript": (
-                throttling.AiJobResultThrottleBurst,
-                throttling.AiJobResultThrottleSustained,
-            ),
-            "summary": (
-                throttling.AiJobResultThrottleBurst,
-                throttling.AiJobResultThrottleSustained,
-            ),
-        }.get(self.action)
+        throttle_classes = self.throttle_classes_by_action.get(self.action)
         if throttle_classes:
+            # DRF throttles hold request state, so instances must not be shared.
             return [throttle_class() for throttle_class in throttle_classes]
         return super().get_throttles()
 
