@@ -23,6 +23,17 @@ from core.factories import UserFactory
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def isolated_auth_cache(settings):
+    """Keep authorization codes and failed-attempt counters isolated per test."""
+    settings.CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+    }
+    cache.clear()
+    yield
+    cache.clear()
+
+
 def _attach_session(request):
     """Attach a working session to a request-factory request."""
     middleware = SessionMiddleware(lambda req: None)

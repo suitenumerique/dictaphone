@@ -25,6 +25,10 @@ from core.authentication.schemas import (
     PKCEAuthenticationRequestModel,
     PKCETokenExchangeModel,
 )
+from core.authentication.throttling import (
+    FailedRequestThrottleMixin,
+    PKCETokenExchangeThrottle,
+)
 from core.utils import update_url_query_params
 
 logger = logging.getLogger(__name__)
@@ -171,7 +175,7 @@ class OIDCAuthenticationCallbackWithPkceView(OIDCAuthenticationCallbackView):
         return super().login_failure()
 
 
-class PKCEOAuthTokenExchangeView(APIView):
+class PKCEOAuthTokenExchangeView(FailedRequestThrottleMixin, APIView):
     """
     Handles PKCE OAuth token exchange requests.
 
@@ -193,10 +197,7 @@ class PKCEOAuthTokenExchangeView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
-    # Deliberately avoid IP-based rate limiting here: users sharing a public IP
-    # would share the allowance and could block each other's token exchanges.
-    # The tokens are lengthy enough that a brute-force attack here
-    # will be impossible.
+    throttle_classes = [PKCETokenExchangeThrottle]
     # Audit logging for successful and failed token exchanges remains to be added.
 
     def post(self, request) -> Response:

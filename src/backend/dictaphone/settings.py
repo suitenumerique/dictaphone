@@ -28,6 +28,7 @@ from lasuite.configuration.values import SecretFileValue
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
+from core.authentication.proxies import _trusted_networks
 from core.configuration import get_runtime_configuration
 
 from dictaphone.values import JsonDictValue
@@ -556,6 +557,12 @@ class Base(Configuration):
                 environ_name="RATE_LIMIT_API_FILES_CREATE_SUSTAINED",
                 environ_prefix=None,
             ),
+            # Counts failed exchanges only, per client IP.
+            "pkce_token_exchange_failures": values.Value(
+                default="50/minute",
+                environ_name="RATE_LIMIT_PKCE_TOKEN_EXCHANGE",
+                environ_prefix=None,
+            ),
         },
     }
     RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = values.PositiveIntegerValue(
@@ -824,6 +831,11 @@ class Base(Configuration):
     )
 
     # Mobile App Handling & JWT
+    AUTH_PKCE_TRUSTED_PROXIES = values.ListValue(
+        default=[],
+        environ_name="AUTH_PKCE_TRUSTED_PROXIES",
+        environ_prefix=None,
+    )
     AUTH_PKCE_CACHE_TTL_SECONDS = values.PositiveIntegerValue(
         default=120,
         environ_name="AUTH_PKCE_CACHE_TTL_SECONDS",
@@ -965,6 +977,8 @@ class Base(Configuration):
         settings to be loaded.
         """
         super().post_setup()
+
+        _trusted_networks(tuple(cls.AUTH_PKCE_TRUSTED_PROXIES))
 
         if cls.FILE_UPLOAD_TMP_PATH == cls.FILE_UPLOAD_PATH:
             raise ValueError(
