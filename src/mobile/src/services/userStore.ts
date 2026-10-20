@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { clearRateLimits } from '@/api/rateLimits'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { z } from 'zod/v4'
 import { mmkvStorage } from '@/services/index'
@@ -51,6 +52,8 @@ export const useUserStore = create<UserStore>()(
 )
 
 useUserStore.subscribe((state, prevState) => {
+  // Cooldowns belong to the account that got throttled.
+  if (state.user?.id !== prevState.user?.id) clearRateLimits()
   const prevLang = (prevState.user?.language ?? 'fr').split('-')[0]
   const newLang = (state.user?.language ?? 'fr').split('-')[0]
   if (prevLang !== newLang || newLang !== i18n.language) {

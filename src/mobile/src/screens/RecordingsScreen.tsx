@@ -1,3 +1,5 @@
+import { UploadRateLimitAlert } from '@/components/UploadRateLimitAlert'
+import { useUploadsPaused } from '@/api/rateLimits'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -57,6 +59,7 @@ const importErrorMessage = (
 
 export default function RecordingsScreen() {
   const { t } = useTranslation()
+  const uploadsPaused = useUploadsPaused()
   const netInfo = useNetInfo()
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>()
@@ -98,9 +101,11 @@ export default function RecordingsScreen() {
     ? 'not-logged-in'
     : !isOnline
       ? 'offline'
-      : settings.wifiOnlyUpload && !isOnWifi && !wifiBypassActivated
-        ? 'wifiOnly'
-        : 'ok'
+      : uploadsPaused
+        ? 'rateLimited'
+        : settings.wifiOnlyUpload && !isOnWifi && !wifiBypassActivated
+          ? 'wifiOnly'
+          : 'ok'
   const showWifiOnlyCard =
     isLoggedIn &&
     isOnline &&
@@ -265,6 +270,7 @@ export default function RecordingsScreen() {
         <ActivityIndicator size="large" />
       )}
 
+      <UploadRateLimitAlert />
       <FlatList
         data={allRecordings}
         keyExtractor={(item) => item.id}

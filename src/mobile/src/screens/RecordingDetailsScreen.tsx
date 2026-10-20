@@ -1,3 +1,7 @@
+import { AiJobFailureAlert } from '@/components/AiJobFailureAlert'
+import { formatRateLimitMessage } from '@/components/rateLimitMessage'
+import { useCooldown } from '@/api/useCooldown'
+import { isRateLimitError } from '@/api/rateLimits'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -49,6 +53,8 @@ export default function RecordingDetailsScreen() {
   const navigation = useNavigation<StackNavigationProp>()
   const { id } = route.params
   const { t } = useTranslation()
+  const resultCooldown = useCooldown('aiResult')
+  const docsBlocked = useCooldown('docsCreate').isBlocked
   const insets = useInsets()
 
   const originalFileKeptDays = useConfigStore(
@@ -163,7 +169,10 @@ export default function RecordingDetailsScreen() {
       createInDocs.mutate(lastAiJobTranscript, {
         onSuccess: (res) =>
           void openDocsUrl(res.doc_url, 'recordings.createInDocsError'),
-        onError: () => showDocsError('recordings.createInDocsError'),
+        onError: (error) => {
+          if (!isRateLimitError(error))
+            showDocsError('recordings.createInDocsError')
+        },
       })
     }
   }, [
@@ -210,7 +219,11 @@ export default function RecordingDetailsScreen() {
     lastAiJobTranscript?.status === 'success' &&
     (Boolean(lastAiJobTranscript.docs_app_id) ||
       supportsSynchronousDocsCreation)
-  const isDocsActionPending = openInDocs.isPending || createInDocs.isPending
+  const isDocsActionDisabled =
+    !canOpenInDocs ||
+    openInDocs.isPending ||
+    createInDocs.isPending ||
+    (!lastAiJobTranscript?.docs_app_id && docsBlocked)
 
   return (
     <View style={[styles.container, { paddingTop: insets.paddingTop }]}>
@@ -323,7 +336,30 @@ export default function RecordingDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.transcriptContainer}>
-          {transcriptQ.isPending ? (
+          <AiJobFailureAlert job={lastAiJobTranscript} />
+          {transcriptQ.isError ? (
+            <View>
+              <AppText>
+                {isRateLimitError(transcriptQ.error)
+                  ? t('rateLimits.title')
+                  : t('transcript.notAvailable')}
+              </AppText>
+              {resultCooldown.isBlocked && (
+                <AppText>
+                  {formatRateLimitMessage(t, resultCooldown.retryAt ?? null)}
+                </AppText>
+              )}
+              <Pressable
+                disabled={resultCooldown.isBlocked}
+                onPress={() => void transcriptQ.refetch()}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: resultCooldown.isBlocked }}
+              >
+                <AppText>{t('rateLimits.retry')}</AppText>
+              </Pressable>
+            </View>
+          ) : transcriptQ.isPending &&
+            lastAiJobTranscript?.status !== 'failed' ? (
             <ActivityIndicator />
           ) : transcriptSegments.length === 0 ? (
             <AppText variant="muted" size="md" color={colors.neutralTertiary}>
@@ -359,10 +395,9 @@ export default function RecordingDetailsScreen() {
               style={({ pressed }) => [
                 styles.openInDocsButton,
                 pressed && styles.openInDocsButtonPressed,
-                (!canOpenInDocs || isDocsActionPending) &&
-                  styles.openInDocsButtonDisabled,
+                isDocsActionDisabled && styles.openInDocsButtonDisabled,
               ]}
-              disabled={!canOpenInDocs || isDocsActionPending}
+              disabled={isDocsActionDisabled}
               onPress={handleOpenInDocs}
             >
               <DocsIcon />

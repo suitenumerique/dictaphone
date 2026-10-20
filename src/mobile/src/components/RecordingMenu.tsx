@@ -1,3 +1,9 @@
+import {
+  canRetryAiJob,
+  getFailureMessageKey,
+} from '@/features/ai-jobs/utils/failurePresentation'
+import { useCooldown } from '@/api/useCooldown'
+import { isRateLimitError } from '@/api/rateLimits'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -48,6 +54,7 @@ export default function RecordingMenu({
 
   const deleteMutation = useDeleteFile()
   const renameMutation = usePartialUpdateFile()
+  const retryBlocked = useCooldown('transcriptionRetry').isBlocked
   const retryWithLanguageMutation = useRetryWithLanguageMutation()
   const { lastAiJobTranscript } = useMemo(() => getMainAiJobs(aiJobs), [aiJobs])
 
@@ -63,7 +70,9 @@ export default function RecordingMenu({
     recording.lifecycle_state === 'active' &&
     Boolean(lastAiJobTranscript?.id) &&
     !isRetryDisabled &&
-    !hasPendingTranscriptJob
+    !hasPendingTranscriptJob &&
+    canRetryAiJob(lastAiJobTranscript) &&
+    !retryBlocked
   const disabledRetryLanguages =
     lastAiJobTranscript?.status === 'success'
       ? [lastAiJobTranscript.language]
@@ -158,14 +167,18 @@ export default function RecordingMenu({
         return
       }
       try {
-        await retryWithLanguageMutation.mutateAsync({
+        const job = await retryWithLanguageMutation.mutateAsync({
           id: lastAiJobTranscript.id,
           language,
         })
         setIsRetryModalVisible(false)
         setIsPopoverVisible(false)
-        Alert.alert(t('recordings.menu.retrySuccess'))
-      } catch {
+        const failureKey = getFailureMessageKey(job)
+        Alert.alert(
+          failureKey ? t(failureKey) : t('recordings.menu.retrySuccess')
+        )
+      } catch (error) {
+        if (isRateLimitError(error)) return
         Alert.alert(
           t('recordings.menu.errorTitle'),
           t('recordings.menu.retryError')
@@ -215,7 +228,7 @@ export default function RecordingMenu({
                 {t('recordings.menu.rename')}
               </AppText>
             </Pressable>
-            {lastAiJobTranscript?.id && (
+            {lastAiJobTranscript?.id && canRetryAiJob(lastAiJobTranscript) && (
               <Pressable
                 style={({ pressed }) => [
                   styles.actionButton,

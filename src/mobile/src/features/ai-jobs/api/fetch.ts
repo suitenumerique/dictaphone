@@ -11,7 +11,7 @@ import { MOCK_DATA } from '@/api/constants'
 import { mockedTranscript } from '@/features/ai-jobs/api/mockData'
 
 export const getTranscript = async (
-  aiJob: ApiAiJob | null
+  aiJob: Pick<ApiAiJob, 'id'> | null
 ): Promise<WhisperXResponse> => {
   if (MOCK_DATA) {
     return mockedTranscript
@@ -21,15 +21,19 @@ export const getTranscript = async (
   }
   return fetchApi<WhisperXResponse>(`/ai-jobs/${aiJob.id}/transcript/`, {
     method: 'GET',
+    rateLimitScope: 'aiResult',
   })
 }
 
-export const getSummary = async (aiJob: ApiAiJob | null): Promise<string> => {
+export const getSummary = async (
+  aiJob: Pick<ApiAiJob, 'id'> | null
+): Promise<string> => {
   if (!aiJob || !aiJob.id) {
     throw new Error('No aiJob provided')
   }
   return fetchApi<string>(`/ai-jobs/${aiJob.id}/summary/`, {
     method: 'GET',
+    rateLimitScope: 'aiResult',
   })
 }
 
@@ -54,6 +58,7 @@ export const createInDocs = async (
     `/ai-jobs/${aiJob.id}/create-in-docs/`,
     {
       method: 'POST',
+      rateLimitScope: 'docsCreate',
     }
   )
 }
@@ -64,32 +69,39 @@ export const retryWithLanguage = async ({
 }: {
   id: string
   language: TTranscriptionLanguage
-}): Promise<void> => {
+}): Promise<ApiAiJob> => {
   if (!id) {
     throw new Error('Missing aiJob id')
   }
 
-  return fetchApi<void>(`/ai-jobs/${id}/retry/`, {
+  return fetchApi<ApiAiJob>(`/ai-jobs/${id}/retry/`, {
     method: 'POST',
     body: JSON.stringify({
       language,
     }),
+    rateLimitScope: 'transcriptionRetry',
   })
 }
 
-export const useTranscript = (params: Parameters<typeof getTranscript>[0]) => {
+export const useTranscript = (params: ApiAiJob | null) => {
+  const id = params?.id ?? null
   return useQuery({
-    queryKey: [keys.aiJobs, params?.id, params],
-    queryFn: () => getTranscript(params),
+    queryKey: [keys.aiJobs, id, 'transcript'],
+    queryFn: () => getTranscript({ id }),
     enabled: params?.status === 'success' && Boolean(params?.id),
+    // Results of a given job never change, and they count toward a server rate limit.
+    staleTime: Infinity,
   })
 }
 
-export const useSummary = (params: Parameters<typeof getSummary>[0]) => {
+export const useSummary = (params: ApiAiJob | null) => {
+  const id = params?.id ?? null
   return useQuery({
-    queryKey: [keys.aiJobs, params?.id, params],
-    queryFn: () => getSummary(params),
+    queryKey: [keys.aiJobs, id, 'summary'],
+    queryFn: () => getSummary({ id }),
     enabled: params?.status === 'success' && Boolean(params?.id),
+    // Results of a given job never change, and they count toward a server rate limit.
+    staleTime: Infinity,
   })
 }
 

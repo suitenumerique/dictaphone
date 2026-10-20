@@ -4,6 +4,11 @@ export type ApiAiJob = {
   id: string | null // UUID
   type: 'transcript' | 'summary'
   status: 'pending' | 'success' | 'failed'
+  failure_reason?:
+    | 'AUDIO_TOO_LONG'
+    | 'RATE_LIMIT_TRANSCRIPTION_EXCEEDED'
+    | 'UNKNOWN_FAILURE'
+    | (string & {})
   created_at: string // ISO datetime string
   updated_at: string // ISO datetime string
   docs_app_id: string | null

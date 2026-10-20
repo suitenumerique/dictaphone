@@ -158,7 +158,16 @@
     },
     "openInDocs": "Ouvrir dans Docs",
     "createInDocsError": "Impossible de créer le document Docs pour le moment. Veuillez réessayer.",
-    "openInDocsError": "Impossible d'ouvrir le document Docs pour le moment. Veuillez réessayer."
+    "openInDocsError": "Impossible d'ouvrir le document Docs pour le moment. Veuillez réessayer.",
+    "failures": {
+      "tooLong": "Ce média est trop long pour être transcrit.",
+      "tooLongDescription": "La durée maximale est de {{duration}}. Raccourcissez le média puis importez-le à nouveau.",
+      "quota": "Quota de transcription audio atteint.",
+      "quotaDescription": "Le service autorise votre compte à soumettre jusqu’à {{hours}} heures d’audio sur une période glissante de 24 heures, nouvelles tentatives comprises. Réessayez plus tard, lorsque du quota sera de nouveau disponible.",
+      "quotaWithoutLimit": "Le quota de transcription audio fixé par le service pour votre compte est atteint. Réessayez plus tard, lorsque du quota sera de nouveau disponible.",
+      "faq": "Consulter la FAQ",
+      "tooLongFaqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/#1bcb3602-6b40-433b-a23f-c9cde224f5ce"
+    }
   },
   "transcript": {
     "speaker": "Participant",
@@ -226,5 +235,14 @@
       "yesterdayAt": "Hier à",
       "at": "à"
     }
+  },
+  "rateLimits": {
+    "title": "Trop de requêtes. Veuillez patienter.",
+    "tryLater": "Veuillez réessayer plus tard.",
+    "retryAt": "Vous pourrez réessayer après {{time}}.",
+    "uploadsPaused": "Les envois sont en pause. Vos enregistrements sont conservés sur cet appareil. Reprenez manuellement lorsque la limite le permet.",
+    "resumeUploads": "Reprendre les envois",
+    "retry": "Réessayer",
+    "uploadsPausedShort": "Envois en pause"
   }
 }

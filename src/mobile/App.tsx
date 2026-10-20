@@ -1,4 +1,5 @@
 import './src/i18n/index'
+import { RateLimitNotifications } from '@/components/RateLimitNotice'
 import React, { useEffect } from 'react'
 import { StatusBar } from 'react-native'
 import {
@@ -9,10 +10,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import RecordingScreen from '@/screens/RecordingScreen'
 import RecordingsScreen from './src/screens/RecordingsScreen'
-import {
-  clearAuthState,
-  exchangeCodeForTokens,
-} from '@/services/authService'
+import { clearAuthState, exchangeCodeForTokens } from '@/services/authService'
 import { queryClient } from '@/api/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import BootSplash from 'react-native-bootsplash'
@@ -81,11 +79,12 @@ function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AppInitialization>
+          <RateLimitNotifications />
           <CheckBatteryOptimization />
           <StatusBar barStyle="dark-content" />
           <NavigationContainer
             onReady={() => {
-              BootSplash.hide();
+              BootSplash.hide()
               void runRecovery()
               startRecordingsUploadManager()
             }}

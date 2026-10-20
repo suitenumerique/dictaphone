@@ -27,6 +27,7 @@ export const finalizeFileUpload = async (
   try {
     return await fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
       method: 'POST',
+      rateLimitScope: 'upload',
     })
   } catch (error) {
     // The request can time out after the backend has already finalized the
@@ -111,6 +112,7 @@ export const createFile = async ({
       source,
       language,
     }),
+    rateLimitScope: 'upload',
   })
   if (res.upload_state !== 'pending') {
     throw new Error('State should be pending right after creation')

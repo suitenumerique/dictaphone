@@ -11,6 +11,7 @@ import {
 import { useUser } from '@/features/auth/api/useUser'
 
 export interface ApiConfig {
+  rate_limit_ai_transcription_audio_hours_per_24h?: number
   analytics?: {
     id: string
     host: string

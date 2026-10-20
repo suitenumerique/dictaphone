@@ -1,4 +1,11 @@
 import { ApiError } from './ApiError'
+import {
+  isBlocked,
+  parseRetryAfter,
+  type RateLimitScope,
+  recordRateLimit,
+  useRateLimits,
+} from './rateLimits'
 import { getAccessToken, refreshAccessToken } from '@/services/authService'
 import { API_URL, BASE_URL } from '@/api/constants'
 
@@ -15,28 +22,47 @@ function buildHeaders(
 }
 
 async function parseResponse<T>(
-  response: Response
-): Promise<{ response: Response; result: T }> {
-  let result: T
-  if (response.status === 204) {
-    result = undefined as T
-  } else {
-    const contentType = response.headers.get('content-type') ?? ''
-    if (contentType === 'text/plain' || contentType.includes('text/html')) {
-      result = (await response.text()) as T
-    } else if (!contentType.includes('application/json')) {
-      result = undefined as T
-    } else {
-      result = (await response.json()) as T
-    }
+  response: Response,
+  rateLimitScope?: RateLimitScope
+): Promise<T> {
+  const retryAt =
+    response.status === 429
+      ? parseRetryAfter(response.headers.get('Retry-After'))
+      : null
+  if (response.status === 429 && rateLimitScope) {
+    recordRateLimit(rateLimitScope, retryAt)
   }
 
-  return { response, result }
+  let result = undefined as T
+  try {
+    if (response.status !== 204) {
+      const contentType = response.headers.get('content-type') ?? ''
+      if (
+        contentType.startsWith('text/plain') ||
+        contentType.includes('text/html')
+      ) {
+        result = (await response.text()) as T
+      } else if (contentType.includes('application/json')) {
+        result = (await response.json()) as T
+      }
+    }
+  } catch (error) {
+    // Preserve the HTTP status even when a proxy returns an invalid error body.
+    if (response.ok) throw error
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, result, retryAt)
+  }
+  return result
 }
 
 export const fetchApi = async <T = Record<string, unknown>>(
   url: string,
-  options?: RequestInit
+  {
+    rateLimitScope,
+    ...options
+  }: RequestInit & { rateLimitScope?: RateLimitScope } = {}
 ): Promise<T> => {
   if (!url.startsWith('/')) {
     url = `/${url}`
@@ -44,31 +70,25 @@ export const fetchApi = async <T = Record<string, unknown>>(
   const [pathname, suffix = ''] = url.split(/(?=[?#])/, 2)
   url = `${pathname.replace(/\/$/, '')}/${suffix}`
 
+  if (rateLimitScope) {
+    // Don't send requests the server would reject anyway.
+    const retryAt = useRateLimits.getState().cooldowns[rateLimitScope]
+    if (isBlocked(retryAt)) throw new ApiError(429, undefined, retryAt)
+  }
+
   const token = await getAccessToken()
-  const firstResponse = await fetch(`${API_URL}${url}`, {
+  let response = await fetch(`${API_URL}${url}`, {
     ...options,
     headers: buildHeaders(token, options),
   })
-  const first = await parseResponse<T>(firstResponse)
-
-  if (first.response.status === 401) {
+  if (response.status === 401) {
     const refreshedToken = await refreshAccessToken()
     if (refreshedToken) {
-      const retryResponse = await fetch(`${API_URL}${url}`, {
+      response = await fetch(`${API_URL}${url}`, {
         ...options,
         headers: buildHeaders(refreshedToken, options),
       })
-      const retry = await parseResponse<T>(retryResponse)
-
-      if (!retry.response.ok) {
-        throw new ApiError(retry.response.status, retry.result)
-      }
-      return retry.result
     }
   }
-
-  if (!first.response.ok) {
-    throw new ApiError(first.response.status, first.result)
-  }
-  return first.result
+  return parseResponse<T>(response, rateLimitScope)
 }

@@ -1,4 +1,6 @@
 import React from 'react'
+import { useCooldown } from '@/api/useCooldown'
+import { formatRateLimitMessage } from './rateLimitMessage'
 import {
   KeyboardAvoidingView,
   Modal,
@@ -36,6 +38,7 @@ export function RetryTranscriptModal({
   onRetry,
 }: RetryTranscriptModalProps) {
   const { t } = useTranslation()
+  const { retryAt, isBlocked } = useCooldown('transcriptionRetry')
 
   const closeModal = () => {
     if (!isPending) {
@@ -117,6 +120,11 @@ export function RetryTranscriptModal({
               <AppText>{t('recordings.menu.retryModal.extra')}</AppText>
             )}
 
+            {isBlocked && (
+              <AppText accessibilityRole="alert">
+                {formatRateLimitMessage(t, retryAt ?? null)}
+              </AppText>
+            )}
             <View style={styles.modalActions}>
               <Pressable
                 onPress={closeModal}
@@ -137,9 +145,10 @@ export function RetryTranscriptModal({
                 style={({ pressed }) => [
                   styles.primaryButton,
                   pressed && styles.primaryButtonPressed,
-                  (!selectedLanguage || isPending) && styles.buttonDisabled,
+                  (!selectedLanguage || isPending || isBlocked) &&
+                    styles.buttonDisabled,
                 ]}
-                disabled={!selectedLanguage || isPending}
+                disabled={!selectedLanguage || isPending || isBlocked}
               >
                 <AppText variant="button">
                   {mode === 'retry'

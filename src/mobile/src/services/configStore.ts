@@ -11,6 +11,7 @@ export const DEFAULT_DATA_POLICY = {
 } as const
 
 const apiConfigSchema = z.object({
+  rate_limit_ai_transcription_audio_hours_per_24h: z.number().optional(),
   analytics: z
     .object({
       id: z.string(),

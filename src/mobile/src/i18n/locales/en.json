@@ -158,7 +158,16 @@
     },
     "openInDocs": "Open in Docs",
     "createInDocsError": "Unable to create the Docs document right now. Please try again.",
-    "openInDocsError": "Unable to open the Docs document right now. Please try again."
+    "openInDocsError": "Unable to open the Docs document right now. Please try again.",
+    "failures": {
+      "tooLong": "This audio is too long to transcribe.",
+      "tooLongDescription": "The maximum audio duration is {{duration}}. Shorten the audio and submit it again.",
+      "quota": "Transcription audio allowance reached.",
+      "quotaDescription": "The service allows your account to submit up to {{hours}} hours of audio in a rolling 24-hour period, including retries. Try again later when allowance becomes available.",
+      "quotaWithoutLimit": "The transcription audio allowance set by the service for your account has been reached. Try again later when allowance becomes available.",
+      "faq": "Read the FAQ",
+      "tooLongFaqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/#1bcb3602-6b40-433b-a23f-c9cde224f5ce"
+    }
   },
   "transcript": {
     "speaker": "Speaker",
@@ -226,5 +235,14 @@
       "yesterdayAt": "Yesterday at",
       "at": "at"
     }
+  },
+  "rateLimits": {
+    "title": "Too many requests. Please wait.",
+    "tryLater": "Please try again later.",
+    "retryAt": "You can try again after {{time}}.",
+    "uploadsPaused": "Uploads are paused. Your recordings are saved on this device. Resume manually when the limit allows it.",
+    "resumeUploads": "Resume uploads",
+    "retry": "Try again",
+    "uploadsPausedShort": "Uploads paused"
   }
 }

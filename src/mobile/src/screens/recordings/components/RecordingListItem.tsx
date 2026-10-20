@@ -1,3 +1,9 @@
+import {
+  canRetryAiJob,
+  getFailureMessageKey,
+} from '@/features/ai-jobs/utils/failurePresentation'
+import { useCooldown } from '@/api/useCooldown'
+import { isRateLimitError } from '@/api/rateLimits'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -61,13 +67,14 @@ type StatusIndicatorProps = {
 }
 
 export type UploadBlockReason =
-  'not-logged-in' | 'ok' | 'offline' | 'wifiOnly' | 'other'
+  'not-logged-in' | 'ok' | 'offline' | 'wifiOnly' | 'other' | 'rateLimited'
 
 function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
   if (item.kind === 'fake') {
     return <FileDisabledIcon />
   }
   if (item.kind === 'local') {
+    if (uploadBlockReason === 'rateLimited') return <PauseIcon />
     if (uploadBlockReason === 'not-logged-in') {
       return <Lucide name="user-round-x" size={16} />
     }
@@ -125,6 +132,8 @@ function formatRecordMeta(
   })
 
   if (recording.kind === 'local') {
+    if (uploadBlockReason === 'rateLimited')
+      return `${durationLabel} • ${t('rateLimits.uploadsPausedShort')}`
     if (uploadBlockReason === 'wifiOnly') {
       return `${durationLabel} • ${t('recordings.wifiOnlySync')}`
     }
@@ -162,7 +171,7 @@ function formatRecordMeta(
 
   const { lastAiJobTranscript } = getMainAiJobs(recording.ai_jobs)
   if (lastAiJobTranscript?.status === 'failed') {
-    return `${durationLabel} • ${dateLabel} • ${t('recordings.meta.processingFailed')}`
+    return `${durationLabel} • ${dateLabel} • ${t(getFailureMessageKey(lastAiJobTranscript)!)}`
   }
   if (lastAiJobTranscript?.status === 'success') {
     return `${durationLabel} • ${dateLabel}`
@@ -363,6 +372,7 @@ export function RecordingListItem({
   onWillOpenRow,
   onCloseRow,
 }: RecordingListItemProps) {
+  const retryBlocked = useCooldown('transcriptionRetry').isBlocked
   const retryWithLanguageMutation = useRetryWithLanguageMutation()
   const [isRetryModalVisible, setIsRetryModalVisible] = useState(false)
   const [retryLanguage, setRetryLanguage] =
@@ -384,9 +394,13 @@ export function RecordingListItem({
     item.kind === 'remote' &&
     remoteTranscriptJob?.status === 'failed' &&
     Boolean(remoteTranscriptJob?.id) &&
-    !hasPendingTranscriptJob
+    !hasPendingTranscriptJob &&
+    canRetryAiJob(remoteTranscriptJob) &&
+    !retryBlocked
   const isOpenableRemoteRecording =
-    item.kind === 'remote' && remoteTranscriptJob?.status === 'success'
+    item.kind === 'remote' &&
+    (remoteTranscriptJob?.status === 'success' ||
+      remoteTranscriptJob?.status === 'failed')
   const isShareableLocalRecording =
     item.kind === 'local' &&
     (item.uploadingStatus === 'failed' || item.uploadingStatus === 'to_upload')
@@ -412,13 +426,17 @@ export function RecordingListItem({
         return
       }
       try {
-        await retryWithLanguageMutation.mutateAsync({
+        const job = await retryWithLanguageMutation.mutateAsync({
           id: remoteTranscriptJob.id,
           language,
         })
         setIsRetryModalVisible(false)
-        Alert.alert(t('recordings.menu.retrySuccess'))
-      } catch {
+        const failureKey = getFailureMessageKey(job)
+        Alert.alert(
+          failureKey ? t(failureKey) : t('recordings.menu.retrySuccess')
+        )
+      } catch (error) {
+        if (isRateLimitError(error)) return
         Alert.alert(
           t('recordings.menu.errorTitle'),
           t('recordings.menu.retryError')
@@ -495,6 +513,7 @@ export function RecordingListItem({
                 )}
               </AppText>
               {item.kind === 'local' &&
+                uploadBlockReason !== 'rateLimited' &&
                 item.uploadingStatus === 'uploading' && (
                   <UploadProgress
                     uploadedBytes={item.uploadProgress?.uploadedBytes ?? 0}

@@ -1,3 +1,8 @@
+import {
+  areUploadsPaused,
+  clearRateLimit,
+  isRateLimitError,
+} from '@/api/rateLimits'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { create } from 'zustand'
 import { type LocalRecording, recordingSchema } from '../types/localRecording'
@@ -150,7 +155,7 @@ const checkCanUpload = async (): Promise<boolean> => {
 let isUploadInProgress = false
 
 const triggerUpload = async (): Promise<void> => {
-  if (isUploadInProgress) {
+  if (isUploadInProgress || areUploadsPaused()) {
     return
   }
 
@@ -162,7 +167,7 @@ const triggerUpload = async (): Promise<void> => {
   isUploadInProgress = true
 
   const canUpload = await checkCanUpload()
-  if (!canUpload) {
+  if (!canUpload || areUploadsPaused()) {
     isUploadInProgress = false
     return
   }
@@ -296,12 +301,15 @@ const triggerUpload = async (): Promise<void> => {
         nativeStatusAtFailure = currentNativeStatus
       }
     }
+    const status = statusAfterUploadError(
+      nativeStatusAtFailure,
+      waitForUploadCompleted,
+      error
+    )
     updateRecording(recordingToUpload.id, {
-      uploadingStatus: statusAfterUploadError(
-        nativeStatusAtFailure,
-        waitForUploadCompleted,
-        error
-      ),
+      // Rate-limited uploads go back to the queue, which is paused until the user resumes.
+      uploadingStatus:
+        status === 'failed' && isRateLimitError(error) ? 'to_upload' : status,
     })
   } finally {
     isUploadInProgress = false
@@ -309,6 +317,12 @@ const triggerUpload = async (): Promise<void> => {
       triggerUpload().catch(console.error)
     }
   }
+}
+
+/** Called only by an explicit user action after the upload cooldown. */
+export const resumeRateLimitedUploads = () => {
+  clearRateLimit('upload')
+  triggerUpload().catch(console.error)
 }
 
 export const setBypassWifiOnly = (value: boolean) => {
@@ -408,7 +422,7 @@ export const useRecordingsStore = create<RecordingsStore>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
-          state.recordings = parsed.success
+          const recordings = parsed.success
             ? parsed.data.map((el) => ({
                 ...el,
                 uploadingStatus:
@@ -418,10 +432,13 @@ export const useRecordingsStore = create<RecordingsStore>()(
                 uploadProgress: undefined,
               }))
             : []
-          state.recoverFilesStatus = { status: 'to_run' }
-          state.hasHydrated = true
+          useRecordingsStore.setState({
+            recordings,
+            recoverFilesStatus: { status: 'to_run' },
+            hasHydrated: true,
+          })
 
-          removeMissingLocalRecordingsAfterHydration(state.recordings).catch(
+          removeMissingLocalRecordingsAfterHydration(recordings).catch(
             (error) => {
               console.error(
                 'Failed to cleanup missing local recordings after rehydration:',
