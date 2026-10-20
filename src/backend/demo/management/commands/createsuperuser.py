@@ -1,7 +1,9 @@
 """Management user to create a superuser."""
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.core.management.base import BaseCommand, CommandError
 
 UserModel = get_user_model()
 
@@ -19,6 +21,7 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--password",
+            required=True,
             help="Password for the user.",
         )
 
@@ -38,6 +41,11 @@ class Command(BaseCommand):
                 message = "Superuser already exists."
             else:
                 message = "User already existed and was upgraded to superuser."
+
+        try:
+            validate_password(options["password"], user=user)
+        except ValidationError as error:
+            raise CommandError("; ".join(error.messages)) from error
 
         user.is_superuser = True
         user.is_staff = True

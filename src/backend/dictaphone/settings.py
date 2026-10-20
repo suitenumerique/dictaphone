@@ -431,6 +431,21 @@ class Base(Configuration):
         "core.authentication.backends.OIDCAuthenticationBackend",
     ]
 
+    AUTH_PASSWORD_VALIDATORS = [
+        {
+            "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+            "OPTIONS": {
+                "user_attributes": ("admin_email", "email", "full_name", "short_name"),
+            },
+        },
+        {
+            "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+            "OPTIONS": {"min_length": 12},
+        },
+        {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+        {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    ]
+
     # Django applications from the highest priority to the lowest
     INSTALLED_APPS = [
         # Dictaphone

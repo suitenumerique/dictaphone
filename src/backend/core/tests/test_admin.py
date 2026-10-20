@@ -40,6 +40,61 @@ from core.models import (
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.parametrize(
+    "password,error_code",
+    [
+        ("zQ7!vR2@kL9", "password_too_short"),
+        ("password123456", "password_too_common"),
+        ("739182645083", "password_entirely_numeric"),
+        ("zQ7!vR2@kL9#", None),
+    ],
+)
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+)
+def test_user_admin_creation_validates_password(client, password, error_code):
+    """The admin add view rejects weak passwords and accepts a strong 12-character one."""
+    admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
+    client.force_login(admin_user)
+    url = reverse("admin:core_user_add")
+    response = client.get(url)
+    assert response.status_code == 200
+
+    data = {
+        "password1": password,
+        "password2": password,
+        "usable_password": "true",
+        "_save": "Save",
+    }
+    for inline in response.context["inline_admin_formsets"]:
+        management_form = inline.formset.management_form
+        data.update(
+            {
+                management_form.add_prefix(name): value
+                for name, value in management_form.initial.items()
+            }
+        )
+
+    user_count = User.objects.count()
+    response = client.post(url, data)
+
+    if error_code:
+        assert response.status_code == 200
+        errors = response.context["adminform"].form.errors.as_data()
+        assert error_code in [error.code for error in errors["password2"]]
+        assert User.objects.count() == user_count
+    else:
+        assert response.status_code == 302
+        assert User.objects.count() == user_count + 1
+        user = User.objects.exclude(pk=admin_user.pk).get()
+        assert user.check_password(password)
+
+
 @override_settings(
     STORAGES={
         **settings.STORAGES,

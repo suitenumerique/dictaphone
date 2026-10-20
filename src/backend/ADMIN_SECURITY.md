@@ -1,4 +1,21 @@
-# Admin account lockout
+# Admin account security
+
+## Password policy
+
+Administrator passwords must contain at least 12 characters. Django also rejects
+common passwords, entirely numeric passwords, and passwords too similar to the
+user's email addresses or name. These validators apply to password creation and
+changes in the Django admin, the custom `createsuperuser` command, and Django's
+`changepassword` command.
+
+Generate a unique random password with a password manager and store it there.
+Use at least 12 characters, preferably more.
+
+Existing passwords are not revalidated at login. Renew existing administrator
+passwords using the Django admin password change form or
+`python manage.py changepassword admin@example.com` to apply the policy.
+
+## Account lockout
 
 The Django admin password login locks an account or IP after five failed attempts.
 The default cool-off period is 15 minutes. Lockouts are stored in the database.
