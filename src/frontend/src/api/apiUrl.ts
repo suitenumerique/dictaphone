@@ -5,7 +5,8 @@ export const apiUrl = (path: string, apiVersion = '1.0') => {
 
   // Remove leading/trailing slashes from origin/path if it exists
   const sanitizedOrigin = origin.replace(/\/$/, '')
-  const sanitizedPath = path.replace(/^\//, '')
+  const [pathname, suffix = ''] = path.split(/(?=[?#])/, 2)
+  const sanitizedPath = pathname.replace(/^\//, '').replace(/\/$/, '')
 
-  return `${sanitizedOrigin}/api/v${apiVersion}/${sanitizedPath}`
+  return `${sanitizedOrigin}/api/v${apiVersion}/${sanitizedPath}/${suffix}`
 }

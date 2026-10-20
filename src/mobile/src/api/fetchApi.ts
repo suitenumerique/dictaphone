@@ -41,6 +41,8 @@ export const fetchApi = async <T = Record<string, unknown>>(
   if (!url.startsWith('/')) {
     url = `/${url}`
   }
+  const [pathname, suffix = ''] = url.split(/(?=[?#])/, 2)
+  url = `${pathname.replace(/\/$/, '')}/${suffix}`
 
   const token = await getAccessToken()
   const firstResponse = await fetch(`${API_URL}${url}`, {
