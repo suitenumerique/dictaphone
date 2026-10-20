@@ -57,6 +57,9 @@ export default function RecordingMenu({
   const retryBlocked = useCooldown('transcriptionRetry').isBlocked
   const retryWithLanguageMutation = useRetryWithLanguageMutation()
   const { lastAiJobTranscript } = useMemo(() => getMainAiJobs(aiJobs), [aiJobs])
+  const hasTranscriptDocsLink = aiJobs.some(
+    (job) => job.type === 'transcript' && Boolean(job.docs_app_id)
+  )
 
   const hasPendingTranscriptJob = useMemo(
     () =>
@@ -123,28 +126,36 @@ export default function RecordingMenu({
 
   const onConfirmDelete = useCallback(() => {
     setIsPopoverVisible(false)
-    Alert.alert(t('recordings.deleteTitle'), t('recordings.deleteMessage'), [
-      {
-        style: 'cancel',
-        text: t('recordings.deleteCancel'),
-      },
-      {
-        style: 'destructive',
-        text: t('recordings.deleteConfirm'),
-        onPress: async () => {
-          try {
-            await deleteMutation.mutateAsync({ fileId })
-            onDeleted()
-          } catch {
-            Alert.alert(
-              t('recordings.menu.errorTitle'),
-              t('recordings.menu.deleteError')
-            )
-          }
+    Alert.alert(
+      t('recordings.deleteTitle'),
+      t(
+        hasTranscriptDocsLink
+          ? 'recordings.deleteMessageWithDocsLink'
+          : 'recordings.deleteMessage'
+      ),
+      [
+        {
+          style: 'cancel',
+          text: t('recordings.deleteCancel'),
         },
-      },
-    ])
-  }, [deleteMutation, fileId, onDeleted, t])
+        {
+          style: 'destructive',
+          text: t('recordings.deleteConfirm'),
+          onPress: async () => {
+            try {
+              await deleteMutation.mutateAsync({ fileId })
+              onDeleted()
+            } catch {
+              Alert.alert(
+                t('recordings.menu.errorTitle'),
+                t('recordings.menu.deleteError')
+              )
+            }
+          },
+        },
+      ]
+    )
+  }, [deleteMutation, fileId, hasTranscriptDocsLink, onDeleted, t])
 
   const onConfirmRename = useCallback(async () => {
     if (!sanitizedTitle) {
