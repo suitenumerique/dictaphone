@@ -5,7 +5,7 @@ from django.urls import include, path, re_path
 
 from lasuite.oidc_login.urls import urlpatterns as oidc_urls
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
 from core.api import (
     get_app_configuration,
@@ -54,6 +54,11 @@ urlpatterns = [
                     "oauth/token/refresh/",
                     TokenRefreshView.as_view(),
                     name="token_refresh",
+                ),
+                path(
+                    "oauth/token/revoke/",
+                    TokenBlacklistView.as_view(),
+                    name="token_revoke",
                 ),
                 path("config/", get_app_configuration, name="config"),
                 path(
