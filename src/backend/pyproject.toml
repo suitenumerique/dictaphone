@@ -23,7 +23,7 @@ description = "A simple dictaphone and transcribing app"
 keywords = ["Django", "Contacts", "Templates", "RBAC"]
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     "boto3==1.43.104",
     "Brotli==1.2.0",
