@@ -1,4 +1,5 @@
 import { UploadRateLimitAlert } from '@/features/files/components/UploadRateLimitAlert'
+import { UploadLimitAlert } from '@/features/files/components/UploadLimitAlert'
 import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
 import { ListRecordings } from '@/features/recordings/components/ListRecordings.tsx'
@@ -173,6 +174,7 @@ export default function RecordingsPage() {
           <p>{t('subtitle')}</p>
         </div>
         <h2 className="sr-only">{t('newRecording')}</h2>
+        <UploadLimitAlert />
         <div
           className={clsx({
             'drop-zone--drag-in-progress-main-area': isDropZoneActive,

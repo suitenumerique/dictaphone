@@ -322,6 +322,22 @@ class FileViewSet(
         serializer = self.get_serializer(queryset, many=True, context=context)
         return drf_response.Response(serializer.data)
 
+    @decorators.action(detail=False, methods=["get"], url_path="upload-limit")
+    def upload_limit(self, request):
+        """Report the same per-user audio file usage enforced during creation."""
+        file_type = models.FileTypeChoices.AUDIO_RECORDING
+        count = models.File.objects.filter(
+            creator=request.user,
+            deleted_at__isnull=True,
+            type=file_type,
+        ).count()
+        limit = (
+            settings.FILE_UPLOAD_RESTRICTIONS[file_type]["max_count_by_user"]
+            if settings.FILE_UPLOAD_APPLY_RESTRICTIONS
+            else None
+        )
+        return drf_response.Response({"count": count, "limit": limit})
+
     def perform_create(self, serializer):
         """Set the current user as creator of the newly created file."""
 

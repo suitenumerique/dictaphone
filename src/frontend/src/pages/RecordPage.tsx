@@ -1,4 +1,5 @@
 import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
+import { UploadLimitAlert } from '@/features/files/components/UploadLimitAlert'
 import RecordComponent from '@/features/recordings/components/RecordComponent.tsx'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
@@ -24,6 +25,7 @@ export default function RecordPage() {
       readonly
     >
       <h1 className="sr-only">{t('recordPageH1')}</h1>
+      <UploadLimitAlert linkToRecordings />
       {!showMobileRecordingAlert && <RecordComponent />}
       <Modal
         size={ModalSize.MEDIUM}

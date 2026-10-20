@@ -1,6 +1,8 @@
 import { fetchApi } from '@/api/fetchApi'
 import { ApiFileItem } from '@/features/files/api/types.ts'
 import { TranscriptionLanguage } from '@/features/settings/settingsStore'
+import { queryClient } from '@/api/queryClient'
+import { uploadLimitQueryKey } from './uploadLimit'
 
 /**
  * Upload a file, using XHR so we can report on progress through a handler.
@@ -74,6 +76,10 @@ export const createPendingAudioFile = async ({
       language,
     }),
     rateLimitScope: 'upload',
+  }).finally(() => {
+    // Pending uploads count toward the limit too. Refresh after rejections so
+    // usage changes in another tab also produce the limit alert.
+    void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
   })
 
   if (pendingFile.upload_state !== 'pending') {

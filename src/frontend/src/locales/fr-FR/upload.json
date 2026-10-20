@@ -30,6 +30,11 @@
       "description_done_other": "{{count}} fichiers transférés"
     }
   },
+  "fileLimit": {
+    "title": "Limite d’enregistrements atteinte",
+    "description": "Vous avez atteint la limite de {{limit}} enregistrements. Supprimez des enregistrements existants pour importer de nouveaux fichiers audio. Les imports en cours sont également comptabilisés dans cette limite.",
+    "manageRecordings": "Gérer mes enregistrements"
+  },
   "rateLimit": {
     "title": "Imports suspendus : limite de requêtes du serveur atteinte",
     "resume": "Reprendre les imports",

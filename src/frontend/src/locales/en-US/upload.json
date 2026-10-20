@@ -30,6 +30,11 @@
       "description_done_other": "{{count}} files transferred"
     }
   },
+  "fileLimit": {
+    "title": "Recording limit reached",
+    "description": "You have reached the limit of {{limit}} recordings. Delete existing recordings to upload new audio. Uploads that are still in progress also count toward this limit.",
+    "manageRecordings": "Manage my recordings"
+  },
   "rateLimit": {
     "title": "Uploads paused: server request limit reached",
     "resume": "Resume uploads",
