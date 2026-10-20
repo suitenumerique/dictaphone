@@ -44,6 +44,11 @@
     "doNotShowAgain": "Ok, don't show again"
   },
   "recordings": {
+    "fileLimit": {
+      "title": "Recording limit reached",
+      "description": "You have reached the limit of {{limit}} recordings. Delete existing recordings to upload new audio. Uploads that are still in progress also count toward this limit.",
+      "manageRecordings": "Manage my recordings"
+    },
     "emptyTitle": "No recordings yet",
     "emptySubtitle": "Go to Record tab and capture your first audio note.",
     "pendingTitle": "Pending uploads",

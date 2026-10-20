@@ -9,6 +9,8 @@ import {
 } from '@/utils/fileUpload'
 import { type TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 import { ApiError } from '@/api/ApiError'
+import { queryClient } from '@/api/queryClient'
+import { uploadLimitQueryKey } from './uploadLimit'
 
 type FileSource = {
   name: string
@@ -113,6 +115,9 @@ export const createFile = async ({
       language,
     }),
     rateLimitScope: 'upload',
+  }).finally(() => {
+    // Pending files count too; rejections may reflect usage changed elsewhere.
+    void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
   })
   if (res.upload_state !== 'pending') {
     throw new Error('State should be pending right after creation')

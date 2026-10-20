@@ -1,4 +1,5 @@
 import { UploadRateLimitAlert } from '@/components/UploadRateLimitAlert'
+import { UploadLimitAlert } from '@/components/UploadLimitAlert'
 import { useUploadsPaused } from '@/api/rateLimits'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import {
@@ -271,6 +272,7 @@ export default function RecordingsScreen() {
       )}
 
       <UploadRateLimitAlert />
+      <UploadLimitAlert />
       <FlatList
         data={allRecordings}
         keyExtractor={(item) => item.id}

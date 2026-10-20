@@ -44,6 +44,11 @@
     "doNotShowAgain": "Ok, ne plus afficher"
   },
   "recordings": {
+    "fileLimit": {
+      "title": "Limite d’enregistrements atteinte",
+      "description": "Vous avez atteint la limite de {{limit}} enregistrements. Supprimez des enregistrements existants pour importer de nouveaux fichiers audio. Les imports en cours sont également comptabilisés dans cette limite.",
+      "manageRecordings": "Gérer mes enregistrements"
+    },
     "emptyTitle": "Aucun enregistrement",
     "emptySubtitle": "Allez dans l'onglet Enregistrer et capturez votre première note audio.",
     "pendingTitle": "Envois en attente",

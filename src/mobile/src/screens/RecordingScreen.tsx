@@ -1,6 +1,7 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 import { AudioRecorder } from '@/components/AudioRecorder'
+import { UploadLimitAlert } from '@/components/UploadLimitAlert'
 import { useInsets } from '@/utils/useInsets'
 
 export default function RecordScreen() {
@@ -8,6 +9,7 @@ export default function RecordScreen() {
 
   return (
     <View style={[styles.container, insets]}>
+      <UploadLimitAlert linkToRecordings />
       <View style={styles.recorderContainer}>
         <AudioRecorder />
       </View>
