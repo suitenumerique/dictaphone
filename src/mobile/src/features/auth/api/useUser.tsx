@@ -5,7 +5,7 @@ import { type ApiUser } from './ApiUser'
 import { useCallback, useEffect, useMemo } from 'react'
 import { updateUserPreferences } from '@/features/auth/api/updateUserPreferences'
 import { queryClient } from '@/api/queryClient'
-import { clearAuthState } from '@/services/authService'
+import { logoutAuthState } from '@/services/authService'
 import {
   startAnalyticsSession,
   terminateAnalyticsSession,
@@ -77,8 +77,11 @@ export const useUser = () => {
 
   const logout = useCallback(async () => {
     terminateAnalyticsSession()
-    clearCachedUser()
-    await clearAuthState()
+    try {
+      await logoutAuthState()
+    } finally {
+      clearCachedUser()
+    }
 
     try {
       await InAppBrowser.openAuth(

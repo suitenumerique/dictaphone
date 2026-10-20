@@ -14,6 +14,32 @@ const PKCE_VERIFIER_KEY = 'pkce_code_verifier'
 const PKCE_STATE_KEY = 'pkce_state'
 const OAUTH_TOKEN_URL = `${API_URL}/oauth/token/`
 const OAUTH_REFRESH_TOKEN_URL = `${API_URL}/oauth/token/refresh/`
+const OAUTH_REVOKE_TOKEN_URL = `${API_URL}/oauth/token/revoke/`
+const TOKEN_REQUEST_TIMEOUT_MS = 10_000
+
+// Keep refresh disabled after logout until a new login has completed.
+let isLoggingOut = false
+let logoutPromise: Promise<void> | null = null
+
+async function withTokenRequestTimeout<T>(
+  request: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  const controller = new AbortController()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      request(controller.signal),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error('Token request timed out'))
+          controller.abort()
+        }, TOKEN_REQUEST_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 type TokenResponse = {
   refresh: string
@@ -152,10 +178,14 @@ export async function exchangeCodeForTokens(
     clearSecret(PKCE_VERIFIER_KEY),
     clearSecret(PKCE_STATE_KEY),
   ])
+  isLoggingOut = false
 }
 
 let refreshPromise: Promise<string | null> | null = null
 export async function refreshAccessToken(): Promise<string | null> {
+  if (isLoggingOut) {
+    return null
+  }
   if (refreshPromise) {
     return refreshPromise
   }
@@ -167,29 +197,35 @@ export async function refreshAccessToken(): Promise<string | null> {
     }
 
     try {
-      const response = await fetch(OAUTH_REFRESH_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
-      })
+      const tokensResponse = await withTokenRequestTimeout(async (signal) => {
+        const response = await fetch(OAUTH_REFRESH_TOKEN_URL, {
+          method: 'POST',
+          signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh: refreshToken }),
+        })
 
-      if (!response.ok) {
-        throw new Error(
-          `Refresh token request failed with status ${response.status}`
-        )
-      }
-      const tokensResponse = (await response.json()) as TokenResponse
+        if (!response.ok) {
+          throw new Error(
+            `Refresh token request failed with status ${response.status}`
+          )
+        }
+        return (await response.json()) as TokenResponse
+      })
       if (!tokensResponse.refresh || !tokensResponse.access) {
         throw new Error(
           'Refresh token response missing access token or refresh token'
         )
       }
       await storeTokens(tokensResponse)
-      return tokensResponse.access
+      return isLoggingOut ? null : tokensResponse.access
     } catch {
-      await clearAuthState()
+      // Preserve the current token so logout can still attempt its revocation.
+      if (!isLoggingOut) {
+        await clearAuthState()
+      }
       return null
     }
   })()
@@ -198,6 +234,46 @@ export async function refreshAccessToken(): Promise<string | null> {
     return await refreshPromise
   } finally {
     refreshPromise = null
+  }
+}
+
+export async function logoutAuthState(): Promise<void> {
+  if (logoutPromise) {
+    return logoutPromise
+  }
+  isLoggingOut = true
+  logoutPromise = (async () => {
+    try {
+      // Revoke the replacement if a refresh was already in flight.
+      await refreshPromise
+      const refresh = await getRefreshToken()
+      if (refresh) {
+        await withTokenRequestTimeout(async (signal) => {
+          const response = await fetch(OAUTH_REVOKE_TOKEN_URL, {
+            method: 'POST',
+            signal,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh }),
+          })
+          if (!response.ok) {
+            throw new Error('Refresh token revocation failed')
+          }
+        })
+      }
+    } catch {
+      // Never log credentials or raw server responses. Offline logout is local only.
+      console.warn(
+        'Logged out locally; server token revocation could not be confirmed.'
+      )
+    } finally {
+      await clearAuthState()
+    }
+  })()
+
+  try {
+    await logoutPromise
+  } finally {
+    logoutPromise = null
   }
 }
 
