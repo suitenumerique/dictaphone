@@ -131,7 +131,15 @@ export async function exchangeCodeForTokens(
     throw new Error('Missing code_verifier for PKCE exchange')
   }
 
-  if (expectedState && state && expectedState !== state) {
+  if (!expectedState) {
+    throw new Error('Missing expected state for PKCE exchange')
+  }
+
+  if (!state) {
+    throw new Error('Missing state for PKCE exchange')
+  }
+
+  if (expectedState !== state) {
     throw new Error('PKCE state mismatch')
   }
 
