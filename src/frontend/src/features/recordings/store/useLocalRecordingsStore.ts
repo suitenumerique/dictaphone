@@ -236,7 +236,7 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
       onRehydrateStorage: () => (state, error) => {
         if (error || !state) return
 
-        state.recordingsById = Object.fromEntries(
+        const recordingsById = Object.fromEntries(
           Object.entries(state.recordingsById)
             .filter(([, recording]) => recording.chunkCount > 0)
             .map(([id, recording]) => [
@@ -253,6 +253,7 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
               },
             ])
         )
+        useLocalRecordingsStore.setState({ recordingsById })
       },
     }
   )
