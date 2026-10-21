@@ -32,7 +32,7 @@
   },
   "fileLimit": {
     "title": "Recording limit reached",
-    "description": "You have reached the limit of {{limit}} recordings. Delete existing recordings to upload new audio. Uploads that are still in progress also count toward this limit.",
+    "description": "You have reached the limit of {{limit}} recordings. Delete existing recordings to upload new audio. Deleted recordings and uploads that have not yet been finalized do not count toward this limit.",
     "manageRecordings": "Manage my recordings"
   },
   "rateLimit": {

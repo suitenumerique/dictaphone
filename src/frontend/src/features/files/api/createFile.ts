@@ -77,7 +77,7 @@ export const createPendingAudioFile = async ({
     }),
     rateLimitScope: 'upload',
   }).finally(() => {
-    // Pending uploads count toward the limit too. Refresh after rejections so
+    // Refresh after creation rejections so
     // usage changes in another tab also produce the limit alert.
     void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
   })
@@ -90,10 +90,12 @@ export const createPendingAudioFile = async ({
 }
 
 export const markUploadEnded = async (fileId: string) => {
-  return fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
+  const file = await fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
     method: 'POST',
     rateLimitScope: 'upload',
   })
+  void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
+  return file
 }
 
 /**
