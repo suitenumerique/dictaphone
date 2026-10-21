@@ -44,12 +44,26 @@ def reserved_job(user=None, duration=1800):
 
 
 @pytest.mark.parametrize(
-    "used,allowed", [(0, True), (1800, True), (1801, False), (3600, False)]
+    "limit_hours,used,allowed",
+    [
+        (1, 0, True),
+        (1, 1800, True),
+        (1, 1801, False),
+        (1, 3600, False),
+        (0.5, 0, True),
+        (0.5, 900, True),
+        (0.5, 901, False),
+        (0.5, 1800, False),
+    ],
 )
 @patch("core.tasks.file.session.post")
-def test_transcription_quota_includes_current_audio(post, used, allowed):
+def test_transcription_quota_includes_current_audio(
+    post, used, allowed, limit_hours, settings
+):
     """Admit the exact limit, rejecting any submission that would exceed it."""
-    job = reserved_job()
+    settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = limit_hours
+    duration = int(1800 * limit_hours)
+    job = reserved_job(duration=duration)
     factories.TranscriptionUsageFactory(
         user=job.file.creator,
         submitted_at=timezone.now(),
@@ -71,7 +85,7 @@ def test_transcription_quota_includes_current_audio(post, used, allowed):
     if allowed:
         assert (
             models.TranscriptionUsage.objects.get(ai_job_id=job.pk).duration_seconds
-            == 1800
+            == duration
         )
 
 

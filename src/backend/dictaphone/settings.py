@@ -31,7 +31,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from core.authentication.proxies import _trusted_networks
 from core.configuration import get_runtime_configuration
 
-from dictaphone.values import JsonDictValue
+from dictaphone.values import JsonDictValue, PositiveFloatValue
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -580,8 +580,8 @@ class Base(Configuration):
             ),
         },
     }
-    RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = values.PositiveIntegerValue(
-        24, environ_prefix=None
+    RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = PositiveFloatValue(
+        24.0, environ_prefix=None
     )
     TRANSCRIPTION_USAGE_RETENTION_DAYS = values.PositiveIntegerValue(
         365, environ_prefix=None

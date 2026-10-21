@@ -1,8 +1,19 @@
 """Custom configuration value types."""
 
 import json
+import math
 
 from configurations import values
+
+
+class PositiveFloatValue(values.FloatValue):
+    """A finite, non-negative floating-point configuration value."""
+
+    def to_python(self, value):
+        float_value = super().to_python(value)
+        if not math.isfinite(float_value) or float_value < 0:
+            raise ValueError(self.message.format(value))
+        return float_value
 
 
 class JsonDictValue(values.DictValue):
