@@ -23,6 +23,7 @@ from celery import current_app
 from timezone_field import TimeZoneField
 
 from core.configuration import (
+    filter_files_by_policy_cutoff,
     get_profile_for_email,
     get_profile_for_file,
 )
@@ -270,6 +271,18 @@ class FileSourceChoices(models.TextChoices):
 class FileQuerySet(models.QuerySet):
     """File queries with the same extraction state used by API and admin."""
 
+    def visible_in_api(self):
+        """Exclude files hidden by hard deletion or their retention deadline."""
+        queryset = self.filter(hard_deleted_at__isnull=True).exclude(
+            lifecycle_state=FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
+        )
+        return filter_files_by_policy_cutoff(
+            queryset,
+            policy="file_hard_delete",
+            include_grace_period=False,
+            comparison="gt",
+        )
+
     def count_for_upload_limit(self, creator, file_type):
         """Count retained uploads rather than invisible upload placeholders."""
         # Abandoned/failed pending uploads are hidden in the UI, so counting them
@@ -277,7 +290,8 @@ class FileQuerySet(models.QuerySet):
         # security wise, this should be fine;
         # reserve a slot only at upload-ended, when leaving PENDING.
         return (
-            self.filter(creator=creator, type=file_type, deleted_at__isnull=True)
+            self.visible_in_api()
+            .filter(creator=creator, type=file_type, deleted_at__isnull=True)
             .exclude(upload_state=FileUploadStateChoices.PENDING)
             .count()
         )

@@ -287,22 +287,13 @@ class FileViewSet(
         queryset = (
             super()
             .get_queryset()
-            .exclude(
-                lifecycle_state=models.FileLifecycleStateChoices.PENDING_AUTO_HARD_DELETE
-            )
+            .visible_in_api()
             .select_related("creator")
             .with_audio_state()
             .prefetch_related(
                 Prefetch("ai_jobs", queryset=AiFileJob.objects.order_by("-created_at"))
             )
         )
-        queryset = filter_files_by_policy_cutoff(
-            queryset,
-            policy="file_hard_delete",
-            include_grace_period=False,
-            comparison="gt",
-        )
-
         if not user.is_authenticated:
             return queryset.none()
 
