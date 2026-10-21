@@ -71,6 +71,9 @@ COPY --from=builder /app/audio_extractor /app/audio_extractor
 COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 COPY src/audio-extractor/run-worker.sh /app/run-worker.sh
 
+# Remove pip to reduce attack surface in production
+RUN pip uninstall -y pip
+
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
