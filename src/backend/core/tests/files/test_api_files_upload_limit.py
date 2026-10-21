@@ -18,7 +18,7 @@ def test_upload_limit_requires_authentication():
 
 @pytest.mark.parametrize("restrictions_enabled", [True, False])
 def test_upload_limit_matches_creation_rules(settings, restrictions_enabled):
-    """Include unfinished uploads, exclude deleted files and other users."""
+    """Count analyzing/ready uploads, excluding pending, deleted and other users."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = restrictions_enabled
     settings.FILE_UPLOAD_RESTRICTIONS = {
         "audio_recording": {
@@ -27,9 +27,12 @@ def test_upload_limit_matches_creation_rules(settings, restrictions_enabled):
         },
     }
     user = factories.UserFactory()
-    factories.FileFactory(creator=user, upload_state="pending")
-    file = factories.FileFactory(creator=user, upload_state="ready")
-    factories.FileFactory(creator=user, deleted_at=timezone.now())
+    factories.FileFactory(creator=user, update_upload_state="pending")
+    file = factories.FileFactory(creator=user, update_upload_state="ready")
+    factories.FileFactory(creator=user, update_upload_state="analyzing")
+    factories.FileFactory(
+        creator=user, update_upload_state="ready", deleted_at=timezone.now()
+    )
     factories.FileFactory()
     client = APIClient()
     client.force_login(user)

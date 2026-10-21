@@ -385,11 +385,9 @@ class CreateFileSerializer(ListFileSerializer):
                     code="item_create_file_extension_not_allowed",
                 )
 
-            count = models.File.objects.filter(
-                creator=self.context["request"].user,
-                deleted_at__isnull=True,
-                type=attrs["type"],
-            ).count()
+            count = models.File.objects.count_for_upload_limit(
+                self.context["request"].user, attrs["type"]
+            )
             if count >= config_for_file_type["max_count_by_user"]:
                 logger.info(
                     "create_item: user reached max files per user for type %s",

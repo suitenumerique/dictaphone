@@ -5,12 +5,11 @@ Tasks related to files.
 import json
 import logging
 from datetime import timedelta
-from hashlib import sha256
 from math import ceil
 from urllib.parse import urljoin
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models import Max, Sum
 from django.utils import timezone
 
@@ -33,7 +32,11 @@ from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.constants import BACKEND_QUEUE
 from core.tasks.mail import send_transcription_ready_email
 from core.tasks.retry import build_retry_task_options
-from core.utils import format_transcript, generate_download_file_url
+from core.utils import (
+    acquire_transaction_lock,
+    format_transcript,
+    generate_download_file_url,
+)
 from core.webhook_models import WhisperXResponse
 
 from dictaphone.celery_app import app
@@ -222,13 +225,7 @@ def _reserve_transcription_audio(ai_job):
         return False
 
     # Serialize this user's quota admissions without blocking user row updates.
-    # The transaction-level lock is released with the caller's transaction.
-    lock_key = int.from_bytes(
-        sha256(f"transcription-quota:{file.creator_id}".encode()).digest()[:8],
-        signed=True,
-    )
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
+    acquire_transaction_lock(f"transcription-quota:{file.creator_id}")
     now = timezone.now()
     used_seconds = (
         TranscriptionUsage.objects.filter(

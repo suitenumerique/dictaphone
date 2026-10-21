@@ -9,10 +9,12 @@ import mimetypes
 import string
 from datetime import datetime, timedelta
 from functools import lru_cache
+from hashlib import sha256
 from threading import Lock
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
+from django.db import connection
 
 import boto3
 import botocore
@@ -29,6 +31,17 @@ from core.webhook_models import WhisperXResponse
 logger = logging.getLogger(__name__)
 
 _s3_client_cache_lock = Lock()
+
+
+def acquire_transaction_lock(key: str) -> None:
+    """Acquire an advisory lock until the caller's transaction ends.
+
+    Call within transaction.atomic() and use a namespaced key shared by all
+    callers that must serialize the same operation.
+    """
+    lock_key = int.from_bytes(sha256(key.encode()).digest()[:8], signed=True)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
 
 
 @lru_cache(maxsize=32)

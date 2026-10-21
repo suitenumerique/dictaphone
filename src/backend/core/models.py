@@ -270,6 +270,18 @@ class FileSourceChoices(models.TextChoices):
 class FileQuerySet(models.QuerySet):
     """File queries with the same extraction state used by API and admin."""
 
+    def count_for_upload_limit(self, creator, file_type):
+        """Count retained uploads rather than invisible upload placeholders."""
+        # Abandoned/failed pending uploads are hidden in the UI, so counting them
+        # could exhaust a quota the user cannot free. Creation is already throttled so
+        # security wise, this should be fine;
+        # reserve a slot only at upload-ended, when leaving PENDING.
+        return (
+            self.filter(creator=creator, type=file_type, deleted_at__isnull=True)
+            .exclude(upload_state=FileUploadStateChoices.PENDING)
+            .count()
+        )
+
     def with_audio_state(self):
         """Resolve current attempt in SQL without fetching job histories."""
         latest = AudioJob.objects.filter(file_id=OuterRef("pk")).order_by(

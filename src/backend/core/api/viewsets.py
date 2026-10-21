@@ -324,13 +324,9 @@ class FileViewSet(
 
     @decorators.action(detail=False, methods=["get"], url_path="upload-limit")
     def upload_limit(self, request):
-        """Report the same per-user audio file usage enforced during creation."""
+        """Report the retained audio uploads counted toward the per-user limit."""
         file_type = models.FileTypeChoices.AUDIO_RECORDING
-        count = models.File.objects.filter(
-            creator=request.user,
-            deleted_at__isnull=True,
-            type=file_type,
-        ).count()
+        count = models.File.objects.count_for_upload_limit(request.user, file_type)
         limit = (
             settings.FILE_UPLOAD_RESTRICTIONS[file_type]["max_count_by_user"]
             if settings.FILE_UPLOAD_APPLY_RESTRICTIONS
@@ -345,11 +341,9 @@ class FileViewSet(
             file_type = serializer.validated_data["type"]
             config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file_type]
 
-            count = models.File.objects.filter(
-                creator=self.request.user,
-                deleted_at__isnull=True,
-                type=file_type,
-            ).count()
+            count = models.File.objects.count_for_upload_limit(
+                self.request.user, file_type
+            )
 
             if count >= config_for_file_type["max_count_by_user"]:
                 logger.info(
@@ -388,17 +382,36 @@ class FileViewSet(
         # Ensures we go through authorization checks
         file = self.get_object()
 
-        # Try to update the file with the new state. If the file is already in this state
-        # we are in a concurrent request, and we should reject that request
-        updated_rows = models.File.objects.filter(
-            upload_state=models.FileUploadStateChoices.PENDING,
-            pk=kwargs["pk"],
-        ).update(upload_state=models.FileUploadStateChoices.ANALYZING)
-        if updated_rows != 1:
-            raise drf_exceptions.ValidationError(
-                {"file": "This action is only available for files in PENDING state."},
-                code="file_upload_state_not_pending",
-            )
+        # Serialize slot reservations for this creator, including different files.
+        # ANALYZING uploads count too, so the lock need not cover storage I/O.
+        with transaction.atomic():
+            utils.acquire_transaction_lock(f"upload-quota:{file.creator_id}")
+            # Try to update the file with the new state. If the file is already in this state
+            # we are in a concurrent request, and we should reject that request
+            updated_rows = models.File.objects.filter(
+                upload_state=models.FileUploadStateChoices.PENDING,
+                pk=kwargs["pk"],
+            ).update(upload_state=models.FileUploadStateChoices.ANALYZING)
+            if updated_rows != 1:
+                raise drf_exceptions.ValidationError(
+                    {
+                        "file": "This action is only available for files in PENDING state."
+                    },
+                    code="file_upload_state_not_pending",
+                )
+
+            if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+                count = models.File.objects.count_for_upload_limit(
+                    file.creator, file.type
+                )
+                if (
+                    count
+                    > settings.FILE_UPLOAD_RESTRICTIONS[file.type]["max_count_by_user"]
+                ):
+                    # Roll back the reservation so the upload can be retried after deletion.
+                    raise drf_exceptions.PermissionDenied(
+                        _("You have reached the maximum number of files for this type.")
+                    )
         file.refresh_from_db()
 
         storage = get_storage_for_file(file)

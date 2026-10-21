@@ -289,7 +289,7 @@ def test_api_files_create_file_too_many(
     settings,
 ):
     """
-    Creating a file is forbidden if above user limit.
+    Pending and deleted files do not consume slots; retained uploads do.
     """
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
     settings.FILE_UPLOAD_RESTRICTIONS = {
@@ -312,6 +312,21 @@ def test_api_files_create_file_too_many(
     )
 
     assert response.status_code == 201
+    first_file = File.objects.get(pk=response.json()["id"])
+
+    # The first upload is still pending and must not block another creation.
+    response = client.post(
+        "/api/v1.0/files/",
+        {
+            "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
+            "filename": "pending.ogg",
+        },
+    )
+    assert response.status_code == 201
+
+    first_file.upload_state = "ready"
+    first_file.save(update_fields=["upload_state"])
 
     response = client.post(
         "/api/v1.0/files/",
@@ -326,7 +341,18 @@ def test_api_files_create_file_too_many(
     assert response.json() == {
         "type": ["You have reached the maximum number of files for this type."]
     }
-    assert File.objects.count() == 1
+    assert File.objects.count() == 2
+
+    first_file.soft_delete()
+    response = client.post(
+        "/api/v1.0/files/",
+        {
+            "type": FileTypeChoices.AUDIO_RECORDING,
+            "duration_seconds": 1,
+            "filename": "after-deletion.ogg",
+        },
+    )
+    assert response.status_code == 201
 
 
 def test_api_files_create_force_id_success():

@@ -506,3 +506,100 @@ def test_api_file_upload_ended_concurrent_calls_are_serialized(settings):
 
     file.refresh_from_db()
     assert file.upload_state == FileUploadStateChoices.READY
+
+
+@patch("core.api.viewsets.start_audio_extraction")
+def test_upload_ended_rechecks_file_count_and_allows_retry(mock_queue, settings):
+    """Pending uploads share no slots until finalized, and deletion frees a slot."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    settings.FILE_UPLOAD_RESTRICTIONS = {
+        "audio_recording": {
+            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
+            "max_count_by_user": 1,
+            "allowed_mimetypes": ["text/plain"],
+        },
+    }
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    files = factories.FileFactory.create_batch(2, creator=user, filename="audio.txt")
+    factories.FileFactory(
+        creator=user, update_upload_state="ready", deleted_at=timezone.now()
+    )
+    factories.FileFactory(update_upload_state="ready")
+    for file in files:
+        default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+
+    response = client.post(f"/api/v1.0/files/{files[0].pk}/upload-ended/")
+    assert response.status_code == 200
+    response = client.post(f"/api/v1.0/files/{files[1].pk}/upload-ended/")
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "You have reached the maximum number of files for this type."
+    }
+    files[1].refresh_from_db()
+    assert files[1].upload_state == FileUploadStateChoices.PENDING
+    assert mock_queue.call_count == 1
+
+    files[0].soft_delete()
+    response = client.post(f"/api/v1.0/files/{files[1].pk}/upload-ended/")
+    assert response.status_code == 200
+    assert mock_queue.call_count == 2
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("core.api.viewsets.start_audio_extraction")
+def test_upload_ended_concurrent_files_respect_count_limit(mock_queue, settings):
+    """Concurrent finalizations for one creator cannot both reserve the last slot."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    settings.FILE_UPLOAD_RESTRICTIONS = {
+        "audio_recording": {
+            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
+            "max_count_by_user": 1,
+            "allowed_mimetypes": ["text/plain"],
+        },
+    }
+    user = factories.UserFactory()
+    files = factories.FileFactory.create_batch(2, creator=user, filename="audio.txt")
+    for file in files:
+        default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+
+    def finalize(file):
+        try:
+            client = APIClient()
+            client.force_login(user)
+            return client.post(f"/api/v1.0/files/{file.pk}/upload-ended/").status_code
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        assert sorted(executor.map(finalize, files)) == [200, 403]
+
+    assert (
+        models.File.objects.filter(
+            creator=user, upload_state=FileUploadStateChoices.PENDING
+        ).count()
+        == 1
+    )
+    mock_queue.assert_called_once()
+
+
+@patch("core.api.viewsets.start_audio_extraction")
+def test_upload_ended_ignores_count_when_restrictions_disabled(mock_queue, settings):
+    """Disabling upload restrictions also disables the finalization count check."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
+    settings.FILE_UPLOAD_RESTRICTIONS = {
+        "audio_recording": {
+            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
+            "max_count_by_user": 0,
+        },
+    }
+    user = factories.UserFactory()
+    file = factories.FileFactory(creator=user, filename="audio.txt")
+    default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(f"/api/v1.0/files/{file.pk}/upload-ended/")
+    assert response.status_code == 200
+    mock_queue.assert_called_once_with(file.pk)
