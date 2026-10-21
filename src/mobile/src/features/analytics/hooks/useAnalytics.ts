@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { ApiUser } from '@/features/auth/api/ApiUser'
 import { PostHog } from 'posthog-react-native'
+import { filterException } from '../utils/filterException'
 
 let posthog: PostHog | null = null
 
@@ -31,6 +32,7 @@ export const useAnalytics = ({ id, host, isDisabled }: useAnalyticsProps) => {
     if (posthog !== null) return
     posthog = new PostHog(id, {
       host: host,
+      before_send: filterException,
       personProfiles: 'always',
       errorTracking: {
         autocapture: {
