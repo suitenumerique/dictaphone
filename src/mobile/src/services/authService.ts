@@ -22,13 +22,13 @@ let isLoggingOut = false
 let logoutPromise: Promise<void> | null = null
 
 async function withTokenRequestTimeout<T>(
-  request: (signal: AbortSignal) => Promise<T>
+  request: (signal: NonNullable<RequestInit['signal']>) => Promise<T>
 ): Promise<T> {
   const controller = new AbortController()
   let timeout: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
-      request(controller.signal),
+      request(controller.signal as NonNullable<RequestInit['signal']>),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => {
           reject(new Error('Token request timed out'))
