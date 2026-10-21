@@ -32,14 +32,14 @@
   },
   "fileLimit": {
     "title": "Limite d’enregistrements atteinte",
-    "description": "Vous avez atteint la limite de {{limit}} enregistrements. Supprimez des enregistrements existants pour importer de nouveaux fichiers audio. Les enregistrements supprimés et les imports non encore finalisés ne sont pas comptabilisés dans cette limite.",
+    "description": "Vous avez atteint {{limit}} enregistrements. Supprimez-en pour en envoyer d’autres.",
     "manageRecordings": "Gérer mes enregistrements"
   },
   "rateLimit": {
-    "title": "Imports suspendus : limite de requêtes du serveur atteinte",
+    "title": "Envois en pause",
     "resume": "Reprendre les imports",
-    "paused": "En pause : limite de requêtes du serveur atteinte",
-    "keepOpen": "Gardez l’application ouverte pour conserver les fichiers sélectionnés dont l’import n’est pas terminé. Si vous rechargez la page, sélectionnez à nouveau ces fichiers.",
+    "paused": "Envois en pause",
+    "keepOpen": "Gardez l’application ouverte jusqu’à la fin des envois. Après rechargement, sélectionnez à nouveau les fichiers restants.",
     "saved": "Votre enregistrement est conservé sur cet appareil.",
     "finalizing": "Audio envoyé ; en attente de finalisation de l’import."
   }

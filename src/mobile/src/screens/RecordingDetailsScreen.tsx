@@ -1,5 +1,5 @@
 import { AiJobFailureAlert } from '@/components/AiJobFailureAlert'
-import { formatRateLimitMessage } from '@/components/rateLimitMessage'
+import { TranscriptErrorAlert } from '@/components/TranscriptErrorAlert'
 import { useCooldown } from '@/api/useCooldown'
 import { isRateLimitError } from '@/api/rateLimits'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -53,7 +53,6 @@ export default function RecordingDetailsScreen() {
   const navigation = useNavigation<StackNavigationProp>()
   const { id } = route.params
   const { t } = useTranslation()
-  const resultCooldown = useCooldown('aiResult')
   const docsBlocked = useCooldown('docsCreate').isBlocked
   const insets = useInsets()
 
@@ -338,26 +337,10 @@ export default function RecordingDetailsScreen() {
         <View style={styles.transcriptContainer}>
           <AiJobFailureAlert job={lastAiJobTranscript} />
           {transcriptQ.isError ? (
-            <View>
-              <AppText>
-                {isRateLimitError(transcriptQ.error)
-                  ? t('rateLimits.title')
-                  : t('transcript.notAvailable')}
-              </AppText>
-              {resultCooldown.isBlocked && (
-                <AppText>
-                  {formatRateLimitMessage(t, resultCooldown.retryAt ?? null)}
-                </AppText>
-              )}
-              <Pressable
-                disabled={resultCooldown.isBlocked}
-                onPress={() => void transcriptQ.refetch()}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: resultCooldown.isBlocked }}
-              >
-                <AppText>{t('rateLimits.retry')}</AppText>
-              </Pressable>
-            </View>
+            <TranscriptErrorAlert
+              error={transcriptQ.error}
+              onRetry={() => void transcriptQ.refetch()}
+            />
           ) : transcriptQ.isPending &&
             lastAiJobTranscript?.status !== 'failed' ? (
             <ActivityIndicator />

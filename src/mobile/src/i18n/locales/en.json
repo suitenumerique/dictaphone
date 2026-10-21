@@ -46,7 +46,7 @@
   "recordings": {
     "fileLimit": {
       "title": "Recording limit reached",
-      "description": "You have reached the limit of {{limit}} recordings. Delete existing recordings to upload new audio. Deleted recordings and uploads that have not yet been finalized do not count toward this limit.",
+      "description": "You’ve reached {{limit}} recordings. Delete some to upload more.",
       "manageRecordings": "Manage my recordings"
     },
     "emptyTitle": "No recordings yet",
@@ -246,7 +246,7 @@
     "title": "Too many requests. Please wait.",
     "tryLater": "Please try again later.",
     "retryAt": "You can try again after {{time}}.",
-    "uploadsPaused": "Uploads are paused. Your recordings are saved on this device. Resume manually when the limit allows it.",
+    "uploadsPaused": "Recordings are saved on this device. Resume uploads when available.",
     "resumeUploads": "Resume uploads",
     "retry": "Try again",
     "uploadsPausedShort": "Uploads paused"

@@ -46,7 +46,7 @@
   "recordings": {
     "fileLimit": {
       "title": "Limite d’enregistrements atteinte",
-      "description": "Vous avez atteint la limite de {{limit}} enregistrements. Supprimez des enregistrements existants pour importer de nouveaux fichiers audio. Les enregistrements supprimés et les imports non encore finalisés ne sont pas comptabilisés dans cette limite.",
+      "description": "Vous avez atteint {{limit}} enregistrements. Supprimez-en pour en envoyer d’autres.",
       "manageRecordings": "Gérer mes enregistrements"
     },
     "emptyTitle": "Aucun enregistrement",
@@ -246,7 +246,7 @@
     "title": "Trop de requêtes. Veuillez patienter.",
     "tryLater": "Veuillez réessayer plus tard.",
     "retryAt": "Vous pourrez réessayer après {{time}}.",
-    "uploadsPaused": "Les envois sont en pause. Vos enregistrements sont conservés sur cet appareil. Reprenez manuellement lorsque la limite le permet.",
+    "uploadsPaused": "Vos enregistrements restent sur cet appareil. Reprenez les envois dès que possible.",
     "resumeUploads": "Reprendre les envois",
     "retry": "Réessayer",
     "uploadsPausedShort": "Envois en pause"

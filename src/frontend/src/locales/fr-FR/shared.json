@@ -23,8 +23,8 @@
   },
   "rateLimit": {
     "title": "Limite de requêtes du serveur atteinte",
-    "waitUntil": "Veuillez réessayer après {{time}}, à la fin du délai d’attente indiqué par le serveur.",
-    "tryLater": "Le serveur limite temporairement ces requêtes. Veuillez réessayer plus tard.",
+    "waitUntil": "Vous pourrez réessayer après {{time}}.",
+    "tryLater": "Veuillez réessayer plus tard.",
     "ready": "Vous pouvez réessayer maintenant.",
     "retry": "Réessayer",
     "scopes": {

@@ -271,11 +271,15 @@ export default function RecordingsScreen() {
         <ActivityIndicator size="large" />
       )}
 
-      <UploadRateLimitAlert />
-      <UploadLimitAlert />
       <FlatList
         data={allRecordings}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <>
+            <UploadRateLimitAlert />
+            <UploadLimitAlert />
+          </>
+        }
         contentContainerStyle={[
           styles.listContent,
           {

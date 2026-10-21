@@ -23,8 +23,8 @@
   },
   "rateLimit": {
     "title": "Server request limit reached",
-    "waitUntil": "Please try again after {{time}}, once the server’s waiting period has ended.",
-    "tryLater": "The server is temporarily limiting these requests. Please try again later.",
+    "waitUntil": "You can try again after {{time}}.",
+    "tryLater": "Please try again later.",
     "ready": "You can try again now.",
     "retry": "Try again",
     "scopes": {

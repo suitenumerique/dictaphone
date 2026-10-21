@@ -91,10 +91,11 @@ if (!i18n.isInitialized) {
         }
       )
       i18n.services.formatter!.add('formatDateTime', (value, lng, options) => {
+        const timeFormat = options?.includeSeconds ? 'pp' : 'p'
         if (isToday(value)) {
-          return `${i18n.t('shared.dates.todayAt')} ${format(value, 'p')}`
+          return `${i18n.t('shared.dates.todayAt')} ${format(value, timeFormat)}`
         } else if (isYesterday(value)) {
-          return `${i18n.t('shared.dates.yesterdayAt')} ${format(value, 'p')}`
+          return `${i18n.t('shared.dates.yesterdayAt')} ${format(value, timeFormat)}`
         } else if (isThisYear(value)) {
           // hacky way to remove the year for now, will not work for future locale
           // https://github.com/date-fns/date-fns/pull/3990
@@ -106,10 +107,10 @@ if (!i18n.isInitialized) {
           }
           return `${dateCleaned} ${i18n.t('shared.dates.at')} ${format(
             value,
-            'p'
+            timeFormat
           )}`
         }
-        return format(value, options?.formatStr ?? 'Pp')
+        return format(value, options?.formatStr ?? `P${timeFormat}`)
       })
       i18n.services.formatter!.add('formatDate', (value, lng, options) => {
         if (isTomorrow(value)) {

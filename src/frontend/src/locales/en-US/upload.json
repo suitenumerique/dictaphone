@@ -32,14 +32,14 @@
   },
   "fileLimit": {
     "title": "Recording limit reached",
-    "description": "You have reached the limit of {{limit}} recordings. Delete existing recordings to upload new audio. Deleted recordings and uploads that have not yet been finalized do not count toward this limit.",
+    "description": "You’ve reached {{limit}} recordings. Delete some to upload more.",
     "manageRecordings": "Manage my recordings"
   },
   "rateLimit": {
-    "title": "Uploads paused: server request limit reached",
+    "title": "Uploads paused",
     "resume": "Resume uploads",
-    "paused": "Paused due to the server’s request limit",
-    "keepOpen": "Keep the app open to retain selected files that haven’t finished uploading. If you reload, select those files again.",
+    "paused": "Uploads paused",
+    "keepOpen": "Keep the app open until uploads finish. After reloading, select unfinished files again.",
     "saved": "Your browser recording is kept on this device.",
     "finalizing": "Audio uploaded; waiting to complete the upload."
   }

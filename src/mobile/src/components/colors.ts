@@ -14,6 +14,9 @@ export const colors = {
   warningSurface: '#FFEEDF',
   warningBorder: '#FFCA9C',
 
+  infoSurface: '#EEF2FF',
+  infoBorder: '#C8D3FF',
+
   textPrimary: '#111827',
   textSecondary: '#2B3448',
 

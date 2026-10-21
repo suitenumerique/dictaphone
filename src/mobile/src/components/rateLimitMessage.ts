@@ -5,5 +5,8 @@ export const formatRateLimitMessage = (t: TFunction, retryAt: RetryAt) =>
   retryAt == null
     ? t('rateLimits.tryLater')
     : t('rateLimits.retryAt', {
-        time: t('shared.utils.formatDateTime', { value: new Date(retryAt) }),
+        time: t('shared.utils.formatDateTime', {
+          value: new Date(retryAt),
+          includeSeconds: true,
+        }),
       })
