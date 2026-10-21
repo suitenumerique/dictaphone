@@ -46,7 +46,7 @@
   "recordings": {
     "fileLimit": {
       "title": "Limite d’enregistrements atteinte",
-      "description": "Vous avez atteint la limite de {{limit}} enregistrements. Supprimez des enregistrements existants pour importer de nouveaux fichiers audio. Les imports en cours sont également comptabilisés dans cette limite.",
+      "description": "Vous avez atteint la limite de {{limit}} enregistrements. Supprimez des enregistrements existants pour importer de nouveaux fichiers audio. Les enregistrements supprimés et les imports non encore finalisés ne sont pas comptabilisés dans cette limite.",
       "manageRecordings": "Gérer mes enregistrements"
     },
     "emptyTitle": "Aucun enregistrement",

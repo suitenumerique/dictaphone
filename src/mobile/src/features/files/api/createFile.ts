@@ -27,10 +27,12 @@ export const finalizeFileUpload = async (
   fileId: string
 ): Promise<ApiFileItem> => {
   try {
-    return await fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
+    const file = await fetchApi<ApiFileItem>(`/files/${fileId}/upload-ended/`, {
       method: 'POST',
       rateLimitScope: 'upload',
     })
+    void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
+    return file
   } catch (error) {
     // The request can time out after the backend has already finalized the
     // file. Reconcile that case instead of treating it as a failed upload.
@@ -42,6 +44,7 @@ export const finalizeFileUpload = async (
         current.upload_state === 'ready' ||
         current.upload_state === 'analyzing'
       ) {
+        void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
         return current
       }
     }
@@ -116,7 +119,7 @@ export const createFile = async ({
     }),
     rateLimitScope: 'upload',
   }).finally(() => {
-    // Pending files count too; rejections may reflect usage changed elsewhere.
+    // Rejections may reflect usage changed elsewhere.
     void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
   })
   if (res.upload_state !== 'pending') {
