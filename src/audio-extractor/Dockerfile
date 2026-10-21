@@ -1,7 +1,7 @@
 # Dictaphone audio extractor Image
 
 # ---- base image to inherit from ----
-FROM python:3.14.7-alpine3.24 AS base
+FROM python:3.14.8-alpine3.24 AS base
 
 # Upgrade pip to its latest release to speed up dependencies installation
 RUN python -m pip install --upgrade pip
@@ -20,7 +20,7 @@ RUN apk --no-cache add \
 FROM base AS builder
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /uvx /bin/
 
 # Configure uv and Python
 ENV UV_COMPILE_BYTECODE=1 \
