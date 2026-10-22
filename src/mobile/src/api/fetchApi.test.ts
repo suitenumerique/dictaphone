@@ -166,7 +166,7 @@ describe('mobile API throttling', () => {
     })
   })
 
-  it('includes the normalized method and route without query parameters or request data', async () => {
+  it('marks redacted query parameters in the normalized method and route', async () => {
     const fetch = vi.fn().mockResolvedValue(json({ detail: 'error' }, 403))
     vi.stubGlobal('fetch', fetch)
     await expect(
@@ -175,8 +175,8 @@ describe('mobile API throttling', () => {
         body: JSON.stringify({ title: 'Confidential recording' }),
       })
     ).rejects.toMatchObject({
-      message: 'Api error 403 (POST /files/abc/upload-ended/)',
-      request: { method: 'POST', path: '/files/abc/upload-ended/' },
+      message: 'Api error 403 (POST /files/abc/upload-ended/?[redacted])',
+      request: { method: 'POST', path: '/files/abc/upload-ended/?[redacted]' },
     })
     expect(fetch).toHaveBeenCalledWith(
       'https://api.example.test/files/abc/upload-ended/?token=private',

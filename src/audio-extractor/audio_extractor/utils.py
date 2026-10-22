@@ -182,7 +182,7 @@ def _clean_work_dir(work_dir: Path) -> None:
 
 
 def _redact_url(url: str) -> str:
-    """Remove URL credentials, query parameters, and fragments before logging."""
+    """Remove credentials and fragments, and mark redacted queries before logging."""
     parts = urlsplit(url)
     hostname = parts.hostname or ""
     if ":" in hostname:
@@ -192,4 +192,5 @@ def _redact_url(url: str) -> str:
     except ValueError:
         port = None
     netloc = f"{hostname}:{port}" if port is not None else hostname
-    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+    query = "[redacted]" if parts.query else ""
+    return urlunsplit((parts.scheme, netloc, parts.path, query, ""))

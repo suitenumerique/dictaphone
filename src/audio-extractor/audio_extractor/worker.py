@@ -73,7 +73,7 @@ def _log_job_failure(
         query = urlsplit(url).query
         message = message.replace(url, _redact_url(url))
         if query:
-            message = message.replace(f"?{query}", "")
+            message = message.replace(f"?{query}", "?[redacted]")
     # Exceptions can echo signed URLs other than the task's known URLs. Match
     # URL-shaped text in the error and pass each match through the same redactor.
     message = re.sub(
@@ -81,9 +81,9 @@ def _log_job_failure(
         lambda match: _redact_url(match.group()),
         message,
     )
-    # Also strip query strings from path-like values (for example, a local
+    # Also redact query strings from path-like values (for example, a local
     # filename or URL path) when they are reported without an http(s) scheme.
-    message = re.sub(r"(/[^\s?\"'<>]+)\?[^\s\"'<>]*", r"\1", message)
+    message = re.sub(r"(/[^\s?\"'<>]+)\?[^\s\"'<>]*", r"\1?[redacted]", message)
     LOGGER.error(
         "%s job %s failed (%s: %s); %s",
         mode,

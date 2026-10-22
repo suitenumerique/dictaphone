@@ -14,7 +14,7 @@ class ApiError extends Error {
     retryAt: number | null = null,
     request?: ApiErrorRequest
   ) {
-    // fetchApi passes the normalized method and the path without query string.
+    // fetchApi passes the normalized method and the path with any query string redacted.
     super(
       `Api error ${statusCode}${request ? ` (${request.method} ${request.path})` : ''}`
     )

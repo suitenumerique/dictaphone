@@ -364,9 +364,11 @@ def test_failure_analytics_and_zero_retry_configuration(
             )
         assert capture.call_args.kwargs["properties"]["retryable"] is False
         assert (
-            "signature=secret"
-            not in capture.call_args.kwargs["properties"]["error_message"]
+            capture.call_args.kwargs["properties"]["error_message"]
+            == "Failed https://storage.test/audio?[redacted]"
         )
+    job.refresh_from_db()
+    assert job.error == "Failed https://storage.test/audio?[redacted]"
     intent.refresh_from_db()
     assert intent.status == "pending"
     assert intent.validated_audio_job_id is None

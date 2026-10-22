@@ -306,7 +306,11 @@ def complete_job(mode, data):
         else AudioJobStatusChoices.FAILED
     )
     job.completed_at = now
-    job.error = re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1", data.get("error") or "")
+    job.error = re.sub(
+        r"(https?://[^\s?]+)\?[^\s]+",
+        r"\1?[redacted]",
+        data.get("error") or "",
+    )
     job.metadata = data.get("metadata") or {}
     job.duration_seconds = data.get("duration_seconds")
     job.save(

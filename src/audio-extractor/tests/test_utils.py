@@ -76,13 +76,21 @@ def test_upload_sends_acl_header_when_configured(tmp_path, http_session):
     [
         (
             "https://user:pass@example.test:8443/audio/file?token=secret#fragment",
-            "https://example.test:8443/audio/file",
+            "https://example.test:8443/audio/file?[redacted]",
         ),
         (
             "https://[2001:db8::1]:9443/audio/file?signature=secret",
-            "https://[2001:db8::1]:9443/audio/file",
+            "https://[2001:db8::1]:9443/audio/file?[redacted]",
         ),
         ("https://example.test/audio/file", "https://example.test/audio/file"),
+        (
+            "https://user:pass@example.test/audio/file#fragment",
+            "https://example.test/audio/file",
+        ),
+        (
+            "https://example.test/audio/file?[redacted]",
+            "https://example.test/audio/file?[redacted]",
+        ),
     ],
 )
 def test_redact_url_removes_credentials_query_and_fragment(url, expected):

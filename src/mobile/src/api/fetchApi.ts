@@ -72,7 +72,7 @@ export const fetchApi = async <T = Record<string, unknown>>(
   url = `${pathname.replace(/\/$/, '')}/${suffix}`
   const request = {
     method: (options.method ?? 'GET').toUpperCase(),
-    path: url.split(/[?#]/, 1)[0],
+    path: `${url.split(/[?#]/, 1)[0]}${suffix.startsWith('?') ? '?[redacted]' : ''}`,
   }
 
   if (rateLimitScope) {

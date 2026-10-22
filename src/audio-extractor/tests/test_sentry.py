@@ -17,7 +17,7 @@ SIGNED_URL = (
     "https://user:password@storage.example.com/bucket/files/audio.ogg"
     "?X-Amz-Credential=credential&X-Amz-Signature=signature#fragment"
 )
-SAFE_URL = "https://storage.example.com/bucket/files/audio.ogg"
+SAFE_URL = "https://storage.example.com/bucket/files/audio.ogg?[redacted]"
 
 
 def test_gateway_initializes_sentry_before_creating_app(monkeypatch):

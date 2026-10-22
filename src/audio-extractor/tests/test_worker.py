@@ -2,6 +2,7 @@
 
 from unittest.mock import Mock, patch
 
+import pytest
 import requests
 
 from audio_extractor.api_models import ValidationJob
@@ -157,8 +158,8 @@ def test_processing_error_is_reported_and_logged_without_signed_urls(
     assert payload["status"] == "failure"
     assert payload["error"] == "bad media"
     assert payload["metadata"]["download_seconds"] >= 0
-    assert task.source_url.split("?", maxsplit=1)[0] in caplog.text
-    assert task.destination_url.split("?", maxsplit=1)[0] in caplog.text
+    assert f"{task.source_url.split('?', maxsplit=1)[0]}?[redacted]" in caplog.text
+    assert f"{task.destination_url.split('?', maxsplit=1)[0]}?[redacted]" in caplog.text
     assert "signature=unchanged" not in caplog.text
 
 
@@ -171,8 +172,26 @@ def test_exception_urls_are_redacted_in_logs(task, caplog):
         task.destination_url,
     )
 
-    assert task.source_url.split("?", maxsplit=1)[0] in caplog.text
+    assert f"{task.source_url.split('?', maxsplit=1)[0]}?[redacted]" in caplog.text
     assert "signature=unchanged" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/audio/file?signature=unchanged",
+        "/other/file?token=secret",
+        "https://other.test/file?token=secret",
+    ],
+)
+def test_exception_queries_leave_redaction_marker(task, caplog, url):
+    _log_job_failure(
+        "Transcoding", task.id, task.source_url, RuntimeError(f"failed: {url}")
+    )
+
+    assert f"failed: {url.split('?', maxsplit=1)[0]}?[redacted]" in caplog.text
+    assert "signature=unchanged" not in caplog.text
+    assert "token=secret" not in caplog.text
 
 
 def test_source_download_failure_is_reported_to_callback(config, task, http_session):

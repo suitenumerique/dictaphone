@@ -149,8 +149,8 @@ The Sentry release and HTTP user agent version are read from the package version
 
 Before sending an event or breadcrumb, the worker strips credentials, query
 parameters, and fragments from HTTP and HTTPS URLs in Sentry data while preserving
-the URL path. Trace sampling is controlled by `SENTRY_TRACES_SAMPLE_RATE` and is
-off by default.
+the URL path and marking removed query parameters with `?[redacted]`. Trace
+sampling is controlled by `SENTRY_TRACES_SAMPLE_RATE` and is off by default.
 
 ## Run locally
 
