@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   getUploadStatuses: vi.fn(),
   markUploadFinalized: vi.fn(),
   clearUpload: vi.fn(),
+  resumeUpload: vi.fn(),
+  waitForUpload: vi.fn(),
   nativeEvents: [] as ((state: { isConnected: boolean }) => void)[],
   storage: new Map<string, string>(),
 }))
@@ -63,8 +65,8 @@ vi.mock('@/utils/fileUpload', () => ({
   getUploadStatuses: mocks.getUploadStatuses,
   markUploadFinalized: mocks.markUploadFinalized,
   clearUpload: mocks.clearUpload,
-  resumeUpload: vi.fn(),
-  waitForUpload: vi.fn(),
+  resumeUpload: mocks.resumeUpload,
+  waitForUpload: mocks.waitForUpload,
   requestUploadNotificationPermission: vi.fn(),
   setFileUploadAppActive: vi.fn(),
 }))
@@ -72,6 +74,7 @@ vi.mock('@/utils/fileUpload', () => ({
 import {
   deleteBlockedRecording,
   resumeRateLimitedUploads,
+  setBypassWifiOnly,
   startRecordingsUploadManager,
   useRecordingsStore,
 } from './storage'
@@ -103,6 +106,8 @@ beforeEach(() => {
   mocks.getUploadStatuses.mockResolvedValue([])
   mocks.markUploadFinalized.mockResolvedValue(undefined)
   mocks.clearUpload.mockResolvedValue(undefined)
+  mocks.resumeUpload.mockResolvedValue(undefined)
+  mocks.waitForUpload.mockResolvedValue(undefined)
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -246,5 +251,45 @@ describe('blocked uploads recovery', () => {
     useRecordingsStore.setState({ recordings: [recording('queued')] })
     await deleteBlockedRecording('queued')
     expect(useRecordingsStore.getState().recordings).toHaveLength(1)
+  })
+})
+
+describe('Sync now', () => {
+  it('lifts the Wi-Fi-only policy of the upload in progress', async () => {
+    let finishUpload: () => void = () => {}
+    mocks.getUploadStatuses.mockResolvedValue([
+      {
+        uploadId: 'native',
+        status: 'uploading',
+        uploadedBytes: 0,
+        totalBytes: 10,
+      },
+    ])
+    mocks.waitForUpload.mockImplementation(
+      () => new Promise<void>((resolve) => (finishUpload = resolve))
+    )
+    mocks.finalizeFileUpload.mockResolvedValue({ id: 'server-file' })
+    useRecordingsStore.setState({
+      recordings: [
+        {
+          ...recording('waiting'),
+          uploadingStatus: 'uploading',
+          fileId: 'server-file',
+          uploadId: 'native',
+        },
+      ],
+    })
+    resumeRateLimitedUploads()
+    await vi.waitFor(() => expect(mocks.waitForUpload).toHaveBeenCalled())
+    mocks.resumeUpload.mockClear()
+
+    setBypassWifiOnly(true)
+    expect(mocks.resumeUpload).toHaveBeenCalledWith('native', false)
+
+    finishUpload()
+    await vi.waitFor(() =>
+      expect(useRecordingsStore.getState().recordings).toEqual([])
+    )
+    setBypassWifiOnly(false)
   })
 })

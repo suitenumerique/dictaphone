@@ -158,6 +158,9 @@ const checkCanUpload = async (): Promise<boolean> => {
 }
 
 let isUploadInProgress = false
+// Native upload the manager is waiting on, so Sync now can lift its Wi-Fi-only
+// policy; otherwise a Wi-Fi-only transfer waits for connectivity indefinitely.
+let activeNativeUploadId: string | undefined
 let uploadRetryTimer: ReturnType<typeof setTimeout> | undefined
 
 const scheduleUploadRetry = () => {
@@ -269,6 +272,7 @@ const triggerUpload = async (): Promise<void> => {
       })
 
       if (nativeStatus.status === 'uploading') {
+        activeNativeUploadId = recordingToUpload.uploadId
         await resumeUpload(
           recordingToUpload.uploadId,
           settings.wifiOnlyUpload && !bypassWifiOnly
@@ -295,6 +299,7 @@ const triggerUpload = async (): Promise<void> => {
         uploadId,
         wifiOnly: settings.wifiOnlyUpload && !bypassWifiOnly,
         onUploadPrepared: ({ fileId, uploadId: preparedUploadId }) => {
+          activeNativeUploadId = preparedUploadId
           updateRecording(recordingToUpload.id, {
             fileId,
             uploadId: preparedUploadId,
@@ -337,6 +342,7 @@ const triggerUpload = async (): Promise<void> => {
     shouldTriggerNextUpload = !isRateLimitError(error)
   } finally {
     isUploadInProgress = false
+    activeNativeUploadId = undefined
     scheduleUploadRetry()
     if (shouldTriggerNextUpload) {
       triggerUpload().catch(console.error)
@@ -385,6 +391,9 @@ export const deleteBlockedRecording = async (recordingId: string) => {
 export const setBypassWifiOnly = (value: boolean) => {
   useUploadStore.getState().setBypassWifiOnly(value)
   if (value) {
+    if (activeNativeUploadId) {
+      resumeUpload(activeNativeUploadId, false).catch(console.error)
+    }
     // Sync now is an explicit retry: also requeue recordings that were blocked.
     unblockUploads()
   }
