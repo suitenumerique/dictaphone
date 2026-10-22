@@ -280,8 +280,21 @@ export default function RecordingsScreen() {
             <UploadLimitAlert />
           </>
         }
+        ListEmptyComponent={
+          !isLoading && !filesQ.isError && (!isLoggedIn || filesQ.isSuccess) ? (
+            <View style={styles.emptyState}>
+              <AppText variant="heading" align="center">
+                {t('recordings.emptyTitle')}
+              </AppText>
+              <AppText variant="subtitle" align="center">
+                {t('recordings.emptySubtitle')}
+              </AppText>
+            </View>
+          ) : null
+        }
         contentContainerStyle={[
           styles.listContent,
+          allRecordings.length === 0 && styles.emptyListContent,
           {
             marginBottom: insets.paddingBottom + 40,
           },
@@ -337,6 +350,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {},
+  emptyListContent: {
+    flexGrow: 1,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 36,
+    gap: 8,
+  },
   recordingListSeparator: {
     height: 1,
     backgroundColor: colors.surfacePrimary,

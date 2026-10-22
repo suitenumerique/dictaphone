@@ -50,7 +50,7 @@
       "manageRecordings": "Manage my recordings"
     },
     "emptyTitle": "No recordings yet",
-    "emptySubtitle": "Go to Record tab and capture your first audio note.",
+    "emptySubtitle": "Start a recording or import an audio file using the buttons below.",
     "pendingTitle": "Pending uploads",
     "manageOnline": "Manage recordings online",
     "uploading": "Uploading...",

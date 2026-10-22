@@ -50,7 +50,7 @@
       "manageRecordings": "Gérer mes enregistrements"
     },
     "emptyTitle": "Aucun enregistrement",
-    "emptySubtitle": "Allez dans l'onglet Enregistrer et capturez votre première note audio.",
+    "emptySubtitle": "Commencez un enregistrement ou importez un fichier audio à l'aide des boutons ci-dessous.",
     "pendingTitle": "Envois en attente",
     "manageOnline": "Gérer les enregistrements en ligne",
     "uploading": "Envoi en cours...",
