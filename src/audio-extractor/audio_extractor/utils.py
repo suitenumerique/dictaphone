@@ -110,12 +110,13 @@ def _run(command: list[str], timeout: float, *, capture_output: bool = False) ->
         details = tail.decode(errors="replace")
         if isinstance(exc, (subprocess.CalledProcessError, subprocess.TimeoutExpired)):
             exc.stderr = details
-        if isinstance(exc, subprocess.CalledProcessError):
-            reason = f"{command[0]} exited with status {exc.returncode}"
-        elif isinstance(exc, subprocess.TimeoutExpired):
-            reason = f"{command[0]} timed out after {timeout:g} seconds"
-        else:
-            reason = f"Could not run {command[0]}: {exc}"
+        match exc:
+            case subprocess.CalledProcessError(returncode=returncode):
+                reason = f"{command[0]} exited with status {returncode}"
+            case subprocess.TimeoutExpired():
+                reason = f"{command[0]} timed out after {timeout:g} seconds"
+            case _:
+                reason = f"Could not run {command[0]}: {exc}"
         if details.strip():
             reason += f". {details.strip()}"
         raise ProcessingError(f"Media command failed: {reason}") from exc
