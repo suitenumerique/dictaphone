@@ -351,7 +351,19 @@ class FileUploadModule: RCTEventEmitter, URLSessionTaskDelegate, URLSessionDeleg
                          resolver: @escaping RCTPromiseResolveBlock,
                          rejecter: @escaping RCTPromiseRejectBlock) {
     session.getAllTasks { tasks in
-      tasks.filter { $0.taskDescription == uploadId }.forEach { $0.cancel() }
+      let clearedTasks = tasks.filter { $0.taskDescription == uploadId }
+      // Treat cancelled tasks as replaced so their completion cannot retry the
+      // upload or save its state again once it has been removed.
+      let handlers = self.stateQueue.sync {
+        clearedTasks.compactMap { task -> PromiseHandlers? in
+          self.replacedTaskIds.insert(task.taskIdentifier)
+          self.uploadIdsByTaskId.removeValue(forKey: task.taskIdentifier)
+          self.lastEmittedProgressByTaskId.removeValue(forKey: task.taskIdentifier)
+          return self.promiseHandlersByTaskId.removeValue(forKey: task.taskIdentifier)
+        }
+      }
+      clearedTasks.forEach { $0.cancel() }
+      handlers.forEach { $0.rejecter("UPLOAD_ERROR", "Upload was cleared", nil) }
       self.rejectWaiters(uploadId, message: "Upload was cleared")
       self.removeState(uploadId)
       resolver(nil)
