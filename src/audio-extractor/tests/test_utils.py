@@ -168,7 +168,7 @@ def test_media_command_failure_includes_stderr(capture_output):
     ]
 
     with pytest.raises(
-        ProcessingError, match="^Media command failed: Invalid audio data$"
+        ProcessingError, match="exited with status 1. Invalid audio data$"
     ) as error:
         _run(command, 17, capture_output=capture_output)
 
@@ -207,16 +207,19 @@ def test_stderr_capture_stays_bounded_while_reading():
 
 @pytest.mark.parametrize("capture_output", [False, True])
 def test_noisy_media_command_retains_only_stderr_tail(capture_output):
-    """Large stderr does not block the command or hide its final diagnostic."""
+    """Large diagnostics do not block the command or hide its final error."""
     command = [
         sys.executable,
         "-c",
         "import sys; sys.stderr.write('x' * 2_000_000 + 'final diagnostic'); "
         "sys.stdout.write('output'); sys.exit(1)",
     ]
-    with pytest.raises(ProcessingError, match="final diagnostic$") as error:
+    with pytest.raises(ProcessingError, match="final diagnostic") as error:
         _run(command, 17, capture_output=capture_output)
     assert len(error.value.__cause__.stderr) == STDERR_TAIL_BYTES
+    assert error.value.__cause__.stderr.endswith(
+        "final diagnostic" if capture_output else "final diagnosticoutput"
+    )
     assert error.value.__cause__.stdout == ("output" if capture_output else None)
 
 
@@ -231,6 +234,30 @@ def test_noisy_media_command_timeout_retains_stderr_tail():
         _run(command, 1)
     assert isinstance(error.value.__cause__, subprocess.TimeoutExpired)
     assert len(error.value.__cause__.stderr) == STDERR_TAIL_BYTES
+    assert "timed out after 1 seconds" in str(error.value)
+
+
+def test_media_command_captures_bounded_stdout_diagnostics():
+    """Tools such as opusinfo report validation failures on stdout."""
+    command = [
+        sys.executable,
+        "-c",
+        "print('x' * 2_000_000 + 'WARNING: No Ogg data found'); exit(1)",
+    ]
+    with pytest.raises(ProcessingError, match="WARNING: No Ogg data found$") as error:
+        _run(command, 17)
+    assert len(error.value.__cause__.stderr) == STDERR_TAIL_BYTES
+
+
+def test_missing_media_command_identifies_tool():
+    with (
+        patch(
+            "audio_extractor.utils.subprocess.run",
+            side_effect=FileNotFoundError("No such file or directory"),
+        ),
+        pytest.raises(ProcessingError, match="Could not run opusinfo"),
+    ):
+        _run(["opusinfo", "source.media"], 17)
 
 
 def test_gateway_routes_storage_only_and_preserves_signed_headers(

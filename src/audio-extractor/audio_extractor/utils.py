@@ -84,7 +84,10 @@ def _capture_stderr(stream, tail: bytearray) -> None:
 
 
 def _run(command: list[str], timeout: float, *, capture_output: bool = False) -> str:
-    """Run a fixed media command with a hard timeout and capture error details."""
+    """Run a media command, retaining bounded diagnostics from both streams.
+
+    With capture_output, return stdout separately (for example, probe JSON).
+    """
     tail = bytearray()
     try:
         read_fd, write_fd = os.pipe()
@@ -95,7 +98,7 @@ def _run(command: list[str], timeout: float, *, capture_output: bool = False) ->
                 result = subprocess.run(  # noqa: S603 - assembled internally
                     command,
                     check=True,
-                    stdout=subprocess.PIPE if capture_output else subprocess.DEVNULL,
+                    stdout=subprocess.PIPE if capture_output else writer,
                     stderr=writer,
                     text=True,
                     timeout=timeout,
@@ -107,9 +110,15 @@ def _run(command: list[str], timeout: float, *, capture_output: bool = False) ->
         details = tail.decode(errors="replace")
         if isinstance(exc, (subprocess.CalledProcessError, subprocess.TimeoutExpired)):
             exc.stderr = details
-        raise ProcessingError(
-            f"Media command failed: {str(details or exc).strip()}"
-        ) from exc
+        if isinstance(exc, subprocess.CalledProcessError):
+            reason = f"{command[0]} exited with status {exc.returncode}"
+        elif isinstance(exc, subprocess.TimeoutExpired):
+            reason = f"{command[0]} timed out after {timeout:g} seconds"
+        else:
+            reason = f"Could not run {command[0]}: {exc}"
+        if details.strip():
+            reason += f". {details.strip()}"
+        raise ProcessingError(f"Media command failed: {reason}") from exc
     return result.stdout or ""
 
 
