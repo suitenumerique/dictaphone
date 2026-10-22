@@ -1,4 +1,4 @@
-import { ApiError } from './ApiError'
+import { ApiError, type ApiErrorRequest } from './ApiError'
 import {
   isBlocked,
   parseRetryAfter,
@@ -23,6 +23,7 @@ function buildHeaders(
 
 async function parseResponse<T>(
   response: Response,
+  request: ApiErrorRequest,
   rateLimitScope?: RateLimitScope
 ): Promise<T> {
   const retryAt =
@@ -52,7 +53,7 @@ async function parseResponse<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, result, retryAt)
+    throw new ApiError(response.status, result, retryAt, request)
   }
   return result
 }
@@ -69,11 +70,15 @@ export const fetchApi = async <T = Record<string, unknown>>(
   }
   const [pathname, suffix = ''] = url.split(/(?=[?#])/, 2)
   url = `${pathname.replace(/\/$/, '')}/${suffix}`
+  const request = {
+    method: (options.method ?? 'GET').toUpperCase(),
+    path: url.split(/[?#]/, 1)[0],
+  }
 
   if (rateLimitScope) {
     // Don't send requests the server would reject anyway.
     const retryAt = useRateLimits.getState().cooldowns[rateLimitScope]
-    if (isBlocked(retryAt)) throw new ApiError(429, undefined, retryAt)
+    if (isBlocked(retryAt)) throw new ApiError(429, undefined, retryAt, request)
   }
 
   const token = await getAccessToken()
@@ -90,5 +95,5 @@ export const fetchApi = async <T = Record<string, unknown>>(
       })
     }
   }
-  return parseResponse<T>(response, rateLimitScope)
+  return parseResponse<T>(response, request, rateLimitScope)
 }

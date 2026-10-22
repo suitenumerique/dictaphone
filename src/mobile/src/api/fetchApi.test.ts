@@ -44,7 +44,11 @@ describe('mobile API throttling', () => {
     })
     await expect(
       fetchApi('/ai-jobs/b/summary/', { rateLimitScope: 'aiResult' })
-    ).rejects.toMatchObject({ statusCode: 429 })
+    ).rejects.toMatchObject({
+      statusCode: 429,
+      message: 'Api error 429 (GET /ai-jobs/b/summary/)',
+      request: { method: 'GET', path: '/ai-jobs/b/summary/' },
+    })
     expect(useRateLimits.getState().cooldowns.aiResult).toBeGreaterThanOrEqual(
       before + 60_000
     )
@@ -156,6 +160,43 @@ describe('mobile API throttling', () => {
     await expect(fetchApi('/files/')).rejects.toMatchObject({
       statusCode: 500,
       body: { detail: 'error' },
+      name: 'ApiError',
+      message: 'Api error 500 (GET /files/)',
+      request: { method: 'GET', path: '/files/' },
+    })
+  })
+
+  it('includes the normalized method and route without query parameters or request data', async () => {
+    const fetch = vi.fn().mockResolvedValue(json({ detail: 'error' }, 403))
+    vi.stubGlobal('fetch', fetch)
+    await expect(
+      fetchApi('files/abc/upload-ended?token=private#secret', {
+        method: 'post',
+        body: JSON.stringify({ title: 'Confidential recording' }),
+      })
+    ).rejects.toMatchObject({
+      message: 'Api error 403 (POST /files/abc/upload-ended/)',
+      request: { method: 'POST', path: '/files/abc/upload-ended/' },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.example.test/files/abc/upload-ended/?token=private',
+      expect.objectContaining({ method: 'post' })
+    )
+  })
+
+  it('preserves request context when authentication refresh is followed by an HTTP error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(json({}, 401))
+        .mockResolvedValueOnce(json({}, 500))
+    )
+    await expect(
+      fetchApi('/files/abc/upload-ended/', { method: 'POST' })
+    ).rejects.toMatchObject({
+      message: 'Api error 500 (POST /files/abc/upload-ended/)',
+      request: { method: 'POST', path: '/files/abc/upload-ended/' },
     })
   })
 })

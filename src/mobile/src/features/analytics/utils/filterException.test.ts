@@ -9,6 +9,7 @@ const exception = (type: string, value: string) => ({
 describe('PostHog exception filter', () => {
   it.each([
     ['Error', 'Api error 401'],
+    ['ApiError', 'Api error 401 (POST /files/abc/upload-ended/)'],
     ['Error', 'Error creating file: [Error: Api error 401]'],
     ['PostHogFetchNetworkError', 'Network request failed'],
     ['Error', 'PostHogFetchNetworkError: Network request failed'],
