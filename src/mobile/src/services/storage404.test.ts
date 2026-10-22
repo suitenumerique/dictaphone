@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/ApiError'
 import { UploadFinalizationNotFoundError } from '../api/UploadFinalizationNotFoundError'
+import { UPLOAD_RETRY_BASE_DELAY_MS as RETRY_DELAY } from './uploadRetry'
 
 const mocks = vi.hoisted(() => ({
   createFile: vi.fn(),
@@ -132,7 +133,7 @@ describe('bounded upload retries', () => {
   it('bounds repeated finalization 404s to three attempts and retains audio', async () => {
     useRecordingsStore.setState({ recordings: [recording] })
     setBypassWifiOnly(true)
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(3 * RETRY_DELAY)
     expect(mocks.clearUpload).toHaveBeenCalledTimes(3)
     expect(mocks.clearUpload).toHaveBeenNthCalledWith(1, 'old-upload')
     expect(mocks.createFile).toHaveBeenCalledTimes(2)
@@ -168,7 +169,7 @@ describe('bounded upload retries', () => {
       ],
     })
     retryRecordingUpload(recording.id)
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(3 * RETRY_DELAY)
     expect(mocks.clearUpload).toHaveBeenCalledTimes(3)
     expect(currentRecording().uploadAttemptCount).toBe(3)
     expect(currentRecording().uploadingStatus).toBe('blocked')
@@ -212,7 +213,7 @@ describe('bounded upload retries', () => {
       ],
     })
     setBypassWifiOnly(true)
-    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY)
     expect(useRecordingsStore.getState().recordings).toEqual([])
     expect(mocks.createFile).toHaveBeenCalledTimes(2)
     expect(mocks.clearUpload).toHaveBeenCalledTimes(1)
@@ -227,11 +228,11 @@ describe('bounded upload retries', () => {
     setBypassWifiOnly(true)
     await vi.advanceTimersByTimeAsync(0)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledTimes(1)
-    await vi.advanceTimersByTimeAsync(999)
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY - 1)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(1)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledTimes(2)
-    await vi.advanceTimersByTimeAsync(2000)
+    await vi.advanceTimersByTimeAsync(2 * RETRY_DELAY)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledTimes(3)
     expect(mocks.finalizeFileUpload.mock.calls).toEqual([
       ['old-file'],
@@ -248,7 +249,7 @@ describe('bounded upload retries', () => {
     mocks.finalizeFileUpload.mockRejectedValueOnce(new ApiError(500, {}))
     useRecordingsStore.setState({ recordings: [recording] })
     setBypassWifiOnly(true)
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(3 * RETRY_DELAY)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledTimes(2)
     expect(mocks.createFile).toHaveBeenCalledTimes(1)
     expect(currentRecording().uploadingStatus).toBe('blocked')
@@ -283,7 +284,7 @@ describe('bounded upload retries', () => {
       ],
     })
     setBypassWifiOnly(true)
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(3 * RETRY_DELAY)
     expect(mocks.createFile).toHaveBeenCalledOnce()
     expect(mocks.finalizeFileUpload.mock.calls).toEqual([
       ['new-file'],
@@ -334,7 +335,7 @@ describe('bounded upload retries', () => {
     expect(currentRecording().id).toBe(recording.id)
     expect(currentRecording().uploadAttemptCount).toBe(1)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledOnce()
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(3 * RETRY_DELAY)
     expect(currentRecording().uploadingStatus).toBe('blocked')
   })
 
@@ -376,7 +377,7 @@ describe('bounded upload retries', () => {
     mocks.createFile.mockResolvedValue({ id: 'new-file' })
     useRecordingsStore.setState({ recordings: [recording] })
     setBypassWifiOnly(true)
-    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY)
     expect(mocks.clearUpload).toHaveBeenCalledExactlyOnceWith('old-upload')
     expect(mocks.createFile).toHaveBeenCalledOnce()
     expect(useRecordingsStore.getState().recordings).toEqual([])

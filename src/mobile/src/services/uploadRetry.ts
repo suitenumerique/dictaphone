@@ -3,6 +3,7 @@ import { UploadFinalizationNotFoundError } from '../api/UploadFinalizationNotFou
 import type { LocalRecording } from '../types/localRecording'
 
 export const MAX_UPLOAD_ATTEMPTS = 3
+export const UPLOAD_RETRY_BASE_DELAY_MS = 5_000
 
 export const uploadFailureUpdate = (
   recording: LocalRecording,
@@ -32,7 +33,7 @@ export const uploadFailureUpdate = (
     uploadBlockedReason: blocked ? uploadBlockedReason : undefined,
     uploadRetryAt: blocked
       ? undefined
-      : now + 1000 * 2 ** (uploadAttemptCount - 1),
+      : now + UPLOAD_RETRY_BASE_DELAY_MS * 2 ** (uploadAttemptCount - 1),
   }
 }
 

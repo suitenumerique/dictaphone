@@ -355,25 +355,27 @@ export const retryRecordingUpload = (recordingId: string) => {
   triggerUpload().catch(console.error)
 }
 
+/** Requeue blocked recordings whose cause may have gone away (all when omitted). */
+export const unblockUploads = (
+  reasons?: NonNullable<LocalRecording['uploadBlockedReason']>[]
+) => {
+  const { recordings, updateRecording } = useRecordingsStore.getState()
+  recordings
+    .filter(
+      (recording) =>
+        recording.uploadingStatus === 'blocked' &&
+        (!reasons ||
+          reasons.includes(recording.uploadBlockedReason ?? 'transient'))
+    )
+    .forEach((recording) => updateRecording(recording.id, resetUploadRetry()))
+  triggerUpload().catch(console.error)
+}
+
 export const setBypassWifiOnly = (value: boolean) => {
   useUploadStore.getState().setBypassWifiOnly(value)
   if (value) {
-    const { recordings, updateRecording } = useRecordingsStore.getState()
-    // A failed upload is deliberately kept locally so it can be retried. Mark it
-    // as queued before triggering the manager, otherwise Sync now only changes the
-    // network policy and the failed item remains ineligible for selection.
-    recordings
-      .filter(
-        (recording) =>
-          recording.uploadingStatus === 'failed' ||
-          recording.uploadingStatus === 'blocked'
-      )
-      .forEach((recording) => {
-        updateRecording(recording.id, {
-          ...resetUploadRetry(),
-        })
-      })
-    triggerUpload().catch(console.error)
+    // Sync now is an explicit retry: also requeue recordings that were blocked.
+    unblockUploads()
   }
 }
 
@@ -390,7 +392,7 @@ export const startRecordingsUploadManager = () => {
     const active = state === 'active'
     setFileUploadAppActive(active)
     if (active) {
-      triggerUpload().catch(console.error)
+      unblockUploads(['transient'])
     }
   })
 
@@ -400,8 +402,17 @@ export const startRecordingsUploadManager = () => {
     }
   })
 
-  NetInfo.addEventListener(() => {
-    triggerUpload().catch(console.error)
+  // Transient failures are often caused by a flaky connection: retry them once
+  // the device reconnects instead of waiting for a manual retry.
+  let wasConnected: boolean | null | undefined
+  NetInfo.addEventListener((state) => {
+    const reconnected = state.isConnected === true && wasConnected === false
+    wasConnected = state.isConnected
+    if (reconnected) {
+      unblockUploads(['transient'])
+    } else {
+      triggerUpload().catch(console.error)
+    }
   })
 
   let uploadResumeTimer: ReturnType<typeof setTimeout> | undefined
@@ -539,20 +550,7 @@ useUserStore.subscribe((newState, oldState) => {
     (newState.user && !oldState.user) ||
     (!newState.authExpired && oldState.authExpired)
   ) {
-    const { recordings, updateRecording } = useRecordingsStore.getState()
-    recordings
-      .filter(
-        (recording) =>
-          recording.uploadingStatus === 'failed' ||
-          (recording.uploadingStatus === 'blocked' &&
-            recording.uploadBlockedReason === 'authentication')
-      )
-      .forEach((recording) => {
-        updateRecording(recording.id, {
-          ...resetUploadRetry(),
-        })
-      })
-    triggerUpload().catch(console.error)
+    unblockUploads(['authentication'])
   }
 })
 

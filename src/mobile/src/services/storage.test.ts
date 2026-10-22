@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   finalizeFileUpload: vi.fn(),
   getUploadStatuses: vi.fn(),
   markUploadFinalized: vi.fn(),
-  nativeEvents: [] as (() => void)[],
+  nativeEvents: [] as ((state: { isConnected: boolean }) => void)[],
   storage: new Map<string, string>(),
 }))
 
@@ -23,7 +23,7 @@ vi.mock('react-native', () => ({
 vi.mock('@react-native-community/netinfo', () => ({
   default: {
     fetch: async () => ({ isConnected: true, type: 'wifi' }),
-    addEventListener: (listener: () => void) => {
+    addEventListener: (listener: (state: { isConnected: boolean }) => void) => {
       mocks.nativeEvents.push(listener)
       return () => {}
     },
@@ -131,7 +131,7 @@ describe('rate-limited uploads', () => {
     )
 
     useRecordingsStore.getState().addRecording(recording('second'))
-    for (const listener of mocks.nativeEvents) listener()
+    for (const listener of mocks.nativeEvents) listener({ isConnected: true })
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(mocks.createFile).toHaveBeenCalledTimes(1)
     expect(mocks.finalizeFileUpload).not.toHaveBeenCalled()
@@ -195,5 +195,38 @@ describe('rate-limit auto resume', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(areUploadsPaused()).toBe(true)
     expect(mocks.createFile).not.toHaveBeenCalled()
+  })
+})
+
+describe('blocked uploads recovery', () => {
+  const blocked = (
+    id: string,
+    reason: LocalRecording['uploadBlockedReason']
+  ): LocalRecording => ({
+    ...recording(id),
+    uploadingStatus: 'blocked',
+    uploadBlockedReason: reason,
+    uploadAttemptCount: 3,
+  })
+
+  it('retries transient blocks when the device reconnects', async () => {
+    startRecordingsUploadManager()
+    mocks.createFile.mockResolvedValue({ id: 'created' })
+    useRecordingsStore.setState({
+      recordings: [
+        blocked('transient', 'transient'),
+        blocked('bad', 'validation'),
+      ],
+    })
+    for (const listener of mocks.nativeEvents) listener({ isConnected: false })
+    for (const listener of mocks.nativeEvents) listener({ isConnected: true })
+    await vi.waitFor(() =>
+      expect(useRecordingsStore.getState().recordings.map((r) => r.id)).toEqual(
+        ['bad']
+      )
+    )
+    expect(useRecordingsStore.getState().recordings[0].uploadingStatus).toBe(
+      'blocked'
+    )
   })
 })
