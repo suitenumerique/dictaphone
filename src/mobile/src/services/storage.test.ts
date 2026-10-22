@@ -126,7 +126,7 @@ describe('rate-limited uploads', () => {
     await vi.waitFor(() =>
       expect(useRecordingsStore.getState().recordings[0]).toMatchObject({
         fileId: 'server-file',
-        uploadingStatus: 'uploading',
+        uploadingStatus: 'to_upload',
       })
     )
 

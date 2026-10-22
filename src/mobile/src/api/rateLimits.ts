@@ -34,18 +34,16 @@ export const isBlocked = (retryAt: RetryAt | undefined) =>
   retryAt != null && retryAt > Date.now()
 
 export const recordRateLimit = (scope: RateLimitScope, retryAt: RetryAt) =>
-  useRateLimits.setState(({ cooldowns, hits }) => ({
+  useRateLimits.setState(({ cooldowns, hits }) => {
+    const current = cooldowns[scope]
     // Concurrent responses never shorten the wait.
-    cooldowns: {
-      ...cooldowns,
-      [scope]:
-        Math.max(
-          isBlocked(cooldowns[scope]) ? cooldowns[scope]! : 0,
-          retryAt ?? 0
-        ) || null,
-    },
-    hits: { ...hits, [scope]: (hits[scope] ?? 0) + 1 },
-  }))
+    const next =
+      isBlocked(current) && current! > (retryAt ?? 0) ? current! : retryAt
+    return {
+      cooldowns: { ...cooldowns, [scope]: next },
+      hits: { ...hits, [scope]: (hits[scope] ?? 0) + 1 },
+    }
+  })
 
 export const clearRateLimit = (scope: RateLimitScope) =>
   useRateLimits.setState(({ cooldowns }) => {

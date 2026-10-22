@@ -47,7 +47,6 @@ import {
   uploadFailureUpdate,
 } from './uploadRetry'
 import { UploadFinalizationNotFoundError } from '@/api/UploadFinalizationNotFoundError'
-import { hasFinishedNativeUpload } from './uploadReconciliation'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -319,35 +318,19 @@ const triggerUpload = async (): Promise<void> => {
     })
   } catch (error) {
     console.error('Error creating file:', error)
-    let failureUpdate = uploadFailureUpdate(recordingToUpload, error)
-    if (isRateLimitError(error) && uploadIdForRecording) {
-      const nativeStatus = (await getUploadStatuses().catch(() => [])).find(
-        (status) => status.uploadId === uploadIdForRecording
-      )
-      if (hasFinishedNativeUpload(nativeStatus)) {
-        failureUpdate.uploadingStatus = 'uploading'
-      }
-    }
+    const failureUpdate = uploadFailureUpdate(recordingToUpload, error)
     if (
       error instanceof UploadFinalizationNotFoundError &&
       uploadIdForRecording
     ) {
-      try {
-        await clearUpload(uploadIdForRecording)
-        updateRecording(recordingToUpload.id, {
-          fileId: undefined,
-          uploadId: undefined,
-          uploadProgress: undefined,
-        })
-      } catch (cleanupError) {
-        console.error('Failed to clear missing backend upload:', cleanupError)
-        failureUpdate = {
-          ...failureUpdate,
-          uploadingStatus: 'blocked',
-          uploadBlockedReason: 'transient',
-          uploadRetryAt: undefined,
-        }
-      }
+      // The backend file is gone: start over with a new one. A leftover native
+      // state is harmless, so a cleanup failure must not keep the recording stuck.
+      await clearUpload(uploadIdForRecording).catch(console.error)
+      Object.assign(failureUpdate, {
+        fileId: undefined,
+        uploadId: undefined,
+        uploadProgress: undefined,
+      })
     }
     updateRecording(recordingToUpload.id, failureUpdate)
     shouldTriggerNextUpload = !isRateLimitError(error)

@@ -14,18 +14,15 @@ class ApiError extends Error {
     retryAt: number | null = null,
     request?: ApiErrorRequest
   ) {
-    const safeRequest = request && {
-      method: request.method.toUpperCase(),
-      path: request.path.split(/[?#]/, 1)[0],
-    }
+    // fetchApi passes the normalized method and the path without query string.
     super(
-      `Api error ${statusCode}${safeRequest ? ` (${safeRequest.method} ${safeRequest.path})` : ''}`
+      `Api error ${statusCode}${request ? ` (${request.method} ${request.path})` : ''}`
     )
     this.name = 'ApiError'
     this.statusCode = statusCode
     this.body = body
     this.retryAt = retryAt
-    this.request = safeRequest
+    this.request = request
   }
 }
 

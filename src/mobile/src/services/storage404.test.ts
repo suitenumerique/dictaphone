@@ -21,10 +21,6 @@ vi.mock(
   () => import('../api/UploadFinalizationNotFoundError')
 )
 vi.mock('@/services/uploadSelection', () => import('./uploadSelection'))
-vi.mock(
-  '@/services/uploadReconciliation',
-  () => import('./uploadReconciliation')
-)
 vi.mock('@/api/queryKeys', () => import('../api/queryKeys'))
 vi.mock('@/utils/omit', () => import('../utils/omit'))
 
@@ -351,7 +347,11 @@ describe('bounded upload retries', () => {
     await vi.advanceTimersByTimeAsync(60_000)
     expect(mocks.finalizeFileUpload).toHaveBeenCalledOnce()
     expect(currentRecording().uploadAttemptCount).toBe(2)
-    expect(currentRecording().uploadingStatus).toBe('uploading')
+    expect(currentRecording()).toMatchObject({
+      uploadingStatus: 'to_upload',
+      fileId: 'old-file',
+      uploadId: 'old-upload',
+    })
     expect(mocks.clearUpload).not.toHaveBeenCalled()
   })
 
@@ -371,14 +371,14 @@ describe('bounded upload retries', () => {
     }
   )
 
-  it('retains audio and blocks safely when native cleanup fails', async () => {
+  it('starts over with a new backend file even when native cleanup fails', async () => {
     mocks.clearUpload.mockRejectedValue(new Error('Native cleanup failed'))
+    mocks.createFile.mockResolvedValue({ id: 'new-file' })
     useRecordingsStore.setState({ recordings: [recording] })
     setBypassWifiOnly(true)
-    await vi.advanceTimersByTimeAsync(60_000)
-    expect(mocks.clearUpload).toHaveBeenCalledOnce()
-    expect(currentRecording().uploadingStatus).toBe('blocked')
-    expect(mocks.createFile).not.toHaveBeenCalled()
-    expect(mocks.deleteLocalRecordingFile).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(mocks.clearUpload).toHaveBeenCalledExactlyOnceWith('old-upload')
+    expect(mocks.createFile).toHaveBeenCalledOnce()
+    expect(useRecordingsStore.getState().recordings).toEqual([])
   })
 })
