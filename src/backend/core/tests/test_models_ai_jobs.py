@@ -79,17 +79,11 @@ def test_models_ai_job_to_markdown_transcript_formats_whisperx_response():
         ai_job.to_markdown("fr")
         == """# Transcript
 
-**00:00 · Participant 1**
-Hello.
-How are you?
+**00:00 · Participant 1** Hello. How are you?
 
-**00:02 · Participant 2**
-Fine, thanks.
-And you?
+**00:02 · Participant 2** Fine, thanks. And you?
 
-**00:04 · Participant 1**
-Great.
-"""
+**00:04 · Participant 1** Great."""
     )
 
 

@@ -30,6 +30,8 @@ from core.webhook_models import WhisperXResponse
 
 logger = logging.getLogger(__name__)
 
+MAX_TRANSCRIPT_PARAGRAPH_DURATION = 60
+
 _s3_client_cache_lock = Lock()
 
 
@@ -309,32 +311,42 @@ def format_transcript_for_markdown(
     transcript: WhisperXResponse, language: str = "en"
 ) -> str:
     """
-    Format a transcript from whisperX to markdown.
+    Format WhisperX segments with the same paragraph grouping as the clients.
+
+    Merge consecutive segments from the same speaker while the paragraph spans
+    at most 60 seconds. Keep individual segments intact, even when longer.
     """
     # A bit hacky i18n handling
     is_french = language.lower().startswith("fr")
     speaker_label = "Participant" if is_french else "Speaker"
-    out_str = "# Transcript\n"
+    paragraphs = []
+    for chunk in transcript.segments:
+        if paragraphs:
+            first_chunk = paragraphs[-1][0]
+            paragraph_start = first_chunk.start if first_chunk.start is not None else 0
+            chunk_end = chunk.end if chunk.end is not None else chunk.start
+            chunk_end = chunk_end if chunk_end is not None else 0
+            if (
+                chunk.speaker == first_chunk.speaker
+                and chunk_end - paragraph_start <= MAX_TRANSCRIPT_PARAGRAPH_DURATION
+            ):
+                paragraphs[-1].append(chunk)
+                continue
+        paragraphs.append([chunk])
 
     speaker_number_by_id = {}
-
-    last_speaker_number = None
-    for chunk in transcript.segments:
-        speaker = chunk.speaker
+    blocks = ["# Transcript"]
+    for paragraph in paragraphs:
+        first_chunk = paragraph[0]
+        speaker = first_chunk.speaker
         if speaker not in speaker_number_by_id:
             speaker_number_by_id[speaker] = len(speaker_number_by_id) + 1
-
         speaker_number = speaker_number_by_id[speaker]
-        if speaker_number != last_speaker_number:
-            out_str += "\n**"
-            if chunk.start is not None:
-                out_str += format_duration(chunk.start) + " · "
-                out_str += speaker_label + f" {speaker_number}**\n"
-            last_speaker_number = speaker_number
+        timestamp = format_duration(max(0, first_chunk.start or 0))
+        text = " ".join(chunk.text.strip() for chunk in paragraph)
+        blocks.append(f"**{timestamp} · {speaker_label} {speaker_number}** {text}")
 
-        out_str += f"{chunk.text}\n"
-
-    return out_str
+    return "\n\n".join(blocks).strip()
 
 
 def update_url_query_params(url: str, query_parameters: dict[str, list[str]]) -> str:
