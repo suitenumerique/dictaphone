@@ -55,7 +55,10 @@ export const clearRateLimit = (scope: RateLimitScope) =>
 export const clearRateLimits = () =>
   useRateLimits.setState({ cooldowns: {}, hits: {} })
 
-/** Uploads stay paused until the user resumes them, even once the cooldown expires. */
+/**
+ * Uploads stay paused until `cooldowns.upload` is cleared: by the upload manager
+ * once Retry-After expires, or by the user when the server gave no Retry-After.
+ */
 export const areUploadsPaused = () =>
   useRateLimits.getState().cooldowns.upload !== undefined
 export const useUploadsPaused = () =>

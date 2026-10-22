@@ -253,7 +253,7 @@
     "title": "Too many requests. Please wait.",
     "tryLater": "Please try again later.",
     "retryAt": "You can try again after {{time}}.",
-    "uploadsPaused": "Recordings are saved on this device. Resume uploads when available.",
+    "uploadsPaused": "Recordings are saved on this device and will be uploaded later.",
     "resumeUploads": "Resume uploads",
     "retry": "Try again",
     "uploadsPausedShort": "Uploads paused"

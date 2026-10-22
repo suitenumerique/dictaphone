@@ -253,7 +253,7 @@
     "title": "Trop de requêtes. Veuillez patienter.",
     "tryLater": "Veuillez réessayer plus tard.",
     "retryAt": "Vous pourrez réessayer après {{time}}.",
-    "uploadsPaused": "Vos enregistrements restent sur cet appareil. Reprenez les envois dès que possible.",
+    "uploadsPaused": "Vos enregistrements restent sur cet appareil et seront envoyés plus tard.",
     "resumeUploads": "Reprendre les envois",
     "retry": "Réessayer",
     "uploadsPausedShort": "Envois en pause"

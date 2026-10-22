@@ -2,6 +2,7 @@ import {
   areUploadsPaused,
   clearRateLimit,
   isRateLimitError,
+  useRateLimits,
 } from '@/api/rateLimits'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { create } from 'zustand'
@@ -343,7 +344,7 @@ const triggerUpload = async (): Promise<void> => {
   }
 }
 
-/** Called only by an explicit user action after the upload cooldown. */
+/** Resumes uploads once the cooldown expires, or on user action without Retry-After. */
 export const resumeRateLimitedUploads = () => {
   clearRateLimit('upload')
   triggerUpload().catch(console.error)
@@ -401,6 +402,19 @@ export const startRecordingsUploadManager = () => {
 
   NetInfo.addEventListener(() => {
     triggerUpload().catch(console.error)
+  })
+
+  let uploadResumeTimer: ReturnType<typeof setTimeout> | undefined
+  useRateLimits.subscribe(({ cooldowns }, previous) => {
+    const retryAt = cooldowns.upload
+    if (retryAt === previous.cooldowns.upload) return
+    clearTimeout(uploadResumeTimer)
+    // Without Retry-After, uploads stay paused until the user resumes them.
+    if (retryAt == null) return
+    uploadResumeTimer = setTimeout(
+      resumeRateLimitedUploads,
+      Math.min(Math.max(0, retryAt - Date.now()), 2_147_483_647)
+    )
   })
 
   triggerUpload().catch(console.error)

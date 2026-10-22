@@ -170,3 +170,30 @@ describe('rate-limited uploads', () => {
     )
   })
 })
+
+describe('rate-limit auto resume', () => {
+  it('resumes uploads by itself once Retry-After expires', async () => {
+    startRecordingsUploadManager()
+    mocks.createFile.mockImplementationOnce(async () => {
+      recordRateLimit('upload', Date.now() + 50)
+      throw new ApiError(429, {}, Date.now() + 50)
+    })
+    mocks.createFile.mockResolvedValue({ id: 'created' })
+    useRecordingsStore.getState().addRecording(recording('auto'))
+    await vi.waitFor(() => expect(areUploadsPaused()).toBe(true))
+    await vi.waitFor(() =>
+      expect(useRecordingsStore.getState().recordings).toEqual([])
+    )
+    expect(areUploadsPaused()).toBe(false)
+    expect(mocks.createFile).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for the user when the server gives no Retry-After', async () => {
+    startRecordingsUploadManager()
+    recordRateLimit('upload', null)
+    useRecordingsStore.getState().addRecording(recording('manual'))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(areUploadsPaused()).toBe(true)
+    expect(mocks.createFile).not.toHaveBeenCalled()
+  })
+})

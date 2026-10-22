@@ -16,19 +16,19 @@ export function UploadRateLimitAlert() {
     <View style={styles.container} accessibilityRole="alert">
       <AppText variant="bodyBold">{t('rateLimits.uploadsPausedShort')}</AppText>
       <AppText>{t('rateLimits.uploadsPaused')}</AppText>
-      {isBlocked && (
+      {/* With a Retry-After, the upload manager resumes uploads on its own. */}
+      {isBlocked ? (
         <AppText>{formatRateLimitMessage(t, retryAt ?? null)}</AppText>
+      ) : (
+        <Pressable
+          onPress={resumeRateLimitedUploads}
+          accessibilityRole="button"
+        >
+          <AppText color={colors.primary}>
+            {t('rateLimits.resumeUploads')}
+          </AppText>
+        </Pressable>
       )}
-      <Pressable
-        disabled={isBlocked}
-        onPress={resumeRateLimitedUploads}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isBlocked }}
-      >
-        <AppText color={isBlocked ? colors.neutralTertiary : colors.primary}>
-          {t('rateLimits.resumeUploads')}
-        </AppText>
-      </Pressable>
     </View>
   )
 }
