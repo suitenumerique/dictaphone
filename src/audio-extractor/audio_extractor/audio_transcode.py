@@ -46,7 +46,9 @@ def _convert(
         "-application",  # Tune Opus for the intended workload.
         "audio",  # Use the full-quality audio application mode.
         "-af",  # Rebuild timestamps from decoded audio samples.
-        "asetpts=N/SR/TB",  # Prevent non-monotonic timestamps in the OGG muxer.
+        # Prevent non-monotonic timestamps in the OGG muxer.
+        # Use integer sample timestamps without rounding.
+        "asettb=1/sr,asetpts=N",
         "-ar",  # Set the output sample rate.
         str(output_sample_rate),  # Use the configured sample rate.
         "-f",  # Force a stable output container.

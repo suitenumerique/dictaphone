@@ -34,6 +34,22 @@ def test_converted_fixture_passes_independent_opus_validation(tmp_path):
     _validate_opus(output, 60)
 
 
+@pytest.mark.parametrize("output_sample_rate", [8000, 12000, 16000, 24000, 48000])
+def test_16khz_mp3_timestamps_pass_validation(tmp_path, output_sample_rate):
+    """Sample timestamps stay exact beyond the first granule rounding failure."""
+    sample = Path(__file__).parent / "assets/audio-sample-16khz.mp3"
+    source = tmp_path / "repeated.mp3"
+    # Silent original frames from 16:55.524 to 16:57.540 (peak below -78 dBFS).
+    # Repeat ~2 seconds of raw MP3 frames to reach the failure at ~31 seconds.
+    source.write_bytes(sample.read_bytes() * 21)
+    output = tmp_path / "audio.ogg"
+
+    duration = _convert(source, output, 60, output_sample_rate=output_sample_rate)
+
+    assert duration == pytest.approx(42.336, abs=0.02)
+    _validate_opus(output, 60)
+
+
 def test_non_audio_file_reports_actual_opusinfo_output():
     """Validating Python source preserves opusinfo's actual diagnostics."""
     source = Path(__file__)
