@@ -74,7 +74,7 @@ export const useConfigStore = create<ConfigStore>()(
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
       partialize: (state) => omit(state, ['hasHydrated']),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: (initialState) => (state) => {
         if (state) {
           const parsed = apiConfigSchema.safeParse(state.config)
           state.config = parsed.success ? parsed.data : null
@@ -83,7 +83,8 @@ export const useConfigStore = create<ConfigStore>()(
             DEFAULT_MAX_RECORDING_DURATION_SECONDS
           state.hasHydrated = true
         } else {
-          useConfigStore.setState({ hasHydrated: true })
+          // Safe during construction; do not overwrite unread persisted data.
+          initialState.hasHydrated = true
         }
       },
     }

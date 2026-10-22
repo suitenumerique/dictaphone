@@ -38,13 +38,14 @@ export const useUserStore = create<UserStore>()(
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
       partialize: (state) => omit(state, ['hasHydrated', 'authExpired']),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: (initialState) => (state) => {
         if (state) {
           const parsed = apiUserSchema.safeParse(state.user)
           state.user = parsed.success ? parsed.data : null
           state.hasHydrated = true
         } else {
-          useUserStore.setState({ hasHydrated: true })
+          // Safe during construction; do not overwrite unread persisted data.
+          initialState.hasHydrated = true
         }
       },
     }

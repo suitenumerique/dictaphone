@@ -496,19 +496,26 @@ export const useRecordingsStore = create<RecordingsStore>()(
           'missingFilesPending',
           'recoverFilesStatus',
         ]),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          const parsed = recordingListSchema.safeParse(state.recordings)
-          const recordings = parsed.success
+      // MMKV hydrates during create(), before useRecordingsStore is assigned.
+      // Normalize in merge so even the first published state is ready to use.
+      merge: (persistedState, currentState) => {
+        const mergedState = {
+          ...currentState,
+          ...(persistedState as Partial<RecordingsStore>),
+        }
+        const parsed = recordingListSchema.safeParse(mergedState.recordings)
+        return {
+          ...mergedState,
+          recordings: parsed.success
             ? parsed.data.map(restoreUploadAfterRestart)
-            : []
-          useRecordingsStore.setState({
-            recordings,
-            recoverFilesStatus: { status: 'to_run' },
-            hasHydrated: true,
-          })
-
-          removeMissingLocalRecordingsAfterHydration(recordings).catch(
+            : [],
+          recoverFilesStatus: { status: 'to_run' },
+          hasHydrated: true,
+        }
+      },
+      onRehydrateStorage: (initialState) => (state) => {
+        if (state) {
+          removeMissingLocalRecordingsAfterHydration(state.recordings).catch(
             (error) => {
               console.error(
                 'Failed to cleanup missing local recordings after rehydration:',
@@ -517,7 +524,9 @@ export const useRecordingsStore = create<RecordingsStore>()(
             }
           )
         } else {
-          useRecordingsStore.setState({ hasHydrated: true })
+          // No store API during construction, and no write of empty defaults
+          // over saved recordings when storage could not be read.
+          initialState.hasHydrated = true
         }
       },
     }
@@ -543,7 +552,7 @@ export const useSettingsStore = create<SettingsStore>()(
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
       partialize: (state) => omit(state, ['hasHydrated']),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: (initialState) => (state) => {
         if (state) {
           const parsed = appSettingsSchema.safeParse(state.settings)
           state.settings = parsed.success ? parsed.data : { ...defaultSettings }
@@ -553,7 +562,8 @@ export const useSettingsStore = create<SettingsStore>()(
           state.androidBatteryWarningShown =
             state.androidBatteryWarningShown ?? false
         } else {
-          useSettingsStore.setState({ hasHydrated: true })
+          // Mark the initial state without overwriting unread persisted data.
+          initialState.hasHydrated = true
         }
       },
     }
