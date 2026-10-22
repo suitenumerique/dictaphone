@@ -371,6 +371,17 @@ export const unblockUploads = (
   triggerUpload().catch(console.error)
 }
 
+/** Lets the user discard a recording the server keeps rejecting. */
+export const deleteBlockedRecording = async (recordingId: string) => {
+  const { recordings, deleteRecording } = useRecordingsStore.getState()
+  const recording = recordings.find((item) => item.id === recordingId)
+  if (recording?.uploadingStatus !== 'blocked') return
+  if (recording.uploadId) {
+    await clearUpload(recording.uploadId).catch(console.error)
+  }
+  await deleteRecording(recordingId)
+}
+
 export const setBypassWifiOnly = (value: boolean) => {
   useUploadStore.getState().setBypassWifiOnly(value)
   if (value) {

@@ -138,6 +138,9 @@
     },
     "menu": {
       "retryUpload": "Réessayer l’envoi",
+      "deleteLocal": "Supprimer",
+      "deleteLocalTitle": "Supprimer cet enregistrement ?",
+      "deleteLocalMessage": "Cet enregistrement n’a jamais été envoyé. Il sera définitivement supprimé de cet appareil. Partagez-le d’abord pour en garder une copie.",
       "rename": "Renommer",
       "retry": "Changer la langue",
       "share": "Partager le fichier audio",

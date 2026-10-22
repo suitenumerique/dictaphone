@@ -138,6 +138,9 @@
     },
     "menu": {
       "retryUpload": "Retry upload",
+      "deleteLocal": "Delete",
+      "deleteLocalTitle": "Delete this recording?",
+      "deleteLocalMessage": "This recording was never uploaded. It will be permanently deleted from this device. Share it first to keep a copy.",
       "rename": "Rename",
       "retry": "Change language",
       "share": "Share audio file",

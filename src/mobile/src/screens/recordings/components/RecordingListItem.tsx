@@ -46,7 +46,10 @@ import { colors } from '@/components/colors'
 import { useTranslation } from 'react-i18next'
 import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
-import { retryRecordingUpload } from '@/services/storage'
+import {
+  deleteBlockedRecording,
+  retryRecordingUpload,
+} from '@/services/storage'
 import { shareLocalRecording } from '@/utils/shareLocalRecording'
 import useFormattedProcessingDuration from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 
@@ -483,6 +486,23 @@ export function RecordingListItem({
     }
   }, [isShareableLocalRecording, isSharingLocalFile, item, t])
 
+  const handleDeleteBlockedRecording = useCallback(() => {
+    Alert.alert(
+      t('recordings.menu.deleteLocalTitle'),
+      t('recordings.menu.deleteLocalMessage'),
+      [
+        { style: 'cancel', text: t('recordings.deleteCancel') },
+        {
+          style: 'destructive',
+          text: t('recordings.deleteConfirm'),
+          onPress: () => {
+            deleteBlockedRecording(item.id).catch(console.error)
+          },
+        },
+      ]
+    )
+  }, [item.id, t])
+
   const card = (
     <Pressable
       style={({ pressed }) => [
@@ -528,22 +548,40 @@ export function RecordingListItem({
                 )}
               </AppText>
               {item.kind === 'local' && item.uploadingStatus === 'blocked' && (
-                <Pressable
-                  onPress={() => retryRecordingUpload(item.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('recordings.menu.retryUpload')}
-                  style={({ pressed }) => [
-                    styles.retryUploadAction,
-                    pressed && styles.shareActionPressed,
-                  ]}
-                >
-                  <Lucide
-                    name="refresh-cw"
-                    size={20}
-                    color={colors.textPrimary}
-                  />
-                  <AppText>{t('recordings.menu.retryUpload')}</AppText>
-                </Pressable>
+                <View style={styles.blockedUploadActions}>
+                  <Pressable
+                    onPress={() => retryRecordingUpload(item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('recordings.menu.retryUpload')}
+                    style={({ pressed }) => [
+                      styles.retryUploadAction,
+                      pressed && styles.shareActionPressed,
+                    ]}
+                  >
+                    <Lucide
+                      name="refresh-cw"
+                      size={20}
+                      color={colors.textPrimary}
+                    />
+                    <AppText>{t('recordings.menu.retryUpload')}</AppText>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleDeleteBlockedRecording}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('recordings.menu.deleteLocal')}
+                    style={({ pressed }) => [
+                      styles.retryUploadAction,
+                      pressed && styles.shareActionPressed,
+                    ]}
+                  >
+                    <Lucide
+                      name="trash-2"
+                      size={20}
+                      color={colors.errorSecondary}
+                    />
+                    <AppText>{t('recordings.menu.deleteLocal')}</AppText>
+                  </Pressable>
+                </View>
               )}
               {item.kind === 'local' &&
                 uploadBlockReason !== 'rateLimited' &&
@@ -647,15 +685,19 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginLeft: 8,
   },
+  blockedUploadActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
   retryUploadAction: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,
     minHeight: 44,
     borderRadius: 8,
-    marginTop: 6,
     backgroundColor: colors.backgroundSubtle,
   },
   shareAction: {

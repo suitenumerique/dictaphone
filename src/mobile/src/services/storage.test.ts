@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   finalizeFileUpload: vi.fn(),
   getUploadStatuses: vi.fn(),
   markUploadFinalized: vi.fn(),
+  clearUpload: vi.fn(),
   nativeEvents: [] as ((state: { isConnected: boolean }) => void)[],
   storage: new Map<string, string>(),
 }))
@@ -61,7 +62,7 @@ vi.mock('react-native-uuid', () => ({ default: { v4: () => 'id' } }))
 vi.mock('@/utils/fileUpload', () => ({
   getUploadStatuses: mocks.getUploadStatuses,
   markUploadFinalized: mocks.markUploadFinalized,
-  clearUpload: vi.fn(),
+  clearUpload: mocks.clearUpload,
   resumeUpload: vi.fn(),
   waitForUpload: vi.fn(),
   requestUploadNotificationPermission: vi.fn(),
@@ -69,6 +70,7 @@ vi.mock('@/utils/fileUpload', () => ({
 }))
 
 import {
+  deleteBlockedRecording,
   resumeRateLimitedUploads,
   startRecordingsUploadManager,
   useRecordingsStore,
@@ -100,6 +102,7 @@ beforeEach(() => {
   })
   mocks.getUploadStatuses.mockResolvedValue([])
   mocks.markUploadFinalized.mockResolvedValue(undefined)
+  mocks.clearUpload.mockResolvedValue(undefined)
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -228,5 +231,20 @@ describe('blocked uploads recovery', () => {
     expect(useRecordingsStore.getState().recordings[0].uploadingStatus).toBe(
       'blocked'
     )
+  })
+
+  it('lets the user delete a blocked recording and its native upload', async () => {
+    useRecordingsStore.setState({
+      recordings: [{ ...blocked('bad', 'validation'), uploadId: 'native' }],
+    })
+    await deleteBlockedRecording('bad')
+    expect(mocks.clearUpload).toHaveBeenCalledExactlyOnceWith('native')
+    expect(useRecordingsStore.getState().recordings).toEqual([])
+  })
+
+  it('does not delete a recording that is not blocked', async () => {
+    useRecordingsStore.setState({ recordings: [recording('queued')] })
+    await deleteBlockedRecording('queued')
+    expect(useRecordingsStore.getState().recordings).toHaveLength(1)
   })
 })
