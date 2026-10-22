@@ -46,6 +46,7 @@ import { colors } from '@/components/colors'
 import { useTranslation } from 'react-i18next'
 import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
+import { retryRecordingUpload } from '@/services/storage'
 import { shareLocalRecording } from '@/utils/shareLocalRecording'
 import useFormattedProcessingDuration from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
 
@@ -75,6 +76,7 @@ function StatusIndicator({ item, uploadBlockReason }: StatusIndicatorProps) {
   }
   if (item.kind === 'local') {
     if (uploadBlockReason === 'rateLimited') return <PauseIcon />
+    if (item.uploadingStatus === 'blocked') return <WarningIcon />
     if (uploadBlockReason === 'not-logged-in') {
       return <Lucide name="user-round-x" size={16} />
     }
@@ -134,6 +136,9 @@ function formatRecordMeta(
   if (recording.kind === 'local') {
     if (uploadBlockReason === 'rateLimited')
       return `${durationLabel} • ${t('rateLimits.uploadsPausedShort')}`
+    if (recording.uploadingStatus === 'blocked') {
+      return `${durationLabel} • ${t(`recordings.meta.uploadBlocked.${recording.uploadBlockedReason ?? 'transient'}`)}`
+    }
     if (uploadBlockReason === 'wifiOnly') {
       return `${durationLabel} • ${t('recordings.wifiOnlySync')}`
     }
@@ -403,7 +408,9 @@ export function RecordingListItem({
       remoteTranscriptJob?.status === 'failed')
   const isShareableLocalRecording =
     item.kind === 'local' &&
-    (item.uploadingStatus === 'failed' || item.uploadingStatus === 'to_upload')
+    (item.uploadingStatus === 'failed' ||
+      item.uploadingStatus === 'blocked' ||
+      item.uploadingStatus === 'to_upload')
 
   const formattedProcessingDuration = useFormattedProcessingDuration(
     item.kind === 'remote' ? item : null
@@ -504,7 +511,15 @@ export function RecordingListItem({
               >
                 {item.title}
               </AppText>
-              <AppText variant="muted" size="md" numberOfLines={1}>
+              <AppText
+                variant="muted"
+                size="md"
+                numberOfLines={
+                  item.kind === 'local' && item.uploadingStatus === 'blocked'
+                    ? undefined
+                    : 1
+                }
+              >
                 {formatRecordMeta(
                   item,
                   t,
@@ -512,6 +527,24 @@ export function RecordingListItem({
                   formattedProcessingDuration
                 )}
               </AppText>
+              {item.kind === 'local' && item.uploadingStatus === 'blocked' && (
+                <Pressable
+                  onPress={() => retryRecordingUpload(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('recordings.menu.retryUpload')}
+                  style={({ pressed }) => [
+                    styles.retryUploadAction,
+                    pressed && styles.shareActionPressed,
+                  ]}
+                >
+                  <Lucide
+                    name="refresh-cw"
+                    size={20}
+                    color={colors.textPrimary}
+                  />
+                  <AppText>{t('recordings.menu.retryUpload')}</AppText>
+                </Pressable>
+              )}
               {item.kind === 'local' &&
                 uploadBlockReason !== 'rateLimited' &&
                 item.uploadingStatus === 'uploading' && (
@@ -613,6 +646,17 @@ const styles = StyleSheet.create({
     width: 48,
     alignSelf: 'stretch',
     marginLeft: 8,
+  },
+  retryUploadAction: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    minHeight: 44,
+    borderRadius: 8,
+    marginTop: 6,
+    backgroundColor: colors.backgroundSubtle,
   },
   shareAction: {
     flex: 1,

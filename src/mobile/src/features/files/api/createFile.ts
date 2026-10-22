@@ -11,6 +11,7 @@ import { type TTranscriptionLanguage } from '@/features/ai-jobs/api/types'
 import { ApiError } from '@/api/ApiError'
 import { queryClient } from '@/api/queryClient'
 import { uploadLimitQueryKey } from './uploadLimit'
+import { UploadFinalizationNotFoundError } from '@/api/UploadFinalizationNotFoundError'
 
 type FileSource = {
   name: string
@@ -34,6 +35,9 @@ export const finalizeFileUpload = async (
     void queryClient.invalidateQueries({ queryKey: uploadLimitQueryKey })
     return file
   } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 404) {
+      throw new UploadFinalizationNotFoundError(error.body, error.request)
+    }
     // The request can time out after the backend has already finalized the
     // file. Reconcile that case instead of treating it as a failed upload.
     if (error instanceof ApiError && error.statusCode === 400) {

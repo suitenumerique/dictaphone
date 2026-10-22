@@ -119,6 +119,12 @@
       "description": "Please wait while your transcript is added to Docs."
     },
     "meta": {
+      "uploadBlocked": {
+        "transient": "Upload stopped after repeated failures. Retry to continue.",
+        "authentication": "Sign in to retry this upload.",
+        "permission": "Upload not allowed. Check your access or available file quota.",
+        "validation": "Upload rejected. Check the file type and size."
+      },
       "loginToSync": "Login to sync",
       "offline": "Will sync when online",
       "processing": "Processing",
@@ -131,6 +137,7 @@
       "audioExtractionFailed": "Invalid audio file"
     },
     "menu": {
+      "retryUpload": "Retry upload",
       "rename": "Rename",
       "retry": "Change language",
       "share": "Share audio file",

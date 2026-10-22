@@ -17,6 +17,24 @@ const createRecording = (
 })
 
 describe('selectRecordingToUpload', () => {
+  it('skips blocked checkpoints and delayed retries while other uploads are queued', () => {
+    const blocked = createRecording('blocked', {
+      fileId: 'blocked-file',
+      uploadId: 'blocked-upload',
+      uploadingStatus: 'blocked',
+    })
+    const delayed = createRecording('delayed', {
+      fileId: 'delayed-file',
+      uploadId: 'delayed-upload',
+      uploadRetryAt: 2000,
+    })
+    const fresh = createRecording('fresh')
+    expect(selectRecordingToUpload([blocked, delayed], 1000)).toBeNull()
+    expect(selectRecordingToUpload([blocked, delayed, fresh], 1000)).toBe(fresh)
+    expect(selectRecordingToUpload([blocked, delayed, fresh], 2000)).toBe(
+      delayed
+    )
+  })
   it('does not automatically resume a failed checkpoint', () => {
     const failed = createRecording('failed', {
       fileId: 'file-failed',

@@ -7,6 +7,7 @@ export const uploadingStatusSchema = z.enum([
   'to_upload',
   'uploading',
   'failed',
+  'blocked',
 ])
 
 export const recordingSchema = z.object({
@@ -22,6 +23,11 @@ export const recordingSchema = z.object({
   mimeType: z.string().optional(),
   uploadId: z.string().optional(),
   fileId: z.string().optional(),
+  uploadAttemptCount: z.number().int().nonnegative().optional(),
+  uploadRetryAt: z.number().optional(),
+  uploadBlockedReason: z
+    .enum(['transient', 'authentication', 'permission', 'validation'])
+    .optional(),
   uploadProgress: z
     .object({
       uploadedBytes: z.number().nonnegative(),

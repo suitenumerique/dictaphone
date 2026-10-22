@@ -119,6 +119,12 @@
       "description": "Veuillez patienter pendant l'ajout de votre transcription dans Docs."
     },
     "meta": {
+      "uploadBlocked": {
+        "transient": "Envoi arrêté après plusieurs échecs. Réessayez pour continuer.",
+        "authentication": "Connectez-vous pour réessayer l’envoi.",
+        "permission": "Envoi non autorisé. Vérifiez vos droits ou le quota de fichiers disponible.",
+        "validation": "Envoi refusé. Vérifiez le format et la taille du fichier."
+      },
       "loginToSync": "Se connecter pour synchroniser",
       "offline": "Synchronisera une fois en ligne",
       "processing": "Traitement en cours",
@@ -131,6 +137,7 @@
       "audioExtractionFailed": "Fichier audio invalide"
     },
     "menu": {
+      "retryUpload": "Réessayer l’envoi",
       "rename": "Renommer",
       "retry": "Changer la langue",
       "share": "Partager le fichier audio",

@@ -41,8 +41,13 @@ import {
   waitForUpload,
 } from '@/utils/fileUpload'
 import { selectRecordingToUpload } from '@/services/uploadSelection'
-import { statusAfterUploadError } from '@/services/uploadReconciliation'
-import type { NativeUploadStatus } from '@/utils/fileUpload'
+import {
+  resetUploadRetry,
+  restoreUploadAfterRestart,
+  uploadFailureUpdate,
+} from './uploadRetry'
+import { UploadFinalizationNotFoundError } from '@/api/UploadFinalizationNotFoundError'
+import { hasFinishedNativeUpload } from './uploadReconciliation'
 
 const defaultSettings: AppSettings = {
   language: 'en',
@@ -153,6 +158,29 @@ const checkCanUpload = async (): Promise<boolean> => {
 }
 
 let isUploadInProgress = false
+let uploadRetryTimer: ReturnType<typeof setTimeout> | undefined
+
+const scheduleUploadRetry = () => {
+  clearTimeout(uploadRetryTimer)
+  uploadRetryTimer = undefined
+  if (areUploadsPaused()) return
+  const retryTimes = useRecordingsStore
+    .getState()
+    .recordings.filter(
+      (recording) =>
+        recording.uploadingStatus === 'to_upload' &&
+        recording.uploadRetryAt !== undefined
+    )
+    .map((recording) => recording.uploadRetryAt!)
+  if (retryTimes.length > 0) {
+    uploadRetryTimer = setTimeout(
+      () => {
+        triggerUpload().catch(console.error)
+      },
+      Math.max(0, Math.min(...retryTimes) - Date.now())
+    )
+  }
+}
 
 const triggerUpload = async (): Promise<void> => {
   if (isUploadInProgress || areUploadsPaused()) {
@@ -180,27 +208,32 @@ const triggerUpload = async (): Promise<void> => {
 
   if (!recordingToUpload) {
     // reset bypass wifiOnly
-    setBypassWifiOnly(false)
+    if (
+      !recordings.some((recording) => recording.uploadingStatus === 'to_upload')
+    ) {
+      setBypassWifiOnly(false)
+    }
     isUploadInProgress = false
+    scheduleUploadRetry()
     return
   }
-  const isRetryRequested = recordingToUpload.uploadingStatus === 'to_upload'
   let uploadIdForRecording = recordingToUpload.uploadId
-  let nativeStatusAtFailure: NativeUploadStatus | undefined
-  let waitForUploadCompleted = false
   let shouldTriggerNextUpload = false
-  updateRecording(recordingToUpload.id, { uploadingStatus: 'uploading' })
+  updateRecording(recordingToUpload.id, {
+    uploadingStatus: 'uploading',
+    uploadRetryAt: undefined,
+  })
 
   try {
     if (recordingToUpload.uploadId && recordingToUpload.fileId) {
       const nativeStatus = (await getUploadStatuses()).find(
         (status) => status.uploadId === recordingToUpload.uploadId
       )
-      nativeStatusAtFailure = nativeStatus
 
       if (!nativeStatus) {
         updateRecording(recordingToUpload.id, {
           uploadId: undefined,
+          fileId: undefined,
           uploadProgress: undefined,
           uploadingStatus: 'to_upload' as const,
         })
@@ -209,20 +242,14 @@ const triggerUpload = async (): Promise<void> => {
       }
 
       if (nativeStatus.status === 'failed') {
-        if (isRetryRequested) {
-          await clearUpload(recordingToUpload.uploadId)
-          updateRecording(recordingToUpload.id, {
-            uploadId: undefined,
-            uploadProgress: undefined,
-            uploadingStatus: 'to_upload' as const,
-          })
-          shouldTriggerNextUpload = true
-        } else {
-          updateRecording(recordingToUpload.id, {
-            uploadingStatus: 'failed',
-            uploadProgress: undefined,
-          })
-        }
+        await clearUpload(recordingToUpload.uploadId)
+        updateRecording(recordingToUpload.id, {
+          uploadId: undefined,
+          fileId: undefined,
+          uploadProgress: undefined,
+          uploadingStatus: 'to_upload',
+        })
+        shouldTriggerNextUpload = true
         return
       }
 
@@ -247,7 +274,6 @@ const triggerUpload = async (): Promise<void> => {
           settings.wifiOnlyUpload && !bypassWifiOnly
         )
         await waitForUpload(recordingToUpload.uploadId)
-        waitForUploadCompleted = true
       }
 
       await finalizeFileUpload(recordingToUpload.fileId)
@@ -293,26 +319,41 @@ const triggerUpload = async (): Promise<void> => {
     })
   } catch (error) {
     console.error('Error creating file:', error)
-    if (uploadIdForRecording) {
-      const currentNativeStatus = (
-        await getUploadStatuses().catch(() => [])
-      ).find((status) => status.uploadId === uploadIdForRecording)
-      if (currentNativeStatus) {
-        nativeStatusAtFailure = currentNativeStatus
+    let failureUpdate = uploadFailureUpdate(recordingToUpload, error)
+    if (isRateLimitError(error) && uploadIdForRecording) {
+      const nativeStatus = (await getUploadStatuses().catch(() => [])).find(
+        (status) => status.uploadId === uploadIdForRecording
+      )
+      if (hasFinishedNativeUpload(nativeStatus)) {
+        failureUpdate.uploadingStatus = 'uploading'
       }
     }
-    const status = statusAfterUploadError(
-      nativeStatusAtFailure,
-      waitForUploadCompleted,
-      error
-    )
-    updateRecording(recordingToUpload.id, {
-      // Rate-limited uploads go back to the queue, which is paused until the user resumes.
-      uploadingStatus:
-        status === 'failed' && isRateLimitError(error) ? 'to_upload' : status,
-    })
+    if (
+      error instanceof UploadFinalizationNotFoundError &&
+      uploadIdForRecording
+    ) {
+      try {
+        await clearUpload(uploadIdForRecording)
+        updateRecording(recordingToUpload.id, {
+          fileId: undefined,
+          uploadId: undefined,
+          uploadProgress: undefined,
+        })
+      } catch (cleanupError) {
+        console.error('Failed to clear missing backend upload:', cleanupError)
+        failureUpdate = {
+          ...failureUpdate,
+          uploadingStatus: 'blocked',
+          uploadBlockedReason: 'transient',
+          uploadRetryAt: undefined,
+        }
+      }
+    }
+    updateRecording(recordingToUpload.id, failureUpdate)
+    shouldTriggerNextUpload = !isRateLimitError(error)
   } finally {
     isUploadInProgress = false
+    scheduleUploadRetry()
     if (shouldTriggerNextUpload) {
       triggerUpload().catch(console.error)
     }
@@ -325,6 +366,11 @@ export const resumeRateLimitedUploads = () => {
   triggerUpload().catch(console.error)
 }
 
+export const retryRecordingUpload = (recordingId: string) => {
+  useRecordingsStore.getState().updateRecording(recordingId, resetUploadRetry())
+  triggerUpload().catch(console.error)
+}
+
 export const setBypassWifiOnly = (value: boolean) => {
   useUploadStore.getState().setBypassWifiOnly(value)
   if (value) {
@@ -333,11 +379,14 @@ export const setBypassWifiOnly = (value: boolean) => {
     // as queued before triggering the manager, otherwise Sync now only changes the
     // network policy and the failed item remains ineligible for selection.
     recordings
-      .filter((recording) => recording.uploadingStatus === 'failed')
+      .filter(
+        (recording) =>
+          recording.uploadingStatus === 'failed' ||
+          recording.uploadingStatus === 'blocked'
+      )
       .forEach((recording) => {
         updateRecording(recording.id, {
-          uploadingStatus: 'to_upload',
-          uploadProgress: undefined,
+          ...resetUploadRetry(),
         })
       })
     triggerUpload().catch(console.error)
@@ -423,14 +472,7 @@ export const useRecordingsStore = create<RecordingsStore>()(
         if (state) {
           const parsed = recordingListSchema.safeParse(state.recordings)
           const recordings = parsed.success
-            ? parsed.data.map((el) => ({
-                ...el,
-                uploadingStatus:
-                  el.uploadId && el.fileId
-                    ? ('uploading' as const)
-                    : ('to_upload' as const),
-                uploadProgress: undefined,
-              }))
+            ? parsed.data.map(restoreUploadAfterRestart)
             : []
           useRecordingsStore.setState({
             recordings,
@@ -496,17 +538,21 @@ export const useUploadStore = create<UploadStore>()((set) => ({
 }))
 
 useUserStore.subscribe((newState, oldState) => {
-  if (newState.user && !oldState.user) {
-    triggerUpload().catch(console.error)
-  }
-  if (!newState.authExpired && oldState.authExpired) {
+  if (
+    (newState.user && !oldState.user) ||
+    (!newState.authExpired && oldState.authExpired)
+  ) {
     const { recordings, updateRecording } = useRecordingsStore.getState()
     recordings
-      .filter((recording) => recording.uploadingStatus === 'failed')
+      .filter(
+        (recording) =>
+          recording.uploadingStatus === 'failed' ||
+          (recording.uploadingStatus === 'blocked' &&
+            recording.uploadBlockedReason === 'authentication')
+      )
       .forEach((recording) => {
         updateRecording(recording.id, {
-          uploadingStatus: 'to_upload',
-          uploadProgress: undefined,
+          ...resetUploadRetry(),
         })
       })
     triggerUpload().catch(console.error)
