@@ -67,6 +67,65 @@ ingress:
   ## @param ingress.customBackends Add custom backends to ingress
   customBackends: []
 
+## @param ingressPublic.enabled Whether to enable the public API Ingress
+## @param ingressPublic.className IngressClass to use for the Ingress
+## @param ingressPublic.host Host for the Ingress
+## @param ingressPublic.hosts Additional hosts for the Ingress
+## @param ingressPublic.paths Backend route prefixes for the Ingress
+## @param ingressPublic.annotations Annotations for the Ingress
+## @param ingressPublic.tls.enabled Whether to enable TLS for the Ingress
+## @param ingressPublic.tls.secretName Secret name for TLS config (defaults to the main ingress secret)
+## @skip ingressPublic.tls.additional
+## @extra ingressPublic.tls.additional[].secretName Secret name for additional TLS config
+## @extra ingressPublic.tls.additional[].hosts[] Hosts for additional TLS config
+ingressPublic:
+  enabled: false
+  className: null
+  host: dictaphone.example.com
+  hosts: []
+  paths:
+    - /api/
+    - /external-api/
+  # Disable response compression to mitigate BREACH (CVE-2013-3587).
+  # Requires ingress-nginx with configuration snippets allowed.
+  # Clear negotiation for Brotli without requiring its optional module to be loaded.
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      gzip off;
+      more_clear_input_headers Accept-Encoding;
+      proxy_set_header Accept-Encoding "";
+  tls:
+    secretName: null
+    enabled: true
+    additional: []
+
+## @param ingressInternal.enabled Whether to enable the internal API Ingress
+## @param ingressInternal.className IngressClass to use for the Ingress
+## @param ingressInternal.host Host for the Ingress
+## @param ingressInternal.hosts Additional hosts for the Ingress
+## @param ingressInternal.paths Backend route prefixes for the Ingress
+## @param ingressInternal.annotations Annotations for the Ingress
+## @param ingressInternal.tls.enabled Whether to enable TLS for the Ingress
+## @param ingressInternal.tls.secretName Secret name for TLS config (defaults to the main ingress secret)
+## @skip ingressInternal.tls.additional
+## @extra ingressInternal.tls.additional[].secretName Secret name for additional TLS config
+## @extra ingressInternal.tls.additional[].hosts[] Hosts for additional TLS config
+ingressInternal:
+  enabled: false
+  className: null
+  host: dictaphone.example.com
+  hosts: []
+  paths:
+    - /api/internal/
+    - /api/v1.0/files/media-auth
+    - /api/v1.0/ai-jobs/webhook
+  # Set nginx.ingress.kubernetes.io/whitelist-source-range to trusted CIDRs.
+  annotations: {}
+  tls:
+    secretName: null
+    enabled: true
+    additional: []
+
 ## @param ingressAdmin.enabled whether to enable the Ingress or not
 ## @param ingressAdmin.className IngressClass to use for the Ingress
 ## @param ingressAdmin.host Host for the Ingress

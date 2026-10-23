@@ -1,5 +1,61 @@
 # Dictaphone helm chart
 
+## API ingresses
+
+The `ingress` resource serves the frontend. Enable `ingressPublic` to route
+`/api/` and `/external-api/` to the backend, independently of frontend annotations.
+Like `ingressAdmin`, both new ingresses are disabled by default.
+
+**Upgrade:** API routes have moved out of `ingress`. Set
+`ingressPublic.enabled: true` and copy the existing API host(s), ingress class,
+TLS configuration, and any required API annotations from `ingress` to
+`ingressPublic`. The default TLS secret remains `<release-fullname>-tls`.
+The development environment already enables the public API ingress.
+
+The public ingress disables gzip and clears the incoming and upstream
+`Accept-Encoding` request header by default to mitigate BREACH (CVE-2013-3587).
+Clearing the incoming header also prevents Brotli negotiation, including when
+Brotli is enabled globally, without requiring its optional module to be loaded.
+This uses the ingress-nginx `configuration-snippet` annotation: the controller
+must allow snippet annotations and accept their risk level (see the
+[ingress-nginx controller configuration](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#allow-snippet-annotations)).
+If you replace this snippet, retain the compression directives. Other ingress
+controllers require equivalent compression settings. Compression must also
+remain disabled in any proxy/CDN serving API responses beyond this ingress.
+
+Enable `ingressInternal` to apply a shared IP allowlist to media authentication,
+AI webhook callbacks, and the audio worker routes. Use the **same host(s) and
+ingress class as the public ingress** so these more specific paths take
+precedence over `/api/`. A separate internal hostname alone does not restrict
+these routes on the public host. When the internal ingress is disabled, these
+routes remain accessible through the public API ingress.
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  host: dictaphone.example.com
+
+ingressPublic:
+  enabled: true
+  className: nginx
+  host: dictaphone.example.com
+
+ingressInternal:
+  enabled: true
+  className: nginx
+  host: dictaphone.example.com
+  annotations:
+    nginx.ingress.kubernetes.io/whitelist-source-range: "192.0.2.0/24,198.51.100.10/32"
+```
+
+Replace the example CIDRs with the source addresses the ingress controller sees
+for your media authentication subrequests, callback providers, and workers.
+Without the allowlist annotation, enabling the internal ingress does not limit
+source IPs. Its default paths are `/api/internal/`,
+`/api/v1.0/files/media-auth`, and `/api/v1.0/ai-jobs/webhook`; update
+`ingressInternal.paths` if you change the backend API version.
+
 ## Parameters
 
 ### General configuration
@@ -31,6 +87,26 @@
 | `ingress.tls.additional[].secretName`                                             | Secret name for additional TLS config                  |                                                                  |
 | `ingress.tls.additional[].hosts[]`                                                | Hosts for additional TLS config                        |                                                                  |
 | `ingress.customBackends`                                                          | Add custom backends to ingress                         | `[]`                                                             |
+| `ingressPublic.enabled` | Enable the public API ingress | `false` |
+| `ingressPublic.className` | IngressClass to use | `nil` |
+| `ingressPublic.host` | Primary hostname | `dictaphone.example.com` |
+| `ingressPublic.hosts` | Additional hostnames | `[]` |
+| `ingressPublic.paths` | Backend route prefixes | `[/api/, /external-api/]` |
+| `ingressPublic.annotations` | Ingress annotations | `NGINX snippet disabling compression` |
+| `ingressPublic.tls.enabled` | Enable TLS | `true` |
+| `ingressPublic.tls.secretName` | TLS secret (defaults to the main ingress secret) | `nil` |
+| `ingressPublic.tls.additional[].secretName` | Secret name for additional TLS config | `` |
+| `ingressPublic.tls.additional[].hosts[]` | Hosts for additional TLS config | `` |
+| `ingressInternal.enabled` | Enable the internal API ingress | `false` |
+| `ingressInternal.className` | IngressClass to use | `nil` |
+| `ingressInternal.host` | Primary hostname | `dictaphone.example.com` |
+| `ingressInternal.hosts` | Additional hostnames | `[]` |
+| `ingressInternal.paths` | Backend route prefixes | `[/api/internal/, /api/v1.0/files/media-auth, /api/v1.0/ai-jobs/webhook]` |
+| `ingressInternal.annotations` | Ingress annotations | `{}` |
+| `ingressInternal.tls.enabled` | Enable TLS | `true` |
+| `ingressInternal.tls.secretName` | TLS secret (defaults to the main ingress secret) | `nil` |
+| `ingressInternal.tls.additional[].secretName` | Secret name for additional TLS config | `` |
+| `ingressInternal.tls.additional[].hosts[]` | Hosts for additional TLS config | `` |
 | `ingressAdmin.enabled`                                                            | whether to enable the Ingress or not                   | `false`                                                          |
 | `ingressAdmin.className`                                                          | IngressClass to use for the Ingress                    | `nil`                                                            |
 | `ingressAdmin.host`                                                               | Host for the Ingress                                   | `dictaphone.example.com`                                         |
