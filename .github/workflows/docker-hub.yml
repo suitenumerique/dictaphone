@@ -25,7 +25,7 @@ jobs:
       file: Dockerfile
       target: backend-production
       docker_user: "1001:127"
-      should_push: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'integration/') }}
+      should_push: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'integration/')) }}
       trivy_scan: ${{ vars.TRIVY_SCAN_ENABLED == 'true' }}
     secrets:
       DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
@@ -41,7 +41,7 @@ jobs:
       file: src/audio-extractor/Dockerfile
       target: audio-extractor-production
       docker_user: "1001:127"
-      should_push: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'integration/') }}
+      should_push: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'integration/')) }}
       trivy_scan: ${{ vars.TRIVY_SCAN_ENABLED == 'true' }}
     secrets:
       DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
@@ -57,7 +57,7 @@ jobs:
       file: src/frontend/Dockerfile
       target: frontend-production
       docker_user: "1001:127"
-      should_push: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'integration/') }}
+      should_push: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'integration/')) }}
       trivy_scan: ${{ vars.TRIVY_SCAN_ENABLED == 'true' }}
     secrets:
       DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
@@ -73,7 +73,7 @@ jobs:
       file: docker/dinum-frontend/Dockerfile
       target: frontend-production
       docker_user: "1001:127"
-      should_push: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'integration/') }}
+      should_push: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'integration/')) }}
       trivy_scan: ${{ vars.TRIVY_SCAN_ENABLED == 'true' }}
     secrets:
       DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
