@@ -45,6 +45,7 @@ import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
 import { useTranslation } from 'react-i18next'
 import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
+import { showRetryTranscriptResult } from '@/components/showRetryTranscriptResult'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
 import {
   deleteBlockedRecording,
@@ -441,10 +442,7 @@ export function RecordingListItem({
           language,
         })
         setIsRetryModalVisible(false)
-        const failureKey = getFailureMessageKey(job)
-        Alert.alert(
-          failureKey ? t(failureKey) : t('recordings.menu.retrySuccess')
-        )
+        showRetryTranscriptResult(t, job)
       } catch (error) {
         if (isRateLimitError(error)) return
         Alert.alert(

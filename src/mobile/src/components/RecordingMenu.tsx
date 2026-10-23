@@ -1,7 +1,4 @@
-import {
-  canRetryAiJob,
-  getFailureMessageKey,
-} from '@/features/ai-jobs/utils/failurePresentation'
+import { canRetryAiJob } from '@/features/ai-jobs/utils/failurePresentation'
 import { useCooldown } from '@/api/useCooldown'
 import { isRateLimitError } from '@/api/rateLimits'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -24,6 +21,7 @@ import { useDeleteFile } from '@/features/files/api/deleteFile'
 import { usePartialUpdateFile } from '@/features/files/api/partialUpdateFile'
 import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs'
 import { RetryTranscriptModal } from '@/components/RetryTranscriptModal'
+import { showRetryTranscriptResult } from '@/components/showRetryTranscriptResult'
 import { TRANSCRIPTION_LANGUAGES } from '@/features/ai-jobs/constants'
 import { AppText } from './AppText'
 import { colors } from './colors'
@@ -69,6 +67,7 @@ export default function RecordingMenu({
     [aiJobs]
   )
   const isRetryDisabled = lastAiJobTranscript?.status === 'pending'
+  const isTranscriptFailed = lastAiJobTranscript?.status === 'failed'
   const canRetry =
     recording.lifecycle_state === 'active' &&
     Boolean(lastAiJobTranscript?.id) &&
@@ -184,10 +183,7 @@ export default function RecordingMenu({
         })
         setIsRetryModalVisible(false)
         setIsPopoverVisible(false)
-        const failureKey = getFailureMessageKey(job)
-        Alert.alert(
-          failureKey ? t(failureKey) : t('recordings.menu.retrySuccess')
-        )
+        showRetryTranscriptResult(t, job)
       } catch (error) {
         if (isRateLimitError(error)) return
         Alert.alert(
@@ -251,14 +247,22 @@ export default function RecordingMenu({
                     const availableLanguage = TRANSCRIPTION_LANGUAGES.find(
                       (language) => !disabledRetryLanguages.includes(language)
                     )
-                    setRetryLanguage(availableLanguage ?? null)
+                    setRetryLanguage(
+                      isTranscriptFailed
+                        ? lastAiJobTranscript.language
+                        : (availableLanguage ?? null)
+                    )
                     setPendingRetry(true)
                     setIsPopoverVisible(false)
                   }
                 }}
                 disabled={!canRetry || isBusy}
               >
-                <Lucide name="languages" size={15} color={colors.textPrimary} />
+                <Lucide
+                  name={isTranscriptFailed ? 'rotate-ccw' : 'languages'}
+                  size={15}
+                  color={colors.textPrimary}
+                />
                 <AppText
                   variant="body"
                   color={colors.textPrimary}
@@ -266,7 +270,9 @@ export default function RecordingMenu({
                 >
                   {isRetryDisabled
                     ? t('recordings.menu.retryPending')
-                    : t('recordings.menu.retry')}
+                    : isTranscriptFailed
+                      ? t('recordings.menu.retryFailed')
+                      : t('recordings.menu.retry')}
                 </AppText>
               </Pressable>
             )}
@@ -355,7 +361,7 @@ export default function RecordingMenu({
         </View>
       </Modal>
       <RetryTranscriptModal
-        mode="language"
+        mode={isTranscriptFailed ? 'retry' : 'language'}
         isVisible={isRetryModalVisible}
         isPending={retryWithLanguageMutation.isPending}
         selectedLanguage={retryLanguage}
