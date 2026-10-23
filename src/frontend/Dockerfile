@@ -36,7 +36,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # ---- Front-end image ----
-FROM nginxinc/nginx-unprivileged:alpine3.24 AS frontend-production
+FROM nginx/nginx-unprivileged:alpine3.24 AS frontend-production
 
 USER root
 RUN apk update && apk upgrade libssl3 \
