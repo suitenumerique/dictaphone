@@ -83,6 +83,8 @@ def test_upload_sends_acl_header_when_configured(tmp_path, http_session):
             "https://[2001:db8::1]:9443/audio/file?[redacted]",
         ),
         ("https://example.test/audio/file", "https://example.test/audio/file"),
+        ("https://user:pass@[invalid/file?token=secret", "[redacted]"),
+        ("https://user:pass@example.test：443/file?token=secret", "[redacted]"),
         (
             "https://user:pass@example.test/audio/file#fragment",
             "https://example.test/audio/file",

@@ -41,7 +41,10 @@ def test_completion_rejection_includes_response_in_logs_and_exception(
     payload = completion(id="job-123", status="failure", error="bad media")
     response = requests.Response()
     response.status_code = 409
-    response.url = f"{config.api_url}/audio-jobs/{mode}/complete"
+    response.url = (
+        f"https://user:password@api.example.test/audio-jobs/{mode}/complete"
+        "?token=secret#private"
+    )
     response._content = body.encode()
 
     with (
@@ -58,17 +61,24 @@ def test_completion_rejection_includes_response_in_logs_and_exception(
         assert "reported_status=failure" in message
         assert "response=" in message
         assert "signature=secret" not in message
+        assert "user:password" not in message
+        assert "token=secret" not in message
+        assert "#private" not in message
         if "?" not in body:
             assert body in message
         else:
             assert "https://storage.test/audio?[redacted]" in message
 
 
-def test_completion_server_error_still_retries(config, http_session):
+@pytest.mark.parametrize(
+    "body",
+    ["Upstream unavailable", "Rejected https://user:pass@[invalid?token=secret"],
+)
+def test_completion_server_error_still_retries(config, http_session, caplog, body):
     response = requests.Response()
     response.status_code = 503
     response.url = f"{config.api_url}/audio-jobs/transcoding/complete"
-    response._content = b"Upstream unavailable"
+    response._content = body.encode()
     payload = TranscodingCompletion(id="job-123", status="failure", error="bad media")
     with (
         patch.object(http_session, "post", side_effect=[response, Mock()]) as post,
@@ -77,6 +87,10 @@ def test_completion_server_error_still_retries(config, http_session):
         _post_completion(config, "audio-jobs/transcoding/complete", payload)
 
     assert post.call_count == 2
+    assert "user:pass" not in caplog.text
+    assert "token=secret" not in caplog.text
+    if "https://" in body:
+        assert "response=Rejected [redacted]" in caplog.text
 
 
 def test_transcoding_success_uploads_and_reports_duration(config, task, http_session):

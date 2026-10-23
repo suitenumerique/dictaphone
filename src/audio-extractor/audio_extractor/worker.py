@@ -121,8 +121,9 @@ def _post_completion(
         # Include the API's rejection reason in logs and the unhandled exception
         # captured by Sentry, while preserving the response for retry decisions.
         body = _redact_error_message(response.text)[:1000]
+        error = _redact_error_message(str(exc))
         message = (
-            f"{exc}; {config.mode} job {payload.id} completion "
+            f"{error}; {config.mode} job {payload.id} completion "
             f"(reported_status={payload.status}): response={body}"
         )
         LOGGER.error("%s", message)

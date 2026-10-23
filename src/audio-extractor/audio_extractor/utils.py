@@ -183,7 +183,10 @@ def _clean_work_dir(work_dir: Path) -> None:
 
 def _redact_url(url: str) -> str:
     """Remove credentials and fragments, and mark redacted queries before logging."""
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return "[redacted]"
     hostname = parts.hostname or ""
     if ":" in hostname:
         hostname = f"[{hostname}]"
