@@ -99,6 +99,9 @@ export default function RecordingDetailsScreen() {
     () => getMainAiJobs(recordingQ.data?.ai_jobs),
     [recordingQ.data?.ai_jobs]
   )
+  const isTranscriptionQuotaExceeded =
+    lastAiJobTranscript?.status === 'failed' &&
+    lastAiJobTranscript.failure_reason === 'RATE_LIMIT_TRANSCRIPTION_EXCEEDED'
 
   const openInDocs = useOpenInDocsMutation()
   const createInDocs = useCreateInDocsMutation()
@@ -345,9 +348,11 @@ export default function RecordingDetailsScreen() {
             lastAiJobTranscript?.status !== 'failed' ? (
             <ActivityIndicator />
           ) : transcriptSegments.length === 0 ? (
-            <AppText variant="muted" size="md" color={colors.neutralTertiary}>
-              {t('transcript.notAvailable')}
-            </AppText>
+            !isTranscriptionQuotaExceeded && (
+              <AppText variant="muted" size="md" color={colors.neutralTertiary}>
+                {t('transcript.notAvailable')}
+              </AppText>
+            )
           ) : (
             <EnrichedMarkdownText
               selectable={true}

@@ -1,10 +1,11 @@
-import { Linking, Pressable, View } from 'react-native'
+import { Linking, Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { intervalToDuration } from 'date-fns'
 import type { ApiAiJob } from '@/features/ai-jobs/api/types'
 import { getFailureMessageKey } from '@/features/ai-jobs/utils/failurePresentation'
 import { useConfigStore } from '@/services/configStore'
 import { AppText } from './AppText'
+import { colors } from './colors'
 
 export function AiJobFailureAlert({ job }: { job: ApiAiJob | null }) {
   const { t } = useTranslation()
@@ -15,7 +16,10 @@ export function AiJobFailureAlert({ job }: { job: ApiAiJob | null }) {
   const quota = job?.failure_reason === 'RATE_LIMIT_TRANSCRIPTION_EXCEEDED'
   const hours = config?.rate_limit_ai_transcription_audio_hours_per_24h
   return (
-    <View accessibilityRole="alert" style={{ gap: 8, paddingVertical: 12 }}>
+    <View
+      accessibilityRole="alert"
+      style={[styles.container, quota && styles.warning]}
+    >
       <AppText variant="bodyBold">{t(key)}</AppText>
       {tooLong && (
         <>
@@ -51,3 +55,18 @@ export function AiJobFailureAlert({ job }: { job: ApiAiJob | null }) {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 8,
+    paddingVertical: 12,
+  },
+  warning: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.warningSurface,
+    borderColor: colors.warningBorder,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+  },
+})
