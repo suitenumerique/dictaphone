@@ -66,7 +66,7 @@ def get_app_configuration(request):
             "max_duration_seconds": settings.FILE_UPLOAD_RESTRICTIONS[
                 "audio_recording"
             ]["max_duration_seconds"]
-            - 10,  # A bit of margin for error
+            - 60,  # A bit of margin for error
         },
         "data_policy": {
             "is_relative_to_user": request.user.is_authenticated,
