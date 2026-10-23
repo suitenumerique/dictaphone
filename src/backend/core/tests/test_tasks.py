@@ -134,7 +134,8 @@ def test_task_call_transcribe_service_rejects_non_accessible_file(mock_post):
 
 
 @patch("core.tasks.file.session.post")
-def test_task_call_transcribe_service_success(mock_post, settings):
+@pytest.mark.parametrize("seconds_below_limit", [0, 1])
+def test_task_call_transcribe_service_success(mock_post, settings, seconds_below_limit):
     """Transcribe task should submit the reserved pending transcript job."""
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
@@ -145,7 +146,7 @@ def test_task_call_transcribe_service_success(mock_post, settings):
     file = factories.FileFactory(
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
-        duration_seconds=max_duration_seconds - 1,
+        duration_seconds=max_duration_seconds - seconds_below_limit,
         language="en",
     )
 
@@ -224,22 +225,20 @@ def test_task_call_transcribe_service_http_error(mock_post, settings):
 
 
 @patch("core.tasks.file.session.post")
-@pytest.mark.parametrize(
-    "duration_seconds",
-    [
-        60 * 60 * 3,
-    ],
-)
+@pytest.mark.parametrize("seconds_over_limit", [1, 60])
 def test_task_call_transcribe_service_fails_on_invalid_duration(
-    mock_post, settings, duration_seconds
+    mock_post, settings, seconds_over_limit
 ):
-    """Files with missing or too long duration should fail before external call."""
+    """Files exceeding the configured limit should fail before external call."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
 
     file = factories.FileFactory(
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
-        duration_seconds=duration_seconds,
+        duration_seconds=max_duration_seconds + seconds_over_limit,
     )
 
     call_transcribe_service(create_transcription_job(file.id).id)
