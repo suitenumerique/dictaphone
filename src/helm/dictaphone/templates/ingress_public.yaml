@@ -1,0 +1,3 @@
+{{- if .Values.ingressPublic.enabled -}}
+{{- include "dictaphone.backendIngress" (dict "root" . "ingress" .Values.ingressPublic "suffix" "public") -}}
+{{- end }}
