@@ -657,6 +657,16 @@ class FileViewSet(
             )
             raise drf_exceptions.PermissionDenied()
 
+        if (
+            file.lifecycle_state != models.FileLifecycleStateChoices.ACTIVE
+            or timezone.now()
+            >= models.get_original_file_data_cutoff_datetime(
+                file, include_grace_period=False
+            )
+        ):
+            logger.warning("Audio data for file '%s' is no longer available", pk)
+            raise drf_exceptions.PermissionDenied()
+
         user_abilities = file.get_abilities(request.user)
         if not user_abilities.get(self.action, False):
             logger.warning(

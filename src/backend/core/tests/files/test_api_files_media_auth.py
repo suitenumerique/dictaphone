@@ -2,7 +2,9 @@
 Test file uploads API endpoint for users in dictaphone's core app.
 """
 
+from datetime import timedelta
 from io import BytesIO
+from unittest import mock
 from urllib.parse import quote, urlparse
 
 from django.core.files.storage import default_storage
@@ -172,3 +174,56 @@ def test_api_files_media_auth_transcoded_audio(legacy, owner):
         ),
     )
     assert response.status_code == (200 if owner else 403)
+
+
+@pytest.mark.parametrize("seconds_before_cutoff", [1, 0, -1])
+def test_api_files_media_auth_enforces_audio_cutoff(seconds_before_cutoff):
+    """Media access ends at the audio deadline, even before storage cleanup runs."""
+    file = factories.FileFactory(
+        update_upload_state=models.FileUploadStateChoices.READY,
+    )
+    cutoff = file.configuration.original_file_data_delete_at
+    client = APIClient()
+    client.force_login(file.creator)
+    with (
+        freeze_time(cutoff - timedelta(seconds=seconds_before_cutoff)),
+        mock.patch(
+            "core.api.viewsets.utils.generate_s3_authorization_headers"
+        ) as sign_headers,
+    ):
+        sign_headers.return_value.headers = {}
+        response = client.get(
+            "/api/v1.0/files/media-auth/",
+            HTTP_X_ORIGINAL_URL=(
+                f"http://localhost/media/{file.configuration.storage_bucket_name}/{file.file_key}"
+            ),
+        )
+    if seconds_before_cutoff > 0:
+        assert response.status_code == 200
+        sign_headers.assert_called_once()
+    else:
+        assert response.status_code == 403
+        sign_headers.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "lifecycle_state",
+    [state for state in models.FileLifecycleStateChoices if state != "active"],
+)
+def test_api_files_media_auth_rejects_unavailable_audio(lifecycle_state):
+    """A non-active audio lifecycle must prevent media signing before the cutoff."""
+    file = factories.FileFactory(
+        update_upload_state=models.FileUploadStateChoices.READY,
+    )
+    models.File.objects.filter(pk=file.pk).update(lifecycle_state=lifecycle_state)
+    client = APIClient()
+    client.force_login(file.creator)
+    with mock.patch(
+        "core.api.viewsets.utils.generate_s3_authorization_headers"
+    ) as sign_headers:
+        response = client.get(
+            "/api/v1.0/files/media-auth/",
+            HTTP_X_ORIGINAL_URL=f"http://localhost/media/{file.file_key}",
+        )
+    assert response.status_code == 403
+    sign_headers.assert_not_called()
