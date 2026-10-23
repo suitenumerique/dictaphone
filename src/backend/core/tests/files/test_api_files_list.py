@@ -114,6 +114,7 @@ def test_api_files_list_format(settings):
             "upload_state": file.upload_state,
             "lifecycle_state": file.lifecycle_state,
             "url": None,
+            "playback_url": None,
             "mimetype": file.mimetype,
             "filename": file.filename,
             "duration_seconds": file.duration_seconds,

@@ -310,9 +310,10 @@ export default function RecordingPage({
               </Tooltip>
             </div>
           </div>
-          {recording.lifecycle_state === 'active' && (
+          {recording.lifecycle_state === 'active' && recording.url && (
             <AudioPlayer
-              src={recording.url!}
+              src={recording.playback_url ?? recording.url}
+              downloadSrc={recording.url}
               ref={playerRef}
               title={recording.title}
               onTimeUpdate={setCurrentTime}

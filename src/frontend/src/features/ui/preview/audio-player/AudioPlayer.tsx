@@ -25,6 +25,7 @@ export interface AudioPlayerHandle {
 
 interface AudioPlayerProps {
   src: string
+  downloadSrc: string
   title: string
   extraTitle?: React.ReactElement
   className?: string
@@ -47,6 +48,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   (
     {
       src,
+      downloadSrc,
       title,
       className,
       autoPlay = false,
@@ -163,7 +165,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     const handleDownload = useCallback(() => {
       let filename = title.trim()
       try {
-        const parsedUrl = new URL(src, window.location.href)
+        const parsedUrl = new URL(downloadSrc, window.location.href)
         const fileFromPath = decodeURIComponent(
           parsedUrl.pathname.split('/').pop() || ''
         )
@@ -175,13 +177,13 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       }
 
       const link = document.createElement('a')
-      link.href = src
+      link.href = downloadSrc
       link.download = filename
       link.rel = 'noopener noreferrer'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-    }, [src, title])
+    }, [downloadSrc, title])
 
     const handleSeek = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {

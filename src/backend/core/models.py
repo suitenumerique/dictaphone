@@ -302,6 +302,12 @@ class FileQuerySet(models.QuerySet):
             "-created_at", "-id"
         )
         return self.annotate(
+            playback_audio_key=Subquery(
+                latest.filter(
+                    mode=AudioJobModeChoices.TRANSCODING,
+                    status=AudioJobStatusChoices.SUCCESS,
+                ).values("output_key")[:1]
+            ),
             latest_audio_status=Subquery(latest.values("status")[:1]),
             latest_audio_mode=Subquery(latest.values("mode")[:1]),
         ).annotate(

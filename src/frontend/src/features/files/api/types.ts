@@ -25,6 +25,7 @@ export type ApiFileItem = {
   created_at: string // ISO datetime string
   updated_at: string // ISO datetime string
   title: string
+  playback_url: string | null
   type: ApiFileType
   creator: ApiFileCreator
   deleted_at: string | null
@@ -50,7 +51,7 @@ export type ApiFileItem = {
 } & (
   | {
       upload_state: 'ready'
-      url: string
+      url: string | null
     }
   | {
       upload_state: 'pending'

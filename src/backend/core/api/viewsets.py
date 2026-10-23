@@ -72,7 +72,8 @@ BUCKET_REGEX = r"[a-z0-9](?:[a-z0-9.-]{1,61}[a-z0-9])?"
 MEDIA_STORAGE_URL_PATTERN = re.compile(
     f"{settings.MEDIA_URL:s}"
     rf"(?:(?P<bucket>{BUCKET_REGEX:s})/)?"
-    rf"(?P<key>{FILE_FOLDER:s}/(?P<pk>{UUID_REGEX:s})\.{FILE_EXT_REGEX:s})$"
+    rf"(?P<key>{FILE_FOLDER:s}/(?P<pk>{UUID_REGEX:s})"
+    rf"(?:\.{FILE_EXT_REGEX:s}|\.audio\.ogg|/audio/{UUID_REGEX:s}\.ogg))$"
 )
 
 

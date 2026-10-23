@@ -225,6 +225,7 @@ class ListFileSerializer(serializers.ModelSerializer):
     """Serialize File model for the API."""
 
     url = serializers.SerializerMethodField(read_only=True)
+    playback_url = serializers.SerializerMethodField(read_only=True)
     creator = UserLightSerializer(read_only=True)
     abilities = serializers.SerializerMethodField(read_only=True)
     ai_jobs = AiJobSerializer(many=True, read_only=True)
@@ -256,6 +257,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "size",
             "description",
             "url",
+            "playback_url",
             "ai_jobs",
             "abilities",
             "source",
@@ -278,6 +280,7 @@ class ListFileSerializer(serializers.ModelSerializer):
             "mimetype",
             "size",
             "url",
+            "playback_url",
             "ai_jobs",
             "abilities",
             "source",
@@ -299,6 +302,30 @@ class ListFileSerializer(serializers.ModelSerializer):
         return (
             f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
             f"{quote(obj.configuration.storage_bucket_name)}/{quote(obj.file_key)}"
+        )
+
+    def get_playback_url(self, obj):
+        """Prefer a completed transcode for playback, retaining the raw download URL."""
+        original_url = self.get_url(obj)
+        if original_url is None:
+            return None
+        if hasattr(obj, "playback_audio_key"):
+            key = obj.playback_audio_key
+        else:
+            key = (
+                obj.audio_jobs.filter(
+                    mode=models.AudioJobModeChoices.TRANSCODING,
+                    status=models.AudioJobStatusChoices.SUCCESS,
+                )
+                .order_by("-created_at", "-id")
+                .values_list("output_key", flat=True)
+                .first()
+            )
+        if not key:
+            return original_url
+        return (
+            f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
+            f"{quote(obj.configuration.storage_bucket_name)}/{quote(key)}"
         )
 
     def get_original_file_file_delete_at(self, obj):

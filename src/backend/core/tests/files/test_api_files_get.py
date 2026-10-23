@@ -4,6 +4,8 @@ Tests for files API endpoint in dictaphone's core app: get
 
 from datetime import timedelta
 
+from django.utils import timezone
+
 import pytest
 from faker import Faker
 from rest_framework.test import APIClient
@@ -87,6 +89,7 @@ def test_api_files_get_format(settings):
         "upload_state": file_obj.upload_state,
         "lifecycle_state": file_obj.lifecycle_state,
         "url": None,
+        "playback_url": None,
         "mimetype": file_obj.mimetype,
         "filename": file_obj.filename,
         "duration_seconds": file_obj.duration_seconds,
@@ -143,3 +146,76 @@ def test_api_files_get_authentificated_non_creator_not_allowed():
     client.force_login(other_user)
     response = client.get(f"/api/v1.0/files/{file_obj.id}/")
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("endpoint", ["detail", "list"])
+@pytest.mark.parametrize("status", [None, *models.AudioJobStatusChoices.values])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_api_files_playback_prefers_completed_transcode(
+    settings, endpoint, status, legacy
+):
+    """Playback uses completed audio while downloads always retain the original."""
+    file = factories.FileFactory(
+        update_upload_state=models.FileUploadStateChoices.READY,
+    )
+    job = None
+    if status:
+        job = models.AudioJob.objects.create(
+            file=file,
+            mode=models.AudioJobModeChoices.TRANSCODING,
+            status=status,
+            output_key=file.legacy_audio_file_key if legacy else None,
+        )
+        if status == models.AudioJobStatusChoices.SUCCESS:
+            # A newer in-progress validation or retranscode must not hide available audio.
+            models.AudioJob.objects.create(
+                file=file,
+                mode=models.AudioJobModeChoices.VALIDATION,
+                source_job=job,
+            )
+            models.AudioJob.objects.create(
+                file=file, mode=models.AudioJobModeChoices.TRANSCODING
+            )
+    client = APIClient()
+    client.force_login(file.creator)
+    path = f"/api/v1.0/files/{file.id}/" if endpoint == "detail" else "/api/v1.0/files/"
+    response = client.get(path)
+    assert response.status_code == 200
+    data = response.data if endpoint == "detail" else response.data["results"][0]
+    prefix = (
+        f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
+        f"{file.configuration.storage_bucket_name}/"
+    )
+    assert data["url"] == f"{prefix}{file.file_key}"
+    expected_key = (
+        job.output_key
+        if status == models.AudioJobStatusChoices.SUCCESS
+        else file.file_key
+    )
+    assert data["playback_url"] == f"{prefix}{expected_key}"
+
+
+@pytest.mark.parametrize("unavailable", ["pending", "expired", "deleted"])
+def test_api_files_playback_respects_audio_availability(unavailable):
+    """Completed transcodes must remain hidden when original audio access expires."""
+    file = factories.FileFactory(
+        update_upload_state=models.FileUploadStateChoices.READY,
+    )
+    models.AudioJob.objects.create(
+        file=file,
+        mode=models.AudioJobModeChoices.TRANSCODING,
+        status=models.AudioJobStatusChoices.SUCCESS,
+    )
+    if unavailable == "pending":
+        file.upload_state = models.FileUploadStateChoices.PENDING
+    elif unavailable == "expired":
+        file.original_file_data_delete_at = timezone.now() - timedelta(seconds=1)
+    else:
+        file.lifecycle_state = models.FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    file.save()
+    client = APIClient()
+    client.force_login(file.creator)
+    response = client.get(f"/api/v1.0/files/{file.id}/")
+    assert response.status_code == 200
+    assert response.data["url"] is None
+    assert response.data["playback_url"] is None

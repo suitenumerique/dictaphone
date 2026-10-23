@@ -148,3 +148,27 @@ def test_api_files_media_auth_own_file_deleted():
     )
 
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("owner", [False, True])
+def test_api_files_media_auth_transcoded_audio(legacy, owner):
+    """Both transcoded key formats pass media authorization only for the owner."""
+    file = factories.FileFactory(
+        update_upload_state=models.FileUploadStateChoices.READY,
+    )
+    job = models.AudioJob.objects.create(
+        file=file,
+        mode=models.AudioJobModeChoices.TRANSCODING,
+        status=models.AudioJobStatusChoices.SUCCESS,
+        output_key=file.legacy_audio_file_key if legacy else None,
+    )
+    client = APIClient()
+    client.force_login(file.creator if owner else factories.UserFactory())
+    response = client.get(
+        "/api/v1.0/files/media-auth/",
+        HTTP_X_ORIGINAL_URL=(
+            f"http://localhost/media/{file.configuration.storage_bucket_name}/{job.output_key}"
+        ),
+    )
+    assert response.status_code == (200 if owner else 403)
