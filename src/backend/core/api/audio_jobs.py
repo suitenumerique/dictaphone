@@ -1,5 +1,6 @@
 """Internal audio worker API with the existing extractor payloads."""
 
+import logging
 import math
 
 from rest_framework import decorators, serializers, status, viewsets
@@ -10,6 +11,8 @@ from rest_framework.response import Response
 from core import audio_jobs
 from core.authentication.audio_workers import AudioWorkerAuthentication
 from core.models import AudioJob, AudioJobModeChoices
+
+logger = logging.getLogger(__name__)
 
 
 class AudioCompletionSerializer(serializers.Serializer):
@@ -82,5 +85,12 @@ class AudioJobViewSet(viewsets.GenericViewSet):
         except AudioJob.DoesNotExist as exc:
             raise NotFound() from exc
         except audio_jobs.AudioJobConflict as exc:
+            logger.warning(
+                "Rejected %s completion for audio job %s (reported_status=%s): %s",
+                mode,
+                serializer.validated_data["id"],
+                serializer.validated_data["status"],
+                exc,
+            )
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response({"message": "Attempt completed."})

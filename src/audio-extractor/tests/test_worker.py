@@ -5,15 +5,78 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from audio_extractor.api_models import ValidationJob
+from audio_extractor.api_models import (
+    TranscodingCompletion,
+    ValidationCompletion,
+    ValidationJob,
+)
 from audio_extractor.http_client import configure_session
 from audio_extractor.utils import ProcessingError
 from audio_extractor.worker import (
     _log_job_failure,
+    _post_completion,
     process_transcoding_job,
     process_validation_job,
     run,
 )
+
+
+@pytest.mark.parametrize("mode", ["transcoding", "validation"])
+@pytest.mark.parametrize(
+    "body",
+    [
+        '{"detail":"Attempt has expired."}',
+        "Upstream unavailable",
+        "",
+        "Rejected https://storage.test/audio?signature=secret",
+    ],
+)
+def test_completion_rejection_includes_response_in_logs_and_exception(
+    config, http_session, caplog, mode, body
+):
+    config = config.model_copy(update={"mode": mode})
+    completion = (
+        TranscodingCompletion if mode == "transcoding" else ValidationCompletion
+    )
+    payload = completion(id="job-123", status="failure", error="bad media")
+    response = requests.Response()
+    response.status_code = 409
+    response.url = f"{config.api_url}/audio-jobs/{mode}/complete"
+    response._content = body.encode()
+
+    with (
+        patch.object(http_session, "post", return_value=response) as post,
+        pytest.raises(requests.HTTPError) as error,
+    ):
+        _post_completion(config, f"audio-jobs/{mode}/complete", payload)
+
+    post.assert_called_once()
+    assert error.value.response is response
+    for message in (str(error.value), caplog.text):
+        assert "409" in message
+        assert f"{mode} job job-123" in message
+        assert "reported_status=failure" in message
+        assert "response=" in message
+        assert "signature=secret" not in message
+        if "?" not in body:
+            assert body in message
+        else:
+            assert "https://storage.test/audio?[redacted]" in message
+
+
+def test_completion_server_error_still_retries(config, http_session):
+    response = requests.Response()
+    response.status_code = 503
+    response.url = f"{config.api_url}/audio-jobs/transcoding/complete"
+    response._content = b"Upstream unavailable"
+    payload = TranscodingCompletion(id="job-123", status="failure", error="bad media")
+    with (
+        patch.object(http_session, "post", side_effect=[response, Mock()]) as post,
+        patch("audio_extractor.utils.time.sleep"),
+    ):
+        _post_completion(config, "audio-jobs/transcoding/complete", payload)
+
+    assert post.call_count == 2
 
 
 def test_transcoding_success_uploads_and_reports_duration(config, task, http_session):

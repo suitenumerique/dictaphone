@@ -376,7 +376,7 @@ def test_failure_analytics_and_zero_retry_configuration(
     assert poll().status_code == 204
 
 
-def test_stale_attempt_replaced_and_late_completion_rejected(settings):
+def test_stale_attempt_replaced_and_late_completion_rejected(settings, caplog):
     """A previous lease cannot publish duration or validate another attempt's output."""
     file = ready_file()
     start_audio_extraction(file.id)
@@ -385,6 +385,10 @@ def test_stale_attempt_replaced_and_late_completion_rejected(settings):
     expired = timezone.now() - timedelta(seconds=1)
     models.AudioJob.objects.filter(pk=old.pk).update(expires_at=expired)
     assert complete(old, duration_seconds=12).status_code == 409
+    assert (
+        f"Rejected transcoding completion for audio job {old.id} "
+        "(reported_status=success): Attempt has expired."
+    ) in caplog.text
     assert poll().status_code == 200
     old.refresh_from_db()
     retry = file.latest_audio_job
@@ -392,6 +396,10 @@ def test_stale_attempt_replaced_and_late_completion_rejected(settings):
     assert retry.retry_of_id == old.id
     assert retry.output_key != old.output_key
     assert complete(old, "failure", error="late").status_code == 409
+    assert (
+        f"Rejected transcoding completion for audio job {old.id} "
+        "(reported_status=failure): Attempt is no longer current or was not claimed."
+    ) in caplog.text
     models.AudioJob.objects.filter(pk=retry.pk).update(expires_at=expired)
     settings.AUDIO_JOB_MAX_RETRIES = 1
     assert poll().status_code == 204

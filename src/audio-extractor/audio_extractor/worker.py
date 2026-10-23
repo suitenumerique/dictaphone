@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
+import requests
+
 from audio_extractor.api_models import (
     TranscodingCompletion,
     TranscodingJob,
@@ -74,6 +76,19 @@ def _log_job_failure(
         message = message.replace(url, _redact_url(url))
         if query:
             message = message.replace(f"?{query}", "?[redacted]")
+    message = _redact_error_message(message)
+    LOGGER.error(
+        "%s job %s failed (%s: %s); %s",
+        mode,
+        job_id,
+        type(exc).__name__,
+        message,
+        urls,
+    )
+
+
+def _redact_error_message(message: str) -> str:
+    """Remove signed query strings from errors and API response bodies."""
     # Exceptions can echo signed URLs other than the task's known URLs. Match
     # URL-shaped text in the error and pass each match through the same redactor.
     message = re.sub(
@@ -83,15 +98,7 @@ def _log_job_failure(
     )
     # Also redact query strings from path-like values (for example, a local
     # filename or URL path) when they are reported without an http(s) scheme.
-    message = re.sub(r"(/[^\s?\"'<>]+)\?[^\s\"'<>]*", r"\1?[redacted]", message)
-    LOGGER.error(
-        "%s job %s failed (%s: %s); %s",
-        mode,
-        job_id,
-        type(exc).__name__,
-        message,
-        urls,
-    )
+    return re.sub(r"(/[^\s?\"'<>]+)\?[^\s\"'<>]*", r"\1?[redacted]", message)
 
 
 @retry(retries=3, retry_if=_is_retryable_transfer_error)
@@ -108,7 +115,20 @@ def _post_completion(
         headers=_authorization_headers(config),
         timeout=config.request_timeout,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        # Include the API's rejection reason in logs and the unhandled exception
+        # captured by Sentry, while preserving the response for retry decisions.
+        body = _redact_error_message(response.text)[:1000]
+        message = (
+            f"{exc}; {config.mode} job {payload.id} completion "
+            f"(reported_status={payload.status}): response={body}"
+        )
+        LOGGER.error("%s", message)
+        raise requests.HTTPError(
+            message, response=response, request=exc.request
+        ) from exc
     LOGGER.info("Reported %s completion for job %s", payload.status, payload.id)
 
 
