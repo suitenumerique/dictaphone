@@ -66,6 +66,22 @@ Docker Compose version v5.1.3
 make bootstrap FLUSH_ARGS='--no-input'
 ```
 
+`make create-env-files` copies missing `env.d/development/*.dist` templates to
+their local counterparts without overwriting existing files. Edit the local
+files to customize the stack:
+
+| File | Settings |
+| --- | --- |
+| `common` | Backend settings, including external-source URL restrictions |
+| `audio-extractor` | Shared backend/worker tokens and lease timeout, worker limits, storage gateway URL, and gateway rules and limits |
+| `rustfs`, `keycloak` | Local storage and identity-provider configuration |
+
+The backend, workers, and S3 gateway share the `audio-extractor` file. Each worker
+selects its mode’s token; an explicit `AUDIO_EXTRACTOR_TOKEN` overrides that choice.
+The worker lease timeout references the shared backend timeout. Set `S3_GATEWAY_URL=` in `audio-extractor` to enable
+direct storage access. Recreate affected containers after changing local files.
+Container roles, internal backend URLs, and build arguments remain in Compose.
+
 2. Access the project:
 
 - The frontend is available at [http://localhost:3000](http://localhost:3000) with the default credentials:

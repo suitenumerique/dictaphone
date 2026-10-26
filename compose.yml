@@ -18,11 +18,8 @@ services:
   rustfs:
     user: ${DOCKER_USER:-1000}
     image: rustfs/rustfs:latest
-    environment:
-      - RUSTFS_ACCESS_KEY=dictaphone
-      - RUSTFS_SECRET_KEY=password
-      - RUSTFS_SERVER_DOMAINS=rustfs
-      - RUSTFS_CORS_ALLOWED_ORIGINS=http://localhost:3000
+    env_file:
+      - env.d/development/rustfs
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -78,10 +75,8 @@ services:
     environment:
       - PYLINTHOME=/app/.pylint.d
       - DJANGO_CONFIGURATION=Development
-      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
-      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
+      - env.d/development/audio-extractor
       - env.d/development/common
       - env.d/development/postgresql
     ports:
@@ -107,10 +102,8 @@ services:
     command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "dictaphone-backend"]
     environment:
       - DJANGO_CONFIGURATION=Development
-      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
-      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
+      - env.d/development/audio-extractor
       - env.d/development/common
       - env.d/development/postgresql
     volumes:
@@ -137,10 +130,10 @@ services:
       createbuckets:
         condition: service_completed_successfully
     working_dir: /app
+    env_file:
+      - env.d/development/audio-extractor
     environment:
       PYLINTHOME: /tmp/pylint
-      S3_GATEWAY_URL: http://s3-gateway:8080/proxy
-      S3_ENDPOINT_URL: http://rustfs:9000
     volumes:
       - ./src/audio-extractor:/app
       - /app/.venv
@@ -154,16 +147,11 @@ services:
         DOCKER_USER: ${DOCKER_USER:-1000}
     user: ${DOCKER_USER:-1000}
     image: dictaphone:audio-extractor
+    env_file:
+      - env.d/development/audio-extractor
     environment:
       AUDIO_EXTRACTOR_API_URL: http://app-dev:8000/api/internal/v1.0
-      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
-      S3_GATEWAY_URL: ${S3_GATEWAY_URL-http://s3-gateway:8080/proxy}
       AUDIO_EXTRACTOR_MODE: transcoding
-      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
-      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
-      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
-      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
     stop_grace_period: 45s
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
@@ -189,16 +177,11 @@ services:
         DOCKER_USER: ${DOCKER_USER:-1000}
     user: ${DOCKER_USER:-1000}
     image: dictaphone:audio-extractor
+    env_file:
+      - env.d/development/audio-extractor
     environment:
       AUDIO_EXTRACTOR_API_URL: http://app-dev:8000/api/internal/v1.0
-      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
-      S3_GATEWAY_URL: ${S3_GATEWAY_URL-http://s3-gateway:8080/proxy}
       AUDIO_EXTRACTOR_MODE: validation
-      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
-      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
-      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
-      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
     stop_grace_period: 45s
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
@@ -224,16 +207,11 @@ services:
         DOCKER_USER: ${DOCKER_USER:-1000}
     user: ${DOCKER_USER:-1000}
     image: dictaphone:audio-extractor-production
+    env_file:
+      - env.d/development/audio-extractor
     environment:
       AUDIO_EXTRACTOR_API_URL: http://app:8000/api/internal/v1.0
-      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
-      S3_GATEWAY_URL: ${S3_GATEWAY_URL-http://s3-gateway:8080/proxy}
       AUDIO_EXTRACTOR_MODE: transcoding
-      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
-      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
-      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
-      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
     stop_grace_period: 45s
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
@@ -259,16 +237,11 @@ services:
         DOCKER_USER: ${DOCKER_USER:-1000}
     user: ${DOCKER_USER:-1000}
     image: dictaphone:audio-extractor-production
+    env_file:
+      - env.d/development/audio-extractor
     environment:
       AUDIO_EXTRACTOR_API_URL: http://app:8000/api/internal/v1.0
-      AUDIO_EXTRACTOR_TOKEN: ${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
-      S3_GATEWAY_URL: ${S3_GATEWAY_URL-http://s3-gateway:8080/proxy}
       AUDIO_EXTRACTOR_MODE: validation
-      AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS: ${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS: ${AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS:-900}
-      AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS: ${AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS:-1200}
-      AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS: ${AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS:-30}
-      AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS: ${AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS:-5}
     stop_grace_period: 45s
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/livez', timeout=2)"]
@@ -293,11 +266,7 @@ services:
     image: dictaphone:audio-extractor
     command: ["python", "-m", "audio_extractor.s3_gateway"]
     env_file:
-      - env.d/development/s3-gateway
-    environment:
-      S3_GATEWAY_MAX_UPLOAD_BYTES: ${S3_GATEWAY_MAX_UPLOAD_BYTES:-1073741824}
-      S3_GATEWAY_MAX_CONCURRENT_REQUESTS: ${S3_GATEWAY_MAX_CONCURRENT_REQUESTS:-20}
-      S3_GATEWAY_TIMEOUT_SECONDS: ${S3_GATEWAY_TIMEOUT_SECONDS:-3600}
+      - env.d/development/audio-extractor
     depends_on:
       rustfs:
         condition: service_healthy
@@ -322,10 +291,8 @@ services:
     image: dictaphone:backend-production
     environment:
       - DJANGO_CONFIGURATION=Demo
-      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
-      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
+      - env.d/development/audio-extractor
       - env.d/development/common
       - env.d/development/postgresql
     depends_on:
@@ -339,10 +306,8 @@ services:
     command: ["celery", "-A", "dictaphone.celery_app", "worker", "-l", "INFO", "--concurrency=1", "-Q", "dictaphone-backend"]
     environment:
       - DJANGO_CONFIGURATION=Demo
-      - AUDIO_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS:-300}
-      - AUDIO_EXTRACTOR_TRANSCODING_TOKEN=${AUDIO_EXTRACTOR_TRANSCODING_TOKEN:-local-development-transcoding-token}
-      - AUDIO_EXTRACTOR_VALIDATION_TOKEN=${AUDIO_EXTRACTOR_VALIDATION_TOKEN:-local-development-validation-token}
     env_file:
+      - env.d/development/audio-extractor
       - env.d/development/common
       - env.d/development/postgresql
     depends_on:
@@ -415,16 +380,8 @@ services:
       - --hostname-admin-url=http://localhost:8083/
       - --hostname-strict=false
       - --hostname-strict-https=false
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: postgres
-      KC_DB_URL_HOST: kc_postgresql
-      KC_DB_URL_DATABASE: keycloak
-      KC_DB_PASSWORD: pass
-      KC_DB_USERNAME: dictaphone
-      KC_DB_SCHEMA: public
-      PROXY_ADDRESS_FORWARDING: 'true'
+    env_file:
+      - env.d/development/keycloak
     ports:
       - "8080:8080"
     depends_on:

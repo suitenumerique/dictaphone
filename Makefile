@@ -77,7 +77,9 @@ create-env-files: \
 	env.d/development/crowdin \
 	env.d/development/postgresql \
 	env.d/development/kc_postgresql \
-	env.d/development/s3-gateway
+	env.d/development/audio-extractor \
+	env.d/development/rustfs \
+	env.d/development/keycloak
 .PHONY: create-env-files
 
 bootstrap: ## Prepare Docker images for the project
@@ -311,8 +313,10 @@ env.d/development/kc_postgresql:
 env.d/development/crowdin:
 	cp -n env.d/development/crowdin.dist env.d/development/crowdin
 
-env.d/development/s3-gateway:
-	cp -n env.d/development/s3-gateway.dist env.d/development/s3-gateway
+env.d/development/audio-extractor \
+env.d/development/rustfs \
+env.d/development/keycloak:
+	cp -n $@.dist $@
 
 crowdin-download: ## Download translated message from Crowdin
 	@$(COMPOSE_RUN_CROWDIN) download -c crowdin/config.yml

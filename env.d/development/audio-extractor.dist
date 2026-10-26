@@ -1,0 +1,21 @@
+# Shared backend/worker credentials and lease timeout.
+AUDIO_JOB_TIMEOUT_SECONDS=300
+AUDIO_EXTRACTOR_TRANSCODING_TOKEN=local-development-transcoding-token
+AUDIO_EXTRACTOR_VALIDATION_TOKEN=local-development-validation-token
+
+# Worker settings (lease timeout stays synchronized with the backend).
+AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS=${AUDIO_JOB_TIMEOUT_SECONDS}
+AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS=900
+AUDIO_EXTRACTOR_PROCESS_TIMEOUT_SECONDS=1200
+AUDIO_EXTRACTOR_SHUTDOWN_GRACE_SECONDS=30
+AUDIO_EXTRACTOR_POLL_INTERVAL_SECONDS=5
+# Set to an empty value to use direct storage access.
+S3_GATEWAY_URL=http://s3-gateway:8080/proxy
+S3_ENDPOINT_URL=http://rustfs:9000
+
+# S3 gateway access rules and limits.
+S3_GATEWAY_RULES=[{"endpoint":"http://rustfs:9000","addressing_style":"path","buckets":{"dictaphone-media-storage":{"GET":["files/"],"PUT":["files/"]},"dictaphone-media-alpha":{"GET":["files/"],"PUT":["files/"]},"dictaphone-media-beta":{"GET":["files/"],"PUT":["files/"]}}},{"endpoint":"http://rustfs:9000","addressing_style":"virtual","buckets":{"dictaphone-media-storage":{"GET":["files/"],"PUT":["files/"]},"dictaphone-media-alpha":{"GET":["files/"],"PUT":["files/"]},"dictaphone-media-beta":{"GET":["files/"],"PUT":["files/"]}}}]
+S3_GATEWAY_FORCE_HTTPS=false
+S3_GATEWAY_MAX_UPLOAD_BYTES=1073741824
+S3_GATEWAY_MAX_CONCURRENT_REQUESTS=20
+S3_GATEWAY_TIMEOUT_SECONDS=3600
