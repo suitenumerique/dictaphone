@@ -28,7 +28,7 @@ from core.storage import (
     get_storage_bucket_name,
     get_storage_for_file,
 )
-from core.utils import generate_download_file_url
+from core.utils import generate_download_file_url, redact_url
 
 logger = logging.getLogger(__name__)
 
@@ -307,8 +307,8 @@ def complete_job(mode, data):
     )
     job.completed_at = now
     job.error = re.sub(
-        r"(https?://[^\s?]+)\?[^\s]+",
-        r"\1?[redacted]",
+        r"https?://[^\s]+",
+        lambda match: redact_url(match.group()),
         data.get("error") or "",
     )
     job.metadata = data.get("metadata") or {}

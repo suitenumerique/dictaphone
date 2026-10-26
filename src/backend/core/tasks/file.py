@@ -36,6 +36,7 @@ from core.utils import (
     acquire_transaction_lock,
     format_transcript,
     generate_download_file_url,
+    redact_url,
 )
 from core.webhook_models import WhisperXResponse
 
@@ -357,7 +358,11 @@ def handle_transcript_received(remote_job_id, url: str | None):
 
     file = ai_transcript_job.file
 
-    logger.info("Storing transcript for file %s & url %s", file.id, url)
+    logger.info(
+        "Storing transcript for file %s & url %r",
+        file.id,
+        redact_url(url),
+    )
     if url is None:
         content = json.dumps({"segments": [], "word_segments": []}).encode("utf-8")
     else:
@@ -377,7 +382,11 @@ def handle_transcript_received(remote_job_id, url: str | None):
         Body=content,
         ContentType="application/json",
     )
-    logger.info("Transcript stored for file %s & url %s", file.id, url)
+    logger.info(
+        "Transcript stored for file %s & url %r",
+        file.id,
+        redact_url(url),
+    )
     ai_transcript_job.status = AiJobStatusChoices.SUCCESS
     ai_transcript_job.failure_reason = ""
     ai_transcript_job.save()
@@ -465,7 +474,7 @@ def store_summary(remote_job_id, url):
 
     file = ai_summary_job.file
 
-    logger.info("Storing summary for file %s & url %s", file.id, url)
+    logger.info("Storing summary for file %s & url %r", file.id, redact_url(url))
     # could be streamed to S3 later
     response = session.get(url, timeout=(10, 20))
     response.raise_for_status()
@@ -479,7 +488,7 @@ def store_summary(remote_job_id, url):
         Body=response.content,
         ContentType="text/plain",
     )
-    logger.info("Summary stored for file %s & url %s", file.id, url)
+    logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
     ai_summary_job.status = AiJobStatusChoices.SUCCESS
     ai_summary_job.failure_reason = ""
     ai_summary_job.save()
