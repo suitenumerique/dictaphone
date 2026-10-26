@@ -39,7 +39,13 @@ class Settings(BaseSettings):
     api_url: str = Field(
         description="Internal API base URL including /api/internal/${API_VERSION}"
     )
-    token: SecretStr = Field(min_length=32)
+    mode: Literal["transcoding", "validation"] = "transcoding"
+    transcoding_token: SecretStr | None = Field(default=None, exclude=True, repr=False)
+    validation_token: SecretStr | None = Field(default=None, exclude=True, repr=False)
+    token: SecretStr = Field(
+        min_length=32,
+        default_factory=lambda data: data[f"{data['mode']}_token"] or "",
+    )
     sentry_dsn: SecretStr | None = Field(
         default=None,
         validation_alias="SENTRY_DSN",
@@ -49,7 +55,6 @@ class Settings(BaseSettings):
     )
     environment: str | None = None
     s3_gateway_url: str | None = Field(default=None, validation_alias="S3_GATEWAY_URL")
-    mode: Literal["transcoding", "validation"] = "transcoding"
     output_sample_rate: int = Field(default=16000, gt=0)
     output_bitrate: str = Field(default="64k", pattern=r"^[1-9][0-9]*[kKmM]$")
     request_timeout: float = Field(default=30, gt=0)

@@ -8,6 +8,39 @@ from audio_extractor.settings import Settings
 VALID_TOKEN = "worker-token-for-tests-0123456789"
 
 
+@pytest.mark.parametrize("mode", ["transcoding", "validation"])
+def test_settings_select_token_for_mode(monkeypatch, mode):
+    """Workers can share an environment file containing both backend tokens."""
+    monkeypatch.delenv("AUDIO_EXTRACTOR_TOKEN", raising=False)
+    monkeypatch.setenv(
+        "AUDIO_EXTRACTOR_TRANSCODING_TOKEN", VALID_TOKEN + "-transcoding"
+    )
+    monkeypatch.setenv("AUDIO_EXTRACTOR_VALIDATION_TOKEN", VALID_TOKEN + "-validation")
+    settings = Settings(api_url="https://api.example.test", mode=mode)
+    assert settings.token.get_secret_value() == VALID_TOKEN + "-" + mode
+
+
+@pytest.mark.parametrize("mode", ["transcoding", "validation"])
+def test_explicit_worker_token_takes_precedence(monkeypatch, mode):
+    """Existing deployments using AUDIO_EXTRACTOR_TOKEN keep their credentials."""
+    monkeypatch.setenv("AUDIO_EXTRACTOR_TOKEN", VALID_TOKEN)
+    monkeypatch.setenv(f"AUDIO_EXTRACTOR_{mode.upper()}_TOKEN", "different-token")
+    settings = Settings(api_url="https://api.example.test", mode=mode)
+    assert settings.token.get_secret_value() == VALID_TOKEN
+
+
+@pytest.mark.parametrize("token", [None, "", "short"])
+def test_settings_require_valid_mode_token(monkeypatch, token):
+    """An absent or invalid fallback token still prevents worker startup."""
+    monkeypatch.delenv("AUDIO_EXTRACTOR_TOKEN", raising=False)
+    monkeypatch.delenv("AUDIO_EXTRACTOR_VALIDATION_TOKEN", raising=False)
+    monkeypatch.setenv("AUDIO_EXTRACTOR_TRANSCODING_TOKEN", VALID_TOKEN)
+    if token is not None:
+        monkeypatch.setenv("AUDIO_EXTRACTOR_VALIDATION_TOKEN", token)
+    with pytest.raises(ValidationError):
+        Settings(api_url="https://api.example.test", mode="validation")
+
+
 def test_settings_accept_http_url_and_normalize_trailing_slash(tmp_path):
     settings = Settings(
         api_url="https://api.example.test/api/internal/v1.0/",
