@@ -1,5 +1,20 @@
 # Dictaphone helm chart
 
+## Workload security defaults
+
+The backend (including migration, superuser and scheduled jobs), Celery and frontend
+containers default to UID/GID 10000, non-root execution, a read-only root filesystem,
+no privilege escalation, all Linux capabilities dropped and the runtime default
+seccomp profile. Audio workers and the S3 gateway also use restrictive defaults.
+
+The backend, Celery and frontend mount a writable `emptyDir` at `/tmp` for temporary
+files (including Gunicorn worker files and the unprivileged Nginx PID and cache).
+This volume is configured by each component’s `tmpVolume` setting and remains
+mounted when `extraVolumes` or `extraVolumeMounts` are overridden. The name `tmp`
+and mount path `/tmp` are reserved for this volume. Custom images and persistent volumes
+must support the configured UID/GID and read-only root filesystem. Operator-supplied
+sidecars and init containers must define their own container security contexts.
+
 ## API ingresses
 
 The `ingress` resource serves the frontend. Enable `ingressPublic` to route
@@ -155,7 +170,7 @@ add_header Content-Disposition "attachment";
 | `backend.migrateJobAnnotations`                       | Annotations for the migrate job                                   | `{}`                                                                                                                                                                                                                                                                                |
 | `backend.jobs.ttlSecondsAfterFinished`                | Period to wait before remove jobs                                 | `30`                                                                                                                                                                                                                                                                                |
 | `backend.jobs.backoffLimit`                           | Numbers of jobs retries                                           | `2`                                                                                                                                                                                                                                                                                 |
-| `backend.securityContext`                             | Configure backend Pod security context                            | `nil`                                                                                                                                                                                                                                                                               |
+| `backend.securityContext` | Configure backend container security context | `{runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, seccompProfile: {type: RuntimeDefault}}` |
 | `backend.envVars`                                     | Configure backend container environment variables                 | `undefined`                                                                                                                                                                                                                                                                         |
 | `backend.envVars.BY_VALUE`                            | Example environment variable by setting value directly            |                                                                                                                                                                                                                                                                                     |
 | `backend.envVars.FROM_CONFIGMAP.configMapKeyRef.name` | Name of a ConfigMap when configuring env vars from a ConfigMap    |                                                                                                                                                                                                                                                                                     |
@@ -216,8 +231,9 @@ add_header Content-Disposition "attachment";
 | `backend.persistence.volume-name.size`         | Size of the additional volume                                                      |                                                           |
 | `backend.persistence.volume-name.type`         | Type of the additional volume, persistentVolumeClaim or emptyDir                   |                                                           |
 | `backend.persistence.volume-name.mountPath`    | Path where the volume should be mounted to                                         |                                                           |
-| `backend.extraVolumeMounts`                    | Additional volumes to mount on the backend.                                        | `[]`                                                      |
-| `backend.extraVolumes`                         | Additional volumes to mount on the backend.                                        | `[]`                                                      |
+| `backend.tmpVolume` | Volume backing writable `/tmp`; defaults to `emptyDir` when unset, independent of additional volumes | `{}` |
+| `backend.extraVolumeMounts` | Additional volumes to mount on the backend. | `[]` |
+| `backend.extraVolumes` | Additional volumes to mount on the backend. | `[]` |
 | `backend.pdb.enabled`                          | Enable pdb on backend                                                              | `true`                                                    |
 
 ### celeryBackend
@@ -231,7 +247,7 @@ add_header Content-Disposition "attachment";
 | `celeryBackend.shareProcessNamespace`                       | Enable share process namespace between containers                                        | `false`                                                                                        |
 | `celeryBackend.sidecars`                                    | Add sidecars containers to celeryBackend deployment                                      | `[]`                                                                                           |
 | `celeryBackend.migrateJobAnnotations`                       | Annotations for the migrate job                                                          | `{}`                                                                                           |
-| `celeryBackend.securityContext`                             | Configure celeryBackend Pod security context                                             | `nil`                                                                                          |
+| `celeryBackend.securityContext` | Configure celeryBackend container security context | `{runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, seccompProfile: {type: RuntimeDefault}}` |
 | `celeryBackend.envVars`                                     | Configure celeryBackend container environment variables                                  | `undefined`                                                                                    |
 | `celeryBackend.envVars.BY_VALUE`                            | Example environment variable by setting value directly                                   |                                                                                                |
 | `celeryBackend.envVars.FROM_CONFIGMAP.configMapKeyRef.name` | Name of a ConfigMap when configuring env vars from a ConfigMap                           |                                                                                                |
@@ -264,8 +280,9 @@ add_header Content-Disposition "attachment";
 | `celeryBackend.persistence.volume-name.size`                | Size of the additional volume                                                            |                                                                                                |
 | `celeryBackend.persistence.volume-name.type`                | Type of the additional volume, persistentVolumeClaim or emptyDir                         |                                                                                                |
 | `celeryBackend.persistence.volume-name.mountPath`           | Path where the volume should be mounted to                                               |                                                                                                |
-| `celeryBackend.extraVolumeMounts`                           | Additional volumes to mount on the celeryBackend.                                        | `[]`                                                                                           |
-| `celeryBackend.extraVolumes`                                | Additional volumes to mount on the celeryBackend.                                        | `[]`                                                                                           |
+| `celeryBackend.tmpVolume` | Volume backing writable `/tmp`; defaults to `emptyDir` when unset, independent of additional volumes | `{}` |
+| `celeryBackend.extraVolumeMounts` | Additional volumes to mount on the celeryBackend. | `[]` |
+| `celeryBackend.extraVolumes` | Additional volumes to mount on the celeryBackend. | `[]` |
 | `celeryBackend.pdb.enabled`                                 | Enable pdb on celeryBackend                                                              | `false`                                                                                        |
 
 ### audioExtractor
@@ -322,7 +339,7 @@ set an individual probe to `null` to disable it.
 | `frontend.replicas`                                    | Amount of frontend replicas                                                         | `3`                           |
 | `frontend.shareProcessNamespace`                       | Enable share process namefrontend between containers                                | `false`                       |
 | `frontend.sidecars`                                    | Add sidecars containers to frontend deployment                                      | `[]`                          |
-| `frontend.securityContext`                             | Configure frontend Pod security context                                             | `nil`                         |
+| `frontend.securityContext` | Configure frontend container security context | `{runAsNonRoot: true, runAsUser: 10000, runAsGroup: 10000, readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, seccompProfile: {type: RuntimeDefault}}` |
 | `frontend.envVars`                                     | Configure frontend container environment variables                                  | `undefined`                   |
 | `frontend.envVars.BY_VALUE`                            | Example environment variable by setting value directly                              |                               |
 | `frontend.envVars.FROM_CONFIGMAP.configMapKeyRef.name` | Name of a ConfigMap when configuring env vars from a ConfigMap                      |                               |
@@ -355,8 +372,9 @@ set an individual probe to `null` to disable it.
 | `frontend.persistence.volume-name.size`                | Size of the additional volume                                                       |                               |
 | `frontend.persistence.volume-name.type`                | Type of the additional volume, persistentVolumeClaim or emptyDir                    |                               |
 | `frontend.persistence.volume-name.mountPath`           | Path where the volume should be mounted to                                          |                               |
-| `frontend.extraVolumeMounts`                           | Additional volumes to mount on the frontend.                                        | `[]`                          |
-| `frontend.extraVolumes`                                | Additional volumes to mount on the frontend.                                        | `[]`                          |
+| `frontend.tmpVolume` | Volume backing writable `/tmp`; defaults to `emptyDir` when unset, independent of additional volumes | `{}` |
+| `frontend.extraVolumeMounts` | Additional volumes to mount on the frontend. | `[]` |
+| `frontend.extraVolumes` | Additional volumes to mount on the frontend. | `[]` |
 | `frontend.pdb.enabled`                                 | Enable pdb on frontend                                                              | `true`                        |
 
 ### posthog

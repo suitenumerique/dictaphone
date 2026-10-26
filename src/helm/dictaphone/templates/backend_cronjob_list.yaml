@@ -54,6 +54,9 @@ items:
                     {{- toYaml . | nindent 22 }}
                   {{- end }}
                   volumeMounts:
+                    - name: tmp
+                      mountPath: /tmp
+                      readOnly: false
                     {{- range $index, $value := $.Values.mountFiles }}
                     - name: "files-{{ $index }}"
                       mountPath: {{ $value.path }}
@@ -71,6 +74,8 @@ items:
                     {{- end }}
               restartPolicy: {{ .restartPolicy | default "Never" }}
               volumes:
+                - name: tmp
+                  {{- toYaml ($.Values.backend.tmpVolume | default (dict "emptyDir" (dict))) | nindent 18 }}
                 {{- range $index, $value := $.Values.mountFiles }}
                 - name: "files-{{ $index }}"
                   configMap:

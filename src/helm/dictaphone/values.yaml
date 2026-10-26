@@ -229,8 +229,17 @@ backend:
     ttlSecondsAfterFinished: 30
     backoffLimit: 2
 
-  ## @param backend.securityContext Configure backend Pod security context
-  securityContext: null
+  ## @param backend.securityContext Configure backend container security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10000
+    runAsGroup: 10000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
 
   ## @param backend.envVars Configure backend container environment variables
   ## @extra backend.envVars.BY_VALUE Example environment variable by setting value directly
@@ -386,6 +395,9 @@ backend:
   ## @extra backend.persistence.volume-name.mountPath Path where the volume should be mounted to
   persistence: {}
 
+  ## @param backend.tmpVolume Volume backing writable /tmp; defaults to emptyDir when unset, independent of additional volumes
+  tmpVolume: {}
+
   ## @param backend.extraVolumeMounts Additional volumes to mount on the backend.
   extraVolumeMounts: []
 
@@ -426,8 +438,17 @@ celeryBackend:
   ## @param celeryBackend.migrateJobAnnotations Annotations for the migrate job
   migrateJobAnnotations: {}
 
-  ## @param celeryBackend.securityContext Configure celeryBackend Pod security context
-  securityContext: null
+  ## @param celeryBackend.securityContext Configure celeryBackend container security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10000
+    runAsGroup: 10000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
 
   ## @param celeryBackend.envVars Configure celeryBackend container environment variables
   ## @extra celeryBackend.envVars.BY_VALUE Example environment variable by setting value directly
@@ -484,6 +505,9 @@ celeryBackend:
   ## @extra celeryBackend.persistence.volume-name.type Type of the additional volume, persistentVolumeClaim or emptyDir
   ## @extra celeryBackend.persistence.volume-name.mountPath Path where the volume should be mounted to
   persistence: {}
+
+  ## @param celeryBackend.tmpVolume Volume backing writable /tmp; defaults to emptyDir when unset, independent of additional volumes
+  tmpVolume: {}
 
   ## @param celeryBackend.extraVolumeMounts Additional volumes to mount on the celeryBackend.
   extraVolumeMounts: []
@@ -656,8 +680,17 @@ frontend:
   ## @param frontend.sidecars Add sidecars containers to frontend deployment
   sidecars: []
 
-  ## @param frontend.securityContext Configure frontend Pod security context
-  securityContext: null
+  ## @param frontend.securityContext Configure frontend container security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10000
+    runAsGroup: 10000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
 
   ## @param frontend.envVars Configure frontend container environment variables
   ## @extra frontend.envVars.BY_VALUE Example environment variable by setting value directly
@@ -714,6 +747,9 @@ frontend:
   ## @extra frontend.persistence.volume-name.type Type of the additional volume, persistentVolumeClaim or emptyDir
   ## @extra frontend.persistence.volume-name.mountPath Path where the volume should be mounted to
   persistence: {}
+
+  ## @param frontend.tmpVolume Volume backing writable /tmp; defaults to emptyDir when unset, independent of additional volumes
+  tmpVolume: {}
 
   ## @param frontend.extraVolumeMounts Additional volumes to mount on the frontend.
   extraVolumeMounts: []

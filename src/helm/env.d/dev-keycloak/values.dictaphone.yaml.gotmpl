@@ -13,6 +13,8 @@ images:
     tag: "latest"
 
 backend:
+  # Allow Tilt live updates to write synced files using the image user.
+  securityContext: null
   replicas: 1
   envVars:
     DJANGO_CSRF_TRUSTED_ORIGINS: https://dictaphone.127.0.0.1.nip.io,http://dictaphone.127.0.0.1.nip.io
@@ -120,6 +122,8 @@ backend:
           path: cacert.pem
 
 celeryBackend:
+  # Allow Tilt live updates to write synced files using the image user.
+  securityContext: null
   replicas: 1
   command:
     - "celery"
@@ -132,6 +136,9 @@ celeryBackend:
     - "dictaphone-backend"
 
 audioExtractor:
+  # Allow Tilt live updates to write synced files using the image user.
+  securityContext: null
+  podSecurityContext: null
   transcodingReplicas: 1
   validationReplicas: 1
   envVars:
@@ -142,6 +149,8 @@ audioExtractor:
     AUDIO_EXTRACTOR_TOKEN: local-development-validation-token
 
 frontend:
+  # Allow Tilt live updates to write synced files using the image user.
+  securityContext: null
   envVars:
     VITE_APP_TITLE: "Assistant Transcripts"
     VITE_PORT: 8080
@@ -199,6 +208,9 @@ serviceMediaFiles:
     annotations: {}
 
 s3Gateway:
+  # Allow Tilt live updates to write synced files using the image user.
+  securityContext: null
+  podSecurityContext: null
   enabled: true
   rules: [{"endpoint": "http://rustfs.dictaphone.svc.cluster.local:9000", "addressing_style": "path", "buckets": {"dictaphone-media-storage": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-alpha": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-beta": {"GET": ["files/"], "PUT": ["files/"]}}}, {"endpoint": "http://rustfs.dictaphone.svc.cluster.local:9000", "addressing_style": "virtual", "buckets": {"dictaphone-media-storage": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-alpha": {"GET": ["files/"], "PUT": ["files/"]}, "dictaphone-media-beta": {"GET": ["files/"], "PUT": ["files/"]}}}]
   envVars:
