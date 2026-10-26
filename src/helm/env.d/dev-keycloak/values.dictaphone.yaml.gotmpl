@@ -24,7 +24,8 @@ backend:
     SIMPLE_JWT_SIGNING_KEY: {{ .Values.simpleJwtSigningKey }}
     DJANGO_SETTINGS_MODULE: dictaphone.settings
     DJANGO_SILENCED_SYSTEM_CHECKS: security.W004, security.W008
-    DJANGO_SUPERUSER_PASSWORD: admin
+    DJANGO_SUPERUSER_EMAIL: admin@example.com
+    DJANGO_SUPERUSER_PASSWORD: {{ .Values.djangoSuperuserPassword | quote }}
     DJANGO_EMAIL_HOST: "mailcatcher"
     DJANGO_EMAIL_PORT: 1025
     DJANGO_EMAIL_USE_SSL: "False"
@@ -103,7 +104,7 @@ backend:
       - "/bin/sh"
       - "-c"
       - |
-        python manage.py createsuperuser --email admin@example.com --password admin
+        python manage.py createsuperuser --email "$DJANGO_SUPERUSER_EMAIL" --password "$DJANGO_SUPERUSER_PASSWORD"
     restartPolicy: Never
 
   # Extra volume mounts to manage our local custom CA and avoid to set ssl_verify: false

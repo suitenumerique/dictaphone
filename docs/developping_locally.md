@@ -163,6 +163,12 @@ make start-tilt-keycloak
 
 Monitor Tilt’s progress at [http://localhost:10350/](http://localhost:10350/). After Tilt actions finish, you can access the app at [https://dictaphone.127.0.0.1.nip.io/](https://dictaphone.127.0.0.1.nip.io/).
 
+The local Kubernetes Django admin is available at
+[https://dictaphone.127.0.0.1.nip.io/admin/](https://dictaphone.127.0.0.1.nip.io/admin/)
+with email `admin@example.com`. The password is configured by
+`djangoSuperuserPassword` in `src/helm/env.d/dev-keycloak/values.secrets.yaml`
+and passed to the container as `DJANGO_SUPERUSER_PASSWORD`.
+
 ### Connecting the Summary component
 
 To easily connect the summary component, clone the Meet repo and start tilt there (on another port).
