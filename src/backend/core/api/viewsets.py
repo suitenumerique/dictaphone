@@ -993,6 +993,7 @@ class AiJobViewSet(
         authentication_classes=[AiWebhookAuthentication],
         permission_classes=[permissions.TranscribeWebhookPermission],
     )
+    @transaction.atomic
     def on_ai_event(self, request):
         """Handle incoming hook events for recordings."""
         logger.debug("Received transcribe webhook event: %s", request.data)
@@ -1005,6 +1006,8 @@ class AiJobViewSet(
             logger.error("Invalid webhook payload: %s", exc)
             raise drf_exceptions.ValidationError(detail=exc) from exc
 
+        # Read the job state only after any earlier webhook has committed.
+        utils.acquire_transaction_lock(f"ai-job-webhook:{payload.job_id}")
         ai_file_job = AiFileJob.objects.filter(remote_job_id=payload.job_id).first()
         if not ai_file_job:
             logger.warning("No AI file job found for job ID: %s", payload.job_id)

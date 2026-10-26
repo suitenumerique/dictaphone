@@ -3,16 +3,111 @@ Tests for files API endpoint in dictaphone's core app: create
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from unittest.mock import patch
+
+from django.db import connections
 
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core import factories
+from core import factories, utils
 from core.models import AiJobStatusChoices, AiJobTypeChoices
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.django_db(transaction=True)
+def test_api_files_webhook_serializes_same_job(settings):
+    """A concurrent webhook must read the job state after its predecessor commits."""
+    job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+    )
+    settings.AI_WEBHOOK_API_KEY = "good-key"
+    dispatch_started = Event()
+    second_lock_attempted = Event()
+    acquire_lock = utils.acquire_transaction_lock
+
+    def lock(key):
+        if dispatch_started.is_set():
+            second_lock_attempted.set()
+        acquire_lock(key)
+
+    def complete_job(**_kwargs):
+        dispatch_started.set()
+        assert second_lock_attempted.wait(timeout=10)
+        job.status = AiJobStatusChoices.SUCCESS
+        job.save()
+
+    def send_webhook():
+        try:
+            return APIClient().post(
+                "/api/v1.0/ai-jobs/webhook/",
+                {
+                    "job_id": job.remote_job_id,
+                    "type": "transcript",
+                    "status": "success",
+                    "transcription_data_url": "http://example.com/transcription.json",
+                },
+                headers={"Authorization": "Bearer good-key"},
+            )
+        finally:
+            connections.close_all()
+
+    with (
+        patch("core.api.viewsets.utils.acquire_transaction_lock", side_effect=lock),
+        patch(
+            "core.api.viewsets.handle_transcript_received.apply_async",
+            side_effect=complete_job,
+        ) as dispatch,
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        first = executor.submit(send_webhook)
+        assert dispatch_started.wait(timeout=10)
+        second = executor.submit(send_webhook)
+        responses = [first.result(timeout=15), second.result(timeout=15)]
+
+    assert [response.status_code for response in responses] == [200, 200]
+    assert responses[0].json() == {"message": "Event processed."}
+    assert responses[1].json() == {
+        "message": "AI file job already in success state, ignoring."
+    }
+    dispatch.assert_called_once()
+
+
+def test_api_files_webhook_rolls_back_failure(settings):
+    """An error during webhook handling must roll back job and quota changes."""
+    job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT, status=AiJobStatusChoices.PENDING
+    )
+    usage = factories.TranscriptionUsageFactory(ai_job_id=job.pk, user=job.file.creator)
+    settings.AI_WEBHOOK_API_KEY = "good-key"
+
+    with (
+        patch(
+            "core.api.viewsets.analytics.capture_event",
+            side_effect=RuntimeError("Analytics failed"),
+        ),
+        pytest.raises(RuntimeError, match="Analytics failed"),
+    ):
+        APIClient().post(
+            "/api/v1.0/ai-jobs/webhook/",
+            {
+                "job_id": job.remote_job_id,
+                "type": "transcript",
+                "status": "failure",
+                "error_code": "unknown_error",
+            },
+            headers={"Authorization": "Bearer good-key"},
+        )
+
+    job.refresh_from_db()
+    usage.refresh_from_db()
+    assert job.status == AiJobStatusChoices.PENDING
+    assert job.failure_reason == ""
+    assert not usage.ignored
 
 
 def test_api_files_transcribe_webhook_anonymous(caplog):
