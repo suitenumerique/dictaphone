@@ -15,6 +15,14 @@ Existing passwords are not revalidated at login. Renew existing administrator
 passwords using the Django admin password change form or
 `python manage.py changepassword admin@example.com` to apply the policy.
 
+## Password hashing
+
+New and changed passwords use Argon2id through Django's `Argon2PasswordHasher`
+and the `argon2-cffi` dependency, following recommendation R29 of ANSSI-PG-078.
+Existing password hashers remain enabled so Django can verify older passwords
+and automatically rehash them with Argon2id after a successful password login.
+No password reset or data migration is required.
+
 ## Account lockout
 
 The Django admin password login locks an account or IP after five failed attempts.

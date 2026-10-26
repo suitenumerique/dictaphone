@@ -445,6 +445,15 @@ class Base(Configuration):
         "core.authentication.backends.OIDCAuthenticationBackend",
     ]
 
+    # Prefer Argon2id while retaining existing hashes for verification and upgrades.
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.Argon2PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+        "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+        "django.contrib.auth.hashers.ScryptPasswordHasher",
+    ]
+
     AUTH_PASSWORD_VALIDATORS = [
         {
             "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
