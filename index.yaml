@@ -2,6 +2,14 @@ apiVersion: v1
 entries:
   dictaphone:
   - apiVersion: v2
+    created: "2026-10-26T09:33:00.779244789Z"
+    digest: dd461d8324bef8e1c5d99d604362a287d60f0054dc11cc55731c55d97df8f0c7
+    name: dictaphone
+    type: application
+    urls:
+    - https://suitenumerique.github.io/dictaphone/dictaphone-0.7.0.tgz
+    version: 0.7.0
+  - apiVersion: v2
     created: "2026-10-15T19:49:08.296546509Z"
     digest: f60e038f5add83196afd97a28692b9a87a850a6fb5e159c5b716da11fc5440a6
     name: dictaphone
@@ -73,4 +81,4 @@ entries:
     urls:
     - https://suitenumerique.github.io/dictaphone/dictaphone-0.0.2.tgz
     version: 0.0.2
-generated: "2026-10-15T19:49:08.294806099Z"
+generated: "2026-10-26T09:33:00.776876638Z"
