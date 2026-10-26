@@ -1,7 +1,7 @@
 # Django Dictaphone
 
 # ---- base image to inherit from ----
-FROM python:3.14.8-alpine3.24 AS base
+FROM python:3.15.1-alpine3.24 AS base
 
 # Upgrade pip to its latest release to speed up dependencies installation
 RUN python -m pip install --upgrade pip
