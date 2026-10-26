@@ -15,7 +15,6 @@ from django.conf import settings
 from django.db.models import Model, Q, QuerySet
 from django.utils import timezone
 
-from email_validator import EmailNotValidError, validate_email
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -58,42 +57,30 @@ RETENTION_DEADLINE_FIELDS: dict[RetentionPolicy, tuple[str, str]] = {
 
 
 def normalize_email_domain(domain: str) -> str:
-    """Normalize and validate an email domain."""
-    normalized_domain = domain.strip().rstrip(".")
-    try:
-        return validate_email(
-            f"placeholder@{normalized_domain}",
-            check_deliverability=False,
-            test_environment=True,
-        ).domain
-    except EmailNotValidError as exc:
-        raise ValueError(f"Invalid email domain: {domain!r}") from exc
+    """Build a case-insensitive policy key without IDNA or Unicode normalization."""
+    return domain.strip().rstrip(".").lower()
 
 
 def normalize_email_address(email: str) -> str:
-    """Normalize and validate an email address."""
-    try:
-        return validate_email(
-            email.strip(),
-            check_deliverability=False,
-            test_environment=True,
-        ).normalized
-    except EmailNotValidError as exc:
-        raise ValueError(f"Invalid email address: {email!r}") from exc
+    """Build a policy key, checking only the address's basic structure."""
+    email_parts = _get_email_parts(email)
+    if email_parts is None:
+        raise ValueError(f"Invalid email address: {email!r}")
+    return email_parts[0]
 
 
-@lru_cache(maxsize=2048)
 def _get_email_parts(email: str | None) -> tuple[str, str] | None:
-    """Return the normalized email and domain from an email address."""
+    """Split an address into policy keys; email validation belongs at ingestion."""
     if not email:
         return None
-    try:
-        validated_email = validate_email(
-            email, check_deliverability=False, test_environment=True
-        )
-    except EmailNotValidError:
+    parts = email.strip().lower().split("@")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
         return None
-    return validated_email.normalized, validated_email.domain
+    local_part, domain = parts
+    domain = normalize_email_domain(domain)
+    if not domain:
+        return None
+    return f"{local_part}@{domain}", domain
 
 
 def get_email_domain(email: str | None) -> str | None:
@@ -494,7 +481,6 @@ def get_runtime_configuration() -> RuntimeConfiguration:
 def clear_configuration_cache() -> None:
     """Clear resolved configuration caches, primarily for tests."""
     get_runtime_configuration.cache_clear()
-    _get_email_parts.cache_clear()
     for clear_cache in _configuration_cache_clearers:
         clear_cache()
 

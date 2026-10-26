@@ -31,18 +31,27 @@ def _profiles():
     }
 
 
-def test_email_domains_are_normalized_and_validated_by_email_validator():
+def test_email_domains_use_simple_case_insensitive_matching():
     """Email addresses and configured domains use the same normalization rules."""
     assert normalize_email_domain(" Exämple.COM. ") == "exämple.com"
     assert get_email_domain("user@Exämple.COM") == "exämple.com"
     assert get_email_domain("not-an-email") is None
 
 
+@pytest.mark.parametrize(
+    "email",
+    [None, "", "not-an-email", "@example.com", "user@", "user@@example.com"],
+)
+def test_email_domain_requires_a_single_at_and_nonempty_parts(email):
+    """Malformed addresses must not select a domain policy."""
+    assert get_email_domain(email) is None
+
+
 def test_email_addresses_default_to_an_empty_tuple_and_are_normalized():
     """Explicit email selectors should be stored as normalized tuples."""
     assert DataPolicyConfiguration.model_validate({}).emails == ()
     assert DataPolicyConfiguration.model_validate(
-        {"emails": [" user@EXAMPLE.COM "]}
+        {"emails": [" User@EXAMPLE.COM "]}
     ).emails == ("user@example.com",)
 
 
@@ -80,7 +89,10 @@ def test_profiles_are_normalized_and_resolved(settings):
     )
 
 
-def test_explicit_email_match_takes_precedence_over_domain_match(settings):
+@pytest.mark.parametrize(
+    "email", ["user@example.com", "USER@EXAMPLE.COM", " User@Example.COM "]
+)
+def test_explicit_email_match_takes_precedence_over_domain_match(settings, email):
     """An explicit email selector should override its domain's policy."""
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True},
@@ -92,10 +104,40 @@ def test_explicit_email_match_takes_precedence_over_domain_match(settings):
     }
     settings.S3_BUCKET_CONFIGURATIONS = _buckets()
 
-    profile = get_profile_for_email("user@example.com")
+    profile = get_profile_for_email(email)
 
     assert profile.name == "beta"
     assert profile.emails == ("user@example.com",)
+
+
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "ｅxample.com",  # Fullwidth e is not mapped to ASCII.
+        "еxample.com",  # Cyrillic e is distinct from Latin e.
+        "exam\u200bple.com",  # Invisible characters are not removed.
+        "xn--exmple-cua.com",  # Punycode is not decoded to exämple.com.
+        "exa\u0308mple.com",  # Decomposed Unicode is not composed.
+    ],
+)
+@pytest.mark.parametrize("selector", ["domains", "emails"])
+def test_policy_matching_keeps_unicode_domains_distinct(settings, domain, selector):
+    """Policy keys must not merge lookalikes or alternate domain encodings."""
+    configured_domains = ["example.com", "exämple.com"]
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "alpha": {
+            selector: configured_domains
+            if selector == "domains"
+            else [f"user@{value}" for value in configured_domains]
+        },
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+
+    assert get_profile_for_email(f"user@{domain}").name == "default"
+
+    # Configured Unicode domains still match themselves.
+    assert get_profile_for_email("user@exämple.com").name == "alpha"
 
 
 def test_data_policy_can_be_configured_with_emails_only(settings):
@@ -178,7 +220,7 @@ def test_duplicate_explicit_emails_are_rejected_across_profiles():
                 },
                 "beta": {
                     "domains": ["beta.example"],
-                    "emails": ["user@EXAMPLE.COM"],
+                    "emails": ["USER@EXAMPLE.COM"],
                 },
             }
         )
@@ -192,21 +234,24 @@ def test_duplicate_explicit_emails_are_rejected_within_a_profile():
                 "default": {"default": True},
                 "alpha": {
                     "domains": ["alpha.example"],
-                    "emails": ["user@example.com", "user@example.com"],
+                    "emails": ["user@example.com", "USER@EXAMPLE.COM"],
                 },
             }
         )
 
 
-def test_invalid_explicit_email_is_rejected():
-    """Configured explicit email selectors must be valid addresses."""
+@pytest.mark.parametrize(
+    "email", ["not-an-email", "@example.com", "user@", "user@@example.com"]
+)
+def test_invalid_explicit_email_is_rejected(email):
+    """Configured email selectors require a single @ and nonempty parts."""
     with pytest.raises(ValidationError, match="Invalid email address"):
         DataPolicyConfigurations.model_validate(
             {
                 "default": {"default": True},
                 "alpha": {
                     "domains": ["alpha.example"],
-                    "emails": ["not-an-email"],
+                    "emails": [email],
                 },
             }
         )
