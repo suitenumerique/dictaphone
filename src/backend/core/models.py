@@ -28,6 +28,7 @@ from core.configuration import (
     get_profile_for_file,
 )
 from core.enums import ISO_639_1_CHOICES
+from core.payloads import read_stored_result
 from core.storage import get_storage_for_file
 from core.utils import format_transcript_for_markdown
 from core.webhook_models import WhisperXResponse
@@ -975,8 +976,9 @@ class AiFileJob(BaseModel):
         if self.status != AiJobStatusChoices.SUCCESS:
             raise ValueError(f"Job status is not success: {self.status}")
 
-        with get_storage_for_file(self.file).open(self.key, "rb") as result_file:
-            content = result_file.read()
+        content = read_stored_result(
+            get_storage_for_file(self.file), self.key, self.type
+        )
 
         if self.type == AiJobTypeChoices.TRANSCRIPT:
             whisper_response = WhisperXResponse.model_validate_json(content)

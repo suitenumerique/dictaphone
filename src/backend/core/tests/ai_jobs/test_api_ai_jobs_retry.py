@@ -1,5 +1,6 @@
 """Tests for AI job retry API endpoint."""
 
+import json
 from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
@@ -55,7 +56,10 @@ def test_api_ai_jobs_retry_audio_quota(post, settings, used_seconds, allowed):
         submitted_at=timezone.now(),
         duration_seconds=used_seconds,
     )
-    post.return_value.json.return_value = {"job_id": "quota-retry"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "quota-retry"}).encode()
+    ]
     client = APIClient()
     client.force_login(user)
 
@@ -326,7 +330,10 @@ def test_api_ai_jobs_retry_returns_permanently_failed_job(
             "invalid request", response=response
         )
     elif failure == "invalid_job_id":
-        mock_post.return_value.json.return_value = {"job_id": ""}
+        mock_post.return_value.headers = {}
+        mock_post.return_value.iter_content.return_value = [
+            json.dumps({"job_id": ""}).encode()
+        ]
 
     client = APIClient()
     client.force_login(old_job.file.creator)

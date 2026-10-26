@@ -1,5 +1,6 @@
 """Tests for background tasks."""
 
+import json
 from io import BytesIO
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -193,7 +194,10 @@ def test_task_call_transcribe_service_success(mock_post, settings, seconds_below
 
     response = Mock()
     response.raise_for_status.return_value = None
-    response.json.return_value = {"job_id": "remote-transcript-job-id"}
+    response.headers = {}
+    response.iter_content.return_value = [
+        json.dumps({"job_id": "remote-transcript-job-id"}).encode()
+    ]
     mock_post.return_value = response
 
     reserved_job = create_transcription_job(file.id)
@@ -203,6 +207,7 @@ def test_task_call_transcribe_service_success(mock_post, settings, seconds_below
     _, kwargs = mock_post.call_args
     assert kwargs["headers"] == {"Authorization": "Bearer test-ai-key"}
     assert kwargs["timeout"] == 10
+    assert kwargs["stream"] is True
     assert kwargs["json"]["user_sub"] == file.creator.sub
     assert kwargs["json"]["language"] == "en"
     assert kwargs["json"]["cloud_storage_url"]
@@ -227,7 +232,10 @@ def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
 
     response = Mock()
     response.raise_for_status.return_value = None
-    response.json.return_value = {"job_id": "remote-transcript-job-id-en"}
+    response.headers = {}
+    response.iter_content.return_value = [
+        json.dumps({"job_id": "remote-transcript-job-id-en"}).encode()
+    ]
     mock_post.return_value = response
 
     call_transcribe_service(create_transcription_job(file.id, language="en").id)
@@ -400,11 +408,16 @@ def test_task_store_transcript_and_call_summary_success(
     get_response.raise_for_status.return_value = None
     get_response.json.return_value = transcript_payload
     get_response.content = transcript_content
+    get_response.headers = {}
+    get_response.iter_content.return_value = iter([get_response.content])
     mock_get.return_value = get_response
 
     post_response = Mock()
     post_response.raise_for_status.return_value = None
-    post_response.json.return_value = {"job_id": "remote-summary-job-id"}
+    post_response.headers = {}
+    post_response.iter_content.return_value = [
+        json.dumps({"job_id": "remote-summary-job-id"}).encode()
+    ]
     mock_post.return_value = post_response
 
     handle_transcript_received(
@@ -416,11 +429,13 @@ def test_task_store_transcript_and_call_summary_success(
         "http://example.com/transcript.json",
         timeout=(10, 20),
         allow_redirects=False,
+        stream=True,
     )
     mock_post.assert_called_once()
     _, kwargs = mock_post.call_args
     assert kwargs["headers"] == {"Authorization": "Bearer test-ai-key"}
     assert kwargs["timeout"] == 10
+    assert kwargs["stream"] is True
     assert kwargs["json"] == {
         "user_sub": ai_transcript_job.file.creator.sub,
         "user_email": ai_transcript_job.file.creator.email,
@@ -586,6 +601,8 @@ def test_task_store_summary_success(mock_get, settings):
     get_response = Mock()
     get_response.raise_for_status.return_value = None
     get_response.content = summary_content
+    get_response.headers = {}
+    get_response.iter_content.return_value = iter([get_response.content])
     mock_get.return_value = get_response
 
     store_summary(
@@ -597,6 +614,7 @@ def test_task_store_summary_success(mock_get, settings):
         "http://example.com/summary.txt",
         timeout=(10, 20),
         allow_redirects=False,
+        stream=True,
     )
 
     s3_client = default_storage.connection.meta.client
@@ -675,6 +693,8 @@ def test_task_store_transcript_and_call_summary_post_error(
         ],
         "word_segments": [],
     }
+    get_response.headers = {}
+    get_response.iter_content.return_value = iter([get_response.content])
     mock_get.return_value = get_response
 
     post_response = Mock()
@@ -753,7 +773,8 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
     mock_to_markdown.return_value = "# Transcript"
     response = Mock()
     response.raise_for_status.return_value = None
-    response.json.return_value = {"id": "new-doc-id"}
+    response.headers = {}
+    response.iter_content.return_value = [json.dumps({"id": "new-doc-id"}).encode()]
     mock_post.return_value = response
 
     create_document_in_docs(ai_transcript_job.id)
@@ -769,6 +790,7 @@ def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, setti
         },
         headers={"Authorization": "Bearer docs-api-key"},
         timeout=(20, 3 * 60),
+        stream=True,
     )
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.docs_app_id == "new-doc-id"
@@ -805,6 +827,53 @@ def test_task_create_document_in_docs_read_timeout_is_ignored(
 @patch("core.tasks.file.logger.error")
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.AiFileJob.to_markdown")
+@pytest.mark.parametrize("status_code", [201, 200, 500])
+@patch("core.tasks.file.settings.DOCS_BASE_URL", "https://docs.example.com")
+@pytest.mark.parametrize(
+    "error_type",
+    [
+        requests.ConnectionError,
+        requests.exceptions.ChunkedEncodingError,
+        requests.exceptions.ContentDecodingError,
+        requests.ReadTimeout,
+    ],
+)
+def test_task_create_document_in_docs_body_read_failure(
+    mock_to_markdown, mock_post, mock_logger_error, status_code, error_type
+):
+    """Body failures after creation must not retry and create duplicate documents."""
+    job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
+    mock_to_markdown.return_value = "# Transcript"
+    error = error_type("body read failed")
+    response = Mock(status_code=status_code, headers={})
+    response.raise_for_status.return_value = None
+    response.iter_content.side_effect = error
+    mock_post.return_value = response
+
+    if status_code == 201 or error_type is requests.ReadTimeout:
+        create_document_in_docs(job.id)
+    else:
+        with pytest.raises(error_type) as exc_info:
+            create_document_in_docs(job.id)
+        assert exc_info.value is error
+
+    response.close.assert_called_once_with()
+    job.refresh_from_db()
+    assert job.docs_app_id is None
+    assert not job.docs_creation_in_progress
+    if error_type is requests.ReadTimeout:
+        assert "Request to Docs timed out" in mock_logger_error.call_args.args[0]
+    elif status_code == 201:
+        mock_logger_error.assert_called_once_with(
+            "Failed to read created Docs document response for file %s, "
+            "do not retry to avoid creating multiple files on docs",
+            job.file.id,
+        )
+
+
+@patch("core.tasks.file.logger.error")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
 def test_task_create_document_in_docs_logs_and_raises_on_http_error(
     mock_to_markdown, mock_post, mock_logger_error, settings
 ):
@@ -827,9 +896,9 @@ def test_task_create_document_in_docs_logs_and_raises_on_http_error(
         create_document_in_docs(ai_transcript_job.id)
 
     mock_logger_error.assert_called_once_with(
-        "Failed to create document in Docs for file %s: %s",
+        "Failed to create document in Docs for file %s: HTTP %s",
         ai_transcript_job.file.id,
-        "docs failure body",
+        500,
     )
     response.raise_for_status.assert_called_once_with()
     ai_transcript_job.refresh_from_db()

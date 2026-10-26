@@ -1,5 +1,6 @@
 """Attempt history, worker API, concurrency, migration, and storage cleanup."""
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from importlib import import_module
@@ -217,7 +218,10 @@ def test_upload_ended_audio_quota(
         submitted_at=timezone.now(),
         duration_seconds=used_seconds,
     )
-    post.return_value.json.return_value = {"job_id": "quota-upload"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "quota-upload"}).encode()
+    ]
     client = APIClient()
     client.force_login(file.creator)
 
@@ -530,7 +534,10 @@ def test_linked_transcription_uses_its_validated_output_after_new_extraction():
     start_audio_extraction(file.pk)
     models.AudioJob.objects.filter(pk=file.latest_audio_job.pk).update(status="failed")
     response = SimpleNamespace(
-        raise_for_status=lambda: None, json=lambda: {"job_id": "stable-audio-result"}
+        raise_for_status=lambda: None,
+        headers={},
+        iter_content=lambda **_kwargs: [b'{"job_id": "stable-audio-result"}'],
+        close=lambda: None,
     )
     with patch("core.tasks.file.session.post", return_value=response) as post:
         call_transcribe_service(job.pk)

@@ -1,5 +1,6 @@
 """Tests for AI job open-in-docs API endpoint."""
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -205,7 +206,10 @@ def test_api_ai_jobs_create_in_docs_creates_document_synchronously(
     to_markdown.return_value = "# Transcript"
     docs_response = Mock()
     docs_response.status_code = 201
-    docs_response.json.return_value = {"id": "new-doc-id"}
+    docs_response.headers = {}
+    docs_response.iter_content.return_value = [
+        json.dumps({"id": "new-doc-id"}).encode()
+    ]
     post.return_value = docs_response
 
     response = client.post(f"/api/v1.0/ai-jobs/{ai_job.id}/create-in-docs/")

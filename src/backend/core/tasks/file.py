@@ -29,6 +29,7 @@ from core.models import (
     FileLifecycleStateChoices,
     TranscriptionUsage,
 )
+from core.payloads import read_response, result_limit
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.constants import BACKEND_QUEUE
 from core.tasks.mail import send_transcription_ready_email
@@ -308,9 +309,15 @@ def call_transcribe_service(ai_job_id):
                 },
                 headers={"Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}"},
                 timeout=10,
+                stream=True,
             )
-            response.raise_for_status()
-            remote_job_id = response.json()["job_id"]
+            remote_job_id = json.loads(
+                read_response(
+                    response,
+                    settings.PAYLOAD_SERVICE_RESPONSE_MAX_BYTES,
+                    check_status=True,
+                )
+            )["job_id"]
             if not isinstance(remote_job_id, str) or not remote_job_id:
                 raise ValueError("Transcription service returned an invalid job ID")
         except (
@@ -364,18 +371,17 @@ def handle_transcript_received(remote_job_id, url: str | None):
         file.id,
         redact_url(url),
     )
-    if url is None:
-        content = json.dumps({"segments": [], "word_segments": []}).encode("utf-8")
-    else:
-        # could be streamed to S3 later
-        try:
-            response = fetch_external_source(session, url)
-        except ValueError:
-            ai_transcript_job.mark_failed()
-            raise
-        content = response.content
-
-    transcript = WhisperXResponse(**json.loads(content))
+    try:
+        if url is None:
+            content = json.dumps({"segments": [], "word_segments": []}).encode("utf-8")
+        else:
+            content = read_response(
+                fetch_external_source(session, url), result_limit("transcript")
+            )
+        transcript = WhisperXResponse.model_validate_json(content)
+    except ValueError, TypeError:
+        ai_transcript_job.mark_failed()
+        raise
 
     storage = get_storage_for_file(file)
     bucket_name = get_storage_bucket_name(storage)
@@ -443,14 +449,20 @@ def handle_transcript_received(remote_job_id, url: str | None):
                 "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
             },
             timeout=10,
+            stream=True,
         )
-        summary_response.raise_for_status()
+        ai_summary_job.remote_job_id = json.loads(
+            read_response(
+                summary_response,
+                settings.PAYLOAD_SERVICE_RESPONSE_MAX_BYTES,
+                check_status=True,
+            )
+        )["job_id"]
     except Exception as e:
         logger.error("Creating summary job failed for file %s: %s", file.id, e)
         ai_summary_job.mark_failed()
         raise e
 
-    ai_summary_job.remote_job_id = summary_response.json()["job_id"]
     ai_summary_job.save()
 
     logger.info("Summary job created for file %s", file.id)
@@ -479,9 +491,11 @@ def store_summary(remote_job_id, url):
     file = ai_summary_job.file
 
     logger.info("Storing summary for file %s & url %r", file.id, redact_url(url))
-    # could be streamed to S3 later
     try:
-        response = fetch_external_source(session, url)
+        content = read_response(
+            fetch_external_source(session, url), result_limit("summary")
+        )
+        content.decode("utf-8")
     except ValueError:
         ai_summary_job.mark_failed()
         raise
@@ -492,7 +506,7 @@ def store_summary(remote_job_id, url):
     s3_client.put_object(
         Bucket=bucket_name,
         Key=ai_summary_job.key,
-        Body=response.content,
+        Body=content,
         ContentType="text/plain",
     )
     logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
@@ -530,9 +544,8 @@ def create_document_in_docs(ai_job_id):
             f"Document creation is already in progress for AI job {ai_job.id}"
         )
 
-    content = ai_job.to_markdown(ai_job.file.creator.language)
-
     try:
+        content = ai_job.to_markdown(ai_job.file.creator.language)
         response = session.post(
             urljoin(settings.DOCS_BASE_URL, "/api/v1.0/documents/create-for-owner/"),
             json={
@@ -546,19 +559,32 @@ def create_document_in_docs(ai_job_id):
                 "Authorization": f"Bearer {settings.DOCS_SERVER_TO_SERVER_API_KEY}",
             },
             timeout=(20, 3 * 60),
+            stream=True,
         )
         if response.status_code != 201:
             logger.error(
-                "Failed to create document in Docs for file %s: %s",
+                "Failed to create document in Docs for file %s: HTTP %s",
                 ai_job.file.id,
-                response.text,
+                response.status_code,
             )
-            AiFileJob.objects.filter(pk=ai_job.pk).update(
-                docs_creation_in_progress=False
-            )
-            response.raise_for_status()
 
-        docs_app_id = response.json()["id"]
+        try:
+            response_body = read_response(
+                response, settings.PAYLOAD_SERVICE_RESPONSE_MAX_BYTES, check_status=True
+            )
+        except requests_lib.ReadTimeout:
+            raise
+        except requests_lib.RequestException:
+            if response.status_code != 201:
+                raise
+            logger.error(
+                "Failed to read created Docs document response for file %s, "
+                "do not retry to avoid creating multiple files on docs",
+                ai_job.file.id,
+            )
+            return
+
+        docs_app_id = json.loads(response_body)["id"]
         logger.info(
             "Document created in Docs for file %s => %s (in docs)",
             ai_job.file.id,

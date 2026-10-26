@@ -36,7 +36,9 @@ def test_allowed_sources(url):
     session = Mock()
     session.get.return_value.status_code = 200
     assert fetch_external_source(session, url) is session.get.return_value
-    session.get.assert_called_once_with(url, timeout=(10, 20), allow_redirects=False)
+    session.get.assert_called_once_with(
+        url, timeout=(10, 20), allow_redirects=False, stream=True
+    )
     session.get.return_value.raise_for_status.assert_called_once_with()
 
 

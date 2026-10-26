@@ -35,9 +35,11 @@ from rest_framework import (
 
 from core import analytics, models, utils, webhook_models
 from core.api.filters import ListFileFilter
+from core.api.parsers import BoundedWebhookJSONParser, BoundedWebhookMultiPartParser
 from core.audio_jobs import start_audio_extraction
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
+from core.payloads import PayloadLimitExceeded, read_stored_result
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.file import (
     DocumentCreationAlreadyInProgress,
@@ -780,8 +782,10 @@ class AiJobViewSet(
         if not storage.exists(ai_job.key):
             raise drf_exceptions.NotFound()
 
-        with storage.open(ai_job.key, "rb") as result_file:
-            content = result_file.read()
+        try:
+            content = read_stored_result(storage, ai_job.key, ai_job.type)
+        except PayloadLimitExceeded as exc:
+            raise drf_exceptions.ValidationError(str(exc)) from exc
 
         return HttpResponse(content=content, content_type=content_type, status=200)
 
@@ -990,6 +994,7 @@ class AiJobViewSet(
         detail=False,
         methods=["post"],
         url_path="webhook",
+        parser_classes=[BoundedWebhookJSONParser, BoundedWebhookMultiPartParser],
         authentication_classes=[AiWebhookAuthentication],
         permission_classes=[permissions.TranscribeWebhookPermission],
     )

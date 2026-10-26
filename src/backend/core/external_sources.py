@@ -87,10 +87,15 @@ def _validate_external_source_url(url):
 def fetch_external_source(session, url):
     """Download a validated URL without following redirects to other targets."""
     validate_external_source_url(url)
+    response = None
     try:
-        response = session.get(url, timeout=(10, 20), allow_redirects=False)
+        response = session.get(
+            url, timeout=(10, 20), allow_redirects=False, stream=True
+        )
         response.raise_for_status()
     except requests.RequestException as exc:
+        if response is not None:
+            response.close()
         raise type(exc)(
             f"External source request failed for {redact_url(url)!r}"
         ) from None

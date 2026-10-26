@@ -1,6 +1,8 @@
 """Regression tests for transcription reservation and submission retries."""
 
+import json
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 from threading import Barrier
 from unittest.mock import Mock, patch
 
@@ -97,7 +99,8 @@ def test_transcription_invalid_service_response_marks_job_failed(mock_post, payl
     )
     job = create_transcription_job(file.pk)
     response = Mock()
-    response.json.return_value = payload
+    response.headers = {}
+    response.iter_content.return_value = [json.dumps(payload).encode()]
     mock_post.return_value = response
 
     result = call_transcribe_service.apply(args=[job.pk], throw=False)
@@ -130,7 +133,10 @@ def test_transcription_retry_preserves_job_and_pending_status(mock_post):
         if len(attempts) == 1:
             raise requests.ConnectionError("temporary failure")
         response = Mock()
-        response.json.return_value = {"job_id": "retried-transcript"}
+        response.headers = {}
+        response.iter_content.return_value = [
+            json.dumps({"job_id": "retried-transcript"}).encode()
+        ]
         return response
 
     mock_post.side_effect = submit
@@ -185,6 +191,7 @@ def test_transcription_permanent_http_error_is_not_retried(mock_post, status_cod
     )
     job = create_transcription_job(file.pk)
     response = requests.Response()
+    response.raw = BytesIO()
     response.status_code = status_code
     mock_post.return_value = response
 
@@ -207,9 +214,13 @@ def test_transcription_retryable_http_error_can_recover(mock_post, status_code):
     )
     job = create_transcription_job(file.pk)
     failure = requests.Response()
+    failure.raw = BytesIO()
     failure.status_code = status_code
     success = Mock()
-    success.json.return_value = {"job_id": "recovered-transcript"}
+    success.headers = {}
+    success.iter_content.return_value = [
+        json.dumps({"job_id": "recovered-transcript"}).encode()
+    ]
     mock_post.side_effect = [failure, success]
 
     result = call_transcribe_service.apply(args=[job.pk], throw=False)
@@ -245,7 +256,10 @@ def test_concurrent_transcription_submissions_call_service_once(mock_post):
     )
     job = create_transcription_job(file.pk)
     response = Mock()
-    response.json.return_value = {"job_id": "one-remote-transcript"}
+    response.headers = {}
+    response.iter_content.return_value = [
+        json.dumps({"job_id": "one-remote-transcript"}).encode()
+    ]
     mock_post.return_value = response
     barrier = Barrier(2)
 

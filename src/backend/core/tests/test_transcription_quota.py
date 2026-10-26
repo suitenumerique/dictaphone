@@ -1,8 +1,10 @@
 """Rolling audio duration quota at the transcription submission boundary."""
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from importlib import import_module
+from io import BytesIO
 from threading import Barrier
 from unittest.mock import Mock, patch
 
@@ -69,7 +71,10 @@ def test_transcription_quota_includes_current_audio(
         submitted_at=timezone.now(),
         duration_seconds=used,
     )
-    post.return_value.json.return_value = {"job_id": "quota-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "quota-transcript"}).encode()
+    ]
 
     assert call_transcribe_service(job.pk) == job.pk
 
@@ -103,7 +108,10 @@ def test_transcription_quota_uses_rolling_submission_time(post, age_hours, allow
         models.TranscriptionUsage.objects.filter(pk=history.pk).update(
             created_at=timezone.now() - timedelta(days=5)
         )
-        post.return_value.json.return_value = {"job_id": "quota-transcript"}
+        post.return_value.headers = {}
+        post.return_value.iter_content.return_value = [
+            json.dumps({"job_id": "quota-transcript"}).encode()
+        ]
 
         call_transcribe_service(job.pk)
 
@@ -121,7 +129,10 @@ def test_transcription_quota_ignores_other_users_summaries_and_unsubmitted_jobs(
     }
     factories.AiFileJobFactory(**{**history, "type": models.AiJobTypeChoices.SUMMARIZE})
     factories.AiFileJobFactory(**history, remote_job_id=None)
-    post.return_value.json.return_value = {"job_id": "quota-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "quota-transcript"}).encode()
+    ]
 
     call_transcribe_service(job.pk)
 
@@ -133,7 +144,10 @@ def test_transcription_quota_automatic_retries_charge_once(post):
     """A transport retry keeps its original charge even at the quota boundary."""
     job = reserved_job(duration=3600)
     success = Mock()
-    success.json.return_value = {"job_id": "retried-transcript"}
+    success.headers = {}
+    success.iter_content.return_value = [
+        json.dumps({"job_id": "retried-transcript"}).encode()
+    ]
     post.side_effect = [requests.Timeout("offline"), success]
 
     result = call_transcribe_service.apply(args=[job.pk], throw=False)
@@ -154,7 +168,10 @@ def test_transcription_quota_ignored_charges_do_not_count(post):
     ignored = factories.TranscriptionUsageFactory(
         user=job.file.creator, ignored=True, ignored_reason="Support adjustment"
     )
-    post.return_value.json.return_value = {"job_id": "new-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "new-transcript"}).encode()
+    ]
 
     call_transcribe_service(job.pk)
 
@@ -180,7 +197,10 @@ def test_transcription_quota_remains_reserved_between_automatic_retries(post):
     post.assert_called_once()
 
     post.side_effect = None
-    post.return_value.json.return_value = {"job_id": "recovered-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "recovered-transcript"}).encode()
+    ]
     call_transcribe_service(job.pk)
     usage.refresh_from_db()
     assert usage.ignored is False
@@ -196,10 +216,14 @@ def test_failed_transcription_releases_quota_for_manual_retry(post, failure):
     job = reserved_job(duration=3600)
     if failure == "client_error":
         response = requests.Response()
+        response.raw = BytesIO()
         response.status_code = 400
         post.return_value = response
     elif failure == "invalid_response":
-        post.return_value.json.return_value = {"job_id": None}
+        post.return_value.headers = {}
+        post.return_value.iter_content.return_value = [
+            json.dumps({"job_id": None}).encode()
+        ]
     else:
         post.side_effect = requests.Timeout("service unavailable")
 
@@ -213,7 +237,10 @@ def test_failed_transcription_releases_quota_for_manual_retry(post, failure):
     assert usage.ignored_reason == "Transcription failed: UNKNOWN_FAILURE"
 
     post.reset_mock(side_effect=True, return_value=True)
-    post.return_value.json.return_value = {"job_id": "manual-retry-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "manual-retry-transcript"}).encode()
+    ]
     client = APIClient()
     client.force_login(job.file.creator)
     response = client.post(f"/api/v1.0/ai-jobs/{job.pk}/retry/", {"language": "fr"})
@@ -249,7 +276,10 @@ def test_transcription_quota_survives_deletion(post, deleted_resource):
     job = reserved_job(duration=3600)
     user = job.file.creator
     source_job_id = job.pk
-    post.return_value.json.return_value = {"job_id": "charged-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "charged-transcript"}).encode()
+    ]
     call_transcribe_service(job.pk)
     usage = models.TranscriptionUsage.objects.get(ai_job_id=source_job_id)
 
@@ -297,7 +327,10 @@ def test_concurrent_transcription_quota_admissions_are_per_user(post):
     """Submissions for different files cannot concurrently overspend one quota."""
     user = factories.UserFactory()
     jobs = [reserved_job(user, duration=2400) for _ in range(2)]
-    post.return_value.json.return_value = {"job_id": "quota-transcript"}
+    post.return_value.headers = {}
+    post.return_value.iter_content.return_value = [
+        json.dumps({"job_id": "quota-transcript"}).encode()
+    ]
     barrier = Barrier(2)
 
     def submit(job):
@@ -341,7 +374,10 @@ def test_transcription_quota_does_not_block_user_updates_during_submission(post)
     def respond(*_args, **_kwargs):
         with ThreadPoolExecutor(max_workers=1) as executor:
             assert executor.submit(update_user).result(timeout=5) == 1
-        return Mock(json=Mock(return_value={"job_id": "quota-transcript"}))
+        return Mock(
+            headers={},
+            iter_content=Mock(return_value=[b'{"job_id":"quota-transcript"}']),
+        )
 
     post.side_effect = respond
 

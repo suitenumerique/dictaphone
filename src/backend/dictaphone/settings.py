@@ -606,6 +606,20 @@ class Base(Configuration):
     RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = PositiveFloatValue(
         24.0, environ_prefix=None
     )
+    # Shared receive/read/export bounds. Sizes count decompressed bytes.
+    PAYLOAD_TRANSCRIPT_MAX_BYTES = values.PositiveIntegerValue(
+        32 * MB, environ_name="PAYLOAD_TRANSCRIPT_MAX_BYTES", environ_prefix=None
+    )
+    PAYLOAD_SUMMARY_MAX_BYTES = values.PositiveIntegerValue(
+        2 * MB, environ_name="PAYLOAD_SUMMARY_MAX_BYTES", environ_prefix=None
+    )
+    PAYLOAD_WEBHOOK_MAX_BYTES = values.PositiveIntegerValue(
+        64 * KB, environ_name="PAYLOAD_WEBHOOK_MAX_BYTES", environ_prefix=None
+    )
+    PAYLOAD_SERVICE_RESPONSE_MAX_BYTES = values.PositiveIntegerValue(
+        64 * KB, environ_name="PAYLOAD_SERVICE_RESPONSE_MAX_BYTES", environ_prefix=None
+    )
+
     TRANSCRIPTION_USAGE_RETENTION_DAYS = values.PositiveIntegerValue(
         365, environ_prefix=None
     )
