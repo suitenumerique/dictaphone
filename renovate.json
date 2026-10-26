@@ -2,19 +2,30 @@
   "extends": ["github>suitenumerique/ci//renovate/default"],
   "dependencyDashboard": true,
   "labels": ["dependencies", "noChangeLog"],
+  "timezone": "Europe/Paris",
   "packageRules": [
     {
-      "groupName": "js dependencies",
+      "groupName": "frontend dependencies",
       "matchManagers": ["npm"],
-      "schedule": ["on the first day of the month"],
+      "matchFileNames": ["src/frontend/**"],
+      "schedule": ["* 2-4 * * 5"],
+      "minimumReleaseAge": "7 days",
+      "internalChecksFilter": "strict",
+      "matchPackageNames": ["*"]
+    },
+    {
+      "groupName": "mobile dependencies",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["src/mobile/**"],
+      "schedule": ["* 19-21 * * 6"],
       "minimumReleaseAge": "7 days",
       "internalChecksFilter": "strict",
       "matchPackageNames": ["*"]
     },
     {
       "groupName": "python dependencies",
-      "matchManagers": ["setup-cfg", "pep621"],
-      "schedule": ["on the first day of the month"],
+      "matchManagers": ["pep621"],
+      "schedule": ["* 17-19 * * 0"],
       "minimumReleaseAge": "7 days",
       "matchPackageNames": ["*"]
     },
