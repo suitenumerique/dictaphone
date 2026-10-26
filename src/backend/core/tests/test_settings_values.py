@@ -2,7 +2,54 @@
 
 import pytest
 
-from dictaphone.values import JsonDictValue, PositiveFloatValue
+from dictaphone.values import (
+    JsonDictValue,
+    OptionalURLPrefixesValue,
+    PositiveFloatValue,
+)
+
+
+@pytest.mark.parametrize(
+    "serialized_value,expected",
+    [
+        ("null", None),
+        ("[]", frozenset()),
+        (
+            '["https://storage.example/bucket/"]',
+            frozenset({"https://storage.example/bucket/"}),
+        ),
+        (
+            '["https://storage.example/bucket/", "https://storage.example/bucket/"]',
+            frozenset({"https://storage.example/bucket/"}),
+        ),
+    ],
+)
+def test_optional_url_prefixes_from_environment(
+    monkeypatch, serialized_value, expected
+):
+    """Distinguish disabled validation, deny-all, and configured URL prefixes."""
+    name = "EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES"
+    monkeypatch.setenv(name, serialized_value)
+    parsed = OptionalURLPrefixesValue(None, environ_prefix=None).setup(name)
+    assert parsed == expected
+    assert parsed is None or isinstance(parsed, frozenset)
+
+
+@pytest.mark.parametrize(
+    "serialized_value",
+    ['"https://example.com"', "{}", "[1]", "[null]", '[""]', "invalid"],
+)
+def test_optional_url_prefixes_reject_invalid_values(serialized_value):
+    """Do not silently disable checks for a malformed environment value."""
+    with pytest.raises(ValueError):
+        OptionalURLPrefixesValue().to_python(serialized_value)
+
+
+def test_optional_url_prefixes_unset_defaults_to_none(monkeypatch):
+    """An absent setting keeps backwards compatibility with a warning per fetch."""
+    name = "EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES"
+    monkeypatch.delenv(name, raising=False)
+    assert OptionalURLPrefixesValue(None, environ_prefix=None).setup(name) is None
 
 
 @pytest.mark.parametrize(

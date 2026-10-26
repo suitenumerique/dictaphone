@@ -17,6 +17,7 @@ import requests as requests_lib
 
 from core import analytics
 from core.configuration import get_profile_for_email
+from core.external_sources import fetch_external_source
 from core.models import (
     AiFileJob,
     AiJobFailureReasonChoices,
@@ -367,8 +368,11 @@ def handle_transcript_received(remote_job_id, url: str | None):
         content = json.dumps({"segments": [], "word_segments": []}).encode("utf-8")
     else:
         # could be streamed to S3 later
-        response = session.get(url, timeout=(10, 20))
-        response.raise_for_status()
+        try:
+            response = fetch_external_source(session, url)
+        except ValueError:
+            ai_transcript_job.mark_failed()
+            raise
         content = response.content
 
     transcript = WhisperXResponse(**json.loads(content))
@@ -476,8 +480,11 @@ def store_summary(remote_job_id, url):
 
     logger.info("Storing summary for file %s & url %r", file.id, redact_url(url))
     # could be streamed to S3 later
-    response = session.get(url, timeout=(10, 20))
-    response.raise_for_status()
+    try:
+        response = fetch_external_source(session, url)
+    except ValueError:
+        ai_summary_job.mark_failed()
+        raise
 
     storage = get_storage_for_file(file)
     bucket_name = get_storage_bucket_name(storage)

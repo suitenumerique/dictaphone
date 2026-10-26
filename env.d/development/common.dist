@@ -11,6 +11,9 @@ OIDC_STORE_REFRESH_TOKEN=False
 PYTHONPATH=/app
 
 # Dictaphone settings
+# External result downloads (HTTP is permitted for local RustFS).
+EXTERNAL_SOURCE_REQUIRE_HTTPS=False
+EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES=["http://rustfs:9000/dictaphone-media-storage/","http://rustfs:9000/dictaphone-media-alpha/","http://rustfs:9000/dictaphone-media-beta/"]
 AUDIO_EXTRACTOR_TRANSCODING_TOKEN=local-development-transcoding-token
 AUDIO_EXTRACTOR_VALIDATION_TOKEN=local-development-validation-token
 

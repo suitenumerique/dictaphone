@@ -31,7 +31,11 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from core.authentication.proxies import _trusted_networks
 from core.configuration import get_runtime_configuration
 
-from dictaphone.values import JsonDictValue, PositiveFloatValue
+from dictaphone.values import (
+    JsonDictValue,
+    OptionalURLPrefixesValue,
+    PositiveFloatValue,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -295,6 +299,16 @@ class Base(Configuration):
     )
 
     # External AI Config service
+    # Webhook-supplied download URLs: None skips all URL validation with a warning
+    # per fetch, [] denies all fetches. Environment values use JSON (null or list).
+    EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = OptionalURLPrefixesValue(
+        None,
+        environ_name="EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES",
+        environ_prefix=None,
+    )
+    EXTERNAL_SOURCE_REQUIRE_HTTPS = values.BooleanValue(
+        True, environ_name="EXTERNAL_SOURCE_REQUIRE_HTTPS", environ_prefix=None
+    )
     AI_SERVICE_URL = values.Value(
         "http://meet-summary.meet.svc.cluster.local/api/v2/",
         environ_name="AI_SERVICE_URL",

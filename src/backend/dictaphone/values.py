@@ -6,6 +6,19 @@ import math
 from configurations import values
 
 
+class OptionalURLPrefixesValue(values.Value):
+    """Parse JSON URL prefixes into a frozenset, preserving null as None."""
+
+    def to_python(self, value) -> frozenset[str] | None:
+        parsed = json.loads(value)
+        if parsed is not None and (
+            not isinstance(parsed, list)
+            or any(not isinstance(prefix, str) or not prefix for prefix in parsed)
+        ):
+            raise ValueError("Expected null or a list of non-empty URL prefixes")
+        return None if parsed is None else frozenset(parsed)
+
+
 class PositiveFloatValue(values.FloatValue):
     """A finite, non-negative floating-point configuration value."""
 

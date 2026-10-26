@@ -19,6 +19,9 @@ backend:
   envVars:
     DJANGO_CSRF_TRUSTED_ORIGINS: https://dictaphone.127.0.0.1.nip.io,http://dictaphone.127.0.0.1.nip.io
     DJANGO_CONFIGURATION: Production
+    # Tilt: permit local garage bucket in regards to meet summary integration.
+    EXTERNAL_SOURCE_REQUIRE_HTTPS: "False"
+    EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES: '["http://dev-backend-garage.meet.svc.cluster.local:9000/meet-media-storage/"]'
     DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io,dictaphone-backend.dictaphone.svc.cluster.local
     DJANGO_SECRET_KEY: {{ .Values.djangoSecretKey }}
     SIMPLE_JWT_SIGNING_KEY: {{ .Values.simpleJwtSigningKey }}

@@ -34,6 +34,47 @@ from core.tasks.retry import build_retry_task_options
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.parametrize(
+    "task,job_type",
+    [
+        (handle_transcript_received, AiJobTypeChoices.TRANSCRIPT),
+        (store_summary, AiJobTypeChoices.SUMMARIZE),
+    ],
+)
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://untrusted.example/bucket/result",
+        "https://storage.example/bucket-other/result",
+        "http://storage.example/bucket/result",
+    ],
+)
+def test_external_result_rejected_before_fetch_or_storage(
+    settings, task, job_type, url, caplog
+):
+    """Both result tasks enforce the policy before network calls or persistence."""
+    settings.EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = ["https://storage.example/bucket/"]
+    settings.EXTERNAL_SOURCE_REQUIRE_HTTPS = True
+    job = factories.AiFileJobFactory(type=job_type, status=AiJobStatusChoices.PENDING)
+    caplog.set_level("INFO", logger="core.tasks.file")
+    with (
+        patch("core.tasks.file.session.get") as get,
+        patch("core.tasks.file.session.post") as post,
+        patch("core.tasks.file.get_storage_for_file") as storage,
+        pytest.raises(ValueError),
+    ):
+        task(job.remote_job_id, url + "?signature=private-signature-value")
+
+    get.assert_not_called()
+    post.assert_not_called()
+    storage.assert_not_called()
+    job.refresh_from_db()
+    assert job.status == AiJobStatusChoices.FAILED
+    assert AiFileJob.objects.filter(file=job.file).count() == 1
+    assert url + "?[redacted]" in caplog.text
+    assert "private-signature-value" not in caplog.text
+
+
 def test_task_process_file_deletion_file_does_not_exist():
     """No error should be raised when trying to delete a missing file."""
     process_file_deletion(uuid4())
@@ -294,6 +335,8 @@ def test_task_store_transcript_and_call_summary_success(
     """Transcript should be stored, transcript job marked success and summary job created."""
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
+    settings.EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = ["http://example.com/"]
+    settings.EXTERNAL_SOURCE_REQUIRE_HTTPS = False
     settings.DATA_POLICY_CONFIGURATIONS = {
         "default": {"default": True, "send_notification_email": True}
     }
@@ -372,6 +415,7 @@ def test_task_store_transcript_and_call_summary_success(
     mock_get.assert_called_once_with(
         "http://example.com/transcript.json",
         timeout=(10, 20),
+        allow_redirects=False,
     )
     mock_post.assert_called_once()
     _, kwargs = mock_post.call_args
@@ -473,8 +517,12 @@ def test_task_store_empty_transcript_without_calling_summary(  # noqa: PLR0913,P
 
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.session.get")
-def test_task_store_transcript_and_call_summary_get_error(mock_get, mock_post):
+def test_task_store_transcript_and_call_summary_get_error(
+    mock_get, mock_post, settings
+):
     """If transcript download fails, nothing should be persisted."""
+    settings.EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = ["http://example.com/"]
+    settings.EXTERNAL_SOURCE_REQUIRE_HTTPS = False
     ai_transcript_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.PENDING,
@@ -525,8 +573,10 @@ def test_task_store_summary_ignores_non_summary_job(mock_get):
 
 
 @patch("core.tasks.file.session.get")
-def test_task_store_summary_success(mock_get):
+def test_task_store_summary_success(mock_get, settings):
     """Summary should be stored and summary job marked success."""
+    settings.EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = ["http://example.com/"]
+    settings.EXTERNAL_SOURCE_REQUIRE_HTTPS = False
     ai_summary_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.SUMMARIZE,
         status=AiJobStatusChoices.PENDING,
@@ -546,6 +596,7 @@ def test_task_store_summary_success(mock_get):
     mock_get.assert_called_once_with(
         "http://example.com/summary.txt",
         timeout=(10, 20),
+        allow_redirects=False,
     )
 
     s3_client = default_storage.connection.meta.client
@@ -560,8 +611,10 @@ def test_task_store_summary_success(mock_get):
 
 
 @patch("core.tasks.file.session.get")
-def test_task_store_summary_get_error(mock_get):
+def test_task_store_summary_get_error(mock_get, settings):
     """If summary download fails, nothing should be persisted."""
+    settings.EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = ["http://example.com/"]
+    settings.EXTERNAL_SOURCE_REQUIRE_HTTPS = False
     ai_summary_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.SUMMARIZE,
         status=AiJobStatusChoices.PENDING,
@@ -585,12 +638,14 @@ def test_task_store_summary_get_error(mock_get):
 @patch("core.tasks.file.session.post")
 @patch("core.tasks.file.session.get")
 def test_task_store_transcript_and_call_summary_post_error(
-    mock_get, mock_post, mock_create_document_in_docs
+    mock_get, mock_post, mock_create_document_in_docs, settings
 ):
     """
     If summary API fails after transcript storage, transcript remains saved and
     transcript job stays SUCCESS and summary job is created as failed.
     """
+    settings.EXTERNAL_SOURCE_ALLOWED_URL_PREFIXES = ["http://example.com/"]
+    settings.EXTERNAL_SOURCE_REQUIRE_HTTPS = False
     ai_transcript_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.PENDING,
