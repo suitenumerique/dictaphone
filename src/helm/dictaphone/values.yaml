@@ -350,32 +350,28 @@ backend:
         - "-c"
         - "python manage.py purge_transcription_usage"
 
-  ## @param backend.probes.liveness.path [nullable] Configure path for backend HTTP liveness probe
-  ## @param backend.probes.liveness.targetPort [nullable] Configure port for backend HTTP liveness probe
-  ## @param backend.probes.liveness.initialDelaySeconds [nullable] Configure initial delay for backend liveness probe
-  ## @param backend.probes.liveness.timeoutSeconds [nullable] Configure timeout for backend liveness probe
-  ## @param backend.probes.liveness.period [nullable] Configure period for backend liveness probe
-  ## @param backend.probes.liveness.periodSeconds [nullable] Configure period for backend liveness probe
-  ## @param backend.probes.startup.path [nullable] Configure path for backend HTTP startup probe
-  ## @param backend.probes.startup.targetPort [nullable] Configure port for backend HTTP startup probe
-  ## @param backend.probes.startup.initialDelaySeconds [nullable] Configure initial delay for backend startup probe
-  ## @param backend.probes.startup.timeoutSeconds [nullable] Configure timeout for backend startup probe
-  ## @param backend.probes.startup.period [nullable] Configure period for backend startup probe
-  ## @param backend.probes.readiness.path [nullable] Configure path for backend HTTP readiness probe
-  ## @param backend.probes.readiness.targetPort [nullable] Configure port for backend HTTP readiness probe
-  ## @param backend.probes.readiness.initialDelaySeconds [nullable] Configure initial delay for backend readiness probe
-  ## @param backend.probes.readiness.timeoutSeconds [nullable] Configure timeout for backend readiness probe
-  ## @param backend.probes.readiness.period [nullable] Configure period for backend readiness probe
-  ## @param backend.probes.readiness.periodSeconds [nullable] Configure period for backend readiness probe
+  ## @param backend.probes Kubernetes probe definitions; set an individual probe to null to disable it
   probes:
+    # Only readiness checks dependencies; outages must not restart the app.
     liveness:
-      path: /__heartbeat__
+      httpGet:
+        path: /__lbheartbeat__
+        port: http
       initialDelaySeconds: 5
       periodSeconds: 30
     readiness:
-      path: /__lbheartbeat__
+      httpGet:
+        path: /__heartbeat__
+        port: http
       initialDelaySeconds: 5
+      timeoutSeconds: 5
       periodSeconds: 30
+    startup:
+      httpGet:
+        path: /__lbheartbeat__
+        port: http
+      periodSeconds: 5
+      failureThreshold: 30
 
   ## @param backend.resources Resource requirements for the backend container
   resources: {}
@@ -473,19 +469,7 @@ celeryBackend:
     targetPort: 8000
     annotations: {}
 
-  ## @param celeryBackend.probes Configure celeryBackend probes
-  ## @param celeryBackend.probes.liveness.path [nullable] Configure path for celeryBackend HTTP liveness probe
-  ## @param celeryBackend.probes.liveness.targetPort [nullable] Configure port for celeryBackend HTTP liveness probe
-  ## @param celeryBackend.probes.liveness.initialDelaySeconds [nullable] Configure initial delay for celeryBackend liveness probe
-  ## @param celeryBackend.probes.liveness.initialDelaySeconds [nullable] Configure timeout for celeryBackend liveness probe
-  ## @param celeryBackend.probes.startup.path [nullable] Configure path for celeryBackend HTTP startup probe
-  ## @param celeryBackend.probes.startup.targetPort [nullable] Configure port for celeryBackend HTTP startup probe
-  ## @param celeryBackend.probes.startup.initialDelaySeconds [nullable] Configure initial delay for celeryBackend startup probe
-  ## @param celeryBackend.probes.startup.initialDelaySeconds [nullable] Configure timeout for celeryBackend startup probe
-  ## @param celeryBackend.probes.readiness.path [nullable] Configure path for celeryBackend HTTP readiness probe
-  ## @param celeryBackend.probes.readiness.targetPort [nullable] Configure port for celeryBackend HTTP readiness probe
-  ## @param celeryBackend.probes.readiness.initialDelaySeconds [nullable] Configure initial delay for celeryBackend readiness probe
-  ## @param celeryBackend.probes.readiness.initialDelaySeconds [nullable] Configure timeout for celeryBackend readiness probe
+  ## @param celeryBackend.probes Kubernetes probe definitions; set an individual probe to null to disable it
   probes: {}
 
   ## @param celeryBackend.resources Resource requirements for the celeryBackend container
@@ -715,20 +699,21 @@ frontend:
     targetPort: 8080
     annotations: {}
 
-  ## @param frontend.probes Configure probe for frontend
-  ## @extra frontend.probes.liveness.path Configure path for frontend HTTP liveness probe
-  ## @extra frontend.probes.liveness.targetPort Configure port for frontend HTTP liveness probe
-  ## @extra frontend.probes.liveness.initialDelaySeconds Configure initial delay for frontend liveness probe
-  ## @extra frontend.probes.liveness.initialDelaySeconds Configure timeout for frontend liveness probe
-  ## @extra frontend.probes.startup.path Configure path for frontend HTTP startup probe
-  ## @extra frontend.probes.startup.targetPort Configure port for frontend HTTP startup probe
-  ## @extra frontend.probes.startup.initialDelaySeconds Configure initial delay for frontend startup probe
-  ## @extra frontend.probes.startup.initialDelaySeconds Configure timeout for frontend startup probe
-  ## @extra frontend.probes.readiness.path Configure path for frontend HTTP readiness probe
-  ## @extra frontend.probes.readiness.targetPort Configure port for frontend HTTP readiness probe
-  ## @extra frontend.probes.readiness.initialDelaySeconds Configure initial delay for frontend readiness probe
-  ## @extra frontend.probes.readiness.initialDelaySeconds Configure timeout for frontend readiness probe
-  probes: {}
+  ## @param frontend.probes Kubernetes probe definitions; set an individual probe to null to disable it
+  probes:
+    liveness:
+      httpGet:
+        path: /
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 2
+    readiness:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 2
 
   ## @param frontend.resources Resource requirements for the frontend container
   resources: {}

@@ -114,22 +114,6 @@ Requires array with top level scope and component name
 app.kubernetes.io/component: {{ $component }}
 {{- end }}
 
-{{- define "dictaphone.probes.abstract" -}}
-{{- if .exec -}}
-exec:
-{{- toYaml .exec | nindent 2 }}
-{{- else if .tcpSocket -}}
-tcpSocket:
-{{- toYaml .tcpSocket | nindent 2 }}
-{{- else -}}
-httpGet:
-  path: {{ .path }}
-  port: {{ .targetPort }}
-{{- end }}
-initialDelaySeconds: {{ .initialDelaySeconds | eq nil | ternary 0 .initialDelaySeconds }}
-timeoutSeconds: {{ .timeoutSeconds | eq nil | ternary 1 .timeoutSeconds }}
-{{- end }}
-
 {{/*
 Full name for the backend
 

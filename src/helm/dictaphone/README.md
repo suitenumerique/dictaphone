@@ -206,23 +206,7 @@ add_header Content-Disposition "attachment";
 | `backend.cronjobs[4].name` | Name of the CronJob | `purge-transcription-usage` |
 | `backend.cronjobs[4].schedule` | Schedule in cron format | `0 1 * * *` |
 | `backend.cronjobs[4].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_transcription_usage"]` |
-| `backend.probes.liveness.path`                 | Configure path for backend HTTP liveness probe                                     | `/__heartbeat__`                                          |
-| `backend.probes.liveness.targetPort`           | Configure port for backend HTTP liveness probe                                     | `nil`                                                     |
-| `backend.probes.liveness.initialDelaySeconds`  | Configure initial delay for backend liveness probe                                 | `5`                                                       |
-| `backend.probes.liveness.timeoutSeconds`       | Configure timeout for backend liveness probe                                       | `nil`                                                     |
-| `backend.probes.liveness.period`               | Configure period for backend liveness probe                                        | `nil`                                                     |
-| `backend.probes.liveness.periodSeconds`        | Configure period for backend liveness probe                                        | `30`                                                      |
-| `backend.probes.startup.path`                  | Configure path for backend HTTP startup probe                                      | `nil`                                                     |
-| `backend.probes.startup.targetPort`            | Configure port for backend HTTP startup probe                                      | `nil`                                                     |
-| `backend.probes.startup.initialDelaySeconds`   | Configure initial delay for backend startup probe                                  | `nil`                                                     |
-| `backend.probes.startup.timeoutSeconds`        | Configure timeout for backend startup probe                                        | `nil`                                                     |
-| `backend.probes.startup.period`                | Configure period for backend startup probe                                         | `nil`                                                     |
-| `backend.probes.readiness.path`                | Configure path for backend HTTP readiness probe                                    | `/__lbheartbeat__`                                        |
-| `backend.probes.readiness.targetPort`          | Configure port for backend HTTP readiness probe                                    | `nil`                                                     |
-| `backend.probes.readiness.initialDelaySeconds` | Configure initial delay for backend readiness probe                                | `5`                                                       |
-| `backend.probes.readiness.timeoutSeconds`      | Configure timeout for backend readiness probe                                      | `nil`                                                     |
-| `backend.probes.readiness.period`              | Configure period for backend readiness probe                                       | `nil`                                                     |
-| `backend.probes.readiness.periodSeconds`       | Configure period for backend readiness probe                                       | `30`                                                      |
+| `backend.probes` | Native Kubernetes probe definitions; individual probes can be disabled with `null` | Liveness/startup: `/__lbheartbeat__`; readiness: `/__heartbeat__`, on port `http` |
 | `backend.resources`                            | Resource requirements for the backend container                                    | `{}`                                                      |
 | `backend.nodeSelector`                         | Node selector for the backend Pod                                                  | `{}`                                                      |
 | `backend.tolerations`                          | Tolerations for the backend Pod                                                    | `[]`                                                      |
@@ -259,19 +243,7 @@ add_header Content-Disposition "attachment";
 | `celeryBackend.service.port`                                | celeryBackend Service listening port                                                     | `80`                                                                                           |
 | `celeryBackend.service.targetPort`                          | celeryBackend container listening port                                                   | `8000`                                                                                         |
 | `celeryBackend.service.annotations`                         | Annotations to add to the celeryBackend Service                                          | `{}`                                                                                           |
-| `celeryBackend.probes`                                      | Configure celeryBackend probes                                                           | `{}`                                                                                           |
-| `celeryBackend.probes.liveness.path`                        | Configure path for celeryBackend HTTP liveness probe                                     | `nil`                                                                                          |
-| `celeryBackend.probes.liveness.targetPort`                  | Configure port for celeryBackend HTTP liveness probe                                     | `nil`                                                                                          |
-| `celeryBackend.probes.liveness.initialDelaySeconds`         | Configure initial delay for celeryBackend liveness probe                                 | `nil`                                                                                          |
-| `celeryBackend.probes.liveness.initialDelaySeconds`         | Configure timeout for celeryBackend liveness probe                                       | `nil`                                                                                          |
-| `celeryBackend.probes.startup.path`                         | Configure path for celeryBackend HTTP startup probe                                      | `nil`                                                                                          |
-| `celeryBackend.probes.startup.targetPort`                   | Configure port for celeryBackend HTTP startup probe                                      | `nil`                                                                                          |
-| `celeryBackend.probes.startup.initialDelaySeconds`          | Configure initial delay for celeryBackend startup probe                                  | `nil`                                                                                          |
-| `celeryBackend.probes.startup.initialDelaySeconds`          | Configure timeout for celeryBackend startup probe                                        | `nil`                                                                                          |
-| `celeryBackend.probes.readiness.path`                       | Configure path for celeryBackend HTTP readiness probe                                    | `nil`                                                                                          |
-| `celeryBackend.probes.readiness.targetPort`                 | Configure port for celeryBackend HTTP readiness probe                                    | `nil`                                                                                          |
-| `celeryBackend.probes.readiness.initialDelaySeconds`        | Configure initial delay for celeryBackend readiness probe                                | `nil`                                                                                          |
-| `celeryBackend.probes.readiness.initialDelaySeconds`        | Configure timeout for celeryBackend readiness probe                                      | `nil`                                                                                          |
+| `celeryBackend.probes` | Native Kubernetes probe definitions; individual probes can be disabled with `null` | `{}` |
 | `celeryBackend.resources`                                   | Resource requirements for the celeryBackend container                                    | `{}`                                                                                           |
 | `celeryBackend.nodeSelector`                                | Node selector for the celeryBackend Pod                                                  | `{}`                                                                                           |
 | `celeryBackend.tolerations`                                 | Tolerations for the celeryBackend Pod                                                    | `[]`                                                                                           |
@@ -351,19 +323,7 @@ set an individual probe to `null` to disable it.
 | `frontend.service.port`                                | frontend Service listening port                                                     | `80`                          |
 | `frontend.service.targetPort`                          | frontend container listening port                                                   | `8080`                        |
 | `frontend.service.annotations`                         | Annotations to add to the frontend Service                                          | `{}`                          |
-| `frontend.probes`                                      | Configure probe for frontend                                                        | `{}`                          |
-| `frontend.probes.liveness.path`                        | Configure path for frontend HTTP liveness probe                                     |                               |
-| `frontend.probes.liveness.targetPort`                  | Configure port for frontend HTTP liveness probe                                     |                               |
-| `frontend.probes.liveness.initialDelaySeconds`         | Configure initial delay for frontend liveness probe                                 |                               |
-| `frontend.probes.liveness.initialDelaySeconds`         | Configure timeout for frontend liveness probe                                       |                               |
-| `frontend.probes.startup.path`                         | Configure path for frontend HTTP startup probe                                      |                               |
-| `frontend.probes.startup.targetPort`                   | Configure port for frontend HTTP startup probe                                      |                               |
-| `frontend.probes.startup.initialDelaySeconds`          | Configure initial delay for frontend startup probe                                  |                               |
-| `frontend.probes.startup.initialDelaySeconds`          | Configure timeout for frontend startup probe                                        |                               |
-| `frontend.probes.readiness.path`                       | Configure path for frontend HTTP readiness probe                                    |                               |
-| `frontend.probes.readiness.targetPort`                 | Configure port for frontend HTTP readiness probe                                    |                               |
-| `frontend.probes.readiness.initialDelaySeconds`        | Configure initial delay for frontend readiness probe                                |                               |
-| `frontend.probes.readiness.initialDelaySeconds`        | Configure timeout for frontend readiness probe                                      |                               |
+| `frontend.probes` | Native Kubernetes probe definitions; individual probes can be disabled with `null` | Liveness/readiness: `/`, on port `http` |
 | `frontend.resources`                                   | Resource requirements for the frontend container                                    | `{}`                          |
 | `frontend.nodeSelector`                                | Node selector for the frontend Pod                                                  | `{}`                          |
 | `frontend.tolerations`                                 | Tolerations for the frontend Pod                                                    | `[]`                          |

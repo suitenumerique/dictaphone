@@ -60,15 +60,15 @@ spec:
               protocol: TCP
           {{- if .Values.frontend.probes.liveness }}
           livenessProbe:
-            {{- include "dictaphone.probes.abstract" (merge .Values.frontend.probes.liveness (dict "targetPort" .Values.frontend.service.targetPort )) | nindent 12 }}
+            {{- toYaml .Values.frontend.probes.liveness | nindent 12 }}
           {{- end }}
           {{- if .Values.frontend.probes.readiness }}
           readinessProbe:
-            {{- include "dictaphone.probes.abstract" (merge .Values.frontend.probes.readiness (dict "targetPort" .Values.frontend.service.targetPort )) | nindent 12 }}
+            {{- toYaml .Values.frontend.probes.readiness | nindent 12 }}
           {{- end }}
           {{- if .Values.frontend.probes.startup }}
           startupProbe:
-            {{- include "dictaphone.probes.abstract" (merge .Values.frontend.probes.startup (dict "targetPort" .Values.frontend.service.targetPort )) | nindent 12 }}
+            {{- toYaml .Values.frontend.probes.startup | nindent 12 }}
           {{- end }}
           {{- with .Values.frontend.resources }}
           resources:
