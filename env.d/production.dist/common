@@ -9,6 +9,10 @@ DJANGO_CONFIGURATION=Production
 PYTHONPATH=/app
 
 # Dictaphone settings
+AI_SERVICE_API_KEY=<AI service API key>
+AI_WEBHOOK_API_KEY=<generate a webhook secret shared with the AI service>
+AUDIO_EXTRACTOR_TRANSCODING_TOKEN=<generate a token of at least 32 characters>
+AUDIO_EXTRACTOR_VALIDATION_TOKEN=<generate a separate token of at least 32 characters>
 
 # Mail
 DJANGO_EMAIL_HOST=<smtp host> 
@@ -37,6 +41,7 @@ OIDC_RP_CLIENT_ID=<client_id>
 OIDC_RP_CLIENT_SECRET=<client secret>
 OIDC_RP_SIGN_ALGO=RS256
 OIDC_RP_SCOPES="openid email"
+OIDC_STORE_REFRESH_TOKEN_KEY=<generate a Fernet key for refresh token encryption>
 
 LOGIN_REDIRECT_URL=https://${DICTAPHONE_HOST}
 LOGIN_REDIRECT_URL_FAILURE=https://${DICTAPHONE_HOST}

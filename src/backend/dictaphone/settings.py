@@ -112,7 +112,7 @@ class Base(Configuration):
             ),
             "USER": values.Value("dinum", environ_name="DB_USER", environ_prefix=None),
             "PASSWORD": SecretFileValue(
-                "pass", environ_name="DB_PASSWORD", environ_prefix=None
+                None, environ_name="DB_PASSWORD", environ_prefix=None
             ),
             "HOST": values.Value(
                 "localhost", environ_name="DB_HOST", environ_prefix=None
@@ -315,12 +315,12 @@ class Base(Configuration):
         environ_prefix=None,
     )
     AI_SERVICE_API_KEY = SecretFileValue(
-        "dictaphone_token",
+        "",
         environ_name="AI_SERVICE_API_KEY",
         environ_prefix=None,
     )
     AI_WEBHOOK_API_KEY = SecretFileValue(
-        "token_summary", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
+        "", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
     )
     AI_JOB_ESTIMATION_THROUGHPUT_PER_WORKER = values.PositiveIntegerValue(
         33,
@@ -773,15 +773,15 @@ class Base(Configuration):
     # For Resource server integration
     # Store OIDC tokens in the session
     OIDC_STORE_ACCESS_TOKEN = values.BooleanValue(
-        default=True, environ_name="OIDC_STORE_ACCESS_TOKEN", environ_prefix=None
+        default=False, environ_name="OIDC_STORE_ACCESS_TOKEN", environ_prefix=None
     )
     # Store the encrypted refresh token in the session
     OIDC_STORE_REFRESH_TOKEN = values.BooleanValue(
-        default=True, environ_name="OIDC_STORE_REFRESH_TOKEN", environ_prefix=None
+        default=False, environ_name="OIDC_STORE_REFRESH_TOKEN", environ_prefix=None
     )
     # Must be a valid Fernet key (32 url-safe base64-encoded bytes)
-    OIDC_STORE_REFRESH_TOKEN_KEY = values.Value(
-        default="ThisIsAnExampleKeyForTestPurposeOnly",
+    OIDC_STORE_REFRESH_TOKEN_KEY = SecretFileValue(
+        default=None,
         environ_name="OIDC_STORE_REFRESH_TOKEN_KEY",
         environ_prefix=None,
     )
@@ -1061,7 +1061,6 @@ class Build(Base):
     settings.
     """
 
-    SECRET_KEY = values.Value("DummyKey")
     SKIP_STORAGE_CONFIGURATION = True
     STORAGES = {
         "default": {

@@ -25,7 +25,7 @@ class AiWebhookAuthentication(BaseAuthentication):
 
         authorization_header: str = request.headers.get("Authorization") or ""
 
-        if not secrets.compare_digest(
+        if not settings.AI_WEBHOOK_API_KEY or not secrets.compare_digest(
             authorization_header.removeprefix("Bearer "), settings.AI_WEBHOOK_API_KEY
         ):
             logger.warning(

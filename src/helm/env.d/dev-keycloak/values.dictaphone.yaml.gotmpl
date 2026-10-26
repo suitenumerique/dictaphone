@@ -25,6 +25,8 @@ backend:
     DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io,dictaphone-backend.dictaphone.svc.cluster.local
     DJANGO_SECRET_KEY: {{ .Values.djangoSecretKey }}
     SIMPLE_JWT_SIGNING_KEY: {{ .Values.simpleJwtSigningKey }}
+    AI_SERVICE_API_KEY: {{ .Values.aiServiceApiKey | quote }}
+    AI_WEBHOOK_API_KEY: {{ .Values.aiWebhookApiKey | quote }}
     DJANGO_SETTINGS_MODULE: dictaphone.settings
     DJANGO_SILENCED_SYSTEM_CHECKS: security.W004, security.W008
     DJANGO_SUPERUSER_EMAIL: admin@example.com
@@ -76,8 +78,8 @@ backend:
     DATA_POLICY_CONFIGURATIONS: '{"default":{"default":True,"bucket":"default"},"alpha":{"domains":["alpha.example"],"bucket":"alpha","file_auto_hard_delete_after_days":14,"original_file_data_delete_after_days":7},"beta":{"domains":["beta.example"],"bucket":"beta","file_auto_hard_delete_after_days":30,"original_file_data_delete_after_days":14}}'
     MEDIA_BASE_URL: https://dictaphone.127.0.0.1.nip.io
     SSL_CERT_FILE: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
-    AUDIO_EXTRACTOR_TRANSCODING_TOKEN: local-development-transcoding-token
-    AUDIO_EXTRACTOR_VALIDATION_TOKEN: local-development-validation-token
+    AUDIO_EXTRACTOR_TRANSCODING_TOKEN: {{ .Values.audioExtractorTranscodingToken | quote }}
+    AUDIO_EXTRACTOR_VALIDATION_TOKEN: {{ .Values.audioExtractorValidationToken | quote }}
     CELERY_ENABLED: "True"
     CELERY_BROKER_URL: redis://default:pass@redis-master:6379/1
     CELERY_RESULT_BACKEND: redis://default:pass@redis-master:6379/1
@@ -148,9 +150,9 @@ audioExtractor:
   envVars:
     AUDIO_EXTRACTOR_API_URL: http://dictaphone-backend.dictaphone.svc.cluster.local/api/internal/v1.0
   transcodingEnvVars:
-    AUDIO_EXTRACTOR_TOKEN: local-development-transcoding-token
+    AUDIO_EXTRACTOR_TOKEN: {{ .Values.audioExtractorTranscodingToken | quote }}
   validationEnvVars:
-    AUDIO_EXTRACTOR_TOKEN: local-development-validation-token
+    AUDIO_EXTRACTOR_TOKEN: {{ .Values.audioExtractorValidationToken | quote }}
 
 frontend:
   # Allow Tilt live updates to write synced files using the image user.
