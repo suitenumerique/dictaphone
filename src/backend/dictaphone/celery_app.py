@@ -10,6 +10,8 @@ from celery import Celery, signals
 from configurations.importer import install
 from sentry_sdk.integrations.celery import CeleryIntegration
 
+from dictaphone.sentry import scrub_urls
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Set the default Django settings module for the 'celery' program.
@@ -52,6 +54,11 @@ def init_sentry(**_kwargs):
     if sentry_dsn:
         traces_sample_rate = float(environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0"))
         sentry_sdk.init(
+            include_local_variables=False,
+            max_request_body_size="never",
+            before_send=scrub_urls,
+            before_send_transaction=scrub_urls,
+            before_breadcrumb=scrub_urls,
             dsn=sentry_dsn,
             environment=environ.get("DJANGO_CONFIGURATION", "Development").lower(),
             release=get_release(),
@@ -70,6 +77,11 @@ def init_sentry_in_worker(**_kwargs):
     sentry_dsn = environ.get("SENTRY_DSN") or environ.get("DJANGO_SENTRY_DSN")
     if sentry_dsn:
         sentry_sdk.init(
+            include_local_variables=False,
+            max_request_body_size="never",
+            before_send=scrub_urls,
+            before_send_transaction=scrub_urls,
+            before_breadcrumb=scrub_urls,
             dsn=sentry_dsn,
             environment=environ.get("DJANGO_CONFIGURATION", "Development").lower(),
             release=import_module("dictaphone.settings").get_release(),

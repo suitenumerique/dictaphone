@@ -31,6 +31,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from core.authentication.proxies import _trusted_networks
 from core.configuration import get_runtime_configuration
 
+from dictaphone.sentry import scrub_urls
 from dictaphone.values import (
     JsonDictValue,
     OptionalURLPrefixesValue,
@@ -1043,6 +1044,11 @@ class Base(Configuration):
         # The SENTRY_DSN setting should be available to activate sentry for an environment
         if cls.SENTRY_DSN is not None:
             sentry_sdk.init(
+                include_local_variables=False,
+                max_request_body_size="never",
+                before_send=scrub_urls,
+                before_send_transaction=scrub_urls,
+                before_breadcrumb=scrub_urls,
                 dsn=cls.SENTRY_DSN,
                 environment=cls.__name__.lower(),
                 release=get_release(),

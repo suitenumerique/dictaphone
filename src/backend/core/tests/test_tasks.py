@@ -698,15 +698,17 @@ def test_task_store_transcript_and_call_summary_post_error(
     mock_get.return_value = get_response
 
     post_response = Mock()
-    post_response.raise_for_status.side_effect = RuntimeError("summary failure")
+    post_response.raise_for_status.side_effect = RuntimeError("SECRET summary failure")
     mock_post.return_value = post_response
 
-    with pytest.raises(RuntimeError, match="summary failure"):
+    with pytest.raises(RuntimeError, match="Creating summary job failed") as error:
         handle_transcript_received(
             remote_job_id=ai_transcript_job.remote_job_id,
             url="http://example.com/transcript.json",
         )
 
+    assert "SECRET" not in str(error.value)
+    assert error.value.__suppress_context__
     ai_transcript_job.refresh_from_db()
     assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
     assert default_storage.exists(f"transcripts/{ai_transcript_job.id!s}.json")

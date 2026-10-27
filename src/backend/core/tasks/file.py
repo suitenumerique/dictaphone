@@ -14,6 +14,7 @@ from django.db.models import Max, Sum
 from django.utils import timezone
 
 import requests as requests_lib
+from pydantic import ValidationError
 
 from core import analytics
 from core.configuration import get_profile_for_email
@@ -29,7 +30,7 @@ from core.models import (
     FileLifecycleStateChoices,
     TranscriptionUsage,
 )
-from core.payloads import read_response, result_limit
+from core.payloads import PayloadLimitExceeded, read_response, result_limit
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.constants import BACKEND_QUEUE
 from core.tasks.mail import send_transcription_ready_email
@@ -57,6 +58,14 @@ class TranscriptionAlreadyPending(ValueError):
 
 class PermanentTranscriptionError(RuntimeError):
     """A remote submission error that should not trigger another attempt."""
+
+
+def _parse_transcript(content):
+    """Validate transcript data without exposing invalid values in exceptions."""
+    try:
+        return WhisperXResponse.model_validate_json(content)
+    except ValidationError:
+        raise ValueError("Invalid transcript data") from None
 
 
 session = requests_lib.Session()
@@ -349,6 +358,51 @@ def call_transcribe_service(ai_job_id):
     return ai_job.id
 
 
+def _submit_summary_job(ai_summary_job, ai_transcript_job, transcript):
+    """Submit a summary job while keeping sensitive errors out of telemetry."""
+    file = ai_transcript_job.file
+    try:
+        summary_response = session.post(
+            settings.AI_SERVICE_URL + "async-jobs/summarize/",
+            json={
+                "user_sub": file.creator.sub,
+                "user_email": file.creator.email,
+                "language": ai_transcript_job.language,
+                "content": format_transcript(transcript),
+            },
+            headers={
+                "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
+            },
+            timeout=10,
+            stream=True,
+        )
+        ai_summary_job.remote_job_id = json.loads(
+            read_response(
+                summary_response,
+                settings.PAYLOAD_SERVICE_RESPONSE_MAX_BYTES,
+                check_status=True,
+            )
+        )["job_id"]
+    except requests_lib.RequestException:
+        logger.error("Creating summary job failed for file %s", file.id)
+        ai_summary_job.mark_failed()
+        raise requests_lib.RequestException("Creating summary job failed") from None
+    except PayloadLimitExceeded:
+        ai_summary_job.mark_failed()
+        raise
+    except ValueError:
+        ai_summary_job.mark_failed()
+        raise ValueError("Invalid summary service response") from None
+    except Exception:  # noqa: BLE001 - upstream errors may contain transcript data
+        logger.error("Creating summary job failed for file %s", file.id)
+        ai_summary_job.mark_failed()
+        raise RuntimeError("Creating summary job failed") from None
+
+    ai_summary_job.save()
+
+    logger.info("Summary job created for file %s", file.id)
+
+
 @app.task(
     queue=BACKEND_QUEUE,
     **build_retry_task_options(autoretry_for=(requests_lib.RequestException,)),
@@ -378,7 +432,7 @@ def handle_transcript_received(remote_job_id, url: str | None):
             content = read_response(
                 fetch_external_source(session, url), result_limit("transcript")
             )
-        transcript = WhisperXResponse.model_validate_json(content)
+        transcript = _parse_transcript(content)
     except ValueError, TypeError:
         ai_transcript_job.mark_failed()
         raise
@@ -436,36 +490,7 @@ def handle_transcript_received(remote_job_id, url: str | None):
         language=ai_transcript_job.language,
     )
 
-    try:
-        summary_response = session.post(
-            settings.AI_SERVICE_URL + "async-jobs/summarize/",
-            json={
-                "user_sub": file.creator.sub,
-                "user_email": file.creator.email,
-                "language": ai_transcript_job.language,
-                "content": format_transcript(transcript),
-            },
-            headers={
-                "Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}",
-            },
-            timeout=10,
-            stream=True,
-        )
-        ai_summary_job.remote_job_id = json.loads(
-            read_response(
-                summary_response,
-                settings.PAYLOAD_SERVICE_RESPONSE_MAX_BYTES,
-                check_status=True,
-            )
-        )["job_id"]
-    except Exception as e:
-        logger.error("Creating summary job failed for file %s: %s", file.id, e)
-        ai_summary_job.mark_failed()
-        raise e
-
-    ai_summary_job.save()
-
-    logger.info("Summary job created for file %s", file.id)
+    _submit_summary_job(ai_summary_job, ai_transcript_job, transcript)
 
     if profile.send_notification_email:
         send_transcription_ready_email.apply_async(
@@ -495,7 +520,10 @@ def store_summary(remote_job_id, url):
         content = read_response(
             fetch_external_source(session, url), result_limit("summary")
         )
-        content.decode("utf-8")
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            raise ValueError("Invalid summary data") from None
     except ValueError:
         ai_summary_job.mark_failed()
         raise

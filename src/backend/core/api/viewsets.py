@@ -1001,15 +1001,14 @@ class AiJobViewSet(
     @transaction.atomic
     def on_ai_event(self, request):
         """Handle incoming hook events for recordings."""
-        logger.debug("Received transcribe webhook event: %s", request.data)
 
         try:
             payload = webhook_models.webhook_payload_adapter.validate_python(
                 request.data
             )
-        except ValidationError as exc:
-            logger.error("Invalid webhook payload: %s", exc)
-            raise drf_exceptions.ValidationError(detail=exc) from exc
+        except ValidationError:
+            logger.warning("Invalid AI webhook payload")
+            raise drf_exceptions.ValidationError("Invalid webhook payload") from None
 
         # Read the job state only after any earlier webhook has committed.
         utils.acquire_transaction_lock(f"ai-job-webhook:{payload.job_id}")

@@ -35,6 +35,7 @@ export const useAnalytics = ({ id, host, isDisabled }: useAnalyticsProps) => {
     posthog.init(id, {
       api_host: host,
       person_profiles: 'always',
+      disable_session_recording: true,
       capture_exceptions: {
         capture_console_errors: true,
       },
