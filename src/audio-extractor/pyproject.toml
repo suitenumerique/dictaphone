@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dictaphone-audio-extractor"
-version = "0.14.2"
+version = "0.15.0"
 description = "Isolated audio conversion worker"
 requires-python = ">=3.14,<3.15"
 dependencies = [
