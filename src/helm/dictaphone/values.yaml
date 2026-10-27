@@ -349,6 +349,12 @@ backend:
         - "/bin/sh"
         - "-c"
         - "python manage.py purge_transcription_usage"
+    - name: purge-mobile-sessions
+      schedule: "15 1 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "python manage.py purge_mobile_sessions && python manage.py flushexpiredtokens"
 
   ## @param backend.probes Kubernetes probe definitions; set an individual probe to null to disable it
   probes:

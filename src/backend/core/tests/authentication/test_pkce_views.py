@@ -11,14 +11,15 @@ import pytest
 from mozilla_django_oidc.utils import generate_code_challenge
 from rest_framework import status
 from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
 
+from core.authentication.mobile import create_mobile_session
 from core.authentication.views import (
     OIDCAuthenticationCallbackWithPkceView,
     PKCEOIDCAuthenticationRequestView,
     get_pkce_authorization_code_cache_key,
 )
-from core.factories import UserFactory
+from core.factories import MobileAuthSessionFactory, UserFactory
+from core.models import MobileAuthSession
 
 pytestmark = pytest.mark.django_db
 
@@ -219,6 +220,7 @@ def test_oidc_callback_with_pkce_login_success_returns_mobile_redirect(settings)
     assert f"state={state}" in response.url
 
     cached = cache.get(get_pkce_authorization_code_cache_key("code"))
+    assert MobileAuthSession.objects.get(pk=cached.pop("session_id")).user == user
     assert cached == {
         "user_id": user.pk,
         "code_challenge": code_challenge,
@@ -301,6 +303,7 @@ def test_oauth_token_exchange_success_and_single_use():
         get_pkce_authorization_code_cache_key(code),
         {
             "user_id": user.pk,
+            "session_id": str(MobileAuthSessionFactory(user=user).pk),
             "code_challenge": generate_code_challenge(verifier, "S256"),
             "code_challenge_method": "S256",
         },
@@ -315,7 +318,7 @@ def test_oauth_token_exchange_success_and_single_use():
     )
 
     assert response.status_code == status.HTTP_200_OK
-    assert set(response.json()) == {"refresh", "access"}
+    assert set(response.json()) == {"refresh", "access", "revoke"}
 
     second_try = client.post(
         "/api/v1.0/oauth/token/",
@@ -334,6 +337,7 @@ def test_oauth_token_exchange_invalid_code_verifier_consumes_code():
         get_pkce_authorization_code_cache_key(code),
         {
             "user_id": user.pk,
+            "session_id": str(MobileAuthSessionFactory(user=user).pk),
             "code_challenge": generate_code_challenge(
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "S256"
             ),
@@ -386,7 +390,7 @@ def test_oauth_token_exchange_rejects_out_of_bounds_lengths(field_name, length):
 def test_oauth_token_refresh_endpoint_returns_access_token():
     """Should issue a new access token from a valid refresh token."""
     user = UserFactory()
-    refresh = RefreshToken.for_user(user)
+    refresh = create_mobile_session(user)["refresh"]
 
     client = APIClient()
     response = client.post(

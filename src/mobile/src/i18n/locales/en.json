@@ -3,6 +3,10 @@
     "loginCta": "Login",
     "subtitle": "Record your in-person meetings and access your transcripts.",
     "logout": "Logout",
+    "providerLogoutPendingTitle": "Identity provider logout incomplete",
+    "providerLogoutPendingMessage": "You are signed out of the app, but logout from the identity provider could not be completed.",
+    "logoutPendingTitle": "Server logout pending",
+    "logoutPendingMessage": "You are signed out on this device. Server revocation could not be confirmed and will be retried when you reconnect.",
     "skip": "Skip for now"
   },
   "home": {

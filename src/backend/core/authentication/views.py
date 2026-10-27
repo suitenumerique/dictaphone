@@ -7,7 +7,9 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import transaction
 from django.http import HttpResponseRedirect
+from django.utils import timezone
 
 from lasuite.oidc_login.views import (
     OIDCAuthenticationCallbackView,
@@ -16,11 +18,13 @@ from lasuite.oidc_login.views import (
 from mozilla_django_oidc.utils import generate_code_challenge
 from pydantic import ValidationError
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.settings import api_settings
 
+from core.authentication.mobile import check_session, issue_token_pair, oidc_cipher
 from core.authentication.schemas import (
     PKCEAuthenticationRequestModel,
     PKCETokenExchangeModel,
@@ -29,6 +33,7 @@ from core.authentication.throttling import (
     FailedRequestThrottleMixin,
     PKCETokenExchangeThrottle,
 )
+from core.models import MobileAuthSession
 from core.utils import update_url_query_params
 
 logger = logging.getLogger(__name__)
@@ -143,22 +148,33 @@ class OIDCAuthenticationCallbackWithPkceView(OIDCAuthenticationCallbackView):
             logger.error("No PKCE data found in session")
             return self.login_failure()
 
+        if not is_mobile_login_url(res.url):
+            logger.warning(
+                "PKCE mobile callback did not resolve to the mobile login URL"
+            )
+            return self.login_failure()
+
+        id_token = self.request.session.get("oidc_id_token")
+        session = MobileAuthSession.objects.create(
+            user=self.user,
+            expires_at=timezone.now() + api_settings.REFRESH_TOKEN_LIFETIME,
+            browser_session_key=self.request.session.session_key or "",
+            encrypted_id_token=(
+                oidc_cipher().encrypt(id_token.encode()).decode() if id_token else ""
+            ),
+            **self.request.session.get("mobile_oidc_context", {}),
+        )
         authorization_code = secrets.token_urlsafe(AUTHORIZATION_CODE_SIZE)
         cache.set(
             get_pkce_authorization_code_cache_key(authorization_code),
             {
                 "user_id": self.user.pk,
+                "session_id": str(session.pk),
                 "code_challenge": pkce_data["code_challenge"],
                 "code_challenge_method": pkce_data["code_challenge_method"],
             },
             timeout=settings.AUTH_PKCE_CACHE_TTL_SECONDS,
         )
-
-        if not is_mobile_login_url(res.url):
-            logger.warning(
-                "PKCE mobile callback did not resolve to the expected mobile login URL"
-            )
-            return self.login_failure()
 
         logger.info(
             "Mobile login successful, redirecting to mobile app for user %s",
@@ -200,7 +216,7 @@ class PKCEOAuthTokenExchangeView(FailedRequestThrottleMixin, APIView):
     throttle_classes = [PKCETokenExchangeThrottle]
     # Audit logging for successful and failed token exchanges remains to be added.
 
-    def post(self, request) -> Response:
+    def post(self, request) -> Response:  # noqa: PLR0911
         """Handles request for PKCE OAuth token exchange."""
         try:
             request_data = PKCETokenExchangeModel.model_validate(request.data)
@@ -211,6 +227,14 @@ class PKCEOAuthTokenExchangeView(FailedRequestThrottleMixin, APIView):
             )
 
         cache_key = get_pkce_authorization_code_cache_key(request_data.code)
+        # Atomic across workers: get/delete alone permits concurrent exchanges.
+        if not cache.add(
+            f"{cache_key}:claimed", True, timeout=settings.AUTH_PKCE_CACHE_TTL_SECONDS
+        ):
+            return Response(
+                {"detail": "Invalid or expired authorization code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         code_data = cache.get(cache_key)
         if not code_data:
             return Response(
@@ -238,10 +262,23 @@ class PKCEOAuthTokenExchangeView(FailedRequestThrottleMixin, APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            }
-        )
+        with transaction.atomic():
+            session = (
+                MobileAuthSession.objects.select_for_update()
+                .filter(pk=code_data.get("session_id"), user=user)
+                .first()
+            )
+            try:
+                check_session(session, {"user_id": str(user.pk)})
+            except AuthenticationFailed:
+                return Response(
+                    {"detail": "Invalid or expired authorization code."}, status=400
+                )
+            if session.refresh_jti:
+                return Response(
+                    {"detail": "Authorization code already used."}, status=400
+                )
+            pair = issue_token_pair(session)
+        response = Response(pair)
+        response["Cache-Control"] = "no-store"
+        return response

@@ -87,6 +87,24 @@ class BaseModel(models.Model):
         super().save(*args, **kwargs)
 
 
+class MobileAuthSession(BaseModel):
+    """Revocation boundary shared by all tokens from one mobile login."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revocation_reason = models.CharField(max_length=32, blank=True)
+    refresh_jti = models.CharField(max_length=255, blank=True)
+    browser_session_key = models.CharField(max_length=40, blank=True)
+    oidc_issuer = models.CharField(max_length=2048, blank=True)
+    oidc_sub = models.CharField(max_length=255, blank=True)
+    oidc_sid = models.CharField(max_length=255, blank=True, db_index=True)
+    encrypted_id_token = models.TextField(blank=True)
+
+    def __str__(self):
+        return str(self.pk)
+
+
 class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
     """User model to work with OIDC only authentication."""
 

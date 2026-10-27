@@ -206,6 +206,9 @@ add_header Content-Disposition "attachment";
 | `backend.cronjobs[4].name` | Name of the CronJob | `purge-transcription-usage` |
 | `backend.cronjobs[4].schedule` | Schedule in cron format | `0 1 * * *` |
 | `backend.cronjobs[4].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_transcription_usage"]` |
+| `backend.cronjobs[5].name` | Name of the CronJob | `purge-mobile-sessions` |
+| `backend.cronjobs[5].schedule` | Schedule in cron format | `15 1 * * *` |
+| `backend.cronjobs[5].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_mobile_sessions && python manage.py flushexpiredtokens"]` |
 | `backend.probes` | Native Kubernetes probe definitions; individual probes can be disabled with `null` | Liveness/startup: `/__lbheartbeat__`; readiness: `/__heartbeat__`, on port `http` |
 | `backend.resources`                            | Resource requirements for the backend container                                    | `{}`                                                      |
 | `backend.nodeSelector`                         | Node selector for the backend Pod                                                  | `{}`                                                      |

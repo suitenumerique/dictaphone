@@ -1,7 +1,8 @@
 import './src/i18n/index'
 import { RateLimitNotifications } from '@/components/RateLimitNotice'
 import React, { useEffect } from 'react'
-import { StatusBar } from 'react-native'
+import { AppState, StatusBar } from 'react-native'
+import NetInfo from '@react-native-community/netinfo'
 import {
   NavigationContainer,
   RouteProp,
@@ -10,7 +11,11 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import RecordingScreen from '@/screens/RecordingScreen'
 import RecordingsScreen from './src/screens/RecordingsScreen'
-import { clearAuthState, exchangeCodeForTokens } from '@/services/authService'
+import {
+  clearAuthState,
+  exchangeCodeForTokens,
+  retryPendingRevocations,
+} from '@/services/authService'
 import { queryClient } from '@/api/queryClient'
 import { QueryClientProvider } from '@tanstack/react-query'
 import BootSplash from 'react-native-bootsplash'
@@ -41,7 +46,8 @@ function AuthCallbackScreen() {
     const params = route.params ?? {}
 
     if (params.logout) {
-      void clearAuthState()
+      // Credentials were already cleared before the provider browser flow.
+      // A delayed provider callback must not clear a newer login's tokens.
       resetNavigationHistory('Login')
       return
     }
@@ -75,6 +81,22 @@ function AuthCallbackScreen() {
 }
 
 function App() {
+  useEffect(() => {
+    const retry = () => {
+      void retryPendingRevocations().catch(() => {})
+    }
+    retry()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') retry()
+    })
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) retry()
+    })
+    return () => {
+      subscription.remove()
+      unsubscribe()
+    }
+  }, [])
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>

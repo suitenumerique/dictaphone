@@ -12,6 +12,8 @@ from django.utils.translation import gettext_lazy as _
 
 from kombu.exceptions import KombuError
 
+from core.authentication.mobile import revoke_session
+
 from . import models
 from .audio_jobs import start_audio_extraction
 from .tasks.file import (
@@ -816,3 +818,58 @@ class AudioJobAdmin(AudioJobDurationMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(models.MobileAuthSession)
+class MobileAuthSessionAdmin(admin.ModelAdmin):
+    """Inspect and revoke mobile logins without exposing credentials."""
+
+    list_display = (
+        "id",
+        "user",
+        "created_at",
+        "expires_at",
+        "revoked_at",
+        "revocation_reason",
+    )
+    list_filter = ("revocation_reason",)
+    search_fields = ("user__email", "user__sub")
+    fields = (
+        "id",
+        "user",
+        "created_at",
+        "expires_at",
+        "revoked_at",
+        "revocation_reason",
+        "oidc_issuer",
+        "oidc_sub",
+        "oidc_sid",
+    )
+    readonly_fields = fields
+    actions = ("revoke_selected_sessions", "revoke_all_sessions_for_users")
+
+    def has_add_permission(self, request):
+        """Sessions are created only by successful authentication."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Use revocation to retain an audit record and clear browser sessions."""
+        return False
+
+    @admin.action(description="Revoke selected mobile sessions")
+    def revoke_selected_sessions(self, request, queryset):
+        """Serialize administrative revocation against token rotation."""
+        self._revoke(queryset)
+
+    @admin.action(description="Revoke ALL mobile sessions for the selected users")
+    def revoke_all_sessions_for_users(self, request, queryset):
+        """Recover from a lost device or account compromise."""
+        user_ids = list(queryset.values_list("user_id", flat=True))
+        self._revoke(models.MobileAuthSession.objects.filter(user_id__in=user_ids))
+
+    @staticmethod
+    def _revoke(queryset):
+        """All revocation paths take the same per-session row lock."""
+        with transaction.atomic():
+            for session in queryset.select_for_update().order_by("pk"):
+                revoke_session(session, "admin")

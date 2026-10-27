@@ -10,6 +10,8 @@ import { queryClient } from '@/api/queryClient'
 const REDIRECT_URL = 'fr-gouv-assistant-transcripts://auth/callback'
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
+const REVOKE_TOKEN_KEY = 'revoke_token'
+const PENDING_REVOCATIONS_KEY = 'pending_revocations'
 const PKCE_VERIFIER_KEY = 'pkce_code_verifier'
 const PKCE_STATE_KEY = 'pkce_state'
 const OAUTH_TOKEN_URL = `${API_URL}/oauth/token/`
@@ -19,7 +21,74 @@ const TOKEN_REQUEST_TIMEOUT_MS = 10_000
 
 // Keep refresh disabled after logout until a new login has completed.
 let isLoggingOut = false
-let logoutPromise: Promise<void> | null = null
+type LogoutResult = { revoked: boolean; logoutUrl: string | null }
+let logoutPromise: Promise<LogoutResult> | null = null
+let authGeneration = 0
+let exchangePromise: Promise<void> | null = null
+let pendingWork: Promise<unknown> = Promise.resolve()
+const completedLogoutUrls = new Map<string, string | null>()
+
+function serializePending<T>(work: () => Promise<T>): Promise<T> {
+  const result = pendingWork.then(work)
+  pendingWork = result.catch(() => {})
+  return result
+}
+
+async function pendingRevocations(): Promise<string[]> {
+  const value = await getSecret(PENDING_REVOCATIONS_KEY)
+  return value ? (JSON.parse(value) as string[]) : []
+}
+
+async function enqueueRevocation(revoke: string): Promise<void> {
+  await serializePending(async () => {
+    const pending = await pendingRevocations()
+    if (!pending.includes(revoke)) pending.push(revoke)
+    await storeSecret(PENDING_REVOCATIONS_KEY, JSON.stringify(pending))
+  })
+}
+
+async function sendRevocation(revoke: string): Promise<string | null> {
+  return withTokenRequestTimeout(async (signal) => {
+    const response = await fetch(OAUTH_REVOKE_TOKEN_URL, {
+      method: 'POST',
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revoke }),
+    })
+    // Expired credentials belong to sessions that can no longer grant access.
+    if (response.status === 401) return null
+    if (!response.ok) throw new Error('Session revocation failed')
+    const result = (await response.json()) as { logout_url?: string | null }
+    return result.logout_url ?? null
+  })
+}
+
+export async function retryPendingRevocations(
+  current?: string
+): Promise<LogoutResult> {
+  return serializePending(async () => {
+    const pending = await pendingRevocations()
+    const remaining: string[] = []
+    let logoutUrl: string | null = current
+      ? (completedLogoutUrls.get(current) ?? null)
+      : null
+    for (const revoke of pending) {
+      try {
+        const url = await sendRevocation(revoke)
+        if (logoutPromise) completedLogoutUrls.set(revoke, url)
+        if (revoke === current) logoutUrl = url
+      } catch {
+        remaining.push(revoke)
+      }
+    }
+    await storeSecret(PENDING_REVOCATIONS_KEY, JSON.stringify(remaining))
+    if (current) completedLogoutUrls.delete(current)
+    return {
+      revoked: current ? !remaining.includes(current) : remaining.length === 0,
+      logoutUrl,
+    }
+  })
+}
 
 async function withTokenRequestTimeout<T>(
   request: (signal: NonNullable<RequestInit['signal']>) => Promise<T>
@@ -44,6 +113,7 @@ async function withTokenRequestTimeout<T>(
 type TokenResponse = {
   refresh: string
   access: string
+  revoke: string
 }
 
 type TokenRequest = {
@@ -88,8 +158,12 @@ async function clearSecret(service: string): Promise<void> {
   await Keychain.resetGenericPassword({ service })
 }
 
-async function requestToken(data: TokenRequest): Promise<TokenResponse> {
+async function requestToken(
+  data: TokenRequest,
+  signal: NonNullable<RequestInit['signal']>
+): Promise<TokenResponse> {
   const response = await fetch(OAUTH_TOKEN_URL, {
+    signal,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -102,13 +176,14 @@ async function requestToken(data: TokenRequest): Promise<TokenResponse> {
   }
 
   const payload = (await response.json()) as Partial<TokenResponse>
-  if (!payload.access || !payload.refresh) {
+  if (!payload.access || !payload.refresh || !payload.revoke) {
     throw new Error('Token response is missing access_token or refresh_token')
   }
 
   return {
     access: payload.access,
     refresh: payload.refresh,
+    revoke: payload.revoke,
   }
 }
 
@@ -116,6 +191,7 @@ export async function storeTokens(tokens: TokenResponse): Promise<void> {
   await Promise.all([
     storeSecret(ACCESS_TOKEN_KEY, tokens.access),
     storeSecret(REFRESH_TOKEN_KEY, tokens.refresh),
+    storeSecret(REVOKE_TOKEN_KEY, tokens.revoke),
   ])
 }
 
@@ -132,6 +208,7 @@ export async function clearAuthState(): Promise<void> {
   await Promise.all([
     clearSecret(ACCESS_TOKEN_KEY),
     clearSecret(REFRESH_TOKEN_KEY),
+    clearSecret(REVOKE_TOKEN_KEY),
     clearSecret(PKCE_VERIFIER_KEY),
     clearSecret(PKCE_STATE_KEY),
   ])
@@ -147,6 +224,21 @@ export async function clearAuthState(): Promise<void> {
 export async function exchangeCodeForTokens(
   code: string,
   state?: string
+): Promise<void> {
+  if (exchangePromise) return exchangePromise
+  const generation = authGeneration
+  exchangePromise = exchangeLoginCode(code, state, generation)
+  try {
+    await exchangePromise
+  } finally {
+    exchangePromise = null
+  }
+}
+
+async function exchangeLoginCode(
+  code: string,
+  state: string | undefined,
+  generation: number
 ): Promise<void> {
   const [codeVerifier, expectedState] = await Promise.all([
     getSecret(PKCE_VERIFIER_KEY),
@@ -169,15 +261,28 @@ export async function exchangeCodeForTokens(
     throw new Error('PKCE state mismatch')
   }
 
-  const tokens = await requestToken({
-    code,
-    code_verifier: codeVerifier,
-  })
+  const tokens = await withTokenRequestTimeout((signal) =>
+    requestToken(
+      {
+        code,
+        code_verifier: codeVerifier,
+      },
+      signal
+    )
+  )
+  if (generation !== authGeneration) {
+    await enqueueRevocation(tokens.revoke)
+    throw new Error('Login was cancelled by logout')
+  }
   await Promise.all([
     storeTokens(tokens),
     clearSecret(PKCE_VERIFIER_KEY),
     clearSecret(PKCE_STATE_KEY),
   ])
+  if (generation !== authGeneration) {
+    await enqueueRevocation(tokens.revoke)
+    throw new Error('Login was cancelled by logout')
+  }
   isLoggingOut = false
 }
 
@@ -190,6 +295,7 @@ export async function refreshAccessToken(): Promise<string | null> {
     return refreshPromise
   }
 
+  const generation = authGeneration
   refreshPromise = (async () => {
     const refreshToken = await getRefreshToken()
     if (!refreshToken) {
@@ -214,17 +320,25 @@ export async function refreshAccessToken(): Promise<string | null> {
         }
         return (await response.json()) as TokenResponse
       })
-      if (!tokensResponse.refresh || !tokensResponse.access) {
+      if (
+        !tokensResponse.refresh ||
+        !tokensResponse.access ||
+        !tokensResponse.revoke
+      ) {
         throw new Error(
           'Refresh token response missing access token or refresh token'
         )
       }
+      if (generation !== authGeneration) return null
       await storeTokens(tokensResponse)
       return isLoggingOut ? null : tokensResponse.access
     } catch {
       // Preserve the current token so logout can still attempt its revocation.
-      if (!isLoggingOut) {
+      if (!isLoggingOut && generation === authGeneration) {
+        const revoke = await getSecret(REVOKE_TOKEN_KEY)
+        if (revoke) await enqueueRevocation(revoke)
         await clearAuthState()
+        void retryPendingRevocations().catch(() => {})
       }
       return null
     }
@@ -237,48 +351,39 @@ export async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-export async function logoutAuthState(): Promise<void> {
-  if (logoutPromise) {
-    return logoutPromise
-  }
+export async function logoutAuthState(): Promise<LogoutResult> {
+  if (logoutPromise) return logoutPromise
   isLoggingOut = true
+  authGeneration += 1
   logoutPromise = (async () => {
+    let current: string | null = null
     try {
-      // Revoke the replacement if a refresh was already in flight.
-      await refreshPromise
-      const refresh = await getRefreshToken()
-      if (refresh) {
-        await withTokenRequestTimeout(async (signal) => {
-          const response = await fetch(OAUTH_REVOKE_TOKEN_URL, {
-            method: 'POST',
-            signal,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh }),
-          })
-          if (!response.ok) {
-            throw new Error('Refresh token revocation failed')
-          }
-        })
-      }
-    } catch {
-      // Never log credentials or raw server responses. Offline logout is local only.
-      console.warn(
-        'Logged out locally; server token revocation could not be confirmed.'
-      )
+      await Promise.allSettled([refreshPromise, exchangePromise])
+      current = await getSecret(REVOKE_TOKEN_KEY)
+      if (current) await enqueueRevocation(current)
     } finally {
       await clearAuthState()
     }
+    try {
+      return await retryPendingRevocations(current ?? undefined)
+    } catch {
+      return { revoked: false, logoutUrl: null }
+    }
   })()
-
   try {
-    await logoutPromise
+    return await logoutPromise
   } finally {
     logoutPromise = null
+    completedLogoutUrls.clear()
   }
 }
 
 // --- Login: open the backend auth URL in a browser ---
 export async function login(): Promise<void> {
+  await logoutPromise
+  await refreshPromise
+  await retryPendingRevocations().catch(() => {})
+  authGeneration += 1
   // For reference: https://datatracker.ietf.org/doc/html/rfc7636#section-4.1
   // and https://auth0.com/blog/demystifying-oauth-security-state-vs-nonce-vs-pkce/
   // State is added to prevent CSRF attacks
