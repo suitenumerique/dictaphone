@@ -2,6 +2,7 @@
 Core application factories
 """
 
+from datetime import timedelta
 from io import BytesIO
 from uuid import uuid4
 
@@ -31,6 +32,16 @@ class UserFactory(factory.django.DjangoModelFactory):
     language = factory.fuzzy.FuzzyChoice([lang[0] for lang in settings.LANGUAGES])
     password = make_password("password")
     flag_show_mobile_app_popup = True
+
+
+class MobileAuthSessionFactory(factory.django.DjangoModelFactory):
+    """A live mobile login; use issue_token_pair to mint its credentials."""
+
+    class Meta:
+        model = models.MobileAuthSession
+
+    user = factory.SubFactory(UserFactory)
+    expires_at = factory.LazyFunction(lambda: timezone.now() + timedelta(days=7))
 
 
 class TranscriptionUsageFactory(factory.django.DjangoModelFactory):

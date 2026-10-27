@@ -3,6 +3,10 @@
     "loginCta": "Me connecter",
     "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
     "logout": "Me déconnecter",
+    "providerLogoutPendingTitle": "Déconnexion du fournisseur d’identité incomplète",
+    "providerLogoutPendingMessage": "Vous êtes déconnecté de l’application, mais la déconnexion du fournisseur d’identité n’a pas pu aboutir.",
+    "logoutPendingTitle": "Déconnexion du serveur en attente",
+    "logoutPendingMessage": "Vous êtes déconnecté de cet appareil. La révocation côté serveur n’a pas pu être confirmée et sera réessayée à la reconnexion.",
     "skip": "Passer"
   },
   "home": {

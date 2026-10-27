@@ -12,7 +12,8 @@ import {
 } from '@/features/analytics/hooks/useAnalytics'
 import { colors } from '@/components/colors'
 import { InAppBrowser } from 'react-native-inappbrowser-reborn'
-import { API_URL, BASE_URL } from '@/api/constants'
+import { Alert, Linking } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useUserStore } from '@/services/userStore'
 
 type TUserInfo = {
@@ -38,6 +39,7 @@ type TUserInfo = {
  * `isLoggedIn` is undefined while query is loading and true/false when it's done
  */
 export const useUser = () => {
+  const { t } = useTranslation()
   const { setCachedUser, clearCachedUser } = useUserStore()
 
   const query = useQuery({
@@ -77,51 +79,68 @@ export const useUser = () => {
 
   const logout = useCallback(async () => {
     terminateAnalyticsSession()
+    clearCachedUser()
+    let result
     try {
-      await logoutAuthState()
+      result = await logoutAuthState()
     } finally {
       clearCachedUser()
     }
 
+    if (!result.revoked) {
+      Alert.alert(
+        t('login.logoutPendingTitle'),
+        t('login.logoutPendingMessage')
+      )
+    }
     try {
-      await InAppBrowser.openAuth(
-        API_URL + '/logout/?source=mobile',
-        BASE_URL,
-        {
-          // iOS Properties
-          dismissButtonStyle: 'cancel',
-          preferredBarTintColor: colors.secondary,
-          preferredControlTintColor: 'white',
-          readerMode: false,
-          animated: true,
-          modalPresentationStyle: 'fullScreen',
-          modalTransitionStyle: 'coverVertical',
-          modalEnabled: true,
-          enableBarCollapsing: false,
-          // Android Properties
-          showTitle: false,
-          toolbarColor: colors.secondary,
-          secondaryToolbarColor: 'black',
-          navigationBarColor: 'black',
-          navigationBarDividerColor: 'white',
-          enableUrlBarHiding: true,
-          enableDefaultShare: false,
-          forceCloseOnRedirection: true,
-          // Specify full animation resource identifier(package:anim/name)
-          // or only resource name(in case of animation bundled with app).
-          animations: {
-            startEnter: 'slide_in_right',
-            startExit: 'slide_out_left',
-            endEnter: 'slide_in_left',
-            endExit: 'slide_out_right',
-          },
-          headers: {},
-        }
+      if (result.logoutUrl && !(await InAppBrowser.isAvailable())) {
+        await Linking.openURL(result.logoutUrl)
+      } else if (result.logoutUrl) {
+        await InAppBrowser.openAuth(
+          result.logoutUrl,
+          'fr-gouv-assistant-transcripts://auth/callback',
+          {
+            // iOS Properties
+            dismissButtonStyle: 'cancel',
+            preferredBarTintColor: colors.secondary,
+            preferredControlTintColor: 'white',
+            readerMode: false,
+            animated: true,
+            modalPresentationStyle: 'fullScreen',
+            modalTransitionStyle: 'coverVertical',
+            modalEnabled: true,
+            enableBarCollapsing: false,
+            // Android Properties
+            showTitle: false,
+            toolbarColor: colors.secondary,
+            secondaryToolbarColor: 'black',
+            navigationBarColor: 'black',
+            navigationBarDividerColor: 'white',
+            enableUrlBarHiding: true,
+            enableDefaultShare: false,
+            forceCloseOnRedirection: true,
+            // Specify full animation resource identifier(package:anim/name)
+            // or only resource name(in case of animation bundled with app).
+            animations: {
+              startEnter: 'slide_in_right',
+              startExit: 'slide_out_left',
+              endEnter: 'slide_in_left',
+              endExit: 'slide_out_right',
+            },
+            headers: {},
+          }
+        )
+      }
+    } catch {
+      Alert.alert(
+        t('login.providerLogoutPendingTitle'),
+        t('login.providerLogoutPendingMessage')
       )
     } finally {
       await queryClient.resetQueries()
     }
-  }, [clearCachedUser])
+  }, [clearCachedUser, t])
 
   const isLoggedIn = query.status === 'success' && query.data !== false
 

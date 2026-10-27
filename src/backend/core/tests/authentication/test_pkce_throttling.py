@@ -19,7 +19,7 @@ from core.authentication.throttling import (
     get_client_ip,
 )
 from core.authentication.views import get_pkce_authorization_code_cache_key
-from core.factories import UserFactory
+from core.factories import MobileAuthSessionFactory, UserFactory
 
 from dictaphone.settings import Base
 
@@ -191,10 +191,14 @@ def test_all_exchange_failures_count(failure):
     """Wrong verifiers and codes belonging to inactive users are failures too."""
     user = UserFactory(is_active=failure != "inactive_user")
     for _ in range(2):
+        cache.delete(
+            get_pkce_authorization_code_cache_key(PAYLOAD["code"]) + ":claimed"
+        )
         cache.set(
             get_pkce_authorization_code_cache_key(PAYLOAD["code"]),
             {
                 "user_id": user.pk,
+                "session_id": str(MobileAuthSessionFactory(user=user).pk),
                 "code_challenge": generate_code_challenge(
                     "c" * 43 if failure == "verifier" else PAYLOAD["code_verifier"],
                     "S256",
@@ -211,10 +215,14 @@ def test_success_neither_counts_nor_resets_failures():
     user = UserFactory()
 
     def set_code():
+        cache.delete(
+            get_pkce_authorization_code_cache_key(PAYLOAD["code"]) + ":claimed"
+        )
         cache.set(
             get_pkce_authorization_code_cache_key(PAYLOAD["code"]),
             {
                 "user_id": user.pk,
+                "session_id": str(MobileAuthSessionFactory(user=user).pk),
                 "code_challenge": generate_code_challenge(
                     PAYLOAD["code_verifier"], "S256"
                 ),

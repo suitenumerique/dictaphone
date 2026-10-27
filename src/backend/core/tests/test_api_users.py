@@ -4,7 +4,7 @@ Test users API endpoints in the Dictaphone core app.
 
 import pytest
 from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
+from core.authentication.mobile import create_mobile_session
 
 from core import factories, models
 from core.api import serializers
@@ -137,7 +137,7 @@ def test_api_users_retrieve_me_authenticated_jwt(settings):
     settings.TIME_ZONE = "UTC"
     user = factories.UserFactory()
 
-    access = RefreshToken.for_user(user).access_token
+    access = create_mobile_session(user)["access"]
 
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")

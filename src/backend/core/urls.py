@@ -5,7 +5,6 @@ from django.urls import include, path, re_path
 
 from lasuite.oidc_login.urls import urlpatterns as oidc_urls
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
 from core.api import (
     get_app_configuration,
@@ -13,6 +12,14 @@ from core.api import (
     viewsets,
 )
 from core.api.audio_jobs import AudioJobViewSet
+from core.authentication.logout import (
+    MobileBackChannelLogoutView,
+    MobileLogoutCallbackView,
+    MobileLogoutStartView,
+    MobileLogoutView,
+    MobileTokenRefreshView,
+    SessionOIDCLogoutView,
+)
 from core.authentication.views import PKCEOAuthTokenExchangeView
 
 # - Main endpoints
@@ -44,6 +51,26 @@ urlpatterns = [
         include(
             [
                 *router.urls,
+                path(
+                    "logout/",
+                    SessionOIDCLogoutView.as_view(),
+                    name="session_oidc_logout",
+                ),
+                path(
+                    "backchannel-logout/",
+                    MobileBackChannelLogoutView.as_view(),
+                    name="mobile_backchannel_logout",
+                ),
+                path(
+                    "oauth/logout/start/",
+                    MobileLogoutStartView.as_view(),
+                    name="mobile_logout_start",
+                ),
+                path(
+                    "oauth/logout/callback/",
+                    MobileLogoutCallbackView.as_view(),
+                    name="mobile_logout_callback",
+                ),
                 *oidc_urls,
                 path(
                     "oauth/token/",
@@ -52,12 +79,12 @@ urlpatterns = [
                 ),
                 path(
                     "oauth/token/refresh/",
-                    TokenRefreshView.as_view(),
+                    MobileTokenRefreshView.as_view(),
                     name="token_refresh",
                 ),
                 path(
                     "oauth/token/revoke/",
-                    TokenBlacklistView.as_view(),
+                    MobileLogoutView.as_view(),
                     name="token_revoke",
                 ),
                 path("config/", get_app_configuration, name="config"),

@@ -18,6 +18,17 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
     in the User and Identity models, and handles signed and/or encrypted UserInfo response.
     """
 
+    def verify_token(self, token, **kwargs):
+        """Keep provider session metadata from the verified ID token."""
+        payload = super().verify_token(token, **kwargs)
+        if payload and "nonce" in kwargs and getattr(self, "request", None) is not None:
+            self.request.session["mobile_oidc_context"] = {
+                "oidc_issuer": payload.get("iss", ""),
+                "oidc_sub": payload.get("sub", ""),
+                "oidc_sid": payload.get("sid", ""),
+            }
+        return payload
+
     def get_extra_claims(self, user_info):
         """
         Return extra claims from user_info.

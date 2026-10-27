@@ -527,7 +527,7 @@ class Base(Configuration):
 
     REST_FRAMEWORK = {
         "DEFAULT_AUTHENTICATION_CLASSES": (
-            "rest_framework_simplejwt.authentication.JWTAuthentication",
+            "core.authentication.mobile.MobileJWTAuthentication",
             "core.authentication.backends.SessionAuthenticationWith401",
         ),
         "DEFAULT_PARSER_CLASSES": [
@@ -894,7 +894,7 @@ class Base(Configuration):
         environ_prefix=None,
     )
     MOBILE_DEEP_LINK_SCHEME = values.Value(
-        default="assistant-transcripts://auth/callback",
+        default="fr-gouv-assistant-transcripts://auth/callback",
         environ_name="MOBILE_DEEP_LINK_SCHEME",
         environ_prefix=None,
     )
