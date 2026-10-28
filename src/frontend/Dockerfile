@@ -1,4 +1,6 @@
-FROM node:24-alpine AS frontend-deps
+# Browser assets are architecture-independent. Build them natively to avoid
+# running Node, TypeScript and Vite under QEMU for ARM64 production images.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-deps
 
 WORKDIR /home/frontend/
 
