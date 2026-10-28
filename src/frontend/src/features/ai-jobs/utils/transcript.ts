@@ -1,4 +1,4 @@
-import { WhisperXResponse } from '@/features/ai-jobs/api/types.ts'
+import type { WhisperXResponse } from '@/features/ai-jobs/api/types.ts'
 
 export type TranscriptWord = {
   text: string
@@ -60,7 +60,7 @@ export function buildTranscriptViewSegments(
 ): TranscriptViewSegment[] {
   if (!transcript) return []
 
-  // We need to fix the speaker from WhisperX
+  // Number WhisperX speakers in order of appearance.
   const speakerMapped = new Map<string, string>()
   const getSpeaker = (speaker: string | null): string | null => {
     if (!speaker) return null
@@ -73,6 +73,10 @@ export function buildTranscriptViewSegments(
   }
 
   if (transcript.segments.length > 0) {
+    // Reserve paragraph speaker numbers first, matching the backend's Docs export.
+    // Word-only speakers must not create gaps in the visible participant labels.
+    transcript.segments.forEach((segment) => getSpeaker(segment.speaker))
+
     const segments = transcript.segments.map((segment, index) => {
       const words =
         segment.words?.map((word) => ({

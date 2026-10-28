@@ -1,5 +1,10 @@
+import type { WhisperXResponse } from '@/features/ai-jobs/api/types.ts'
 import { describe, expect, it } from 'vitest'
-import { buildTranscriptSrt, findActiveSegmentIndex } from './transcript.ts'
+import {
+  buildTranscriptSrt,
+  buildTranscriptViewSegments,
+  findActiveSegmentIndex,
+} from './transcript.ts'
 
 describe('findActiveSegmentIndex', () => {
   const segments: { start: number; end: number }[] = [
@@ -311,5 +316,75 @@ describe('buildTranscriptSrt', () => {
     expect(cues[0].lines).toHaveLength(1)
     expect(cues[0].lines[0].endsWith('.')).toBe(true)
     expect(cues[1].lines[0].startsWith('Second')).toBe(true)
+  })
+})
+
+describe('buildTranscriptViewSegments', () => {
+  it.each(['SPEAKER_01', 'SPEAKER_02'])(
+    'numbers paragraph speakers consecutively when %s has a word-only speaker',
+    (mixedSpeaker) => {
+      const transcript: WhisperXResponse = {
+        segments: ['SPEAKER_01', 'SPEAKER_02', 'SPEAKER_01'].map(
+          (speaker, index) => ({
+            start: index * 5,
+            end: index * 5 + 2,
+            text: 'Hello there',
+            speaker,
+            words: [
+              {
+                word: 'Hello',
+                start: index * 5,
+                end: index * 5 + 1,
+                score: 1,
+                speaker: speaker === mixedSpeaker ? 'SPEAKER_00' : speaker,
+              },
+              {
+                word: 'there',
+                start: index * 5 + 1,
+                end: index * 5 + 2,
+                score: 1,
+                speaker,
+              },
+            ],
+          })
+        ),
+        word_segments: [],
+      }
+
+      const segments = buildTranscriptViewSegments(transcript)
+
+      expect(segments.map((segment) => segment.speaker)).toEqual([
+        '1',
+        '2',
+        '1',
+      ])
+      expect(segments.map((segment) => segment.words[1].speaker)).toEqual([
+        '1',
+        '2',
+        '1',
+      ])
+      expect(
+        segments.find(
+          (segment) =>
+            segment.speaker === (mixedSpeaker === 'SPEAKER_01' ? '1' : '2')
+        )?.words[0].speaker
+      ).toBe('3')
+      expect(transcript.segments[0].speaker).toBe('SPEAKER_01')
+    }
+  )
+
+  it('preserves missing speakers without reserving a participant number', () => {
+    const segments = buildTranscriptViewSegments({
+      segments: [null, 'SPEAKER_42', 'SPEAKER_10'].map((speaker, index) => ({
+        start: index,
+        end: index + 1,
+        text: 'Hello',
+        speaker,
+        words: null,
+      })),
+      word_segments: [],
+    })
+
+    expect(segments.map((segment) => segment.speaker)).toEqual([null, '1', '2'])
   })
 })
