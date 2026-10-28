@@ -15,7 +15,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Dependent jobs run in full if change detection fails.
+  changes:
+    permissions:
+      pull-requests: read
+    uses: $/.github/workflows/_changes.yml
+
   lint-back:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.backend == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_python-lint.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
@@ -24,6 +32,8 @@ jobs:
       pylint_targets: dictaphone demo core
 
   test-back:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -161,6 +171,8 @@ jobs:
         run: uv run pytest -n 2
 
   lint-audio-extractor:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.audio-extractor == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_python-lint.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
@@ -169,6 +181,8 @@ jobs:
       pylint_targets: audio_extractor
 
   test-audio-extractor:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.audio-extractor == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -217,6 +231,8 @@ jobs:
         run: uv run pytest -n 2
 
   lint-front:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -243,6 +259,8 @@ jobs:
         run: cd src/frontend/ && npm run check
 
   test-front:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -269,6 +287,8 @@ jobs:
         run: npm test -- --run
 
   lint-mobile:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.mobile == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -300,8 +320,9 @@ jobs:
       - name: Check types
         run: yarn run tsc
 
-
   test-mobile:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.mobile == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -15,7 +15,15 @@ on:
 permissions: {}
 
 jobs:
+  # Dependent jobs run in full if change detection fails.
+  changes:
+    permissions:
+      pull-requests: read
+    uses: $/.github/workflows/_changes.yml
+
   build-and-push-backend:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.backend == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_docker-publish.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
@@ -32,6 +40,8 @@ jobs:
       DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
   build-and-push-audio-extractor:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.audio-extractor == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_docker-publish.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
@@ -48,6 +58,8 @@ jobs:
       DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
   build-and-push-frontend-generic:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_docker-publish.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
@@ -64,6 +76,8 @@ jobs:
       DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
   build-and-push-frontend-dinum:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_docker-publish.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1

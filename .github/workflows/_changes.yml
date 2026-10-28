@@ -1,0 +1,55 @@
+name: Detect component changes
+
+on:
+  workflow_call:
+    outputs:
+      backend:
+        value: ${{ jobs.changes.outputs.backend }}
+      audio-extractor:
+        value: ${{ jobs.changes.outputs.audio-extractor }}
+      frontend:
+        value: ${{ jobs.changes.outputs.frontend }}
+      mobile:
+        value: ${{ jobs.changes.outputs.mobile }}
+
+permissions: {}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      # Always run every component outside pull requests.
+      backend: ${{ github.event_name != 'pull_request' || steps.filter.outputs.backend == 'true' }}
+      audio-extractor: ${{ github.event_name != 'pull_request' || steps.filter.outputs.audio-extractor == 'true' }}
+      frontend: ${{ github.event_name != 'pull_request' || steps.filter.outputs.frontend == 'true' }}
+      mobile: ${{ github.event_name != 'pull_request' || steps.filter.outputs.mobile == 'true' }}
+    steps:
+      # The API compares the entire PR with its base, including renamed/deleted files.
+      # No checkout or execution of pull request code is needed.
+      - name: Detect changed components
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'src/backend/**'
+              - 'Dockerfile'
+              - 'docker/files/**'
+              - '.dockerignore'
+              - '.github/workflows/**'
+            audio-extractor:
+              - 'src/audio-extractor/**'
+              - '.dockerignore'
+              - '.github/workflows/**'
+            frontend:
+              - 'src/frontend/**'
+              - 'docker/dinum-frontend/**'
+              - 'docker/files/**'
+              - '.dockerignore'
+              - '.github/workflows/**'
+            mobile:
+              - 'src/mobile/**'
+              - '.github/workflows/**'
