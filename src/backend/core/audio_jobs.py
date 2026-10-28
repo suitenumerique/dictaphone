@@ -34,7 +34,11 @@ logger = logging.getLogger(__name__)
 
 
 class AudioJobConflict(ValueError):
-    """An expired, superseded, or unavailable attempt cannot complete."""
+    """An expired or superseded attempt cannot complete."""
+
+
+class AudioFileUnavailable(ValueError):
+    """The file is no longer eligible for audio processing."""
 
 
 def eligible_files():
@@ -292,11 +296,11 @@ def complete_job(mode, data):
         or file.latest_audio_job.pk != job.pk
     ):
         raise AudioJobConflict("Attempt is no longer current or was not claimed.")
+    if not eligible_files().filter(pk=file.pk).exists():
+        raise AudioFileUnavailable("File is no longer available for audio processing.")
     if job.expires_at <= now:
         # The next poll recovers the expired lease; reject late success here.
         raise AudioJobConflict("Attempt has expired.")
-    if not eligible_files().filter(pk=file.pk).exists():
-        raise AudioJobConflict("File is no longer available for audio processing.")
     if data["status"] == "success" and mode == AudioJobModeChoices.TRANSCODING:
         if not get_storage_for_file(file).exists(job.output_key):
             raise AudioJobConflict("Transcoding output has not been uploaded.")

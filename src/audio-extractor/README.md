@@ -241,3 +241,9 @@ make test-audio-extractor
 Storage integration tests use `S3_ENDPOINT_URL` for RustFS and `S3_GATEWAY_URL`
 for the gateway. Without a gateway URL, they start an in-process gateway.
 Standalone `uv run pytest` skips these tests when `S3_ENDPOINT_URL` is unset.
+
+Completion callbacks returning `410 Gone` mean that the file is no longer
+available for processing (for example, it was deleted or reached its retention
+deadline). Both workers discard the completion and finish the attempt normally,
+without retries, error reporting, or a fallback failure callback. Other HTTP
+errors retain their existing handling.

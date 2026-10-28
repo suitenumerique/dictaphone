@@ -459,24 +459,66 @@ def test_completion_requires_claim_output_and_correct_mode():
     assert file.audio_jobs.count() == 1
 
 
-@pytest.mark.parametrize("change", ["soft_delete", "hard_delete", "retention"])
-def test_unavailable_files_cannot_claim_or_complete(change):
+@pytest.mark.parametrize("mode", ["transcoding", "validation"])
+@pytest.mark.parametrize("outcome", ["success", "failure"])
+@pytest.mark.parametrize("expired", [False, True])
+@pytest.mark.parametrize(
+    "change",
+    [
+        "soft_delete",
+        "hard_delete",
+        "retention",
+        "auto_hard_delete",
+        "lifecycle",
+        "upload",
+    ],
+)
+def test_unavailable_files_cannot_claim_or_complete(change, mode, outcome, expired):
     """Deletion and retention prevent further audio processing."""
     file = ready_file()
     start_audio_extraction(file.id)
-    poll()
+    if mode == "validation":
+        finish_transcoding(file)
+    poll(mode)
     job = file.latest_audio_job
+    if expired:
+        models.AudioJob.objects.filter(pk=job.pk).update(
+            expires_at=timezone.now() - timedelta(seconds=1)
+        )
     if change == "soft_delete":
         file.soft_delete()
     elif change == "hard_delete":
         file.soft_delete()
         file.hard_delete()
-    else:
+    elif change == "retention":
         models.File.objects.filter(pk=file.pk).update(
             original_file_data_delete_at=timezone.now()
         )
-    assert complete(job, "failure", error="unavailable").status_code == 409
-    assert poll().status_code == 204
+    elif change == "auto_hard_delete":
+        models.File.objects.filter(pk=file.pk).update(
+            file_auto_hard_delete_at=timezone.now()
+        )
+    elif change == "lifecycle":
+        models.File.objects.filter(pk=file.pk).update(
+            lifecycle_state=models.FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+        )
+    else:
+        models.File.objects.filter(pk=file.pk).update(
+            upload_state=models.FileUploadStateChoices.PENDING
+        )
+    payload = {"error": "unavailable"} if outcome == "failure" else {}
+    if outcome == "success" and mode == "transcoding":
+        payload["duration_seconds"] = 12.5
+    job_count = file.audio_jobs.count()
+    response = complete(job, outcome, **payload)
+    assert response.status_code == 410
+    assert response.json() == {
+        "detail": "File is no longer available for audio processing."
+    }
+    job.refresh_from_db()
+    assert job.status == models.AudioJobStatusChoices.PROCESSING
+    assert file.audio_jobs.count() == job_count
+    assert poll(mode).status_code == 204
 
 
 @pytest.mark.django_db(transaction=True)

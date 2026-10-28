@@ -84,6 +84,14 @@ class AudioJobViewSet(viewsets.GenericViewSet):
             audio_jobs.complete_job(mode, serializer.validated_data)
         except AudioJob.DoesNotExist as exc:
             raise NotFound() from exc
+        except audio_jobs.AudioFileUnavailable as exc:
+            logger.info(
+                "Discarded %s completion for audio job %s: %s",
+                mode,
+                serializer.validated_data["id"],
+                exc,
+            )
+            return Response({"detail": str(exc)}, status=status.HTTP_410_GONE)
         except audio_jobs.AudioJobConflict as exc:
             logger.warning(
                 "Rejected %s completion for audio job %s (reported_status=%s): %s",

@@ -115,6 +115,13 @@ def _post_completion(
         headers=_authorization_headers(config),
         timeout=config.request_timeout,
     )
+    if response.status_code == 410:
+        LOGGER.info(
+            "%s job %s is no longer available; discarding completion",
+            config.mode,
+            payload.id,
+        )
+        return
     try:
         response.raise_for_status()
     except requests.HTTPError as exc:

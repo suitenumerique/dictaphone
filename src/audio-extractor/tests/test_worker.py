@@ -1,5 +1,7 @@
 """Task processing and polling tests."""
 
+import threading
+import time
 from unittest.mock import Mock, patch
 
 import pytest
@@ -10,7 +12,9 @@ from audio_extractor.api_models import (
     ValidationCompletion,
     ValidationJob,
 )
+from audio_extractor.health import HealthState
 from audio_extractor.http_client import configure_session
+from audio_extractor.supervisor import _process_attempt
 from audio_extractor.utils import ProcessingError
 from audio_extractor.worker import (
     _log_job_failure,
@@ -91,6 +95,81 @@ def test_completion_server_error_still_retries(config, http_session, caplog, bod
     assert "token=secret" not in caplog.text
     if "https://" in body:
         assert "response=Rejected [redacted]" in caplog.text
+
+
+@pytest.mark.parametrize("mode", ["transcoding", "validation"])
+@pytest.mark.parametrize("status", ["success", "failure"])
+def test_gone_completion_finishes_without_errors_or_retries(  # noqa: PLR0913
+    config, task, http_session, caplog, mode, status
+):
+    config = config.model_copy(update={"mode": mode})
+    if mode == "validation":
+        task = ValidationJob(
+            job_kind="validation",
+            id=task.id,
+            source_url=task.source_url,
+            expires_at=task.expires_at,
+        )
+    process = (
+        process_transcoding_job if mode == "transcoding" else process_validation_job
+    )
+
+    def download(_url, destination, *_args, **_kwargs):
+        destination.write_bytes(b"source")
+
+    def convert(_source, output, *_args, **_kwargs):
+        output.write_bytes(b"converted")
+        return 12.5
+
+    def run_child(child_config, job, *_args, **_kwargs):
+        # Exercise the real worker inline instead of spawning a subprocess.
+        assert process(child_config, job) is None
+        return True
+
+    response = requests.Response()
+    response.status_code = 410
+    response._content = (
+        b'{"detail":"File is no longer available for audio processing."}'
+    )
+    with (
+        caplog.at_level("INFO"),
+        patch("audio_extractor.worker._download", side_effect=download),
+        patch(
+            "audio_extractor.worker._convert",
+            side_effect=ProcessingError("bad media")
+            if status == "failure"
+            else convert,
+        ),
+        patch(
+            "audio_extractor.worker._validate_opus",
+            side_effect=ProcessingError("bad media") if status == "failure" else None,
+        ),
+        patch("audio_extractor.worker._upload"),
+        patch.object(http_session, "post", return_value=response) as post,
+        patch("audio_extractor.utils.time.sleep") as sleep,
+        patch("audio_extractor.supervisor._run_child", side_effect=run_child) as child,
+    ):
+        _process_attempt(
+            config, task, time.monotonic(), threading.Event(), HealthState(10)
+        )
+
+    child.assert_called_once()
+    assert child.call_args.kwargs == {}
+    post.assert_called_once()
+    assert post.call_args.args[0] == f"{config.api_url}/audio-jobs/{mode}/complete"
+    payload = post.call_args.kwargs["json"]
+    assert payload["id"] == task.id
+    assert payload["status"] == status
+    if status == "failure":
+        assert payload["error"] == "bad media"
+    sleep.assert_not_called()
+    assert f"{mode} job job-123 is no longer available" in caplog.text
+    assert f"{mode} job job-123 processing completed" in caplog.text
+    # Failed media processing is logged, but the 410 itself adds no errors.
+    errors = [record for record in caplog.records if record.levelno >= 30]
+    assert len(errors) == (1 if status == "failure" else 0)
+    if errors:
+        assert "failed (ProcessingError: bad media)" in errors[0].getMessage()
 
 
 def test_transcoding_success_uploads_and_reports_duration(config, task, http_session):
