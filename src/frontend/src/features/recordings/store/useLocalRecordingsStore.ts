@@ -233,27 +233,36 @@ export const useLocalRecordingsStore = create<LocalRecordingsState>()(
       partialize: (state) => ({
         recordingsById: state.recordingsById,
       }),
-      onRehydrateStorage: () => (state, error) => {
-        if (error || !state) return
-
+      // localStorage hydrates synchronously, before the store variable and upload
+      // subscription exist. Recover during the merge without referencing either.
+      merge: (persistedState, currentState) => {
+        const saved = persistedState as
+          | Partial<LocalRecordingsState>
+          | undefined
         const recordingsById = Object.fromEntries(
-          Object.entries(state.recordingsById)
+          Object.entries(saved?.recordingsById ?? {})
             .filter(([, recording]) => recording.chunkCount > 0)
-            .map(([id, recording]) => [
-              id,
-              {
-                ...recording,
-                status:
-                  recording.status === 'recording' ||
-                  recording.status === 'uploading' ||
-                  recording.status === 'paused'
-                    ? 'exited'
-                    : recording.status,
-                language: recording.language ?? 'fr',
-              },
-            ])
+            .map(([id, recording]) => {
+              const interrupted =
+                recording.status === 'recording' ||
+                recording.status === 'uploading' ||
+                recording.status === 'paused' ||
+                recording.status === 'stopped'
+              return [
+                id,
+                {
+                  ...recording,
+                  ...(interrupted && {
+                    status: 'exited' as const,
+                    uploadProgress: recording.finalizationFileId ? 100 : 0,
+                    uploadError: null,
+                  }),
+                  language: recording.language ?? 'fr',
+                },
+              ]
+            })
         )
-        useLocalRecordingsStore.setState({ recordingsById })
+        return { ...currentState, recordingsById }
       },
     }
   )

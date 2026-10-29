@@ -141,8 +141,9 @@ describe('local recording recovery', () => {
         ?.finalizationFileId
     ).toBe('server')
     await useLocalRecordingsStore.persist.rehydrate()
+    expect(getStatus('local')).toBe('exited')
     clearRateLimit('upload')
-    resumeLocalUploads()
+    await useLocalRecordingsStore.getState().requestUpload('local')
     await vi.waitFor(() =>
       expect(
         useLocalRecordingsStore.getState().getRecordingById('local')
@@ -153,10 +154,83 @@ describe('local recording recovery', () => {
     expect(markUploadEnded).toHaveBeenCalledTimes(2)
   })
   it('recovers old stored metadata without the new optional fields', async () => {
-    useLocalRecordingsStore.getState().upsertRecording({ ...recording })
+    const { language: _language, ...legacyRecording } = recording
+    mocks.storage.setItem(
+      'local-recordings-metadata-v1',
+      JSON.stringify({ state: { recordingsById: { local: legacyRecording } } })
+    )
     await useLocalRecordingsStore.persist.rehydrate()
     expect(
       useLocalRecordingsStore.getState().getRecordingById('local')
     ).toMatchObject({ status: 'upload_failed', language: 'fr' })
   })
+
+  it.each(
+    (['recording', 'paused', 'uploading', 'stopped'] as const).flatMap(
+      (status) => [
+        { status, finalizationFileId: undefined },
+        { status, finalizationFileId: 'server' },
+      ]
+    )
+  )(
+    'recovers $status with checkpoint $finalizationFileId on initial hydration and allows retry',
+    async ({ status, finalizationFileId }) => {
+      mocks.storage.setItem(
+        'local-recordings-metadata-v1',
+        JSON.stringify({
+          state: {
+            recordingsById: {
+              local: {
+                ...recording,
+                status,
+                finalizationFileId,
+                uploadProgress: 43,
+                uploadError: 'previous upload error',
+              },
+              empty: { ...recording, id: 'empty', status, chunkCount: 0 },
+            },
+          },
+        })
+      )
+
+      // Import a fresh store: rehydrate() alone misses initialization-order bugs.
+      vi.resetModules()
+      const { useLocalRecordingsStore: store } =
+        await import('./useLocalRecordingsStore')
+      const api = await import('@/features/files/api/createFile')
+      vi.mocked(api.createPendingAudioFile).mockResolvedValue({
+        id: 'server',
+        policy: '/storage',
+        acl: null,
+      } as Awaited<ReturnType<typeof createPendingAudioFile>>)
+      vi.mocked(api.markUploadEnded).mockResolvedValue(
+        {} as Awaited<ReturnType<typeof markUploadEnded>>
+      )
+
+      expect(store.persist.hasHydrated()).toBe(true)
+      expect(store.getState().getAllRecordings()).toHaveLength(1)
+      expect(store.getState().getRecordingById('local')).toMatchObject({
+        status: 'exited',
+        uploadProgress: finalizationFileId ? 100 : 0,
+        uploadError: null,
+        chunkCount: 1,
+        totalBytes: 10,
+      })
+      expect(
+        store.getState().getRecordingById('local')?.finalizationFileId
+      ).toBe(finalizationFileId)
+      expect(api.createPendingAudioFile).not.toHaveBeenCalled()
+      expect(mocks.clear).not.toHaveBeenCalled()
+
+      await store.getState().requestUpload('local')
+      await vi.waitFor(() =>
+        expect(store.getState().getAllRecordings()).toEqual([])
+      )
+      expect(api.createPendingAudioFile).toHaveBeenCalledTimes(
+        finalizationFileId ? 0 : 1
+      )
+      expect(mocks.upload).toHaveBeenCalledTimes(finalizationFileId ? 0 : 1)
+      expect(api.markUploadEnded).toHaveBeenCalledWith('server')
+    }
+  )
 })
