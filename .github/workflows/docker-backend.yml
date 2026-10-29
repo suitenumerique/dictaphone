@@ -1,0 +1,39 @@
+name: Docker backend Workflow
+
+on:
+  # The release workflow calls all image builds before notifying ArgoCD.
+  workflow_call:
+    secrets:
+      DOCKER_HUB_USER:
+        required: false
+      DOCKER_HUB_PASSWORD:
+        required: false
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/backend/**"
+      - "Dockerfile"
+      - "docker/files/**"
+      - ".dockerignore"
+      - ".github/workflows/docker-backend.yml"
+      - ".github/workflows/docker-hub.yml"
+
+permissions: {}
+
+jobs:
+  build-and-push-backend:
+    permissions:
+      contents: read
+    uses: suitenumerique/ci/.github/workflows/_docker-publish.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
+    with:
+      image_name: lasuite/dictaphone-backend
+      context: .
+      file: Dockerfile
+      target: backend-production
+      docker_user: "1001:127"
+      should_push: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'integration/')) }}
+      trivy_scan: ${{ vars.TRIVY_SCAN_ENABLED == 'true' }}
+    secrets:
+      DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+      DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}

@@ -1,4 +1,4 @@
-name: dictaphone Workflow
+name: Dictaphone backend Workflow
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - "*"
+    paths:
+      - "src/backend/**"
+      - ".github/workflows/dictaphone-backend.yml"
 
 permissions: {}
 
@@ -15,15 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Dependent jobs run in full if change detection fails.
-  changes:
-    permissions:
-      pull-requests: read
-    uses: $/.github/workflows/_changes.yml
-
   lint-back:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.backend == 'true') }}
     permissions:
       contents: read
     uses: suitenumerique/ci/.github/workflows/_python-lint.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
@@ -32,8 +27,6 @@ jobs:
       pylint_targets: dictaphone demo core
 
   test-back:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -169,181 +162,3 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -n 2
-
-  lint-audio-extractor:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.audio-extractor == 'true') }}
-    permissions:
-      contents: read
-    uses: suitenumerique/ci/.github/workflows/_python-lint.yml@ca6401ac83e981e5b0a94f06f68baaa6e6d0a436 # v0.0.1
-    with:
-      working_directory: src/audio-extractor
-      pylint_targets: audio_extractor
-
-  test-audio-extractor:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.audio-extractor == 'true') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: src/audio-extractor
-    env:
-      S3_ENDPOINT_URL: http://localhost:9000
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: src/audio-extractor/pyproject.toml
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      - name: Install dependencies
-        run: uv sync --locked --all-groups
-      - name: Install media tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg opus-tools
-      - name: Create writable /data
-        run: |
-          sudo mkdir -p /data/media && \
-          sudo chown -R 10001:10001 /data/media
-      - name: Start RustFS
-        run: |
-          docker pull rustfs/rustfs:latest
-          docker run -d --name rustfs \
-            -p 9000:9000 \
-            -e "RUSTFS_ACCESS_KEY=dictaphone" \
-            -e "RUSTFS_SECRET_KEY=password" \
-            -v /data/media:/data \
-            rustfs/rustfs:latest /data
-      # Tool to wait for a service to be ready
-      - name: Install Dockerize
-        run: |
-          curl -sSL https://github.com/jwilder/dockerize/releases/download/v0.8.0/dockerize-linux-amd64-v0.8.0.tar.gz | sudo tar -C /usr/local/bin -xzv
-      - name: Wait for RustFS to be ready
-        run: dockerize -wait http://localhost:9000/health/ready -timeout 30s
-      - name: Run tests
-        run: uv run pytest -n 2
-
-  lint-front:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: src/frontend/package-lock.json
-
-      - name: Install dependencies
-        run: cd src/frontend/ && npm ci
-
-      - name: Check linting
-        run: cd src/frontend/ && npm run lint
-
-      - name: Check format
-        run: cd src/frontend/ && npm run check
-
-  test-front:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: src/frontend
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: src/frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test -- --run
-
-  lint-mobile:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.mobile == 'true') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: src/mobile
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: yarn
-          cache-dependency-path: src/mobile/yarn.lock
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Check linting
-        run: yarn run lint
-
-      - name: Check format
-        run: yarn run check
-
-      - name: Check types
-        run: yarn run tsc
-
-  test-mobile:
-    needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.mobile == 'true') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: src/mobile
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: yarn
-          cache-dependency-path: src/mobile/yarn.lock
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Run tests
-        run: yarn test --run
