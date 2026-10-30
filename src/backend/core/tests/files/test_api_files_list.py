@@ -335,6 +335,42 @@ def test_api_files_list_pending_ai_jobs_have_estimated_processing_expected_end_a
     ) == now + timedelta(seconds=5)
 
 
+def test_ai_job_estimation_preserves_estimates_when_a_job_is_created_after_now(caplog):
+    """Jobs newer than the snapshot must not discard other jobs' estimates."""
+    now = timezone.now()
+    file = factories.FileFactory(
+        duration_seconds=330,
+        audio_extraction_state=models.FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+    existing_job = factories.AiFileJobFactory(
+        file=file,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+    newer_job = factories.AiFileJobFactory(
+        file=file,
+        status=models.AiJobStatusChoices.PENDING,
+        type=models.AiJobTypeChoices.TRANSCRIPT,
+    )
+    models.AiFileJob.objects.filter(pk=existing_job.pk).update(
+        created_at=now - timedelta(seconds=1)
+    )
+    models.AiFileJob.objects.filter(pk=newer_job.pk).update(
+        created_at=now + timedelta(microseconds=1)
+    )
+
+    with mock.patch("core.api.serializers.timezone.now", return_value=now):
+        estimates = (
+            # pylint: disable=protected-access
+            api_serializers._build_processing_expected_end_at_by_pending_job_id()
+        )
+
+    assert set(estimates) == {existing_job.id, newer_job.id}
+    assert estimates[existing_job.id] is not None
+    assert estimates[newer_job.id] is None
+    assert "Unable to compute AI job processing estimates" not in caplog.text
+
+
 def test_ai_job_serializer_caches_missing_estimate_results():
     """A missing or unavailable ETA must not trigger another queue computation."""
     file = factories.FileFactory(

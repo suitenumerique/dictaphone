@@ -118,9 +118,12 @@ def _build_processing_expected_end_at_by_pending_job_id() -> dict:
                 ),
             )
             for job_id in job_ids:
-                processing_expected_end_at_by_job_id[job_id] = estimates_by_task_id[
-                    str(job_id)
-                ].eta
+                # A job created after `now` can appear in the query but is
+                # deliberately excluded from the estimator's snapshot.
+                estimate = estimates_by_task_id.get(str(job_id))
+                processing_expected_end_at_by_job_id[job_id] = (
+                    estimate.eta if estimate is not None else None
+                )
 
         return processing_expected_end_at_by_job_id
     except Exception:  # pylint: disable=broad-exception-caught
