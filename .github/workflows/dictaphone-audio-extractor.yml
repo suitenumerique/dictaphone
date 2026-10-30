@@ -40,18 +40,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: src/audio-extractor/pyproject.toml
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      - name: Install dependencies
-        run: uv sync --locked --all-groups
-      - name: Install media tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg opus-tools
       - name: Create writable /data
         run: |
           sudo mkdir -p /data/media && \
@@ -71,5 +59,17 @@ jobs:
           curl -sSL https://github.com/jwilder/dockerize/releases/download/v0.8.0/dockerize-linux-amd64-v0.8.0.tar.gz | sudo tar -C /usr/local/bin -xzv
       - name: Wait for RustFS to be ready
         run: dockerize -wait http://localhost:9000/health/ready -timeout 30s
-      - name: Run tests
-        run: uv run pytest -n 2
+      # Alpine edge provides FFmpeg 9, which Ubuntu's default repositories lack.
+      # Use the same FFmpeg package version as the production Docker image.
+      - name: Run tests on Alpine edge with FFmpeg 9
+        run: |
+          docker run --rm --network host \
+            --env S3_ENDPOINT_URL \
+            --volume "$PWD:/app" --workdir /app \
+            alpine:edge sh -ec '
+              apk add --no-cache coreutils python3 uv "ffmpeg=9.0.2-r0" opus-tools
+              ffmpeg -version
+              ffprobe -version
+              uv sync --locked --all-groups
+              uv run --no-sync pytest -n 2
+            '
