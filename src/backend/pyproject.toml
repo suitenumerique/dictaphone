@@ -40,7 +40,7 @@ dependencies = [
     "django-storages[s3]==1.14.6",
     "django-timezone-field==7.2.2",
     "django-pydantic-field==0.5.4",
-    "django==5.2.17",
+    "django==5.2.18",
     "djangorestframework==3.18.2",
     "drf_spectacular==0.30.0",
     "dockerflow==2026.3.4",
