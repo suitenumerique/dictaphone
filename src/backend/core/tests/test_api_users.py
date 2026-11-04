@@ -127,6 +127,8 @@ def test_api_users_retrieve_me_authenticated(settings):
         "language": user.language,
         "timezone": "UTC",
         "flag_show_mobile_app_popup": True,
+        "is_restricted": False,
+        "access_status": "allowed",
     }
 
 
@@ -154,6 +156,8 @@ def test_api_users_retrieve_me_authenticated_jwt(settings):
         "language": user.language,
         "timezone": "UTC",
         "flag_show_mobile_app_popup": True,
+        "is_restricted": False,
+        "access_status": "allowed",
     }
 
 

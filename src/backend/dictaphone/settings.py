@@ -774,6 +774,10 @@ class Base(Configuration):
     OIDC_RP_SCOPES = values.Value(
         "openid email", environ_name="OIDC_RP_SCOPES", environ_prefix=None
     )
+    # Empty disables the app access restriction; restricted users may still sign in.
+    OIDC_ALLOWED_ROLES = values.ListValue(
+        [], environ_name="OIDC_ALLOWED_ROLES", environ_prefix=None
+    )
     OIDC_USE_PKCE = values.BooleanValue(
         default=False, environ_name="OIDC_USE_PKCE", environ_prefix=None
     )
@@ -1116,6 +1120,9 @@ class Development(Base):
 
 class Test(Base):
     """Test environment settings"""
+
+    # Compose enables the local role gate; access-policy tests opt in explicitly.
+    OIDC_ALLOWED_ROLES = []
 
     LOGGING = JsonDictValue(
         {

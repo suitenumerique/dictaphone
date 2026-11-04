@@ -4,6 +4,7 @@ import logging
 from datetime import timedelta
 from os.path import splitext
 from time import perf_counter
+from typing import Literal
 from urllib.parse import quote
 
 from django.conf import settings
@@ -15,6 +16,7 @@ from rest_framework import serializers
 from timezone_field.rest_framework import TimeZoneSerializerField
 
 from core import enums, models, utils
+from core.api.permissions import get_access_status
 from core.capacity_estimator import Task, estimate_tasks_eta
 from core.models import (
     FileLifecycleStateChoices,
@@ -140,6 +142,17 @@ class UserSerializer(serializers.ModelSerializer):
     """Serialize users."""
 
     timezone = TimeZoneSerializerField()
+    is_restricted = serializers.SerializerMethodField()
+    access_status = serializers.SerializerMethodField()
+
+    def get_access_status(self, user) -> Literal["allowed", "restricted", "unknown"]:
+        """Reuse the request's access decision for both public access fields."""
+        # Standalone serializers also share the decision for their representation.
+        return get_access_status(self.context.get("request") or self, user)
+
+    def get_is_restricted(self, user) -> bool:
+        """Keep the compatibility boolean consistent with the same access decision."""
+        return self.get_access_status(user) != "allowed"
 
     class Meta:
         model = models.User
@@ -151,6 +164,8 @@ class UserSerializer(serializers.ModelSerializer):
             "timezone",
             "language",
             "flag_show_mobile_app_popup",
+            "is_restricted",
+            "access_status",
         ]
         read_only_fields = ["id", "email", "full_name", "short_name"]
 
@@ -345,7 +360,9 @@ class ListFileSerializer(serializers.ModelSerializer):
         if not request:
             return {}
 
-        return file.get_abilities(request.user)
+        return file.get_abilities(
+            request.user, access_status=get_access_status(request)
+        )
 
 
 class FileSerializer(ListFileSerializer):

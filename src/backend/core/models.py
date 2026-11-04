@@ -158,6 +158,11 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
         help_text=_("Whether to show the mobile app popup to the user."),
     )
 
+    oidc_roles = models.JSONField(default=None, null=True, blank=True, editable=False)
+    organization_siret = models.CharField(
+        max_length=14, blank=True, default="", editable=False
+    )
+
     objects = auth_models.UserManager()
 
     USERNAME_FIELD = "admin_email"
@@ -171,6 +176,23 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
 
     def __str__(self):
         return self.email or self.admin_email or str(self.id)
+
+    @property
+    def access_status(self):
+        """Distinguish unknown OIDC roles from a confirmed access restriction."""
+        allowed_roles = settings.OIDC_ALLOWED_ROLES
+        if not allowed_roles:
+            return "allowed"
+        if self.oidc_roles and any(role in allowed_roles for role in self.oidc_roles):
+            return "allowed"
+        if AccessBypassEmail.is_email_allowed(self.email):
+            return "allowed"
+        return "unknown" if self.oidc_roles is None else "restricted"
+
+    @property
+    def is_restricted(self):
+        """Fail closed for processing while allowing clients to resolve unknown access."""
+        return self.access_status != "allowed"
 
     def email_user(self, subject, message, from_email=None, **kwargs):
         """Queue an email to this user on the backend worker."""
@@ -188,6 +210,73 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
         Must be cached if retrieved remotely.
         """
         return []
+
+
+class AccessBypassEmail(BaseModel):
+    """Allow-list of email addresses that may use processing even without the role
+    normally required by the OIDC access policy (see ``OIDC_ALLOWED_ROLES``).
+
+    Used as a fallback in the user access policy: a user who lacks the
+    required role is still granted access if their email matches an active,
+    non-expired entry here.
+    """
+
+    email = models.EmailField(
+        _("email address"),
+        unique=True,
+        help_text=_("email address allowed to bypass the role requirement"),
+    )
+    is_active = models.BooleanField(
+        _("active"),
+        default=True,
+        help_text=_("inactive entries are ignored without being deleted"),
+    )
+    note = models.TextField(
+        _("note"),
+        blank=True,
+        help_text=_("optional reason for granting this bypass"),
+    )
+    expires_at = models.DateTimeField(
+        _("expires on"),
+        blank=True,
+        null=True,
+        help_text=_("optional date after which this bypass no longer applies"),
+    )
+
+    class Meta:
+        db_table = "dictaphone_access_bypass_email"
+        verbose_name = _("access bypass email")
+        verbose_name_plural = _("access bypass emails")
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return self.email
+
+    def save(self, *args, **kwargs):
+        """Store the email normalized (trimmed, lowercase) for case-insensitive matching."""
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Normalize before unique validation so admin forms report duplicates."""
+        super().clean()
+        if self.email:
+            self.email = self.email.strip().lower()
+
+    @classmethod
+    def is_email_allowed(cls, email):
+        """Return True if ``email`` has an active, non-expired bypass entry."""
+        if not email:
+            return False
+        return (
+            cls.objects.filter(email=email.strip().lower(), is_active=True)
+            .filter(
+                models.Q(expires_at__isnull=True)
+                | models.Q(expires_at__gt=timezone.now())
+            )
+            .exists()
+        )
 
 
 def get_resource_roles(resource: models.Model, user: User) -> List[str]:
@@ -646,7 +735,7 @@ class File(BaseModel):
             )
         )
 
-    def get_abilities(self, user):
+    def get_abilities(self, user, *, access_status=None):
         """
         Compute and return abilities for a given user on the file.
         """
@@ -671,7 +760,9 @@ class File(BaseModel):
             "media_auth": retrieve and not is_hard_deleted,
             "partial_update": can_update,
             "update": can_update,
-            "upload_ended": can_update and user.is_authenticated,
+            "upload_ended": can_update
+            and (access_status if access_status is not None else user.access_status)
+            == "allowed",
             "restore": can_restore,
         }
 

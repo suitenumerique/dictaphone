@@ -816,3 +816,13 @@ class AudioJobAdmin(AudioJobDurationMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(models.AccessBypassEmail)
+class AccessBypassEmailAdmin(admin.ModelAdmin):
+    """Manage email exceptions to the OIDC role policy."""
+
+    list_display = ("email", "is_active", "expires_at", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("email", "note")
+    readonly_fields = ("id", "created_at", "updated_at")

@@ -255,6 +255,7 @@ class FileViewSet(
     pagination_class = Pagination
     permission_classes = [
         permissions.FilePermission,
+        permissions.CanProcessFiles,
     ]
     queryset = models.File.objects.filter(hard_deleted_at__isnull=True)
     default_serializer_class = serializers.FileSerializer
@@ -669,7 +670,9 @@ class FileViewSet(
             logger.warning("Audio data for file '%s' is no longer available", pk)
             raise drf_exceptions.PermissionDenied()
 
-        user_abilities = file.get_abilities(request.user)
+        user_abilities = file.get_abilities(
+            request.user, access_status=permissions.get_access_status(request)
+        )
         if not user_abilities.get(self.action, False):
             logger.warning(
                 "User '%s' lacks permission for file '%s'", request.user.id, pk
@@ -714,7 +717,7 @@ class AiJobViewSet(
 ):
     """AI jobs API."""
 
-    permission_classes = [permissions.AiJobPermission]
+    permission_classes = [permissions.AiJobPermission, permissions.CanProcessFiles]
     queryset = AiFileJob.objects.select_related("file", "file__creator")
     serializer_class = serializers.AiJobSerializer
     throttle_classes_by_action = {

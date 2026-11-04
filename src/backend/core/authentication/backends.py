@@ -1,5 +1,7 @@
 """Authentication Backends for the Dictaphone core app."""
 
+import re
+
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
 
@@ -29,11 +31,38 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
           dict: A dictionary of extra claims.
 
         """
+        roles = user_info.get("roles")
+        if isinstance(roles, str):
+            roles = roles.split()
+        # Malformed claims must never accidentally grant access.
+        if not isinstance(roles, list) or not all(
+            isinstance(role, str) for role in roles
+        ):
+            roles = None
+        siret = user_info.get("siret")
+        siret = siret.strip() if isinstance(siret, str) else ""
         return {
+            "oidc_roles": roles,
+            "organization_siret": siret if re.fullmatch(r"[0-9]{14}", siret) else "",
             # Get user's full name from OIDC fields defined in settings
             "full_name": self.compute_full_name(user_info),
             "short_name": user_info.get(settings.OIDC_USERINFO_SHORTNAME_FIELD),
         }
+
+    def update_user_if_needed(self, user, claims):
+        """Also persist revoked roles and cleared claims, ignored by the base backend."""
+        super().update_user_if_needed(user, claims)
+        cleared_fields = []
+        for field in ("oidc_roles", "organization_siret"):
+            if (
+                field in claims
+                and not claims[field]
+                and getattr(user, field) != claims[field]
+            ):
+                setattr(user, field, claims[field])
+                cleared_fields.append(field)
+        if cleared_fields:
+            user.save(update_fields=cleared_fields)
 
     def get_existing_user(self, sub, email):
         """Fetch existing user by sub or email."""
