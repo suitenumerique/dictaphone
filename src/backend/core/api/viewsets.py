@@ -32,6 +32,7 @@ from rest_framework import (
 from rest_framework import (
     status as drf_status,
 )
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from core import analytics, models, utils, webhook_models
 from core.api.filters import ListFileFilter
@@ -304,6 +305,17 @@ class FileViewSet(
         # For now, we force the filtering on the current user in all cases, might evolve later
         queryset = queryset.filter(creator=user)
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        """List files and periodically refresh the user's analytics properties."""
+        response = super().list(request, *args, **kwargs)
+        client_source = (
+            "mobile"
+            if isinstance(request.successful_authenticator, JWTAuthentication)
+            else "web"
+        )
+        analytics.capture_files_listed(user=request.user, client_source=client_source)
+        return response
 
     def get_response_for_queryset(self, queryset, context=None):
         """Return paginated response for the queryset if requested."""
