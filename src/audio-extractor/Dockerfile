@@ -21,8 +21,38 @@ RUN apk add --no-cache \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
     'ffmpeg=9.0.2-r0'
 
+# ---- Minimal filesystem exposed to media parsers ----
+FROM base AS media-rootfs
+
+COPY src/audio-extractor/build-media-rootfs.py /tmp/build-media-rootfs.py
+RUN python /tmp/build-media-rootfs.py /opt/media-rootfs
+
+# ---- Pinned gVisor runtime, including its required companion binaries ----
+FROM base AS gvisor-download
+
+ARG TARGETARCH
+ARG GVISOR_VERSION=20261102.0
+COPY src/audio-extractor/gvisor-SHA512SUMS /tmp/gvisor-SHA512SUMS
+RUN apk add --no-cache curl && \
+  case "${TARGETARCH:-$(uname -m)}" in \
+    amd64|x86_64) arch=x86_64 ;; \
+    arm64|aarch64) arch=aarch64 ;; \
+    *) exit 1 ;; \
+  esac && \
+  cd /tmp && \
+  curl -fsSL "https://storage.googleapis.com/gvisor/releases/release/${GVISOR_VERSION}/${arch}/gvisor.tar.bz2" -o "gvisor-${arch}.tar.bz2" && \
+  awk -v file="gvisor-${arch}.tar.bz2" '$2 == file' gvisor-SHA512SUMS | sha512sum -c - && \
+  mkdir /gvisor && \
+  tar -xjf "gvisor-${arch}.tar.bz2" -C /gvisor
+
+FROM base AS worker-base
+
+COPY --from=media-rootfs /opt/media-rootfs /opt/media-rootfs
+COPY --from=gvisor-download /gvisor/runsc /usr/local/bin/runsc
+COPY --from=gvisor-download /gvisor/gvisor-bin /usr/local/bin/gvisor-bin
+
 # ---- Back-end builder image ----
-FROM base AS builder
+FROM worker-base AS builder
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /uvx /bin/
@@ -62,7 +92,7 @@ USER ${DOCKER_USER}
 CMD ["pytest"]
 
 # ---- Production image ----
-FROM base AS audio-extractor-production
+FROM worker-base AS audio-extractor-production
 
 ARG DOCKER_USER=10000:10000
 

@@ -259,6 +259,14 @@ add_header Content-Disposition "attachment";
 
 ### audioExtractor
 
+Optional gVisor command isolation is enabled through
+`audioExtractor.envVars.AUDIO_EXTRACTOR_MEDIA_SANDBOX: gvisor`. It requires the
+image with bundled runsc and node policies that permit rootless nested sandbox
+creation. Container AppArmor/seccomp overrides can be set through
+`audioExtractor.securityContext`; see the [audio extractor deployment guide](../../audio-extractor/README.md#optional-gvisor-media-isolation)
+for staging settings, their security implications, and validation. The chart
+defaults retain direct media execution and their existing security profiles.
+
 The worker's `AUDIO_EXTRACTOR_JOB_TIMEOUT_SECONDS` is copied from
 `backend.envVars.AUDIO_JOB_TIMEOUT_SECONDS`, defaulting to `300`.
 Settings under `audioExtractor` apply to both transcoding and validation workers.
