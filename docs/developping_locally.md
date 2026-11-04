@@ -94,6 +94,12 @@ Container roles, internal backend URLs, and build arguments remain in Compose.
 
 The original `dictaphone` user and `dictaphone-media-storage` bucket remain available for testing the default configuration.
 
+Both Compose and Tilt's Keycloak environment enable the OIDC role access filter.
+Existing users below remain allowed. Use `user-restricted` / `password-restricted`
+to test a signed-in user who cannot upload or retry. See
+[local Keycloak access control](access-control.md#local-keycloak-development)
+for the roles, email bypasses, and updating an existing Keycloak realm.
+
 The local stack also includes two domain-specific test users:
 
 | Username | Email | Password | Storage bucket |

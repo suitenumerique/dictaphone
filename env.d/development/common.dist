@@ -58,7 +58,10 @@ OIDC_OP_URL=http://localhost:8083/realms/dictaphone
 OIDC_RP_CLIENT_ID=dictaphone
 OIDC_RP_CLIENT_SECRET=ThisIsAnExampleKeyForDevPurposeOnly
 OIDC_RP_SIGN_ALGO=RS256
-OIDC_RP_SCOPES="openid email"
+OIDC_RP_SCOPES="openid email roles"
+# Exercise the same access policy as ProConnect using the local Keycloak roles.
+OIDC_ALLOWED_ROLES=priviledged_user
+# See docs/access-control.md for the role policy and email bypass list.
 
 LOGIN_REDIRECT_URL=http://localhost:3000
 LOGIN_REDIRECT_URL_FAILURE=http://localhost:3000

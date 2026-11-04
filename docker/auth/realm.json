@@ -45,6 +45,22 @@
   "failureFactor": 30,
   "users": [
     {
+      "username": "user-restricted",
+      "email": "restricted@dictaphone.world",
+      "firstName": "Restricted",
+      "lastName": "User",
+      "enabled": "true",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password-restricted"
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
       "username": "dictaphone",
       "email": "dictaphone@dictaphone.world",
       "firstName": "John",
@@ -56,7 +72,7 @@
           "value": "dictaphone"
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user", "priviledged_user"]
     },
     {
       "username": "user-domain-alpha",
@@ -70,7 +86,7 @@
           "value": "password-domain-alpha"
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user", "priviledged_user"]
     },
     {
       "username": "user-domain-beta",
@@ -84,7 +100,7 @@
           "value": "password-domain-beta"
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user", "priviledged_user"]
     },
     {
       "username": "user-e2e-chromium",
@@ -98,7 +114,7 @@
           "value": "password-e2e-chromium"
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user", "priviledged_user"]
     },
     {
       "username": "user-e2e-webkit",
@@ -112,7 +128,7 @@
           "value": "password-e2e-webkit"
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user", "priviledged_user"]
     },
     {
       "username": "user-e2e-firefox",
@@ -126,11 +142,25 @@
           "value": "password-e2e-firefox"
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user", "priviledged_user"]
     }
   ],
   "roles": {
     "realm": [
+      {
+        "name": "user",
+        "description": "Development user without an application access grant",
+        "composite": "false",
+        "clientRole": "false",
+        "attributes": {}
+      },
+      {
+        "name": "priviledged_user",
+        "description": "Grants upload and retry access (mirrors the ProConnect priviledged_user role)",
+        "composite": "false",
+        "clientRole": "false",
+        "attributes": {}
+      },
       {
         "id": "1f116065-05b6-4269-80a6-c7d904b584b7",
         "name": "uma_authorization",
@@ -757,6 +787,22 @@
         "client.session.idle.timeout": "-1",
         "token.response.type.bearer.lower-case": "false"
       },
+      "protocolMappers": [
+        {
+          "name": "realm roles (flat, userinfo)",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true"
+          }
+        }
+      ],
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": "true",
       "nodeReRegistrationTimeout": -1,

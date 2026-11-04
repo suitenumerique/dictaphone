@@ -34,3 +34,39 @@ afterward. Wait until recording, paused recording, and local saving/finalization
 have finished and audio is safely saved before logout, sign-in navigation, or user
 switching. Only the client can determine when this is safe. If roles remain
 missing, keep `unknown` without forcing repeated logins.
+
+## Local Keycloak development
+
+Docker Compose and `make start-tilt-keycloak` share `docker/auth/realm.json` and use:
+
+```env
+OIDC_ALLOWED_ROLES=priviledged_user
+OIDC_RP_SCOPES=openid email roles
+```
+
+The `dictaphone` client exposes realm roles as a flat `roles` array in UserInfo,
+ID tokens, and access tokens. Existing development and browser-test users have
+`priviledged_user`.
+
+To test restrictions, sign in with `user-restricted` / `password-restricted`
+(only the `user` role). Expect `restricted` status and HTTP 403 for uploads and
+retries. Add `restricted@dictaphone.world` to **Access bypass emails** to allow
+processing on the next request.
+
+### Existing installations
+
+For Compose, copy the settings above into the ignored `env.d/development/common`
+file and recreate the backend and worker containers.
+
+Keycloak imports only new realms. For an existing Compose or Tilt database, use
+the Keycloak admin console to:
+
+1. Create realm roles `user` and `priviledged_user`; assign `priviledged_user` to
+   existing development users.
+2. Add a **User Realm Role** mapper to the `dictaphone` client's dedicated scope:
+   claim name `roles`, JSON type `String`, multivalued enabled, included in
+   UserInfo, ID tokens, and access tokens.
+3. Create the restricted test user above with only `user`, and sign in again
+   after role changes.
+
+A fresh Keycloak database needs no manual setup.

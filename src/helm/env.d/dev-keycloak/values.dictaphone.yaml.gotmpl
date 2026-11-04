@@ -47,7 +47,8 @@ backend:
     OIDC_RP_CLIENT_ID: dictaphone
     OIDC_RP_CLIENT_SECRET: ThisIsAnExampleKeyForDevPurposeOnly
     OIDC_RP_SIGN_ALGO: RS256
-    OIDC_RP_SCOPES: "openid email"
+    OIDC_RP_SCOPES: "openid email roles"
+    OIDC_ALLOWED_ROLES: priviledged_user
     OIDC_REDIRECT_ALLOWED_HOSTS: https://dictaphone.127.0.0.1.nip.io
     OIDC_AUTH_REQUEST_EXTRA_PARAMS: "{'acr_values': 'eidas1'}"
     # valid value just for dev, we should not store this here but it's technically ok for now
