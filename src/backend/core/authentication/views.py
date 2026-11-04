@@ -2,7 +2,7 @@
 
 import logging
 import secrets
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -21,6 +21,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from core.authentication.backends import OIDCRegistrationRestricted
 from core.authentication.schemas import (
     PKCEAuthenticationRequestModel,
     PKCETokenExchangeModel,
@@ -127,6 +128,16 @@ class OIDCAuthenticationCallbackWithPkceView(OIDCAuthenticationCallbackView):
         data, generates an authorization code, stores it in a cache with user
         and PKCE parameters, and redirects to the appropriate mobile deep link URL.
     """
+
+    def get(self, request):
+        """Send rejected signups to the frontend without creating an account."""
+        try:
+            return super().get(request)
+        except OIDCRegistrationRestricted:
+            # Use the configured frontend origin, including for mobile and silent
+            # login; the session's next URL must not bypass the restricted page.
+            frontend_url = self.get_settings("LOGIN_REDIRECT_URL_FAILURE", "/") or "/"
+            return HttpResponseRedirect(urljoin(frontend_url, "/restricted"))
 
     def login_success(self):
         """Handles successful login callback."""

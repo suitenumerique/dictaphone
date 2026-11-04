@@ -13,6 +13,14 @@ from rest_framework.authentication import SessionAuthentication
 from core.models import User
 
 
+class OIDCRegistrationRestricted(Exception):
+    """A new identity is not allowed to create an application account.
+
+    Keep this separate from PermissionDenied and SuspiciousOperation, which the
+    authentication stack swallows before the callback can redirect the user.
+    """
+
+
 class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
     """Custom OpenID Connect (OIDC) Authentication Backend.
 
@@ -48,6 +56,14 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
             "full_name": self.compute_full_name(user_info),
             "short_name": user_info.get(settings.OIDC_USERINFO_SHORTNAME_FIELD),
         }
+
+    def create_user(self, claims):
+        """Require access before signup; existing accounts bypass this branch."""
+        if self.UserModel(**claims).is_restricted:
+            raise OIDCRegistrationRestricted(
+                "This identity is not allowed to register."
+            )
+        return super().create_user(claims)
 
     def update_user_if_needed(self, user, claims):
         """Also persist revoked roles and cleared claims, ignored by the base backend."""

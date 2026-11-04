@@ -96,7 +96,8 @@ The original `dictaphone` user and `dictaphone-media-storage` bucket remain avai
 
 Both Compose and Tilt's Keycloak environment enable the OIDC role access filter.
 Existing users below remain allowed. Use `user-restricted` / `password-restricted`
-to test a signed-in user who cannot upload or retry. See
+to test rejected registration; if its application account already exists, it
+can sign in but cannot upload or retry. See
 [local Keycloak access control](access-control.md#local-keycloak-development)
 for the roles, email bypasses, and updating an existing Keycloak realm.
 

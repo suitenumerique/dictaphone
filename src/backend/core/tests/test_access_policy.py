@@ -13,7 +13,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from core import factories, models
 from core.api.serializers import UserSerializer
-from core.authentication.backends import OIDCAuthenticationBackend
+from core.authentication.backends import (
+    OIDCAuthenticationBackend,
+    OIDCRegistrationRestricted,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -69,8 +72,9 @@ def test_login_clears_revoked_roles(settings, monkeypatch, roles):
     assert user.oidc_roles == ([] if roles in ([], "") else None)
 
 
-def test_new_user_can_sign_in_restricted(settings, monkeypatch):
-    """Restriction does not reject authentication or account creation."""
+@pytest.mark.parametrize("roles", [None, [], "other", {"invalid": True}])
+def test_restricted_new_user_is_not_created(settings, monkeypatch, roles):
+    """Missing, malformed, or nonmatching roles cannot create an account."""
     settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
     monkeypatch.setattr(
         OIDCAuthenticationBackend,
@@ -78,12 +82,53 @@ def test_new_user_can_sign_in_restricted(settings, monkeypatch):
         lambda *args: {
             "sub": "new-user",
             "email": "new@example.com",
-            "roles": "other",
+            "roles": roles,
+        },
+    )
+    with pytest.raises(OIDCRegistrationRestricted):
+        OIDCAuthenticationBackend().get_or_create_user("token", None, None)
+    assert not models.User.objects.exists()
+
+
+@pytest.mark.parametrize("grant", ["role", "bypass", "disabled"])
+def test_allowed_new_user_is_created(settings, monkeypatch, grant):
+    """Apply the same policy and email exceptions before persisting new users."""
+    settings.OIDC_ALLOWED_ROLES = [] if grant == "disabled" else ["priviledged_user"]
+    if grant == "bypass":
+        models.AccessBypassEmail.objects.create(email="new@example.com")
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {
+            "sub": "new-user",
+            "email": "new@example.com",
+            "roles": ["priviledged_user"] if grant == "role" else [],
         },
     )
     user = OIDCAuthenticationBackend().get_or_create_user("token", None, None)
-    assert user.is_restricted is True
-    assert user.oidc_roles == ["other"]
+    assert user.access_status == "allowed"
+    assert models.User.objects.count() == 1
+
+
+@pytest.mark.parametrize("match_email", [False, True])
+def test_existing_restricted_user_can_authenticate(settings, monkeypatch, match_email):
+    """Existing accounts remain accessible when found by subject or email fallback."""
+    settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
+    user = factories.UserFactory(oidc_roles=["priviledged_user"])
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {
+            "sub": "changed-sub" if match_email else user.sub,
+            "email": user.email,
+            "roles": [],
+        },
+    )
+    result = OIDCAuthenticationBackend().get_or_create_user("token", None, None)
+    assert result.pk == user.pk
+    assert result.access_status == "restricted"
+    assert models.User.objects.count() == 1
 
 
 def test_user_endpoint_and_live_bypass(settings):

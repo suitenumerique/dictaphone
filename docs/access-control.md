@@ -4,9 +4,16 @@ Set `OIDC_ALLOWED_ROLES=priviledged_user` to restrict processing to users with a
 matching role in the OIDC `roles` claim. Use commas for multiple roles; leave empty
 to allow everyone. Request the provider's `roles` scope if needed.
 
-Restricted users can still sign in, manage existing files, and read results.
-Creating files/upload policies, finalizing uploads, and retrying AI jobs return
-HTTP 403. This does not end sessions or invalidate mobile JWTs. Previously issued
+When the role policy is enabled, new identities must have a matching role or an
+active email bypass before an account is created. If their access is restricted or unknown, the OIDC callback
+redirects to `/restricted` on the configured frontend origin without creating an
+account or issuing a mobile authorization code. This also applies to silent and
+mobile login flows.
+
+Existing users can still sign in, manage existing files, and read results,
+including when their roles have been revoked or are unknown.
+For restricted or unknown accounts, creating files/upload policies, finalizing
+uploads, and retrying AI jobs return HTTP 403. This does not end sessions or invalidate mobile JWTs. Previously issued
 storage upload policies work until expiry, but API finalization remains blocked.
 
 ## Access status and exceptions
@@ -49,9 +56,11 @@ ID tokens, and access tokens. Existing development and browser-test users have
 `priviledged_user`.
 
 To test restrictions, sign in with `user-restricted` / `password-restricted`
-(only the `user` role). Expect `restricted` status and HTTP 403 for uploads and
-retries. Add `restricted@dictaphone.world` to **Access bypass emails** to allow
-processing on the next request.
+(only the `user` role). Without an existing application account, expect a
+redirect to `/restricted` and no account creation. Add
+`restricted@dictaphone.world` to **Access bypass emails** to allow registration.
+For an existing account, sign-in succeeds with `restricted` status and HTTP 403
+for uploads and retries; an active bypass allows processing on the next request.
 
 ### Existing installations
 

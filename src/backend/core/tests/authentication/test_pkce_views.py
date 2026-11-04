@@ -1,24 +1,29 @@
 """Tests for PKCE/OIDC authentication views and OAuth token endpoints."""
 
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.cache import cache
 from django.http import HttpResponseRedirect
 from django.test import RequestFactory
+from django.urls import reverse
 
 import pytest
 from mozilla_django_oidc.utils import generate_code_challenge
 from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from core.authentication.backends import OIDCAuthenticationBackend
 from core.authentication.views import (
     OIDCAuthenticationCallbackWithPkceView,
     PKCEOIDCAuthenticationRequestView,
     get_pkce_authorization_code_cache_key,
 )
 from core.factories import UserFactory
+from core.models import User
 
 pytestmark = pytest.mark.django_db
 
@@ -397,3 +402,72 @@ def test_oauth_token_refresh_endpoint_returns_access_token():
 
     assert response.status_code == status.HTTP_200_OK
     assert "access" in response.json()
+
+
+@pytest.mark.parametrize("existing", [False, True])
+@pytest.mark.parametrize("flow", ["web", "mobile", "silent"])
+@pytest.mark.parametrize("roles", [None, ["other"]])
+def test_signup_restriction_callback(settings, monkeypatch, existing, flow, roles):
+    """Reject new identities across login flows, preserving existing-user sessions."""
+    settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
+    settings.LOGIN_REDIRECT_URL = "https://app.example/"
+    settings.LOGIN_REDIRECT_URL_FAILURE = "https://app.example/failure"
+    settings.MOBILE_DEEP_LINK_SCHEME = "dictaphone://"
+    user = UserFactory(sub="login-user") if existing else None
+    claims = {"sub": "login-user", "email": "login@example.com", "roles": roles}
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", lambda *args: claims)
+
+    def authenticate(backend, request, **kwargs):
+        return backend.get_or_create_user("token", None, None)
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "authenticate", authenticate)
+    client = APIClient()
+    session = client.session
+    session["oidc_states"] = {"login-state": {"nonce": "login-nonce"}}
+    session["oidc_login_next"] = (
+        "https://app.example/mobile-login"
+        if flow == "mobile"
+        else "https://app.example/"
+    )
+    if flow == "silent":
+        session["silent"] = True
+    if flow == "mobile":
+        session["pkce_oidc_response_type"] = "code"
+        session["pkce_oidc_data"] = {
+            "code_challenge": "a" * 43,
+            "code_challenge_method": "S256",
+            "state": "mobile-state",
+        }
+    session.save()
+    response = client.get(
+        reverse("oidc_authentication_callback"),
+        {
+            "code": "provider-code",
+            "state": "login-state",
+        },
+    )
+    assert response.status_code == 302
+    assert User.objects.count() == int(existing)
+    if not existing:
+        assert response.url == "https://app.example/restricted"
+        assert "_auth_user_id" not in client.session
+        assert not OutstandingToken.objects.exists()
+        return
+    assert client.session["_auth_user_id"] == str(user.pk)
+    if flow == "mobile":
+        assert urlsplit(response.url).scheme == "dictaphone"
+        params = parse_qs(urlsplit(response.url).query)
+        assert params["state"] == ["mobile-state"]
+        assert (
+            cache.get(get_pkce_authorization_code_cache_key(params["code"][0]))[
+                "user_id"
+            ]
+            == user.pk
+        )
+    else:
+        assert response.url == "https://app.example/"
+    response = client.get("/api/v1.0/users/me/")
+    assert response.status_code == 200
+    assert response.json()["access_status"] == (
+        "unknown" if roles is None else "restricted"
+    )
