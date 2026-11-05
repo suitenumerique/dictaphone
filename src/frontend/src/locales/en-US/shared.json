@@ -33,5 +33,11 @@
       "docsCreate": "Server request limit reached. Creating documents is temporarily paused.",
       "aiResult": "Server request limit reached. Loading transcripts and summaries is temporarily paused."
     }
+  },
+  "restricted": {
+    "title": "Access denied",
+    "defaultMessage": "Your account isn't authorized to use Transcripts.",
+    "home": "Home",
+    "documentation": "Learn more about access requirements (opens in a new tab)"
   }
 }

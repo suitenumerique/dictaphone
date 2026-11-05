@@ -14,6 +14,7 @@ import { AppInitialization } from '@/components/AppInitialization'
 
 import { Toaster } from '@/features/ui/components/toaster/Toaster.tsx'
 
+const RestrictedPage = React.lazy(() => import('@/pages/RestrictedPage'))
 const HomePage = React.lazy(() => import('@/pages/HomePage.tsx'))
 const DownloadMobileAppPage = React.lazy(
   () => import('@/pages/DownloadMobileAppPage.tsx')
@@ -52,6 +53,7 @@ function App() {
         <I18nProvider locale={i18n.language}>
           <Switch>
             <Route key={'home'} path={'/'} component={HomePage} />
+            <Route path="/restricted" component={RestrictedPage} />
             <Route
               key={'fr-cgu'}
               path={'/modalites-utilisation'}

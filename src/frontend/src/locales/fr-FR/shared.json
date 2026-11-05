@@ -33,5 +33,11 @@
       "docsCreate": "La limite de requêtes du serveur est atteinte. La création de documents est temporairement suspendue.",
       "aiResult": "La limite de requêtes du serveur est atteinte. Le chargement des transcriptions et des synthèses est temporairement suspendu."
     }
+  },
+  "restricted": {
+    "title": "Accès non autorisé",
+    "defaultMessage": "Votre compte n’est pas autorisé à utiliser Transcripts.",
+    "home": "Accueil",
+    "documentation": "En savoir plus sur les conditions d’accès (nouvel onglet)"
   }
 }

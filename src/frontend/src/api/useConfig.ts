@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 
 export interface ApiConfig {
   LANGUAGE_CODE: string
+  restricted_access_message?: Record<string, string>
+  restricted_access_documentation_url?: string
   rate_limit_ai_transcription_audio_hours_per_24h: number
   analytics?: {
     id: string

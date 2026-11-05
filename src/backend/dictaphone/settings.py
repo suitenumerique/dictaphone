@@ -650,6 +650,11 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
+    RESTRICTED_ACCESS_DOCUMENTATION_URL = values.Value(
+        "https://docs.numerique.gouv.fr/docs/9bbf7c2f-13a9-47e8-961c-98a874f44f1e/",
+        environ_prefix=None,
+    )
+
     FRONTEND_CONFIGURATION = {
         "analytics": JsonDictValue(
             {}, environ_name="FRONTEND_ANALYTICS", environ_prefix=None
