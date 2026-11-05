@@ -249,6 +249,7 @@ class UserAdmin(auth_admin.UserAdmin):
                     "is_device",
                     "is_staff",
                     "is_superuser",
+                    "oidc_roles",
                     "groups",
                     "user_permissions",
                 ),
@@ -275,6 +276,7 @@ class UserAdmin(auth_admin.UserAdmin):
         "is_active",
         "is_staff",
         "is_superuser",
+        "oidc_roles",
         "is_device",
         "created_at",
         "updated_at",
@@ -295,6 +297,7 @@ class UserAdmin(auth_admin.UserAdmin):
         "email",
         "full_name",
         "short_name",
+        "oidc_roles",
         "created_at",
         "updated_at",
     )
