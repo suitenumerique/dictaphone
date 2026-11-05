@@ -25,6 +25,8 @@ from pydantic import (
     model_validator,
 )
 
+from core.emails import normalize_email
+
 BUCKET_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9.-]{1,61}[a-z0-9])?$")
 ENVIRONMENT_VARIABLE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 SNAPSHOT_FIELDS = (
@@ -57,8 +59,8 @@ RETENTION_DEADLINE_FIELDS: dict[RetentionPolicy, tuple[str, str]] = {
 
 
 def normalize_email_domain(domain: str) -> str:
-    """Build a case-insensitive policy key without IDNA or Unicode normalization."""
-    return domain.strip().rstrip(".").lower()
+    """Build an ASCII-case-insensitive policy key, preserving Unicode characters."""
+    return normalize_email(domain).rstrip(".")
 
 
 def normalize_email_address(email: str) -> str:
@@ -73,14 +75,15 @@ def _get_email_parts(email: str | None) -> tuple[str, str] | None:
     """Split an address into policy keys; email validation belongs at ingestion."""
     if not email:
         return None
-    parts = email.strip().lower().split("@")
+    normalized_email = normalize_email(email)
+    parts = normalized_email.split("@")
     if len(parts) != 2 or not parts[0] or not parts[1]:
         return None
-    local_part, domain = parts
+    _, domain = parts
     domain = normalize_email_domain(domain)
     if not domain:
         return None
-    return f"{local_part}@{domain}", domain
+    return normalized_email, domain
 
 
 def get_email_domain(email: str | None) -> str | None:

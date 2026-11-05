@@ -19,6 +19,28 @@ def test_models_users_str():
     assert str(user) == user.email
 
 
+@pytest.mark.parametrize(
+    "email, expected",
+    [
+        (" John.Doe@Example.COM ", "john.doe@example.com"),
+        ("Dısk.Diſk.DisK@Example.COM", "dısk.diſk.disK@example.com"),
+        (None, None),
+        ("", ""),
+    ],
+)
+def test_identity_email_normalized_on_save(email, expected):
+    """Identity emails are normalized on creation and update; admin emails are separate."""
+    user = factories.UserFactory(email=email, admin_email="Admin@Example.COM")
+    user.refresh_from_db()
+    assert user.email == expected
+    assert user.admin_email == "Admin@Example.COM"
+
+    user.email = " Updated@Example.COM "
+    user.save(update_fields=["email"])
+    user.refresh_from_db()
+    assert user.email == "updated@example.com"
+
+
 def test_models_users_id_unique():
     """The "id" field should be unique."""
     user = factories.UserFactory()

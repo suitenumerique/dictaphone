@@ -27,6 +27,7 @@ from core.configuration import (
     get_profile_for_email,
     get_profile_for_file,
 )
+from core.emails import normalize_email
 from core.enums import ISO_639_1_CHOICES
 from core.payloads import read_stored_result
 from core.storage import get_storage_for_file
@@ -177,6 +178,11 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
     def __str__(self):
         return self.email or self.admin_email or str(self.id)
 
+    def save(self, *args, **kwargs):
+        """Normalize the identity email before validation and saving."""
+        self.email = normalize_email(self.email)
+        super().save(*args, **kwargs)
+
     @property
     def access_status(self):
         """Distinguish unknown OIDC roles from a confirmed access restriction."""
@@ -253,16 +259,14 @@ class AccessBypassEmail(BaseModel):
         return self.email
 
     def save(self, *args, **kwargs):
-        """Store the email normalized (trimmed, lowercase) for case-insensitive matching."""
-        if self.email:
-            self.email = self.email.strip().lower()
+        """Store the email in the shared normalized form."""
+        self.email = normalize_email(self.email)
         super().save(*args, **kwargs)
 
     def clean(self):
         """Normalize before unique validation so admin forms report duplicates."""
         super().clean()
-        if self.email:
-            self.email = self.email.strip().lower()
+        self.email = normalize_email(self.email)
 
     @classmethod
     def is_email_allowed(cls, email):
@@ -270,7 +274,7 @@ class AccessBypassEmail(BaseModel):
         if not email:
             return False
         return (
-            cls.objects.filter(email=email.strip().lower(), is_active=True)
+            cls.objects.filter(email=normalize_email(email), is_active=True)
             .filter(
                 models.Q(expires_at__isnull=True)
                 | models.Q(expires_at__gt=timezone.now())

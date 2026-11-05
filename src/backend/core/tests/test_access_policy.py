@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext
@@ -56,6 +57,30 @@ def test_email_bypass(settings, active, expiry, allowed):
     assert entry.email == "bypass@example.com"
     user = factories.UserFactory(email="Bypass@example.com")
     assert user.is_restricted is not allowed
+
+
+@pytest.mark.parametrize(
+    "email", ["dısk@example.com", "diſk@example.com", "disK@example.com"]
+)
+def test_email_bypass_preserves_non_ascii(settings, email):
+    """A grant for an ASCII email cannot authorize a Unicode variant."""
+    settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
+    models.AccessBypassEmail.objects.create(email="disk@example.com")
+    assert not models.AccessBypassEmail.is_email_allowed(email)
+    assert factories.UserFactory(email=email).is_restricted
+
+    entry = models.AccessBypassEmail.objects.create(email=email)
+    entry.refresh_from_db()
+    assert entry.email == email
+    assert models.AccessBypassEmail.is_email_allowed(email)
+
+
+def test_email_bypass_clean_normalizes_before_unique_validation():
+    """Admin validation reports an existing grant after normalization."""
+    models.AccessBypassEmail.objects.create(email="disk@example.com")
+    entry = models.AccessBypassEmail(email="DISK@EXAMPLE.COM")
+    with pytest.raises(ValidationError, match="already exists"):
+        entry.full_clean()
 
 
 @pytest.mark.parametrize("roles", [None, [], "", {"priviledged_user": True}, [1]])

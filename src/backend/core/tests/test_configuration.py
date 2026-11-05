@@ -10,6 +10,7 @@ from core.configuration import (
     BucketConfigurations,
     DataPolicyConfiguration,
     DataPolicyConfigurations,
+    clear_configuration_cache,
     get_email_domain,
     get_profile_for_email,
     get_profiles,
@@ -36,6 +37,31 @@ def test_email_domains_use_simple_case_insensitive_matching():
     assert normalize_email_domain(" Exämple.COM. ") == "exämple.com"
     assert get_email_domain("user@Exämple.COM") == "exämple.com"
     assert get_email_domain("not-an-email") is None
+
+
+@pytest.mark.parametrize(
+    "domain", ["Korp.test", "Éxample.com", "ſervice.test", "ıdent.test"]
+)
+def test_domain_policy_preserves_unicode(settings, domain):
+    """Unicode casing must not route an address to another domain's data policy."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "ascii": {
+            "domains": ["korp.test", "éxample.com", "service.test", "ident.test"]
+        },
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+
+    assert normalize_email_domain(f" {domain}. ") == domain
+    assert get_email_domain(f"USER@{domain}") == domain
+    assert get_profile_for_email(f"USER@{domain}").name == "default"
+
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "unicode": {"domains": [f" {domain}. "]},
+    }
+    clear_configuration_cache()
+    assert get_profile_for_email(f"USER@{domain}").name == "unicode"
 
 
 @pytest.mark.parametrize(
@@ -153,6 +179,31 @@ def test_data_policy_can_be_configured_with_emails_only(settings):
     assert profile.name == "email_only"
     assert profile.domains == ()
     assert profile.emails == ("user@example.com",)
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "dısk@example.com",
+        "diſk@example.com",
+        "disK@example.com",
+        "Élise@example.com",
+        "disk@Korp.test",
+    ],
+)
+def test_explicit_email_policy_preserves_unicode(settings, email):
+    """Explicit selectors keep Unicode intact in both configuration and lookup."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True},
+        "ascii": {
+            "emails": ["disk@example.com", "élise@example.com", "disk@korp.test"]
+        },
+        "unicode": {"emails": [email]},
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = _buckets()
+    assert get_profile_for_email(email).name == "unicode"
+    assert get_profile_for_email(email).emails == (email,)
+    assert get_profile_for_email("DISK@example.com").name == "ascii"
 
 
 def test_data_policy_notification_and_docs_options_are_configurable(settings):

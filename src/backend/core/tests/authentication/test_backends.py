@@ -265,18 +265,64 @@ def test_finds_user_multiple_users_same_email(django_assert_num_queries, setting
 
 
 def test_finds_user_whitespace_email(django_assert_num_queries, settings):
-    """Should not match emails with whitespace."""
+    """Should match after stripping surrounding whitespace."""
 
     settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
     settings.OIDC_CREATE_USER = False
 
     klass = OIDCAuthenticationBackend()
-    UserFactory(email="foo@mail.com")
+    db_user = UserFactory(email="foo@mail.com")
 
     with django_assert_num_queries(2):
         user = klass.get_existing_user("wrong-sub", " foo@mail.com ")
 
-    assert user is None
+    assert user == db_user
+
+
+@pytest.mark.parametrize("email", [None, "", " \t "])
+def test_email_fallback_skips_empty_normalized_email(
+    email, settings, django_assert_num_queries
+):
+    """Missing or whitespace-only claims cannot identify an account with no email."""
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
+    UserFactory(email="")
+    backend = OIDCAuthenticationBackend()
+    with django_assert_num_queries(1):
+        assert backend.get_existing_user("other-sub", email) is None
+
+
+@pytest.mark.parametrize(
+    "email", ["dısk@example.com", "diſk@example.com", "disK@example.com"]
+)
+def test_email_fallback_preserves_non_ascii(email, settings, monkeypatch):
+    """Unicode variants must create distinct users rather than associate by email."""
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
+    existing = UserFactory(email="disk@example.com")
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {"sub": "other-sub", "email": email},
+    )
+    user = OIDCAuthenticationBackend().get_or_create_user("token", None, None)
+    assert user != existing
+    assert user.email == email
+    assert models.User.objects.count() == 2
+
+
+def test_oidc_ascii_email_fallback_normalizes_stored_email(settings, monkeypatch):
+    """An email with another ASCII case associates to the existing normalized user."""
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
+    existing = UserFactory(email="disk@example.com")
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {"sub": "other-sub", "email": " DISK@EXAMPLE.COM "},
+    )
+    user = OIDCAuthenticationBackend().get_or_create_user("token", None, None)
+    assert user == existing
+    user.refresh_from_db()
+    assert user.email == "disk@example.com"
+    assert models.User.objects.count() == 1
 
 
 @pytest.mark.parametrize(
@@ -391,6 +437,7 @@ def test_compute_full_name_no_fields(settings):
     "claims",
     [
         {"email": "john.doe@example.com"},  # Same data - no change needed
+        {"email": " John.Doe@Example.COM "},  # Same normalized email
         {"email": ""},  # Empty strings should not override
         {"non_related_field": "foo"},  # Unrelated fields should be ignored
         {},  # Empty claims should not affect user

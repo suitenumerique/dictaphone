@@ -11,6 +11,7 @@ from lasuite.oidc_login.backends import (
 )
 from rest_framework.authentication import SessionAuthentication
 
+from core.emails import normalize_email
 from core.models import User
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,8 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
 
     def update_user_if_needed(self, user, claims):
         """Also persist revoked roles and cleared claims, ignored by the base backend."""
+        if "email" in claims:
+            claims = {**claims, "email": normalize_email(claims["email"])}
         super().update_user_if_needed(user, claims)
         cleared_fields = []
         for field in ("oidc_roles", "organization_siret"):
@@ -95,9 +98,10 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
         try:
             return User.objects.get(sub=sub)
         except User.DoesNotExist:
+            email = normalize_email(email)
             if email and settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION:
                 try:
-                    return User.objects.get(email__iexact=email)
+                    return User.objects.get(email=email)
                 except User.DoesNotExist:
                     pass
                 except User.MultipleObjectsReturned as e:
