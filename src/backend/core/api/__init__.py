@@ -47,6 +47,7 @@ def get_app_configuration(request):
     )
     config = {
         "LANGUAGE_CODE": settings.LANGUAGE_CODE,
+        "restricted_access_message": settings.RESTRICTED_ACCESS_MESSAGE,
         "rate_limit_ai_transcription_audio_hours_per_24h": (
             settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H
         ),

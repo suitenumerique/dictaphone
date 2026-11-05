@@ -642,6 +642,14 @@ class Base(Configuration):
     }
 
     # Frontend
+    RESTRICTED_ACCESS_MESSAGE = JsonDictValue(
+        {
+            "en": "Access is reserved to state public servants.",
+            "fr": "L’accès est réservé aux agents de la Fonction Publique d'État.",
+        },
+        environ_prefix=None,
+    )
+
     FRONTEND_CONFIGURATION = {
         "analytics": JsonDictValue(
             {}, environ_name="FRONTEND_ANALYTICS", environ_prefix=None

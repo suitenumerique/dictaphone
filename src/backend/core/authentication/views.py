@@ -137,7 +137,9 @@ class OIDCAuthenticationCallbackWithPkceView(OIDCAuthenticationCallbackView):
             # Use the configured frontend origin, including for mobile and silent
             # login; the session's next URL must not bypass the restricted page.
             frontend_url = self.get_settings("LOGIN_REDIRECT_URL_FAILURE", "/") or "/"
-            return HttpResponseRedirect(urljoin(frontend_url, "/restricted"))
+            return HttpResponseRedirect(
+                urljoin(frontend_url, "/restricted?access_denied=1")
+            )
 
     def login_success(self):
         """Handles successful login callback."""

@@ -449,7 +449,7 @@ def test_signup_restriction_callback(settings, monkeypatch, existing, flow, role
     assert response.status_code == 302
     assert User.objects.count() == int(existing)
     if not existing:
-        assert response.url == "https://app.example/restricted"
+        assert response.url == "https://app.example/restricted?access_denied=1"
         assert "_auth_user_id" not in client.session
         assert not OutstandingToken.objects.exists()
         return
