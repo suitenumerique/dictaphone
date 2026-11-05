@@ -414,7 +414,14 @@ def test_signup_restriction_callback(settings, monkeypatch, existing, flow, role
     settings.LOGIN_REDIRECT_URL_FAILURE = "https://app.example/failure"
     settings.MOBILE_DEEP_LINK_SCHEME = "dictaphone://"
     user = UserFactory(sub="login-user") if existing else None
-    claims = {"sub": "login-user", "email": "login@example.com", "roles": roles}
+    claims = {
+        "sub": "login-user",
+        "email": "login@example.com",
+        "roles": roles,
+        "siret": "12345678901234",
+    }
+    restriction_log = mock.Mock()
+    monkeypatch.setattr("core.authentication.backends.logger.info", restriction_log)
     monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", lambda *args: claims)
 
     def authenticate(backend, request, **kwargs):
@@ -449,10 +456,18 @@ def test_signup_restriction_callback(settings, monkeypatch, existing, flow, role
     assert response.status_code == 302
     assert User.objects.count() == int(existing)
     if not existing:
+        restriction_log.assert_called_once_with(
+            "OIDC registration restricted: sub=%s, siret=%s, email=%s, roles=%s",
+            "login-user",
+            "12345678901234",
+            "login@example.com",
+            roles,
+        )
         assert response.url == "https://app.example/restricted?access_denied=1"
         assert "_auth_user_id" not in client.session
         assert not OutstandingToken.objects.exists()
         return
+    restriction_log.assert_not_called()
     assert client.session["_auth_user_id"] == str(user.pk)
     if flow == "mobile":
         assert urlsplit(response.url).scheme == "dictaphone"

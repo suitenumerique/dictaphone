@@ -1,5 +1,6 @@
 """Authentication Backends for the Dictaphone core app."""
 
+import logging
 import re
 
 from django.conf import settings
@@ -11,6 +12,8 @@ from lasuite.oidc_login.backends import (
 from rest_framework.authentication import SessionAuthentication
 
 from core.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class OIDCRegistrationRestricted(Exception):
@@ -60,6 +63,13 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
     def create_user(self, claims):
         """Require access before signup; existing accounts bypass this branch."""
         if self.UserModel(**claims).is_restricted:
+            logger.info(
+                "OIDC registration restricted: sub=%s, siret=%s, email=%s, roles=%s",
+                claims.get("sub"),
+                claims.get("organization_siret"),
+                claims.get("email"),
+                claims.get("oidc_roles"),
+            )
             raise OIDCRegistrationRestricted(
                 "This identity is not allowed to register."
             )
