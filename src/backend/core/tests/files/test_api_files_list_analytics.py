@@ -1,4 +1,4 @@
-"""File listing refreshes analytics person properties at most once per hour."""
+"""File listing refreshes analytics once per hour for each user and client source."""
 
 from unittest import mock
 
@@ -76,8 +76,8 @@ def test_list_analytics_client_source(analytics_settings, client_source):
     assert "client_source" not in properties["$set"]
 
 
-def test_list_analytics_hourly_per_user(analytics_settings):
-    """Requests share an allowance per user that expires after one hour."""
+def test_list_analytics_hourly_per_user_and_client_source(analytics_settings):
+    """Each user and client source has an allowance that expires after one hour."""
     user = factories.UserFactory(oidc_roles=[])
     other_user = factories.UserFactory(oidc_roles=["allowed"])
     client = APIClient()
@@ -91,22 +91,28 @@ def test_list_analytics_hourly_per_user(analytics_settings):
         assert client.get(URL + "?is_creator_me=true").status_code == 200
         assert analytics_settings.call_count == 1
 
-        # Switching clients does not grant the same user another hourly event.
+        # Switching clients grants the same user a separate hourly event.
         client.force_authenticate(user=None)
         token = RefreshToken.for_user(user).access_token
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         assert client.get(URL).status_code == 200
-        assert analytics_settings.call_count == 1
+        assert analytics_settings.call_count == 2
+        assert (
+            analytics_settings.call_args.kwargs["properties"]["client_source"]
+            == "mobile"
+        )
+        assert client.get(URL).status_code == 200
+        assert analytics_settings.call_count == 2
         client.credentials()
 
         client.force_authenticate(other_user)
         assert client.get(URL).status_code == 200
-        assert analytics_settings.call_count == 2
+        assert analytics_settings.call_count == 3
 
         clock.tick(1)
         client.force_authenticate(user)
         assert client.get(URL).status_code == 200
-        assert analytics_settings.call_count == 3
+        assert analytics_settings.call_count == 4
         assert analytics_settings.call_args.kwargs["distinct_id"] == user.id
         assert (
             analytics_settings.call_args.kwargs["properties"]["$set"]["access_status"]

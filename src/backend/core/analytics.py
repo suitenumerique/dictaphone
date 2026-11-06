@@ -41,13 +41,15 @@ def capture_event(event_name: EventName, *, user: User, properties=None) -> None
 
 
 def capture_files_listed(*, user: User, client_source: str) -> None:
-    """Update the authenticated user's access status at most once per hour."""
+    """Update access status at most once per hour for each user and client source."""
     if not settings.POSTHOG_ENABLED or not user.is_authenticated:
         return
 
     try:
-        # Atomic on the shared cache: web/mobile requests use the same allowance.
-        if cache.add(f"analytics:files_listed:{user.pk}", True, timeout=3600):
+        # Atomic on the shared cache, with a separate allowance per client source.
+        if cache.add(
+            f"analytics:files_listed:{user.pk}:{client_source}", True, timeout=3600
+        ):
             capture_event(
                 EventName.FILES_LISTED,
                 user=user,
