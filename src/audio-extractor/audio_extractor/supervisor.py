@@ -7,9 +7,11 @@ import random
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
@@ -17,8 +19,9 @@ import requests
 from audio_extractor.api_models import TranscodingJob, ValidationJob
 from audio_extractor.health import HealthServer, HealthState
 from audio_extractor.http_client import close_session, configure_session, get_session
+from audio_extractor.sandbox import cleanup_sandbox, media_sandbox
 from audio_extractor.settings import Settings
-from audio_extractor.utils import _clean_work_dir
+from audio_extractor.utils import _clean_work_dir, _run
 
 LOGGER = logging.getLogger(__name__)
 
@@ -66,6 +69,7 @@ def _run_child(config, job, deadline, stop, health, *, failure=False):  # noqa: 
     finally:
         # Also reap descendants left behind when their Python parent exits.
         _kill_attempt(process)
+        cleanup_sandbox(config)
 
 
 def _wait(seconds, stop, health):
@@ -111,6 +115,7 @@ def _process_attempt(config, job, claimed_at, stop, health):
                 "completed" if reported else "did not complete",
             )
     finally:
+        cleanup_sandbox(config)
         _clean_work_dir(config.work_dir)
         LOGGER.info("%s job %s attempt finished", config.mode, job.id)
 
@@ -141,7 +146,7 @@ def _install_signal_handlers(stop):
 
 def supervise(config: Settings) -> None:  # noqa: PLR0915
     """Poll until the lifetime deadline; drain normally, cancel on termination."""
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-statements
     stop = threading.Event()
     deadline = time.monotonic() + config.max_runtime_seconds
     health = HealthState(stale_after=2 * config.request_timeout + 10, drain_at=deadline)
@@ -153,7 +158,14 @@ def supervise(config: Settings) -> None:  # noqa: PLR0915
     retry_delay = 1.0
     reason = "fatal_error"
     try:
+        cleanup_sandbox(config)
         _clean_work_dir(config.work_dir)
+        if config.media_sandbox == "gvisor":
+            # Fail startup before claiming tasks if this node cannot start gVisor.
+            with tempfile.TemporaryDirectory(dir=config.work_dir) as directory:
+                with media_sandbox(config, Path(directory)):
+                    _run(["ffmpeg", "-version"], 15)
+            LOGGER.info("gVisor media sandbox startup check passed")
         configure_session(config)
         with HealthServer(health, config.health_port):
             health.update(initialized=True)
@@ -223,6 +235,7 @@ def supervise(config: Settings) -> None:  # noqa: PLR0915
         close_session()
         for signum, handler in old_handlers.items():
             signal.signal(signum, handler)
+        cleanup_sandbox(config)
         _clean_work_dir(config.work_dir)
         LOGGER.info(
             "Worker stopped: reason=%s uptime_seconds=%.3f tasks_handled=%d "
