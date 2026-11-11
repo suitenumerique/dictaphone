@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     request_timeout: float = Field(default=30, gt=0)
     command_timeout: float = Field(default=900, gt=0)
     work_dir: Path = Field(default=Path("/work"))
+    media_sandbox: Literal["none", "gvisor"] = "none"
+    runsc_path: Path = Path("/usr/local/bin/runsc")
+    sandbox_rootfs: Path = Path("/opt/media-rootfs")
     max_input_bytes: int = Field(default=1024 * 1024 * 1024, gt=0)
     max_runtime_seconds: int = Field(default=900, gt=0)
     process_timeout_seconds: int = Field(default=1200, gt=0)
