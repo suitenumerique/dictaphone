@@ -1,0 +1,150 @@
+{{- $envVars := include "dictaphone.common.env" (list . .Values.backend) -}}
+{{- $fullName := include "dictaphone.backend.fullname" . -}}
+{{- $component := "backend-management" -}}
+{{- range $name, $job := .Values.backend.managementJobs }}
+{{- if or (gt (len $name) 43) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name)) -}}
+{{- fail (printf "backend.managementJobs: entry name %q must be a DNS label of at most 43 characters" $name) -}}
+{{- end }}
+{{- $suffix := printf "-manual-%s" $name -}}
+{{- $prefix := $fullName | trunc (int (sub 52 (len $suffix))) | trimSuffix "-" -}}
+{{- $jobName := printf "%s%s" $prefix $suffix -}}
+{{- $selectorLabels := include "dictaphone.common.selectorLabels" (list $ $component) | fromYaml -}}
+{{- $_ := set $selectorLabels "dictaphone/management-job" $name -}}
+{{- $podLabels := mergeOverwrite (dict) ($job.podLabels | default (dict)) $selectorLabels }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $jobName }}
+  namespace: {{ $.Release.Namespace | quote }}
+  {{- with $job.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "dictaphone.common.labels" (list $ $component) | nindent 4 }}
+    dictaphone/management-job: {{ $name | quote }}
+spec:
+  # Only used as a template for explicitly created Jobs; never scheduled.
+  suspend: true
+  schedule: "0 0 1 1 *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    metadata:
+      labels:
+        {{- toYaml $selectorLabels | nindent 8 }}
+    spec:
+      backoffLimit: {{ if hasKey $job "backoffLimit" }}{{ $job.backoffLimit }}{{ else }}0{{ end }}
+      ttlSecondsAfterFinished: {{ if hasKey $job "ttlSecondsAfterFinished" }}{{ $job.ttlSecondsAfterFinished }}{{ else }}86400{{ end }}
+      template:
+        metadata:
+          {{- with $.Values.backend.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          labels:
+            {{- toYaml $podLabels | nindent 12 }}
+        spec:
+          {{- if $.Values.images.credentials }}
+          imagePullSecrets:
+            - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" $) "imageCredentials" $.Values.images.credentials) }}
+          {{- end }}
+          shareProcessNamespace: {{ $.Values.backend.shareProcessNamespace }}
+          restartPolicy: Never
+          containers:
+            {{- with $.Values.backend.sidecars }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+            - name: {{ $.Chart.Name }}
+              image: "{{ $.Values.images.backend.repository }}:{{ $.Values.images.backend.tag }}"
+              imagePullPolicy: {{ $.Values.images.backend.pullPolicy }}
+              command:
+                {{- toYaml (required (printf "backend.managementJobs.%s.command is required" $name) $job.command) | nindent 16 }}
+              {{- with $job.args }}
+              args:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- if $envVars }}
+              env:
+                {{- $envVars | nindent 16 }}
+              {{- end }}
+              {{- with $.Values.backend.securityContext }}
+              securityContext:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with ($job.resources | default $.Values.backend.resources) }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                  readOnly: false
+                {{- range $index, $value := $.Values.mountFiles }}
+                - name: "files-{{ $index }}"
+                  mountPath: {{ $value.path }}
+                  subPath: content
+                {{- end }}
+                {{- range $volumeName, $volume := $.Values.backend.persistence }}
+                - name: {{ $volumeName | quote }}
+                  mountPath: {{ $volume.mountPath | quote }}
+                {{- end }}
+                {{- range $.Values.backend.extraVolumeMounts }}
+                - name: {{ .name }}
+                  mountPath: {{ .mountPath }}
+                  subPath: {{ .subPath | default "" | quote }}
+                  readOnly: {{ .readOnly }}
+                {{- end }}
+          {{- with $.Values.backend.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.backend.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.backend.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumes:
+            - name: tmp
+              {{- toYaml ($.Values.backend.tmpVolume | default (dict "emptyDir" (dict))) | nindent 14 }}
+            {{- range $index, $value := $.Values.mountFiles }}
+            - name: "files-{{ $index }}"
+              configMap:
+                name: "{{ include "dictaphone.fullname" $ }}-files-{{ $index }}"
+            {{- end }}
+            {{- range $volumeName, $volume := $.Values.backend.persistence }}
+            - name: {{ $volumeName | quote }}
+              {{- if eq $volume.type "emptyDir" }}
+              emptyDir: {}
+              {{- else }}
+              persistentVolumeClaim:
+                claimName: "{{ $fullName }}-{{ $volumeName }}"
+              {{- end }}
+            {{- end }}
+            {{- range $.Values.backend.extraVolumes }}
+            - name: {{ .name }}
+              {{- if .existingClaim }}
+              persistentVolumeClaim:
+                claimName: {{ .existingClaim }}
+              {{- else if .hostPath }}
+              hostPath:
+                {{- toYaml .hostPath | nindent 16 }}
+              {{- else if .csi }}
+              csi:
+                {{- toYaml .csi | nindent 16 }}
+              {{- else if .configMap }}
+              configMap:
+                {{- toYaml .configMap | nindent 16 }}
+              {{- else if .emptyDir }}
+              emptyDir:
+                {{- toYaml .emptyDir | nindent 16 }}
+              {{- else }}
+              emptyDir: {}
+              {{- end }}
+            {{- end }}
+{{- end }}

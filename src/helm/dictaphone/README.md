@@ -15,6 +15,96 @@ and mount path `/tmp` are reserved for this volume. Custom images and persistent
 must support the configured UID/GID and read-only root filesystem. Operator-supplied
 sidecars and init containers must define their own container security contexts.
 
+## Manual management jobs
+
+Configure `backend.managementJobs` to expose backend commands as suspended
+CronJobs. They inherit the backend image, environment (including Secret references),
+security context, mounts, sidecars, and scheduling settings. Each entry requires a
+`command` argv list and accepts `args`, `annotations`, `podLabels`, `resources`, `backoffLimit`
+(default `0`), and `ttlSecondsAfterFinished` (default `86400`, retaining runs for one
+day). Resources default to `backend.resources`.
+
+For example, add this to your deployment values:
+
+```yaml
+backend:
+  managementJobs:
+    backfill-storage-objects:
+      command: [python, manage.py, backfill_storage_objects]
+      args: [--dry-run, --batch-size, "100"]
+```
+
+After deploying the values and completing schema migrations, start a run explicitly.
+For a release named `dictaphone` with the default naming settings:
+
+```sh
+kubectl -n YOUR_NAMESPACE create job storage-backfill-preview-1 \
+  --from=cronjob/dictaphone-backend-manual-backfill-storage-objects
+kubectl -n YOUR_NAMESPACE logs -f job/storage-backfill-preview-1 -c dictaphone
+kubectl -n YOUR_NAMESPACE wait --for=condition=complete \
+  job/storage-backfill-preview-1 --timeout=1h
+```
+
+Remove `--dry-run` from the configured args and deploy that change before creating
+the actual backfill Job with a new run name. Additional command flags, such as
+`--limit`, `--file-id`, and `--after-file-id`, go in `args`. Updating the CronJob
+does not alter Jobs already running. To inspect a failure, use `kubectl describe
+job/<run-name>` and its logs; a wait for completion times out if the Job fails.
+
+Templates are named `<backend-fullname>-manual-<entry-name>`. The backend prefix
+is shortened as needed to fit the CronJob name limit of 52 characters; entry names
+must be DNS labels of at most 43 characters. `kubectl get cronjobs -l
+app.kubernetes.io/component=backend-management` lists the deployed templates.
+
+The CronJobs are always suspended and have no deployment hooks, so deployment
+updates do not execute commands. Create one run at a time: the CronJob's
+`concurrencyPolicy` does not prevent concurrent manually created Jobs. Backend
+sidecars must terminate with the main process for a Job to complete.
+
+### Cilium network policy selectors
+
+Management pods have stable labels independent of the generated Job/run name:
+
+| Label | Value | Selects |
+| --- | --- | --- |
+| `app.kubernetes.io/instance` | Helm release name | One deployment |
+| `app.kubernetes.io/component` | `backend-management` | All manual management jobs |
+| `dictaphone/management-job` | Key in `backend.managementJobs` | One command template across all runs |
+
+The same identity labels are present on the CronJob, Job template, and Pod
+template. Cilium selects the **pod labels**. For the storage backfill, use this
+selector inside a `CiliumNetworkPolicy` in the deployment's namespace, together
+with your deployment's egress rules:
+
+```yaml
+endpointSelector:
+  matchLabels:
+    "k8s:app.kubernetes.io/instance": dictaphone
+    "k8s:app.kubernetes.io/component": backend-management
+    "k8s:dictaphone/management-job": backfill-storage-objects
+```
+
+Omit the last label to select all manual management jobs for that release. The
+ordinary backend has component `backend`; its component-specific policy does not
+select these jobs. Include the required DNS, database, and object-storage access
+in the management policy. See [Cilium's Kubernetes policy documentation](https://docs.cilium.io/en/stable/security/policy/kubernetes/)
+for namespace and label-selector behavior.
+
+Add deployment-specific policy group labels through each entry's `podLabels`:
+
+```yaml
+backend:
+  managementJobs:
+    backfill-storage-objects:
+      command: [python, manage.py, backfill_storage_objects]
+      args: [--dry-run, --batch-size, "100"]
+      podLabels:
+        network.example.com/profile: storage-maintenance
+```
+
+These extend the Pod template labels. Built-in name, release, component, and
+management-job identity labels take precedence and cannot be overridden.
+
 ## API ingresses
 
 The `ingress` resource serves the frontend. Enable `ingressPublic` to route
@@ -188,6 +278,10 @@ add_header Content-Disposition "attachment";
 | `backend.createsuperuser.restartPolicy`               | backend migrate job restart policy                                | `Never`                                                                                                                                                                                                                                                                             |
 
 ### Jobs
+
+| Name | Description | Value |
+| --- | --- | --- |
+| `backend.managementJobs` | Named manual management commands rendered as suspended CronJobs | `{}` |
 
 | Name                                           | Description                                                                        | Value                                                     |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |

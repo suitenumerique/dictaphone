@@ -229,6 +229,19 @@ backend:
     ttlSecondsAfterFinished: 30
     backoffLimit: 2
 
+  ## @param backend.managementJobs Named manual management jobs, rendered as suspended CronJobs
+  ## Each entry requires a command (argv list), with optional args, annotations, podLabels,
+  ## resources, backoffLimit (default 0), and ttlSecondsAfterFinished (default 86400).
+  ## Pods carry release/component labels and dictaphone/management-job=<entry-name>.
+  ## Custom podLabels extend these labels; built-in labels cannot be overridden.
+  ## Launch explicitly with kubectl create job --from=cronjob/<name> <unique-run-name>.
+  ## Example:
+  ## managementJobs:
+  ##   backfill-storage-objects:
+  ##     command: [python, manage.py, backfill_storage_objects]
+  ##     args: [--dry-run, --batch-size, "100"]
+  managementJobs: {}
+
   ## @param backend.securityContext Configure backend container security context
   securityContext:
     runAsNonRoot: true
