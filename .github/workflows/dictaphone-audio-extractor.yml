@@ -67,7 +67,7 @@ jobs:
             --env S3_ENDPOINT_URL \
             --volume "$PWD:/app" --workdir /app \
             alpine:edge sh -ec '
-              apk add --no-cache coreutils python3 uv "ffmpeg=9.0.2-r1" opus-tools
+              apk add --no-cache coreutils python3 uv "ffmpeg=9.0.2-r3" opus-tools
               ffmpeg -version
               ffprobe -version
               uv sync --locked --all-groups

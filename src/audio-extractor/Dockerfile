@@ -19,7 +19,7 @@ RUN apk --no-cache add \
 RUN apk add --no-cache \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
-    'ffmpeg=9.0.2-r1'
+    'ffmpeg=9.0.2-r3'
 
 # ---- Back-end builder image ----
 FROM base AS builder
