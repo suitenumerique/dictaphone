@@ -1,8 +1,9 @@
 # Migrate existing files to object storage tracking
 
 > Historical guide for the release introducing schema migration `0026`.
-> The completed backfill command is retired; these instructions apply
-> only to the earlier release.
+> The backfill command is retired in the subsequent cleanup release. Complete
+> this procedure with the earlier release before applying schema migration `0027`.
+> See [object storage](../object-storage.md) for the current model and upgrade notes.
 
 Use this guide when upgrading an existing deployment to a release that introduces
 `ObjectStorageObject`. The migration populates tracking records and links existing

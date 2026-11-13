@@ -368,8 +368,6 @@ class FileAdmin(admin.ModelAdmin):
         "malware_detection_info",
         "is_ready",
         "extension",
-        "key_base",
-        "file_key",
         "upload_state",
         "source",
         "language",
@@ -378,7 +376,6 @@ class FileAdmin(admin.ModelAdmin):
         "type",
         "mimetype",
         "size",
-        "storage_bucket_name",
         "original_object",
         "temporary_upload_object",
         "original_file_data_delete_at",
@@ -432,7 +429,6 @@ class FileAdmin(admin.ModelAdmin):
             _("Storage and retention"),
             {
                 "fields": (
-                    "storage_bucket_name",
                     "original_object",
                     "temporary_upload_object",
                     "original_file_data_delete_at",
@@ -450,8 +446,6 @@ class FileAdmin(admin.ModelAdmin):
                 "fields": (
                     "is_ready",
                     "extension",
-                    "key_base",
-                    "file_key",
                 )
             },
         ),
@@ -851,7 +845,6 @@ class AudioJobAdmin(AudioJobDurationMixin, admin.ModelAdmin):
         "attempt_number",
         "retry_of",
         "source_job",
-        "output_key",
         "output_object",
         "created_at",
         "updated_at",

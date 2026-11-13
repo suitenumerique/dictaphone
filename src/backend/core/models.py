@@ -40,7 +40,7 @@ logger = getLogger(__name__)
 
 def validate_storage_reference(owner_file_id, field, obj, kind):
     """Reject cross-file or wrong-kind artifact links before saving an owner."""
-    if obj is not None and (obj.file_id != owner_file_id or obj.kind != kind):
+    if obj is not None and (obj.file_identifier != owner_file_id or obj.kind != kind):
         raise ValidationError(
             {field: "The storage object must match the file and kind."}
         )
@@ -499,19 +499,14 @@ class File(BaseModel):
         choices=FileSourceChoices.choices,
         default=FileSourceChoices.UNKNOWN,
     )
-    storage_bucket_name = models.CharField(max_length=63)
     original_object = models.ForeignKey(
         "ObjectStorageObject",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="+",
     )
     temporary_upload_object = models.ForeignKey(
         "ObjectStorageObject",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="+",
     )
     original_file_data_delete_at = models.DateTimeField()
@@ -532,14 +527,6 @@ class File(BaseModel):
             models.Index(fields=["creator", "type", "-created_at"]),
             # To ease with the deletion queries
             models.Index(fields=["-created_at"]),
-            models.Index(
-                fields=["storage_bucket_name", "created_at"],
-                name="file_bucket_created_at_idx",
-            ),
-            models.Index(
-                fields=["storage_bucket_name", "deleted_at"],
-                name="file_bucket_deleted_at_idx",
-            ),
             models.Index(
                 fields=["original_file_data_delete_at"],
                 name="file_original_delete_at_idx",
@@ -624,24 +611,26 @@ class File(BaseModel):
             # provisional values before the insert; they are recalculated below
             # once auto_now_add has assigned created_at.
             self._set_configuration_snapshot(timezone.now())
+            from core.object_storage import allocate_file_objects  # noqa: PLC0415
+
+            allocate_file_objects(self)
 
         super().save(*args, **kwargs)
         if is_new:
             self._set_configuration_snapshot()
             super().save(
                 update_fields=[
-                    "storage_bucket_name",
                     "original_file_data_delete_at",
                     "original_file_data_delete_at_with_grace_period",
                     "file_auto_hard_delete_at",
                     "file_auto_hard_delete_at_with_grace_period",
                 ]
             )
-            from core.object_storage import (  # noqa: PLC0415
-                register_file_objects,
-            )
-
-            register_file_objects(self)
+            ObjectStorageObject.objects.filter(
+                pk__in=[self.original_object_id, self.temporary_upload_object_id]
+            ).update(file=self)
+            self.original_object.file = self
+            self.temporary_upload_object.file = self
 
     def clean(self):
         super().clean()
@@ -667,7 +656,7 @@ class File(BaseModel):
 
     @property
     def configuration(self):
-        """Return this file's persisted policy and storage configuration."""
+        """Return this file's persisted retention policy."""
         return get_profile_for_file(self)
 
     def delete(self, using=None, keep_parents=False):
@@ -695,45 +684,6 @@ class File(BaseModel):
             return extension.lstrip(".")
 
         return None
-
-    @property
-    def key_base(self):
-        """Key base of the location where the file is stored in object storage."""
-        if not self.pk:
-            raise RuntimeError(
-                "The file instance must be saved before requesting a storage key."
-            )
-
-        return f"{settings.FILE_UPLOAD_PATH}/{self.pk!s}"
-
-    @property
-    def temporary_key_base(self):
-        """Temporary key base used while upload is still pending."""
-        if not self.pk:
-            raise RuntimeError(
-                "The file instance must be saved before requesting a storage key."
-            )
-
-        return f"{settings.FILE_UPLOAD_TMP_PATH}/{self.pk!s}"
-
-    @property
-    def file_key(self):
-        """Key used to store the file in object storage."""
-        _, extension = splitext(self.filename)
-        # We store only the extension in the storage system to avoid
-        # leaking Personal Information in logs, etc.
-        return f"{self.key_base}{extension!s}"
-
-    @property
-    def temporary_file_key(self):
-        """Temporary key used to upload the file before it is finalized."""
-        _, extension = splitext(self.filename)
-        return f"{self.temporary_key_base}{extension!s}"
-
-    @property
-    def legacy_audio_file_key(self):
-        """Old fixed key, retained for migration and storage cleanup."""
-        return f"{self.key_base}.audio.ogg"
 
     @property
     def latest_audio_job(self):
@@ -1006,12 +956,11 @@ class AudioJob(BaseModel):
         on_delete=models.SET_NULL,
         related_name="validations",
     )
-    output_key = models.CharField(max_length=1024, null=True, blank=True, unique=True)
     output_object = models.ForeignKey(
         ObjectStorageObject,
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="+",
     )
     started_at = models.DateTimeField(null=True, blank=True)
@@ -1033,7 +982,14 @@ class AudioJob(BaseModel):
             models.UniqueConstraint(
                 fields=["extraction_id", "mode", "attempt_number"],
                 name="audio_job_unique_attempt",
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(mode="transcoding", output_object__isnull=False)
+                    | Q(mode="validation", output_object__isnull=True)
+                ),
+                name="audio_job_output_matches_mode",
+            ),
         ]
 
     def __str__(self):
@@ -1041,19 +997,20 @@ class AudioJob(BaseModel):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        """Allocate the key before issuing a signed upload URL."""
-        if self._state.adding and self.mode == AudioJobModeChoices.TRANSCODING:
-            self.output_key = (
-                self.output_key or f"{self.file.key_base}/audio/{self.id}.ogg"
-            )
-        is_new = self._state.adding
-        super().save(*args, **kwargs)
-        if is_new and self.output_key:
-            from core.object_storage import (  # noqa: PLC0415
-                register_job_object,
-            )
+        """Allocate an output object for each new transcoding attempt."""
+        if (
+            self._state.adding
+            and self.mode == AudioJobModeChoices.TRANSCODING
+            and not self.output_object_id
+        ):
+            from core.object_storage import create_object  # noqa: PLC0415
 
-            register_job_object(self)
+            self.output_object = create_object(
+                self.file,
+                ObjectStorageObject.Kind.AUDIO,
+                f"{settings.FILE_UPLOAD_PATH}/{self.file_id}/audio/{self.id}.ogg",
+            )
+        super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()
@@ -1136,9 +1093,7 @@ class AiFileJob(BaseModel):
     file = models.ForeignKey(File, on_delete=models.CASCADE, related_name="ai_jobs")
     result_object = models.ForeignKey(
         ObjectStorageObject,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="+",
     )
     status = models.CharField(
@@ -1180,15 +1135,21 @@ class AiFileJob(BaseModel):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        """Reserve the result location before any external result can arrive."""
-        is_new = self._state.adding
-        super().save(*args, **kwargs)
-        if is_new:
-            from core.object_storage import (  # noqa: PLC0415
-                register_job_object,
-            )
+        """Reserve the result object before submitting a new AI job."""
+        if self._state.adding and not self.result_object_id:
+            from core.object_storage import create_object  # noqa: PLC0415
 
-            register_job_object(self)
+            prefix, extension = (
+                ("transcripts", "json")
+                if self.type == AiJobTypeChoices.TRANSCRIPT
+                else ("summaries", "txt")
+            )
+            self.result_object = create_object(
+                self.file,
+                self.type,
+                f"{prefix}/{self.id}.{extension}",
+            )
+        super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()
@@ -1231,15 +1192,6 @@ class AiFileJob(BaseModel):
         result = super().delete(using=using, keep_parents=keep_parents)
         transaction.on_commit(lambda: delete_object(obj))
         return result
-
-    @property
-    def key(self) -> str:
-        """Return the S3 key for the AI job result file."""
-        if self.type == AiJobTypeChoices.TRANSCRIPT:
-            return f"transcripts/{self.id!s}.json"
-        if self.type == AiJobTypeChoices.SUMMARIZE:
-            return f"summaries/{self.id!s}.txt"
-        raise ValueError(f"Unknown job type: {self.type}")
 
     def to_markdown(self, language: str = "en") -> str:
         """Return the AI job result as a markdown string."""

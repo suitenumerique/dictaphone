@@ -12,7 +12,7 @@ from types import MappingProxyType
 from typing import Any, Literal, TypeVar
 
 from django.conf import settings
-from django.db.models import Model, Q, QuerySet
+from django.db.models import Model, QuerySet
 from django.utils import timezone
 
 from pydantic import (
@@ -30,7 +30,6 @@ from core.emails import normalize_email
 BUCKET_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9.-]{1,61}[a-z0-9])?$")
 ENVIRONMENT_VARIABLE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 SNAPSHOT_FIELDS = (
-    "storage_bucket_name",
     "original_file_data_delete_at",
     "original_file_data_delete_at_with_grace_period",
     "file_auto_hard_delete_at",
@@ -42,7 +41,6 @@ TRASHBIN_DEADLINE_FIELDS = (
 )
 RetentionPolicy = Literal["trashbin", "original_file_data", "file_hard_delete"]
 CutoffComparison = Literal["lte", "gt"]
-RetentionBaseField = Literal["created_at", "deleted_at"]
 ModelT = TypeVar("ModelT", bound=Model)
 _configuration_cache_clearers: list[Callable[[], None]] = []
 RETENTION_DEADLINE_FIELDS: dict[RetentionPolicy, tuple[str, str]] = {
@@ -263,7 +261,6 @@ class ResolvedDomainProfile(BaseModel):
     def as_file_snapshot(self, reference_time: datetime) -> dict[str, Any]:
         """Return values suitable for persisting on a file."""
         return {
-            "storage_bucket_name": self.storage_bucket_name,
             "original_file_data_delete_at": reference_time
             + timedelta(days=self.original_file_data_delete_after_days),
             "original_file_data_delete_at_with_grace_period": reference_time
@@ -300,8 +297,6 @@ class ResolvedFileConfiguration(BaseModel):
 
     name: str
     default: bool
-    bucket_configuration_key: str
-    storage_bucket_name: str
     original_file_data_delete_at: datetime
     original_file_data_delete_at_with_grace_period: datetime
     file_auto_hard_delete_at: datetime
@@ -315,7 +310,6 @@ class RuntimeConfiguration:
     """Resolved configuration and indexes used by runtime lookups."""
 
     buckets: Mapping[str, ResolvedBucketConfiguration]
-    buckets_by_physical_name: Mapping[str, str]
     profiles: tuple[ResolvedDomainProfile, ...]
     profiles_by_domain: Mapping[str, ResolvedDomainProfile]
     profiles_by_email: Mapping[str, ResolvedDomainProfile]
@@ -461,9 +455,6 @@ def resolve_runtime_configuration(settings_obj) -> RuntimeConfiguration:
     default_profile = next(profile for profile in profiles if profile.default)
     return RuntimeConfiguration(
         buckets=MappingProxyType(buckets),
-        buckets_by_physical_name=MappingProxyType(
-            {bucket.storage_bucket_name: name for name, bucket in buckets.items()}
-        ),
         profiles=profiles,
         profiles_by_domain=MappingProxyType(
             {domain: profile for profile in profiles for domain in profile.domains}
@@ -525,66 +516,27 @@ def get_profile_for_email(email: str | None) -> ResolvedDomainProfile:
 
 
 def get_profile_for_file(file) -> ResolvedFileConfiguration:
-    """Return the persisted file policy, with default fallbacks for old rows."""
-    runtime_configuration = get_runtime_configuration()
-    default_profile = runtime_configuration.default_profile
-    storage_bucket_name = (
-        file.storage_bucket_name or default_profile.storage_bucket_name
-    )
-    logical_bucket_name = runtime_configuration.buckets_by_physical_name.get(
-        storage_bucket_name
-    )
-    if logical_bucket_name is None:
-        raise ValueError(
-            f"File {file.pk} references unknown physical S3 bucket {storage_bucket_name!r}"
-        )
-    if file.storage_bucket_name:
-        trashbin_snapshot = {
-            field: getattr(file, field) for field in TRASHBIN_DEADLINE_FIELDS
-        }
-        if file.deleted_at is not None and all(
-            value is None for value in trashbin_snapshot.values()
-        ):
-            # Rows deleted before trash-bin deadlines were introduced need a
-            # deterministic fallback until they are restored or deleted again.
-            trashbin_snapshot = default_profile.as_trashbin_snapshot(file.deleted_at)
-        # These values are persisted on the file or derived from the already
-        # validated runtime configuration, so revalidating them on every
-        # property access is unnecessary.
-        return ResolvedFileConfiguration.model_construct(
-            name="snapshot",
-            default=False,
-            bucket_configuration_key=logical_bucket_name,
-            storage_bucket_name=storage_bucket_name,
-            **{
-                field: getattr(file, field)
-                for field in SNAPSHOT_FIELDS
-                if field != "storage_bucket_name"
-            },
-            **trashbin_snapshot,
-        )
-
-    file_snapshot = default_profile.as_file_snapshot(file.created_at)
-    trashbin_snapshot = (
-        default_profile.as_trashbin_snapshot(file.deleted_at)
-        if file.deleted_at is not None
-        else dict.fromkeys(TRASHBIN_DEADLINE_FIELDS)
-    )
+    """Return the file's persisted retention policy, independent of storage routing."""
+    trashbin_snapshot = {
+        field: getattr(file, field) for field in TRASHBIN_DEADLINE_FIELDS
+    }
+    if file.deleted_at is not None and all(
+        value is None for value in trashbin_snapshot.values()
+    ):
+        trashbin_snapshot = get_default_profile().as_trashbin_snapshot(file.deleted_at)
     return ResolvedFileConfiguration.model_construct(
-        name="default",
-        default=True,
-        bucket_configuration_key=logical_bucket_name,
-        **file_snapshot,
+        name="snapshot",
+        default=False,
+        **{field: getattr(file, field) for field in SNAPSHOT_FIELDS},
         **trashbin_snapshot,
     )
 
 
-def filter_files_by_policy_cutoff(  # noqa: PLR0913 pylint: disable=too-many-arguments
+def filter_files_by_policy_cutoff(
     queryset: QuerySet[ModelT],
     *,
     policy: RetentionPolicy,
     include_grace_period: bool = False,
-    base_field: RetentionBaseField = "created_at",
     field_prefix: str = "",
     comparison: CutoffComparison = "lte",
 ) -> QuerySet[ModelT]:
@@ -599,24 +551,4 @@ def filter_files_by_policy_cutoff(  # noqa: PLR0913 pylint: disable=too-many-arg
         raise ValueError(f"Unknown cutoff comparison: {comparison}")
 
     now = timezone.now()
-    snapshot_query = Q(**{f"{field_prefix}{deadline_field}__{comparison}": now})
-    runtime_configuration = get_runtime_configuration()
-    default_profile = runtime_configuration.default_profile
-    if policy == "trashbin":
-        days = default_profile.trashbin_cutoff_days
-        if include_grace_period:
-            days += default_profile.purge_grace_days
-    elif policy == "original_file_data":
-        days = default_profile.original_file_data_delete_after_days
-        if include_grace_period:
-            days += default_profile.original_file_data_delete_after_grace_period_days
-    else:
-        days = default_profile.file_auto_hard_delete_after_days
-        if include_grace_period:
-            days += default_profile.file_auto_hard_delete_after_grace_period_days
-    cutoff = now - timedelta(days=days)
-    default_query = Q(**{f"{field_prefix}storage_bucket_name__isnull": True}) & Q(
-        **{f"{field_prefix}{base_field}__{comparison}": cutoff}
-    )
-
-    return queryset.filter(snapshot_query | default_query)
+    return queryset.filter(**{f"{field_prefix}{deadline_field}__{comparison}": now})
