@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import Mock, patch
 
@@ -259,6 +260,86 @@ def test_backfill_missing_required_objects_fails_but_optional_absence_is_reporte
         call_command("backfill_storage_objects", stdout=StringIO())
     file.original_object.refresh_from_db()
     assert file.original_object.state == "missing"
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("missing", [False, True])
+@pytest.mark.parametrize(
+    "lifecycle_state", ["active", "original_data_deleted", "pending_auto_hard_delete"]
+)
+def test_backfill_hidden_files_during_hard_delete_grace_period(
+    dry_run, missing, lifecycle_state
+):
+    """Hidden files are backfilled even when their successful results are missing."""
+    file = factories.FileFactory(update_upload_state="ready")
+    jobs = [
+        factories.AiFileJobFactory(file=file, type=kind, status="success")
+        for kind in ("transcript", "summary")
+    ]
+    now = timezone.now()
+    deadlines = {
+        "file_auto_hard_delete_at": now - timedelta(days=1),
+        "file_auto_hard_delete_at_with_grace_period": now + timedelta(days=1),
+    }
+    models.File.objects.filter(pk=file.pk).update(
+        lifecycle_state=lifecycle_state, **deadlines
+    )
+    file.storage_objects.all().delete()
+    assert not models.File.objects.visible_in_api().filter(pk=file.pk).exists()
+    stdout, stderr = StringIO(), StringIO()
+    head_target = (
+        "core.management.commands.backfill_storage_objects.head_object"
+        if dry_run
+        else "core.object_storage.head_object"
+    )
+    with patch(
+        head_target, return_value=None if missing else {"ContentLength": 9}
+    ) as head:
+        call_command(
+            "backfill_storage_objects", dry_run=dry_run, stdout=stdout, stderr=stderr
+        )
+    assert head.call_count == 5
+    assert "expected_missing=0 errors=0" in stdout.getvalue()
+    assert stderr.getvalue() == ""
+    file.refresh_from_db()
+    assert file.lifecycle_state == lifecycle_state
+    assert file.hard_deleted_at is None
+    assert all(getattr(file, field) == value for field, value in deadlines.items())
+    assert not models.File.objects.visible_in_api().filter(pk=file.pk).exists()
+    if dry_run:
+        assert not file.storage_objects.exists()
+        assert file.original_object_id is None
+    else:
+        assert file.storage_objects.count() == 5
+        for job in jobs:
+            job.refresh_from_db()
+            assert job.result_object.state == ("missing" if missing else "available")
+            assert bool(job.result_object.published_at) is not missing
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("kind", ["transcript", "summary"])
+def test_backfill_missing_successful_result_on_visible_file_fails(dry_run, kind):
+    """Successful results on visible files remain required."""
+    file = factories.FileFactory()
+    factories.AiFileJobFactory(file=file, type=kind, status="success")
+    stdout, stderr = StringIO(), StringIO()
+    with (
+        patch("core.object_storage.head_object", return_value=None),
+        patch(
+            "core.management.commands.backfill_storage_objects.head_object",
+            return_value=None,
+        ),
+    ):
+        with pytest.raises(CommandError, match="incomplete"):
+            call_command(
+                "backfill_storage_objects",
+                dry_run=dry_run,
+                stdout=stdout,
+                stderr=stderr,
+            )
+    assert "expected_missing=1 errors=0" in stdout.getvalue()
+    assert f"kind={kind}: expected object missing" in stderr.getvalue()
 
 
 @pytest.mark.parametrize("dry_run", [False, True])

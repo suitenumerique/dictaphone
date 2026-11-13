@@ -143,7 +143,7 @@ the registry as the basis for a later bucket migration.
 | `files` | Number of file records processed in this run. |
 | `objects` | Number of database-derived candidate artifacts processed; this is not a count of physical S3 objects. |
 | `missing` | Absent candidates, including optional temporary uploads, failed attempts, and expired artifacts. These do not all indicate data loss. |
-| `expected_missing` | Missing artifacts required by an uploaded active file or successful job. Investigate the file and its lifecycle; the command exits unsuccessfully. |
+| `expected_missing` | Missing artifacts required by a visible uploaded active file or successful job. Investigate the file and its lifecycle; the command exits unsuccessfully. |
 | `errors` | Provider, authorization, connectivity, or integrity failures. Resolve and retry; the command exits unsuccessfully. |
 
 Object records distinguish pending uploads, available artifacts, missing objects,
@@ -151,6 +151,11 @@ and deletion state. A pending record only reserves a location. Temporary uploads
 can remain pending even when present because their signed upload URL can still
 change their contents. Unverified or failed attempt outputs need not become
 available during the backfill. Deleting and deleted records are left untouched.
+
+Files hidden by their automatic hard-delete deadline are still backfilled during
+the grace period. Missing artifacts on these files count only as `missing`, so
+they do not fail verification. Objects that remain are registered and inspected
+normally; the backfill does not restore user access or change retention deadlines.
 
 HEAD observations record size, ETag, and recognized native provider checksums when
 available. No historical content is downloaded to calculate a checksum. An absent

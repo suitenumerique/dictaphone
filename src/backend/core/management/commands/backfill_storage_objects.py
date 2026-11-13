@@ -112,6 +112,9 @@ class Command(BaseCommand):
     def _process_file(self, file, options, counts):
         if not options["dry_run"]:
             register_existing_file(file)
+        # Hidden files still need registration and metadata observations, but
+        # missing artifacts must not block their migration during retention cleanup.
+        file_is_visible = File.objects.visible_in_api().filter(pk=file.pk).exists()
         candidates_by_key = {}
         for kind, key, expected in candidates(file):
             first_kind, previous_expected = candidates_by_key.get(key, (kind, False))
@@ -146,7 +149,7 @@ class Command(BaseCommand):
                 continue
             if missing:
                 counts["missing"] += 1
-                if expected:
+                if expected and file_is_visible:
                     counts["expected_missing"] += 1
                     self.stderr.write(
                         f"file={file.pk} kind={kind}: expected object missing"
