@@ -136,8 +136,7 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
     with (
         patch("core.tasks.file.AiFileJob.objects") as jobs,
         patch("core.tasks.file.fetch_external_source", return_value=response),
-        patch("core.tasks.file.get_storage_for_object") as storage,
-        patch("core.tasks.file.store_result") as store,
+        patch("core.tasks.file.store_result", autospec=True) as store,
         patch("core.tasks.file.analytics.capture_event"),
         patch("core.tasks.file.get_profile_for_email") as profile,
         patch.object(task, "retry") as retry,
@@ -149,13 +148,11 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
             with pytest.raises(PayloadLimitExceeded):
                 task.apply(args=["job", "https://example.com/result"], throw=True)
             job.mark_failed.assert_called_once()
-            storage.assert_not_called()
             store.assert_not_called()
         else:
             task.apply(args=["job", "https://example.com/result"], throw=True)
             store.assert_called_once_with(
                 job.result_object,
-                storage.return_value,
                 content,
                 "application/json" if job_type == "transcript" else "text/plain",
             )

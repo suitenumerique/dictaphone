@@ -61,14 +61,14 @@ def test_external_result_rejected_before_fetch_or_storage(
     with (
         patch("core.tasks.file.session.get") as get,
         patch("core.tasks.file.session.post") as post,
-        patch("core.tasks.file.get_storage_for_object") as storage,
+        patch("core.tasks.file.store_result", autospec=True) as store,
         pytest.raises(ValueError),
     ):
         task(job.remote_job_id, url + "?signature=private-signature-value")
 
     get.assert_not_called()
     post.assert_not_called()
-    storage.assert_not_called()
+    store.assert_not_called()
     job.refresh_from_db()
     assert job.status == AiJobStatusChoices.FAILED
     assert AiFileJob.objects.filter(file=job.file).count() == 1

@@ -6,6 +6,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from core.models import ObjectStorageObject
 from core.object_storage import delete_object
+from core.storage_migration import cleanup_due
 
 
 class Command(BaseCommand):
@@ -22,19 +23,24 @@ class Command(BaseCommand):
             raise CommandError("Limit must be positive")
         objects = ObjectStorageObject.objects.filter(
             state=ObjectStorageObject.State.DELETING,
-        ).order_by("pk")[: options["limit"]]
+        ).order_by("pk")
         count = 0
         failures = 0
-        for obj in objects:
-            if not options["dry_run"]:
+        for obj in objects.iterator(chunk_size=100):
+            if count >= options["limit"]:
+                break
+            if not cleanup_due(obj):
+                continue
+            if options["dry_run"]:
+                count += 1
+            else:
                 try:
-                    delete_object(obj)
+                    count += int(delete_object(obj, respect_retention=True))
                 except (BotoCoreError, ClientError, OSError) as exc:
                     failures += 1
                     # Provider responses may contain credentials or signed URLs.
                     self.stderr.write(f"object={obj.pk}: {type(exc).__name__}")
-                    continue
-            count += 1
+
         self.stdout.write(
             f"{'Would delete' if options['dry_run'] else 'Deleted'}: {count}"
         )
