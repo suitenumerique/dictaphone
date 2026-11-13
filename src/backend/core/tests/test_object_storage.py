@@ -259,6 +259,56 @@ def test_backfill_missing_required_objects_fails_but_optional_absence_is_reporte
     assert file.original_object.state == "missing"
 
 
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize("missing", [False, True])
+def test_backfill_duplicate_key_preserves_requiredness(dry_run, missing):
+    """A successful job requires its output even when a legacy candidate is optional."""
+    file = factories.FileFactory(update_upload_state="ready")
+    audio = models.AudioJob.objects.create(
+        file=file,
+        mode="transcoding",
+        status="success",
+        output_key=file.legacy_audio_file_key,
+    )
+    stdout = StringIO()
+
+    def head_response(obj):
+        if missing and obj.key == audio.output_key:
+            return None
+        return {"ContentLength": 9}
+
+    head_target = (
+        "core.management.commands.backfill_storage_objects.head_object"
+        if dry_run
+        else "core.object_storage.head_object"
+    )
+    with patch(head_target, side_effect=head_response) as head:
+        if missing:
+            with pytest.raises(CommandError, match="incomplete"):
+                call_command(
+                    "backfill_storage_objects",
+                    dry_run=dry_run,
+                    stdout=stdout,
+                    stderr=StringIO(),
+                )
+        else:
+            call_command("backfill_storage_objects", dry_run=dry_run, stdout=stdout)
+    assert head.call_count == 3
+    assert {call.args[0].key for call in head.call_args_list} == {
+        file.file_key,
+        file.temporary_file_key,
+        audio.output_key,
+    }
+    assert "objects=3" in stdout.getvalue()
+    assert f"expected_missing={int(missing)}" in stdout.getvalue()
+    audio.output_object.refresh_from_db()
+    if dry_run:
+        assert audio.output_object.state == "pending"
+    else:
+        assert audio.output_object.state == ("missing" if missing else "available")
+        assert bool(audio.output_object.published_at) is not missing
+
+
 def test_backfill_limit_cursor_and_skip_head():
     """A bounded run can resume without scanning or reading object content."""
     files = sorted(

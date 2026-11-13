@@ -112,11 +112,11 @@ class Command(BaseCommand):
     def _process_file(self, file, options, counts):
         if not options["dry_run"]:
             register_existing_file(file)
-        seen = set()
+        candidates_by_key = {}
         for kind, key, expected in candidates(file):
-            if key in seen:
-                continue
-            seen.add(key)
+            first_kind, previous_expected = candidates_by_key.get(key, (kind, False))
+            candidates_by_key[key] = (first_kind, previous_expected or expected)
+        for key, (kind, expected) in candidates_by_key.items():
             counts["objects"] += 1
             if options["skip_head"]:
                 continue
