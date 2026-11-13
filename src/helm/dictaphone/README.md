@@ -55,8 +55,8 @@ does not alter Jobs already running. To inspect a failure, use `kubectl describe
 job/<run-name>` and its logs; a wait for completion times out if the Job fails.
 
 Templates are named `<backend-fullname>-manual-<entry-name>`. The backend prefix
-is shortened as needed to fit the CronJob name limit of 52 characters; entry names
-must be DNS labels of at most 43 characters. `kubectl get cronjobs -l
+is shortened with a stable hash as needed to fit the CronJob name limit of 52
+characters; entry names must be DNS labels of at most 43 characters. `kubectl get cronjobs -l
 app.kubernetes.io/component=backend-management` lists the deployed templates.
 
 The CronJobs are always suspended and have no deployment hooks, so deployment

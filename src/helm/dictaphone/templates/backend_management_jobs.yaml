@@ -6,7 +6,15 @@
 {{- fail (printf "backend.managementJobs: entry name %q must be a DNS label of at most 43 characters" $name) -}}
 {{- end }}
 {{- $suffix := printf "-manual-%s" $name -}}
-{{- $prefix := $fullName | trunc (int (sub 52 (len $suffix))) | trimSuffix "-" -}}
+{{- $prefixLength := int (sub 52 (len $suffix)) -}}
+{{- $prefix := $fullName -}}
+{{- if gt (len $fullName) $prefixLength -}}
+{{- $hash := $fullName | sha256sum -}}
+{{- $prefix = $hash | trunc $prefixLength -}}
+{{- if gt $prefixLength 9 -}}
+{{- $prefix = printf "%s-%s" ($fullName | trunc (int (sub $prefixLength 9)) | trimSuffix "-") ($hash | trunc 8) -}}
+{{- end -}}
+{{- end -}}
 {{- $jobName := printf "%s%s" $prefix $suffix -}}
 {{- $selectorLabels := include "dictaphone.common.selectorLabels" (list $ $component) | fromYaml -}}
 {{- $_ := set $selectorLabels "dictaphone/management-job" $name -}}
