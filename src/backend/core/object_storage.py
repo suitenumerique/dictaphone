@@ -213,9 +213,10 @@ def publish_object(obj, *, content=None, head=None):
 
 
 @transaction.atomic
-def store_result(obj, storage, content, content_type):
+def store_result(obj, content, content_type):
     """Serialize bounded AI result writes and reject changes to published bytes."""
     obj = ObjectStorageObject.objects.select_for_update().get(pk=obj.pk)
+    storage = get_storage_for_object(obj)
     digest = base64.b64encode(hashlib.sha256(content).digest()).decode("ascii")
     if obj.state in {obj.State.DELETING, obj.State.DELETED}:
         raise ValueError("Cannot write a deleted storage object")
