@@ -1,5 +1,9 @@
 # Migrate existing files to object storage tracking
 
+> Historical guide for the release introducing schema migration `0026`.
+> The completed backfill command is retired; these instructions apply
+> only to the earlier release.
+
 Use this guide when upgrading an existing deployment to a release that introduces
 `ObjectStorageObject`. The migration populates tracking records and links existing
 files, audio jobs, and AI jobs to their stored artifacts.
