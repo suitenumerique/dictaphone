@@ -1,4 +1,4 @@
-"""Storage registration, metadata integrity, and durable cleanup."""
+"""Object ownership, metadata integrity, and durable cleanup."""
 
 import base64
 import hashlib
@@ -9,7 +9,8 @@ from unittest.mock import Mock, patch
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 import pytest
@@ -64,6 +65,62 @@ def test_reference_validation_rejects_wrong_file_and_kind():
     job.result_object = other.original_object
     with pytest.raises(ValidationError, match="file and kind"):
         job.save()
+
+
+def test_filename_changes_do_not_rederive_storage_keys():
+    """Stored object locations are independent of editable file metadata."""
+    file = factories.FileFactory(filename="recording.ogg")
+    key = file.original_object.key
+    file.filename = "renamed.mp3"
+    file.save()
+    file.refresh_from_db()
+    assert file.original_object.key == key
+    assert file.temporary_upload_object.key.endswith(".ogg")
+
+
+@pytest.mark.parametrize("field", ["original_object", "temporary_upload_object"])
+def test_file_references_are_required_by_database(field):
+    """Post-backfill rows cannot bypass object routing by clearing their references."""
+    file = factories.FileFactory()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        models.File.objects.filter(pk=file.pk).update(**{field: None})
+
+
+def test_transcoding_requires_an_output_and_validation_cannot_have_one():
+    """The database enforces the two audio modes' distinct artifact ownership."""
+    file = factories.FileFactory()
+    audio = models.AudioJob.objects.create(file=file, mode="transcoding")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        models.AudioJob.objects.filter(pk=audio.pk).update(output_object=None)
+    validation = models.AudioJob.objects.create(
+        file=file, mode="validation", source_job=audio
+    )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        models.AudioJob.objects.filter(pk=validation.pk).update(
+            output_object=audio.output_object
+        )
+
+
+def test_referenced_objects_are_protected_from_record_deletion():
+    """Cleanup changes object state; it cannot erase owners' authoritative locations."""
+    file = factories.FileFactory()
+    audio = models.AudioJob.objects.create(file=file, mode="transcoding")
+    result = factories.AiFileJobFactory(file=file).result_object
+    for obj in [
+        file.original_object,
+        file.temporary_upload_object,
+        audio.output_object,
+        result,
+    ]:
+        with pytest.raises(ProtectedError):
+            obj.delete()
+
+
+def test_invalid_file_creation_does_not_leave_object_records():
+    """Allocating mandatory references before insertion remains atomic."""
+    with pytest.raises(ValidationError):
+        factories.FileFactory(type="invalid")
+    assert not models.ObjectStorageObject.objects.exists()
 
 
 @pytest.mark.parametrize("checksum_type", ["FULL_OBJECT", "COMPOSITE"])
