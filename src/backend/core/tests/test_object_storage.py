@@ -1,15 +1,15 @@
-"""Storage registration, metadata integrity, backfill, and durable cleanup."""
+"""Object ownership, metadata integrity, and durable cleanup."""
 
 import base64
 import hashlib
-from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 import pytest
@@ -25,7 +25,7 @@ from core.object_storage import (
     publish_object,
     store_result,
 )
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 from core.tasks.file import process_file_deletion, process_original_file_data_deletion
 
 pytestmark = pytest.mark.django_db
@@ -41,12 +41,14 @@ def test_new_artifacts_reserve_linked_locations():
     transcript = factories.AiFileJobFactory(
         file=file, type="transcript", status="pending"
     )
-    assert file.original_object.key == file.file_key
-    assert file.temporary_upload_object.key == file.temporary_file_key
-    assert audio.output_object.key == audio.output_key
+    assert file.original_object.key.endswith(f"/{file.pk}.{file.extension}")
+    assert file.temporary_upload_object.kind == "temporary"
+    assert audio.output_object.key.endswith(f"/audio/{audio.pk}.ogg")
     assert validation.output_object is None
-    assert transcript.result_object.key == transcript.key
+    assert transcript.result_object.key == f"transcripts/{transcript.pk}.json"
     assert file.storage_objects.count() == 4
+    assert file.original_object.file_id == file.pk
+    assert file.temporary_upload_object.file_id == file.pk
     assert not file.storage_objects.exclude(state="pending").exists()
     assert all(obj.file_identifier == file.pk for obj in file.storage_objects.all())
 
@@ -62,6 +64,62 @@ def test_reference_validation_rejects_wrong_file_and_kind():
     job.result_object = other.original_object
     with pytest.raises(ValidationError, match="file and kind"):
         job.save()
+
+
+def test_filename_changes_do_not_rederive_storage_keys():
+    """Stored object locations are independent of editable file metadata."""
+    file = factories.FileFactory(filename="recording.ogg")
+    key = file.original_object.key
+    file.filename = "renamed.mp3"
+    file.save()
+    file.refresh_from_db()
+    assert file.original_object.key == key
+    assert file.temporary_upload_object.key.endswith(".ogg")
+
+
+@pytest.mark.parametrize("field", ["original_object", "temporary_upload_object"])
+def test_file_references_are_required_by_database(field):
+    """Post-backfill rows cannot bypass object routing by clearing their references."""
+    file = factories.FileFactory()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        models.File.objects.filter(pk=file.pk).update(**{field: None})
+
+
+def test_transcoding_requires_an_output_and_validation_cannot_have_one():
+    """The database enforces the two audio modes' distinct artifact ownership."""
+    file = factories.FileFactory()
+    audio = models.AudioJob.objects.create(file=file, mode="transcoding")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        models.AudioJob.objects.filter(pk=audio.pk).update(output_object=None)
+    validation = models.AudioJob.objects.create(
+        file=file, mode="validation", source_job=audio
+    )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        models.AudioJob.objects.filter(pk=validation.pk).update(
+            output_object=audio.output_object
+        )
+
+
+def test_referenced_objects_are_protected_from_record_deletion():
+    """Cleanup changes object state; it cannot erase owners' authoritative locations."""
+    file = factories.FileFactory()
+    audio = models.AudioJob.objects.create(file=file, mode="transcoding")
+    result = factories.AiFileJobFactory(file=file).result_object
+    for obj in [
+        file.original_object,
+        file.temporary_upload_object,
+        audio.output_object,
+        result,
+    ]:
+        with pytest.raises(ProtectedError):
+            obj.delete()
+
+
+def test_invalid_file_creation_does_not_leave_object_records():
+    """Allocating mandatory references before insertion remains atomic."""
+    with pytest.raises(ValidationError):
+        factories.FileFactory(type="invalid")
+    assert not models.ObjectStorageObject.objects.exists()
 
 
 @pytest.mark.parametrize("checksum_type", ["FULL_OBJECT", "COMPOSITE"])
@@ -200,235 +258,17 @@ def test_missing_published_result_can_only_be_restored_with_identical_bytes():
     assert storage.connection.meta.client.put_object.call_count == 2
 
 
-def test_backfill_links_history_without_changing_policy():
-    """Legacy, failed attempts, and results are registered idempotently."""
-    file = factories.FileFactory()
-    audio = models.AudioJob.objects.create(
-        file=file, mode="transcoding", status="failed"
-    )
-    ai = factories.AiFileJobFactory(file=file, type="transcript", status="success")
-    deadlines = (file.original_file_data_delete_at, file.file_auto_hard_delete_at)
-    # Simulate records created before the tracking schema was deployed.
-    file.storage_objects.all().delete()
-    file.refresh_from_db()
-    with patch(
-        "core.object_storage.head_object",
-        return_value={
-            "ContentLength": 9,
-            "ChecksumCRC32C": "crc",
-            "ChecksumType": "FULL_OBJECT",
-        },
-    ) as head:
-        call_command("backfill_storage_objects", batch_size=1, stdout=StringIO())
-        call_command("backfill_storage_objects", stdout=StringIO())
-    file.refresh_from_db()
-    audio.refresh_from_db()
-    ai.refresh_from_db()
-    assert file.storage_objects.count() == 5
-    assert audio.output_object.key == audio.output_key
-    assert ai.result_object.state == "available"
-    assert ai.result_object.checksum_algorithm == "CRC32C"
-    assert file.temporary_upload_object.state == "pending"
-    assert (
-        file.original_file_data_delete_at,
-        file.file_auto_hard_delete_at,
-    ) == deadlines
-    assert head.call_count == 10
-
-
-def test_backfill_dry_run_does_not_create_or_update_records():
-    """Dry run may read metadata but leaves both registry and owner links unchanged."""
-    file = factories.FileFactory()
-    file.storage_objects.all().delete()
-    with patch("core.object_storage.head_object", return_value=None):
-        call_command("backfill_storage_objects", dry_run=True, stdout=StringIO())
-    file.refresh_from_db()
-    assert file.original_object_id is None
-    assert not models.ObjectStorageObject.objects.exists()
-
-
-def test_backfill_missing_required_objects_fails_but_optional_absence_is_reported():
-    """Absent originals are only errors when lifecycle and upload state require them."""
-    file = factories.FileFactory(update_upload_state="ready")
-    with patch("core.object_storage.head_object", return_value=None):
-        with pytest.raises(CommandError, match="incomplete"):
-            call_command(
-                "backfill_storage_objects", stdout=StringIO(), stderr=StringIO()
-            )
-        file.lifecycle_state = models.FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
-        file.save()
-        call_command("backfill_storage_objects", stdout=StringIO())
-    file.original_object.refresh_from_db()
-    assert file.original_object.state == "missing"
-
-
-@pytest.mark.parametrize("dry_run", [False, True])
-@pytest.mark.parametrize("missing", [False, True])
-@pytest.mark.parametrize(
-    "lifecycle_state", ["active", "original_data_deleted", "pending_auto_hard_delete"]
-)
-def test_backfill_hidden_files_during_hard_delete_grace_period(
-    dry_run, missing, lifecycle_state
-):
-    """Hidden files are backfilled even when their successful results are missing."""
-    file = factories.FileFactory(update_upload_state="ready")
-    jobs = [
-        factories.AiFileJobFactory(file=file, type=kind, status="success")
-        for kind in ("transcript", "summary")
-    ]
-    now = timezone.now()
-    deadlines = {
-        "file_auto_hard_delete_at": now - timedelta(days=1),
-        "file_auto_hard_delete_at_with_grace_period": now + timedelta(days=1),
-    }
-    models.File.objects.filter(pk=file.pk).update(
-        lifecycle_state=lifecycle_state, **deadlines
-    )
-    file.storage_objects.all().delete()
-    assert not models.File.objects.visible_in_api().filter(pk=file.pk).exists()
-    stdout, stderr = StringIO(), StringIO()
-    head_target = (
-        "core.management.commands.backfill_storage_objects.head_object"
-        if dry_run
-        else "core.object_storage.head_object"
-    )
-    with patch(
-        head_target, return_value=None if missing else {"ContentLength": 9}
-    ) as head:
-        call_command(
-            "backfill_storage_objects", dry_run=dry_run, stdout=stdout, stderr=stderr
-        )
-    assert head.call_count == 5
-    assert "expected_missing=0 errors=0" in stdout.getvalue()
-    assert stderr.getvalue() == ""
-    file.refresh_from_db()
-    assert file.lifecycle_state == lifecycle_state
-    assert file.hard_deleted_at is None
-    assert all(getattr(file, field) == value for field, value in deadlines.items())
-    assert not models.File.objects.visible_in_api().filter(pk=file.pk).exists()
-    if dry_run:
-        assert not file.storage_objects.exists()
-        assert file.original_object_id is None
-    else:
-        assert file.storage_objects.count() == 5
-        for job in jobs:
-            job.refresh_from_db()
-            assert job.result_object.state == ("missing" if missing else "available")
-            assert bool(job.result_object.published_at) is not missing
-
-
-@pytest.mark.parametrize("dry_run", [False, True])
-@pytest.mark.parametrize("kind", ["transcript", "summary"])
-def test_backfill_missing_successful_result_on_visible_file_fails(dry_run, kind):
-    """Successful results on visible files remain required."""
-    file = factories.FileFactory()
-    factories.AiFileJobFactory(file=file, type=kind, status="success")
-    stdout, stderr = StringIO(), StringIO()
-    with (
-        patch("core.object_storage.head_object", return_value=None),
-        patch(
-            "core.management.commands.backfill_storage_objects.head_object",
-            return_value=None,
-        ),
-    ):
-        with pytest.raises(CommandError, match="incomplete"):
-            call_command(
-                "backfill_storage_objects",
-                dry_run=dry_run,
-                stdout=stdout,
-                stderr=stderr,
-            )
-    assert "expected_missing=1 errors=0" in stdout.getvalue()
-    assert f"kind={kind}: expected object missing" in stderr.getvalue()
-
-
-@pytest.mark.parametrize("dry_run", [False, True])
-@pytest.mark.parametrize("missing", [False, True])
-def test_backfill_duplicate_key_preserves_requiredness(dry_run, missing):
-    """A successful job requires its output even when a legacy candidate is optional."""
-    file = factories.FileFactory(update_upload_state="ready")
-    audio = models.AudioJob.objects.create(
-        file=file,
-        mode="transcoding",
-        status="success",
-        output_key=file.legacy_audio_file_key,
-    )
-    stdout = StringIO()
-
-    def head_response(obj):
-        if missing and obj.key == audio.output_key:
-            return None
-        return {"ContentLength": 9}
-
-    head_target = (
-        "core.management.commands.backfill_storage_objects.head_object"
-        if dry_run
-        else "core.object_storage.head_object"
-    )
-    with patch(head_target, side_effect=head_response) as head:
-        if missing:
-            with pytest.raises(CommandError, match="incomplete"):
-                call_command(
-                    "backfill_storage_objects",
-                    dry_run=dry_run,
-                    stdout=stdout,
-                    stderr=StringIO(),
-                )
-        else:
-            call_command("backfill_storage_objects", dry_run=dry_run, stdout=stdout)
-    assert head.call_count == 3
-    assert {call.args[0].key for call in head.call_args_list} == {
-        file.file_key,
-        file.temporary_file_key,
-        audio.output_key,
-    }
-    assert "objects=3" in stdout.getvalue()
-    assert f"expected_missing={int(missing)}" in stdout.getvalue()
-    audio.output_object.refresh_from_db()
-    if dry_run:
-        assert audio.output_object.state == "pending"
-    else:
-        assert audio.output_object.state == ("missing" if missing else "available")
-        assert bool(audio.output_object.published_at) is not missing
-
-
-def test_backfill_limit_cursor_and_skip_head():
-    """A bounded run can resume without scanning or reading object content."""
-    files = sorted(
-        [factories.FileFactory(), factories.FileFactory()], key=lambda file: file.pk
-    )
-    for file in files:
-        file.storage_objects.all().delete()
-    with patch("core.object_storage.head_object") as head:
-        call_command(
-            "backfill_storage_objects", limit=1, skip_head=True, stdout=StringIO()
-        )
-        files[0].refresh_from_db()
-        files[1].refresh_from_db()
-        assert files[0].original_object_id is not None
-        assert files[1].original_object_id is None
-        call_command(
-            "backfill_storage_objects",
-            after_file_id=files[0].pk,
-            skip_head=True,
-            stdout=StringIO(),
-        )
-        head.assert_not_called()
-    files[1].refresh_from_db()
-    assert files[1].original_object_id is not None
-
-
 @pytest.mark.django_db(transaction=True)
 def test_original_cleanup_preserves_results_and_tombstones_survive_file():
     """Original-data retention excludes results; full cleanup preserves audit identity."""
     file = factories.FileFactory()
     job = factories.AiFileJobFactory(file=file, type="summary", status="success")
-    storage = get_storage_for_file(file)
-    storage.save(file.file_key, BytesIO(b"original"))
-    storage.save(job.key, BytesIO(b"summary"))
+    storage = get_storage_for_object(file.original_object)
+    storage.save(file.original_object.key, BytesIO(b"original"))
+    storage.save(job.result_object.key, BytesIO(b"summary"))
     delete_file_objects(file, original_only=True)
-    assert not storage.exists(file.file_key)
-    assert storage.exists(job.key)
+    assert not storage.exists(file.original_object.key)
+    assert storage.exists(job.result_object.key)
     delete_file_objects(file)
     identity = file.pk
     file.deleted_at = timezone.now()
@@ -451,7 +291,7 @@ def test_lifecycle_cleanup_commits_all_tombstones_before_storage_failure(task):
     if task is process_file_deletion:
         file.soft_delete()
         file.hard_delete()
-    expected_count = 4 if task is process_file_deletion else 3
+    expected_count = 3 if task is process_file_deletion else 2
 
     def fail_after_commit(_obj):
         assert not connection.in_atomic_block

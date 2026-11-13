@@ -13,19 +13,19 @@ flowchart TD
     DomainProfile --> Profile
     Default --> Profile
 
-    Profile --> Snapshot["File.save() persists snapshot<br/>storage_bucket_name + retention deadlines"]
+    Profile --> Snapshot["File.save() persists snapshot<br/>retention deadlines + object references"]
 
-    Snapshot --> Storage["get_storage_for_file(file)<br/>routes by persisted file configuration"]
+    Snapshot --> Storage["get_storage_for_object(object)<br/>routes by the object bucket and key"]
 
-    Existing["Existing file operation"] --> Persisted["get_profile_for_file(file)<br/>use persisted bucket and deadlines"]
+    Existing["Existing file operation"] --> Persisted["Follow the owning model object reference<br/>use the recorded location"]
     Persisted --> Storage
 
     Media["Media request through Nginx"] --> Auth["/files/media-auth/"]
-    Auth --> BucketCheck{"Requested URL bucket<br/>matches file configuration?"}
+    Auth --> BucketCheck{"Requested URL bucket<br/>matches a tracked media object?"}
     BucketCheck -->|"no"| Deny["403 denied"]
     BucketCheck -->|"yes"| Signed["Generate S3 authorization headers"]
 
-    Note["Policy selection happens at file creation.<br/>Later configuration changes do not move existing files; the persisted snapshot keeps routing and retention deterministic."]
+    Note["Policy selection happens at file creation.<br/>Later configuration changes do not move existing files; object records and retention deadlines stay authoritative."]
     Snapshot -.-> Note
 
     classDef decision fill:#fff4dc,stroke:#b7791f,color:#4a2c00

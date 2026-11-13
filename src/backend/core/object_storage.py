@@ -5,14 +5,17 @@
 
 import base64
 import hashlib
+from os.path import splitext
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from botocore.exceptions import ClientError
 from storages.backends.s3 import S3Storage
 
-from core.models import AudioJob, File, ObjectStorageObject
+from core.configuration import get_profile_for_email
+from core.models import ObjectStorageObject
 from core.storage import get_storage_for_object
 
 CHECKSUM_FIELDS = (
@@ -29,73 +32,45 @@ class ObjectIntegrityError(ValueError):
     """A metadata observation conflicts with a published integrity baseline."""
 
 
-def _register(file, kind, key):
-    obj, _ = ObjectStorageObject.objects.get_or_create(
-        storage_bucket_name=file.storage_bucket_name,
+def create_object(file, kind, key, *, bucket=None):
+    """Allocate one location; existing artifacts always use their own references."""
+    is_new = file._state.adding  # noqa: SLF001 pylint: disable=protected-access
+    return ObjectStorageObject.objects.create(
+        file=None if is_new else file,
+        file_identifier=file.pk,
+        kind=kind,
+        storage_bucket_name=bucket or file.original_object.storage_bucket_name,
         key=key,
-        defaults={"file": file, "file_identifier": file.pk, "kind": kind},
     )
-    if obj.file_identifier != file.pk or obj.kind != kind:
-        raise ValueError("Storage location is already owned by another artifact")
-    return obj
 
 
-def _link(owner, field, obj):
-    if getattr(owner, f"{field}_id") is None:
-        # Preserve unrelated changes and avoid invoking model save hooks again.
-        type(owner).objects.filter(pk=owner.pk, **{f"{field}__isnull": True}).update(
-            **{field: obj}
-        )
-        owner.refresh_from_db(fields=[field])
-    return getattr(owner, field)
-
-
-@transaction.atomic
-def register_file_objects(file):
-    """Allocate locations without implying that any content already exists."""
-    File.objects.select_for_update().get(pk=file.pk)
-    for field, kind, key in (
-        ("original_object", ObjectStorageObject.Kind.ORIGINAL, file.file_key),
+def allocate_file_objects(file):
+    """Allocate both upload locations before inserting a new owning file."""
+    profile = get_profile_for_email(file.creator.email if file.creator_id else None)
+    extension = splitext(file.filename)[1]
+    for field, kind, prefix in (
+        (
+            "original_object",
+            ObjectStorageObject.Kind.ORIGINAL,
+            settings.FILE_UPLOAD_PATH,
+        ),
         (
             "temporary_upload_object",
             ObjectStorageObject.Kind.TEMPORARY,
-            file.temporary_file_key,
+            settings.FILE_UPLOAD_TMP_PATH,
         ),
     ):
-        if getattr(file, f"{field}_id") is None:
-            _link(file, field, _register(file, kind, key))
-
-
-@transaction.atomic
-def register_job_object(job):
-    """Link a job to its output; validation jobs have no output of their own."""
-    File.objects.select_for_update().get(pk=job.file_id)
-    if isinstance(job, AudioJob):
-        if not job.output_key:
-            return None
-        field, kind, key = (
-            "output_object",
-            ObjectStorageObject.Kind.AUDIO,
-            job.output_key,
-        )
-    else:
-        field, kind, key = "result_object", job.type, job.key
-    job.refresh_from_db(fields=[field])
-    if getattr(job, f"{field}_id"):
-        return getattr(job, field)
-    return _link(job, field, _register(job.file, kind, key))
-
-
-@transaction.atomic
-def register_existing_file(file):
-    """Derive every known location from database history, never bucket listing."""
-    register_file_objects(file)
-    # The legacy fixed key can exist alongside attempt-specific outputs.
-    _register(file, ObjectStorageObject.Kind.AUDIO, file.legacy_audio_file_key)
-    for job in file.audio_jobs.all():
-        register_job_object(job)
-    for job in file.ai_jobs.all():
-        register_job_object(job)
+        if not getattr(file, f"{field}_id"):
+            setattr(
+                file,
+                field,
+                create_object(
+                    file,
+                    kind,
+                    f"{prefix}/{file.pk}{extension}",
+                    bucket=profile.storage_bucket_name,
+                ),
+            )
 
 
 def head_object(obj):
@@ -279,8 +254,7 @@ def delete_object(obj):
 
 @transaction.atomic
 def delete_file_objects(file, *, original_only=False):
-    """Commit cleanup intent for all known locations before deleting their contents."""
-    register_existing_file(file)
+    """Commit cleanup intent for tracked locations before deleting their contents."""
     objects = file.storage_objects.exclude(state=ObjectStorageObject.State.DELETED)
     if original_only:
         objects = objects.filter(

@@ -61,7 +61,7 @@ def test_external_result_rejected_before_fetch_or_storage(
     with (
         patch("core.tasks.file.session.get") as get,
         patch("core.tasks.file.session.post") as post,
-        patch("core.tasks.file.get_storage_for_file") as storage,
+        patch("core.tasks.file.get_storage_for_object") as storage,
         pytest.raises(ValueError),
     ):
         task(job.remote_job_id, url + "?signature=private-signature-value")
@@ -83,19 +83,20 @@ def test_task_process_file_deletion_file_does_not_exist():
 
 def test_task_process_file_deletion_file_not_hard_deleted():
     """A file that is not hard deleted must not be deleted."""
-    file = factories.FileFactory(upload_bytes=b"hello")
+    file = factories.FileFactory(with_audio=True, upload_bytes=b"hello")
 
     process_file_deletion(file.id)
 
     assert File.objects.filter(id=file.id).exists()
-    assert default_storage.exists(file.file_key)
+    assert default_storage.exists(file.original_object.key)
 
 
 @pytest.mark.django_db(transaction=True)
 def test_task_process_file_deletion_success():
     """A hard-deleted file should be removed from storage and database."""
-    file = factories.FileFactory(upload_bytes=b"hello")
-    default_storage.save(file.audio_file_key, BytesIO(b"validated audio"))
+    file = factories.FileFactory(with_audio=True, upload_bytes=b"hello")
+    file_audio_key = file.audio_object.key
+    default_storage.save(file_audio_key, BytesIO(b"validated audio"))
     file.soft_delete()
     file.hard_delete()
 
@@ -107,37 +108,40 @@ def test_task_process_file_deletion_success():
         file=file,
         type=AiJobTypeChoices.SUMMARIZE,
     )
-    default_storage.save(ai_transcript_job.key, BytesIO(b'{"segments": []}'))
-    default_storage.save(ai_summary_job.key, BytesIO(b"summary"))
+    default_storage.save(
+        ai_transcript_job.result_object.key, BytesIO(b'{"segments": []}')
+    )
+    default_storage.save(ai_summary_job.result_object.key, BytesIO(b"summary"))
 
-    assert default_storage.exists(file.file_key)
-    assert default_storage.exists(ai_transcript_job.key)
-    assert default_storage.exists(ai_summary_job.key)
+    assert default_storage.exists(file.original_object.key)
+    assert default_storage.exists(ai_transcript_job.result_object.key)
+    assert default_storage.exists(ai_summary_job.result_object.key)
     process_file_deletion(file.id)
 
     assert not File.objects.filter(id=file.id).exists()
     assert not AiFileJob.objects.filter(id=ai_transcript_job.id).exists()
     assert not AiFileJob.objects.filter(id=ai_summary_job.id).exists()
-    assert not default_storage.exists(file.file_key)
-    assert not default_storage.exists(file.audio_file_key)
-    assert not default_storage.exists(ai_transcript_job.key)
-    assert not default_storage.exists(ai_summary_job.key)
+    assert not default_storage.exists(file.original_object.key)
+    assert not default_storage.exists(file_audio_key)
+    assert not default_storage.exists(ai_transcript_job.result_object.key)
+    assert not default_storage.exists(ai_summary_job.result_object.key)
 
 
 @pytest.mark.django_db(transaction=True)
 def test_task_process_original_file_data_deletion_success():
     """Original source data deletion should keep file row and set lifecycle state."""
-    file = factories.FileFactory(upload_bytes=b"hello")
-    default_storage.save(file.audio_file_key, BytesIO(b"validated audio"))
+    file = factories.FileFactory(with_audio=True, upload_bytes=b"hello")
+    file_audio_key = file.audio_object.key
+    default_storage.save(file_audio_key, BytesIO(b"validated audio"))
 
-    assert default_storage.exists(file.file_key)
-    assert default_storage.exists(file.audio_file_key)
+    assert default_storage.exists(file.original_object.key)
+    assert default_storage.exists(file_audio_key)
     process_original_file_data_deletion(file.id)
 
     file.refresh_from_db()
     assert file.lifecycle_state == FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
-    assert not default_storage.exists(file.file_key)
-    assert not default_storage.exists(file.audio_file_key)
+    assert not default_storage.exists(file.original_object.key)
+    assert not default_storage.exists(file_audio_key)
 
 
 def test_task_process_original_file_data_deletion_missing_file():
@@ -156,7 +160,7 @@ def test_task_call_transcribe_service_job_does_not_exist(mock_post):
 @patch("core.tasks.file.session.post")
 def test_task_call_transcribe_service_rejects_non_accessible_file(mock_post):
     """A queued job must fail if its file is no longer active."""
-    file = factories.FileFactory(upload_bytes=b"hello")
+    file = factories.FileFactory(with_audio=True, upload_bytes=b"hello")
     job = factories.AiFileJobFactory(
         file=file,
         type=AiJobTypeChoices.TRANSCRIPT,
@@ -187,6 +191,7 @@ def test_task_call_transcribe_service_success(mock_post, settings, seconds_below
         "max_duration_seconds"
     ]
     file = factories.FileFactory(
+        with_audio=True,
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds - seconds_below_limit,
@@ -227,6 +232,7 @@ def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
     """Transcribe task should pass explicit language to AI service."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
     file = factories.FileFactory(
+        with_audio=True,
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
@@ -256,6 +262,7 @@ def test_task_call_transcribe_service_http_error(mock_post, settings):
         "max_duration_seconds"
     ]
     file = factories.FileFactory(
+        with_audio=True,
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds - 1,
@@ -286,6 +293,7 @@ def test_task_call_transcribe_service_fails_on_invalid_duration(
     ]
 
     file = factories.FileFactory(
+        with_audio=True,
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds + seconds_over_limit,
@@ -449,7 +457,7 @@ def test_task_store_transcript_and_call_summary_success(
     s3_client = default_storage.connection.meta.client
     stored_obj = s3_client.get_object(
         Bucket=default_storage.bucket_name,
-        Key=ai_transcript_job.key,
+        Key=ai_transcript_job.result_object.key,
     )
     assert stored_obj["Body"].read() == transcript_content
 
@@ -526,7 +534,7 @@ def test_task_store_empty_transcript_without_calling_summary(  # noqa: PLR0913,P
 
     stored_obj = default_storage.connection.meta.client.get_object(
         Bucket=default_storage.bucket_name,
-        Key=ai_transcript_job.key,
+        Key=ai_transcript_job.result_object.key,
     )
     assert stored_obj["Body"].read() == b'{"segments": [], "word_segments": []}'
 
@@ -621,7 +629,7 @@ def test_task_store_summary_success(mock_get, settings):
     s3_client = default_storage.connection.meta.client
     stored_obj = s3_client.get_object(
         Bucket=default_storage.bucket_name,
-        Key=ai_summary_job.key,
+        Key=ai_summary_job.result_object.key,
     )
     assert stored_obj["Body"].read() == summary_content
 
@@ -962,6 +970,7 @@ def test_task_call_transcribe_service_retries_on_request_error(mock_post, settin
         "max_duration_seconds"
     ]
     file = factories.FileFactory(
+        with_audio=True,
         upload_bytes=b"hello",
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         duration_seconds=max_duration_seconds - 1,

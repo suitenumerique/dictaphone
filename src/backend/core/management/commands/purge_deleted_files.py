@@ -24,7 +24,6 @@ class Command(BaseCommand):
             File.objects.filter(hard_deleted_at__isnull=True),
             policy="trashbin",
             include_grace_period=True,
-            base_field="deleted_at",
         )
         files_to_purge = File.objects.filter(
             Q(hard_deleted_at__isnull=False) | Q(pk__in=purgeable.values("pk"))

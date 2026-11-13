@@ -23,10 +23,11 @@ def test_auto_hard_delete_files_success(settings):
     settings.FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS = 2
     now = timezone.now()
 
-    recent_file = factories.FileFactory(upload_bytes=b"recent")
-    pending_file = factories.FileFactory(upload_bytes=b"pending")
-    delete_file = factories.FileFactory(upload_bytes=b"delete")
-    default_storage.save(delete_file.audio_file_key, BytesIO(b"extracted delete"))
+    recent_file = factories.FileFactory(with_audio=True, upload_bytes=b"recent")
+    pending_file = factories.FileFactory(with_audio=True, upload_bytes=b"pending")
+    delete_file = factories.FileFactory(with_audio=True, upload_bytes=b"delete")
+    delete_file_audio_key = delete_file.audio_object.key
+    default_storage.save(delete_file_audio_key, BytesIO(b"extracted delete"))
 
     for file, age in (
         (recent_file, 9),
@@ -59,10 +60,10 @@ def test_auto_hard_delete_files_success(settings):
     )
     assert models.File.objects.filter(id=delete_file.id).exists() is False
 
-    assert default_storage.exists(recent_file.file_key)
-    assert default_storage.exists(pending_file.file_key)
-    assert not default_storage.exists(delete_file.file_key)
-    assert not default_storage.exists(delete_file.audio_file_key)
+    assert default_storage.exists(recent_file.original_object.key)
+    assert default_storage.exists(pending_file.original_object.key)
+    assert not default_storage.exists(delete_file.original_object.key)
+    assert not default_storage.exists(delete_file_audio_key)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -72,7 +73,7 @@ def test_auto_hard_delete_files_ignores_already_hard_deleted(settings):
     settings.FILE_AUTO_HARD_DELETE_AFTER_GRACE_PERIOD_DAYS = 2
     now = timezone.now()
 
-    file = factories.FileFactory(upload_bytes=b"hard-deleted")
+    file = factories.FileFactory(with_audio=True, upload_bytes=b"hard-deleted")
     file.soft_delete()
     file.hard_delete()
     models.File.objects.filter(pk=file.pk).update(created_at=now - timedelta(days=20))

@@ -32,18 +32,17 @@ from core.models import (
 )
 from core.object_storage import (
     delete_file_objects,
-    register_job_object,
     store_result,
 )
 from core.payloads import PayloadLimitExceeded, read_response, result_limit
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 from core.tasks.constants import BACKEND_QUEUE
 from core.tasks.mail import send_transcription_ready_email
 from core.tasks.retry import build_retry_task_options
 from core.utils import (
     acquire_transaction_lock,
     format_transcript,
-    generate_download_file_url,
+    generate_download_object_url,
     redact_url,
 )
 from core.webhook_models import WhisperXResponse
@@ -164,8 +163,8 @@ def _validate_transcription_audio(file, validation):
         and validation.mode == AudioJobModeChoices.VALIDATION
         and validation.status == AudioJobStatusChoices.SUCCESS
         and validation.source_job is not None
-        and get_storage_for_file(file, key=validation.source_job.output_key).exists(
-            validation.source_job.output_key
+        and get_storage_for_object(validation.source_job.output_object).exists(
+            validation.source_job.output_object.key
         )
     )
     if not extraction_done:
@@ -294,11 +293,10 @@ def call_transcribe_service(ai_job_id):
                     "user_sub": file.creator.sub,
                     "user_email": file.creator.email,
                     "language": ai_job.language,
-                    "cloud_storage_url": generate_download_file_url(
-                        file,
+                    "cloud_storage_url": generate_download_object_url(
+                        validation.source_job.output_object,
                         expires_in=60 * 60 * 24,
                         override_domain=False,
-                        key=validation.source_job.output_key,
                     ),
                 },
                 headers={"Authorization": f"Bearer {settings.AI_SERVICE_API_KEY}"},
@@ -422,8 +420,8 @@ def handle_transcript_received(remote_job_id, url: str | None):
         ai_transcript_job.mark_failed()
         raise
 
-    obj = register_job_object(ai_transcript_job)
-    storage = get_storage_for_file(file, key=ai_transcript_job.key)
+    obj = ai_transcript_job.result_object
+    storage = get_storage_for_object(obj)
     store_result(obj, storage, content, "application/json")
     logger.info(
         "Transcript stored for file %s & url %r",
@@ -507,8 +505,8 @@ def store_summary(remote_job_id, url):
         ai_summary_job.mark_failed()
         raise
 
-    obj = register_job_object(ai_summary_job)
-    storage = get_storage_for_file(file, key=ai_summary_job.key)
+    obj = ai_summary_job.result_object
+    storage = get_storage_for_object(obj)
     store_result(obj, storage, content, "text/plain")
     logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
     ai_summary_job.status = AiJobStatusChoices.SUCCESS

@@ -9,6 +9,7 @@ import pytest
 
 from core import factories
 from core.configuration import clear_configuration_cache, get_profile_for_file
+from core.storage import get_bucket_configuration_for_object
 
 pytestmark = pytest.mark.django_db
 
@@ -40,7 +41,7 @@ def test_file_snapshots_creator_domain_configuration(settings, monkeypatch):
 
     file = factories.FileFactory(creator=user)
 
-    assert file.storage_bucket_name == "alpha-bucket"
+    assert file.original_object.storage_bucket_name == "alpha-bucket"
     assert file.file_auto_hard_delete_at == file.created_at + timedelta(days=10)
 
     settings.DATA_POLICY_CONFIGURATIONS = {
@@ -48,7 +49,12 @@ def test_file_snapshots_creator_domain_configuration(settings, monkeypatch):
     }
     clear_configuration_cache()
     file.refresh_from_db()
-    assert file.configuration.bucket_configuration_key == "alpha"
+    assert (
+        get_bucket_configuration_for_object(
+            file.original_object
+        ).bucket_configuration_key
+        == "alpha"
+    )
     assert file.configuration.file_auto_hard_delete_at == file.file_auto_hard_delete_at
 
 
@@ -72,8 +78,13 @@ def test_default_file_persists_default_configuration(settings, monkeypatch):
     profile = get_profile_for_file(file)
 
     assert profile.name == "snapshot"
-    assert profile.bucket_configuration_key == "default"
-    assert profile.storage_bucket_name == "default-bucket"
+    assert (
+        get_bucket_configuration_for_object(
+            file.original_object
+        ).bucket_configuration_key
+        == "default"
+    )
+    assert file.original_object.storage_bucket_name == "default-bucket"
     assert profile.file_auto_hard_delete_at == file.created_at + timedelta(days=12)
 
 
