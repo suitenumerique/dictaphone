@@ -228,14 +228,17 @@ def test_head_checksum_unsupported_falls_back_without_download():
     client.get_object.assert_not_called()
 
 
-def test_result_publication_is_immutable_and_idempotent():
+def test_result_publication_is_immutable_and_idempotent(monkeypatch):
     """Duplicate bytes reuse a result; different bytes cannot overwrite it."""
     job = factories.AiFileJobFactory(type="summary", status="pending")
     storage = Mock()
-    store_result(job.result_object, storage, b"summary", "text/plain")
-    store_result(job.result_object, storage, b"summary", "text/plain")
+    monkeypatch.setattr(
+        "core.object_storage.get_storage_for_object", lambda obj: storage
+    )
+    store_result(job.result_object, b"summary", "text/plain")
+    store_result(job.result_object, b"summary", "text/plain")
     with pytest.raises(ValueError, match="overwrite"):
-        store_result(job.result_object, storage, b"changed", "text/plain")
+        store_result(job.result_object, b"changed", "text/plain")
     storage.connection.meta.client.put_object.assert_called_once()
     job.result_object.refresh_from_db()
     assert job.result_object.checksum_value == base64.b64encode(
@@ -244,17 +247,22 @@ def test_result_publication_is_immutable_and_idempotent():
     assert job.result_object.checksum_type == "FULL_OBJECT"
 
 
-def test_missing_published_result_can_only_be_restored_with_identical_bytes():
+def test_missing_published_result_can_only_be_restored_with_identical_bytes(
+    monkeypatch,
+):
     """Losing the physical copy must not discard its original integrity baseline."""
     job = factories.AiFileJobFactory(type="summary", status="pending")
     storage = Mock()
-    store_result(job.result_object, storage, b"summary", "text/plain")
+    monkeypatch.setattr(
+        "core.object_storage.get_storage_for_object", lambda obj: storage
+    )
+    store_result(job.result_object, b"summary", "text/plain")
     models.ObjectStorageObject.objects.filter(pk=job.result_object_id).update(
         state="missing"
     )
     with pytest.raises(ValueError, match="overwrite"):
-        store_result(job.result_object, storage, b"changed", "text/plain")
-    store_result(job.result_object, storage, b"summary", "text/plain")
+        store_result(job.result_object, b"changed", "text/plain")
+    store_result(job.result_object, b"summary", "text/plain")
     assert storage.connection.meta.client.put_object.call_count == 2
 
 
