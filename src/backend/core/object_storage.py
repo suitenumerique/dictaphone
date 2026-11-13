@@ -86,18 +86,6 @@ def register_job_object(job):
     return _link(job, field, _register(job.file, kind, key))
 
 
-@transaction.atomic
-def register_existing_file(file):
-    """Derive every known location from database history, never bucket listing."""
-    register_file_objects(file)
-    # The legacy fixed key can exist alongside attempt-specific outputs.
-    _register(file, ObjectStorageObject.Kind.AUDIO, file.legacy_audio_file_key)
-    for job in file.audio_jobs.all():
-        register_job_object(job)
-    for job in file.ai_jobs.all():
-        register_job_object(job)
-
-
 def head_object(obj):
     """Read provider checksums if supported; never treat permission errors as absence."""
     storage = get_storage_for_object(obj)
@@ -279,8 +267,7 @@ def delete_object(obj):
 
 @transaction.atomic
 def delete_file_objects(file, *, original_only=False):
-    """Commit cleanup intent for all known locations before deleting their contents."""
-    register_existing_file(file)
+    """Commit cleanup intent for tracked locations before deleting their contents."""
     objects = file.storage_objects.exclude(state=ObjectStorageObject.State.DELETED)
     if original_only:
         objects = objects.filter(
