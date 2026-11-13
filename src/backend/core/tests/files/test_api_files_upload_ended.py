@@ -97,7 +97,7 @@ def test_api_file_upload_ended_other_storage_error(mock_queue):
     file = factories.FileFactory(creator=user)
     error = ClientError({"Error": {"Code": "AccessDenied"}}, "CopyObject")
 
-    with patch("core.api.viewsets.get_storage_for_file") as mock_storage:
+    with patch("core.api.viewsets.get_storage_for_object") as mock_storage:
         mock_storage.return_value.connection.meta.client.copy_object.side_effect = error
         with (
             patch("core.api.viewsets.get_storage_bucket_name", return_value="bucket"),
@@ -144,7 +144,7 @@ def test_api_file_upload_ended_success(mock_queue, settings):
     )
 
     default_storage.save(
-        file.temporary_file_key,
+        file.temporary_upload_object.key,
         BytesIO(b"my prose"),
     )
     assert not AiFileJob.objects.filter(
@@ -200,7 +200,7 @@ def test_api_file_upload_ended_uses_file_language_for_transcription(
     file = models.File.objects.get(id=file_id)
     assert file.language == "en"
 
-    default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+    default_storage.save(file.temporary_upload_object.key, BytesIO(b"my prose"))
 
     response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
     assert response.status_code == 200
@@ -230,7 +230,7 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
     )
 
     default_storage.save(
-        file.temporary_file_key,
+        file.temporary_upload_object.key,
         BytesIO(b"my prose"),
     )
 
@@ -239,12 +239,12 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
 
     assert response.status_code == 400
     assert (
-        f"upload_ended: mimetype not allowed text/plain for file {file.file_key}"
+        f"upload_ended: mimetype not allowed text/plain for file {file.original_object.key}"
         in caplog.text
     )
 
     assert not models.File.objects.filter(id=file.id).exists()
-    assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.original_object.key)
 
 
 @patch("core.api.viewsets.start_audio_extraction")
@@ -270,7 +270,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     )
 
     default_storage.save(
-        file.temporary_file_key,
+        file.temporary_upload_object.key,
         BytesIO(b"my prose"),
     )
 
@@ -316,7 +316,7 @@ def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     )
 
     default_storage.save(
-        file.temporary_file_key,
+        file.temporary_upload_object.key,
         BytesIO(b"fake webm content"),
     )
 
@@ -365,7 +365,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
 
     s3_client.put_object(
         Bucket=default_storage.bucket_name,
-        Key=file.temporary_file_key,
+        Key=file.temporary_upload_object.key,
         ContentType="text/html",
         Body=BytesIO(
             b'<meta http-equiv="refresh" content="0; url=https://fichiers.numerique.gouv.fr">'
@@ -376,7 +376,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     )
 
     head_object = s3_client.head_object(
-        Bucket=default_storage.bucket_name, Key=file.temporary_file_key
+        Bucket=default_storage.bucket_name, Key=file.temporary_upload_object.key
     )
 
     assert head_object["ContentType"] == "text/html"
@@ -394,7 +394,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     assert file.mimetype == "application/pdf"
 
     head_object = s3_client.head_object(
-        Bucket=default_storage.bucket_name, Key=file.file_key
+        Bucket=default_storage.bucket_name, Key=file.original_object.key
     )
     assert head_object["ContentType"] == "application/pdf"
     assert head_object["Metadata"] == {"foo": "bar"}
@@ -431,7 +431,7 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     s3_client = default_storage.connection.meta.client
     s3_client.put_object(
         Bucket=default_storage.bucket_name,
-        Key=file.temporary_file_key,
+        Key=file.temporary_upload_object.key,
         ContentType=declared_content_type,
         Body=BytesIO(b"fake m4a content"),
         Metadata={"foo": "bar"},
@@ -444,7 +444,7 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     mock_post.assert_called_once_with(file.id)
     assert mock_detect_mimetype.call_count == 1
     assert (
-        f"upload_ended: detected mimetype for file {file.file_key} is video/mp4 "
+        f"upload_ended: detected mimetype for file {file.original_object.key} is video/mp4 "
         f"but it was declared as {declared_content_type}, leaving it that way."
         in caplog.text
     )
@@ -458,7 +458,7 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     assert response.json()["mimetype"] == declared_content_type
 
     head_object = s3_client.head_object(
-        Bucket=default_storage.bucket_name, Key=file.file_key
+        Bucket=default_storage.bucket_name, Key=file.original_object.key
     )
     assert head_object["ContentType"] == declared_content_type
     assert head_object["Metadata"] == {"foo": "bar"}
@@ -487,20 +487,20 @@ def test_api_upload_ended_file_size_exceeded(settings, caplog):
     )
 
     default_storage.save(
-        file.temporary_file_key,
+        file.temporary_upload_object.key,
         BytesIO(b"my prose"),
     )
 
     with caplog.at_level(logging.INFO, logger="core.api.viewsets"):
         response = client.post(f"/api/v1.0/files/{file.id!s}/upload-ended/")
     assert (
-        f"upload_ended: file size (8) for file {file.file_key} higher than the allowed max size"
-        in caplog.text
+        f"upload_ended: file size (8) for file {file.original_object.key} "
+        "higher than the allowed max size" in caplog.text
     )
     assert response.status_code == 400
 
     assert not models.File.objects.filter(id=file.id).exists()
-    assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.original_object.key)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -520,7 +520,7 @@ def test_api_file_upload_ended_concurrent_calls_are_serialized(settings):
         filename="my_file.txt",
         creator=user,
     )
-    default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+    default_storage.save(file.temporary_upload_object.key, BytesIO(b"my prose"))
 
     def call_upload_ended():
         try:
@@ -571,7 +571,7 @@ def test_upload_ended_rechecks_file_count_and_allows_retry(mock_queue, settings)
     )
     factories.FileFactory(update_upload_state="ready")
     for file in files:
-        default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+        default_storage.save(file.temporary_upload_object.key, BytesIO(b"my prose"))
 
     response = client.post(f"/api/v1.0/files/{files[0].pk}/upload-ended/")
     assert response.status_code == 200
@@ -605,7 +605,7 @@ def test_upload_ended_concurrent_files_respect_count_limit(mock_queue, settings)
     user = factories.UserFactory()
     files = factories.FileFactory.create_batch(2, creator=user, filename="audio.txt")
     for file in files:
-        default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+        default_storage.save(file.temporary_upload_object.key, BytesIO(b"my prose"))
 
     def finalize(file):
         try:
@@ -639,7 +639,7 @@ def test_upload_ended_ignores_count_when_restrictions_disabled(mock_queue, setti
     }
     user = factories.UserFactory()
     file = factories.FileFactory(creator=user, filename="audio.txt")
-    default_storage.save(file.temporary_file_key, BytesIO(b"my prose"))
+    default_storage.save(file.temporary_upload_object.key, BytesIO(b"my prose"))
     client = APIClient()
     client.force_login(user)
 

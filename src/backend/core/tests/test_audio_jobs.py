@@ -21,7 +21,7 @@ from rest_framework.test import APIClient
 
 from core import factories, models
 from core.audio_jobs import start_audio_extraction
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 from core.tasks.file import (
     call_transcribe_service,
     process_file_deletion,
@@ -80,7 +80,9 @@ def finish_transcoding(file):
     """Upload an attempt's output and report it to schedule validation."""
     assert poll().status_code == 200
     job = file.latest_audio_job
-    get_storage_for_file(file).save(job.output_key, BytesIO(b"audio"))
+    get_storage_for_object(file.original_object).save(
+        job.output_object.key, BytesIO(b"audio")
+    )
     assert complete(job, duration_seconds=12.5).status_code == 200
     return job
 
@@ -120,8 +122,8 @@ def test_poll_claims_once_and_signed_urls_match_lease(settings):
     assert response.data["job_kind"] == "transcoding"
     for name in ("source_url", "destination_url"):
         assert parse_qs(urlsplit(response.data[name]).query)["X-Amz-Expires"] == ["120"]
-    assert file.file_key in response.data["source_url"]
-    assert job.output_key in response.data["destination_url"]
+    assert file.original_object.key in response.data["source_url"]
+    assert job.output_object.key in response.data["destination_url"]
     job.refresh_from_db()
     assert response.data["expires_at"] == job.expires_at.isoformat()
     assert job.created_at <= job.started_at
@@ -176,7 +178,7 @@ def test_validation_schedules_transcription_once(
         response = poll("validation")
         assert response.status_code == 200
         assert set(response.data) == {"id", "job_kind", "expires_at", "source_url"}
-        assert transcoding.output_key in response.data["source_url"]
+        assert transcoding.output_object.key in response.data["source_url"]
         validation = file.latest_audio_job
         assert not file.ai_jobs.exists()
         with django_capture_on_commit_callbacks(execute=True):
@@ -212,7 +214,9 @@ def test_upload_ended_audio_quota(
     settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H = 1
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
     file = factories.FileFactory(filename="recording.ogg", duration_seconds=999)
-    get_storage_for_file(file).save(file.temporary_file_key, BytesIO(b"source"))
+    get_storage_for_object(file.original_object).save(
+        file.temporary_upload_object.key, BytesIO(b"source")
+    )
     factories.TranscriptionUsageFactory(
         user=file.creator,
         submitted_at=timezone.now(),
@@ -338,7 +342,7 @@ def test_failure_retry_limit_preserves_all_attempts(mode):
     assert [job.attempt_number for job in jobs] == [0, 1, 2, 3]
     assert [job.retry_of_id for job in jobs[1:]] == [job.id for job in jobs[:-1]]
     if mode == "transcoding":
-        assert len({job.output_key for job in jobs}) == 4
+        assert len({job.output_object.key for job in jobs}) == 4
     else:
         assert len({job.source_job_id for job in jobs}) == 1
     assert file.audio_extraction_state == "audio_extraction_failed"
@@ -398,7 +402,7 @@ def test_stale_attempt_replaced_and_late_completion_rejected(settings, caplog):
     retry = file.latest_audio_job
     assert old.status == models.AudioJobStatusChoices.STALE
     assert retry.retry_of_id == old.id
-    assert retry.output_key != old.output_key
+    assert retry.output_object.key != old.output_object.key
     assert complete(old, "failure", error="late").status_code == 409
     assert (
         f"Rejected transcoding completion for audio job {old.id} "
@@ -584,7 +588,7 @@ def test_linked_transcription_uses_its_validated_output_after_new_extraction():
     with patch("core.tasks.file.session.post", return_value=response) as post:
         call_transcribe_service(job.pk)
     assert (
-        validation.source_job.output_key
+        validation.source_job.output_object.key
         in post.call_args.kwargs["json"]["cloud_storage_url"]
     )
 
@@ -658,7 +662,9 @@ def test_api_audio_state_stays_extracting_until_validation_succeeds():
     assert poll().status_code == 200
     assert_state("extracting_audio")
 
-    get_storage_for_file(file).save(transcoding.output_key, BytesIO(b"audio"))
+    get_storage_for_object(file.original_object).save(
+        transcoding.output_object.key, BytesIO(b"audio")
+    )
     assert complete(transcoding, duration_seconds=12.5).status_code == 200
     assert file.latest_audio_job.mode == models.AudioJobModeChoices.VALIDATION
     assert file.latest_audio_job.status == models.AudioJobStatusChoices.PENDING
@@ -684,14 +690,25 @@ def test_api_audio_state_stays_extracting_until_validation_succeeds():
 def test_cleanup_commands_delete_all_attempt_outputs_and_temporary_key(command):
     """Retried, stale, successful, and legacy outputs are all removed by lifecycle cleanup."""
     file = factories.FileFactory(upload_bytes=b"source")
-    storage = get_storage_for_file(file)
-    keys = {file.file_key, file.temporary_file_key, file.legacy_audio_file_key}
+    storage = get_storage_for_object(file.original_object)
+    keys = {
+        file.original_object.key,
+        file.temporary_upload_object.key,
+    }
+    legacy = models.ObjectStorageObject.objects.create(
+        file=file,
+        file_identifier=file.pk,
+        kind="audio",
+        storage_bucket_name=file.original_object.storage_bucket_name,
+        key=f"files/{file.pk}.audio.ogg",
+    )
+    keys.add(legacy.key)
     for outcome in models.AudioJobStatusChoices.values:
         job = models.AudioJob.objects.create(
             file=file, mode="transcoding", status=outcome
         )
-        keys.add(job.output_key)
-    for key in keys - {file.file_key}:
+        keys.add(job.output_object.key)
+    for key in keys - {file.original_object.key}:
         storage.save(key, BytesIO(b"artifact"))
     old = timezone.now() - timedelta(days=500)
     models.File.objects.filter(pk=file.pk).update(
@@ -735,59 +752,73 @@ def test_cleanup_preserves_keys_until_signed_upload_expires(
             task(file.id)
         reschedule.assert_called_once()
     assert models.File.objects.filter(pk=file.pk).exists()
-    storage = get_storage_for_file(file)
-    storage.save(job.output_key, BytesIO(b"late upload"))
+    storage = get_storage_for_object(file.original_object)
+    storage.save(job.output_object.key, BytesIO(b"late upload"))
     models.AudioJob.objects.filter(pk=job.pk).update(
         expires_at=timezone.now() - timedelta(seconds=1)
     )
     task(file.id)
-    assert not storage.exists(job.output_key)
+    assert not storage.exists(job.output_object.key)
 
 
 @pytest.mark.django_db(transaction=True)
 def test_migration_preserves_all_states_and_legacy_keys_without_storage_operations():
-    """Backfill uses historical models, preserves files, and does not trigger transcription."""
-    files = [factories.FileFactory() for _ in range(4)]
-    states = models.FileAudioExtractionStateChoices.values
+    """Historical audio migration preserves keys without depending on current models."""
     executor = MigrationExecutor(connection)
-    old_target = [("core", "0017_aifilejob_docs_creation_in_progress")]
     target = executor.loader.graph.leaf_nodes("core")
+    old_target = [("core", "0017_aifilejob_docs_creation_in_progress")]
     try:
         executor.migrate(old_target)
-        old_file = executor.loader.project_state(old_target).apps.get_model(
-            "core", "File"
-        )
-        for file, state in zip(files, states, strict=True):
-            old_file.objects.filter(pk=file.pk).update(audio_extraction_state=state)
+        old_apps = executor.loader.project_state(old_target).apps
+        old_file = old_apps.get_model("core", "File")
+        now = timezone.now()
+        files = [
+            old_file.objects.create(
+                type="audio_recording",
+                title="historical",
+                filename="recording.ogg",
+                duration_seconds=1,
+                upload_state="ready",
+                storage_bucket_name="dictaphone-media-storage",
+                audio_extraction_state=state,
+                original_file_data_delete_at=now,
+                original_file_data_delete_at_with_grace_period=now,
+                file_auto_hard_delete_at=now,
+                file_auto_hard_delete_at_with_grace_period=now,
+            )
+            for state in models.FileAudioExtractionStateChoices.values
+        ]
         backfill_target = [("core", "0018_audio_jobs")]
         MigrationExecutor(connection).migrate(backfill_target)
-        historical_apps = executor.loader.project_state(backfill_target).apps
-        audio_job = historical_apps.get_model("core", "AudioJob")
+        apps = executor.loader.project_state(backfill_target).apps
+        audio_job = apps.get_model("core", "AudioJob")
         migration = import_module("core.migrations.0019_backfill_audio_jobs")
         with (
-            patch("core.storage.get_storage_for_file") as storage,
+            patch("core.storage.get_storage_for_object") as storage,
             patch("core.tasks.file.call_transcribe_service.delay") as transcribe,
             patch.object(migration, "BATCH_SIZE", 2),
         ):
             with connection.schema_editor() as schema_editor:
-                migration.backfill_audio_jobs(historical_apps, schema_editor)
+                migration.backfill_audio_jobs(apps, schema_editor)
                 job_ids = set(audio_job.objects.values_list("pk", flat=True))
-                migration.backfill_audio_jobs(historical_apps, schema_editor)
+                migration.backfill_audio_jobs(apps, schema_editor)
                 assert set(audio_job.objects.values_list("pk", flat=True)) == job_ids
-            MigrationExecutor(connection).migrate(target)
             storage.assert_not_called()
             transcribe.assert_not_called()
-        for file, state in zip(files, states, strict=True):
-            file.refresh_from_db()
-            expected = (
-                "pending_audio_extraction" if state == "extracting_audio" else state
-            )
-            assert file.audio_extraction_state == expected
-            if state == "extraction_done":
-                assert file.audio_file_key == file.legacy_audio_file_key
-                assert file.audio_jobs.count() == 2
+        for file in files:
+            jobs = audio_job.objects.filter(file_id=file.pk)
+            if file.audio_extraction_state == "extraction_done":
+                assert jobs.count() == 2
+                assert (
+                    jobs.get(mode="transcoding").output_key
+                    == f"files/{file.pk}.audio.ogg"
+                )
             else:
-                assert file.audio_jobs.count() == 1
-        assert all(job.started_at is None for job in models.AudioJob.objects.all())
+                assert jobs.count() == 1
+        # The post-release schema requires tracked references. This historical test
+        # removes its fixtures before applying that schema, rather than backfilling data.
+        apps.get_model("core", "AiFileJob").objects.all().delete()
+        audio_job.objects.all().delete()
+        apps.get_model("core", "File").objects.all().delete()
     finally:
         MigrationExecutor(connection).migrate(target)

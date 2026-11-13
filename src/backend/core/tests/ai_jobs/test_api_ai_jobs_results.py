@@ -32,7 +32,7 @@ def test_api_ai_jobs_transcript_get_own():
         status=AiJobStatusChoices.SUCCESS,
     )
     default_storage.save(
-        ai_job.key,
+        ai_job.result_object.key,
         BytesIO(b'{"segments": []}'),
     )
 
@@ -54,7 +54,7 @@ def test_api_ai_jobs_summary_get_own():
         status=AiJobStatusChoices.SUCCESS,
     )
     default_storage.save(
-        ai_job.key,
+        ai_job.result_object.key,
         BytesIO(b"Summary content"),
     )
 

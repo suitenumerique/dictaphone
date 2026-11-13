@@ -22,6 +22,7 @@ def test_clean_pending_files_no_stale_files():
 def test_clean_pending_files_recent_pending_not_deleted():
     """Recent pending files (within threshold) should not be deleted."""
     file = factories.FileFactory(
+        with_audio=True,
         type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
         upload_bytes=b"hello",
@@ -31,7 +32,7 @@ def test_clean_pending_files_recent_pending_not_deleted():
 
     file.refresh_from_db()
     assert file.deleted_at is None
-    assert default_storage.exists(file.file_key)
+    assert default_storage.exists(file.original_object.key)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -39,37 +40,41 @@ def test_clean_pending_files_old_pending_deleted():
     """Pending files older than the threshold should be deleted."""
     old_date = timezone.now() - timedelta(hours=49)
     file = factories.FileFactory(
+        with_audio=True,
         type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
         upload_bytes=b"hello",
     )
-    assert default_storage.exists(file.file_key)
-    default_storage.save(file.audio_file_key, BytesIO(b"extracted audio"))
+    assert default_storage.exists(file.original_object.key)
+    file_audio_key = file.audio_object.key
+    default_storage.save(file_audio_key, BytesIO(b"extracted audio"))
     models.File.objects.filter(pk=file.pk).update(created_at=old_date)
 
     call_command("clean_pending_files")
 
     assert not models.File.objects.filter(pk=file.pk).exists()
-    assert not default_storage.exists(file.file_key)
-    assert not default_storage.exists(file.audio_file_key)
+    assert not default_storage.exists(file.original_object.key)
+    assert not default_storage.exists(file_audio_key)
 
 
 def test_clean_pending_files_old_non_pending_not_deleted():
     """Old files that are not pending should not be deleted."""
     old_date = timezone.now() - timedelta(hours=49)
     file = factories.FileFactory(
+        with_audio=True,
         type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.READY,
     )
     models.File.objects.filter(pk=file.pk).update(created_at=old_date)
-    default_storage.save(file.audio_file_key, BytesIO(b"extracted audio"))
+    file_audio_key = file.audio_object.key
+    default_storage.save(file_audio_key, BytesIO(b"extracted audio"))
 
     call_command("clean_pending_files")
 
     file.refresh_from_db()
     assert file.deleted_at is None
     assert file.hard_deleted_at is None
-    assert default_storage.exists(file.audio_file_key)
+    assert default_storage.exists(file_audio_key)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -77,6 +82,7 @@ def test_clean_pending_files_custom_hours():
     """The --hours argument controls the age threshold."""
     old_date = timezone.now() - timedelta(hours=10)
     file = factories.FileFactory(
+        with_audio=True,
         type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
         upload_bytes=b"hello",
@@ -88,11 +94,12 @@ def test_clean_pending_files_custom_hours():
 
     file.refresh_from_db()
     assert file.deleted_at is None
-    assert default_storage.exists(file.file_key)
+    assert default_storage.exists(file.original_object.key)
 
     # 8h threshold -> file deleted
+    file_audio_key = file.audio_object.key
     call_command("clean_pending_files", "--hours=8")
 
     assert not models.File.objects.filter(pk=file.pk).exists()
-    assert not default_storage.exists(file.file_key)
-    assert not default_storage.exists(file.audio_file_key)
+    assert not default_storage.exists(file.original_object.key)
+    assert not default_storage.exists(file_audio_key)

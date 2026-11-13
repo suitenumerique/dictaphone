@@ -61,7 +61,7 @@ def test_models_ai_job_to_markdown_transcript_formats_whisperx_response():
         status=AiJobStatusChoices.SUCCESS,
     )
     default_storage.save(
-        ai_job.key,
+        ai_job.result_object.key,
         BytesIO(
             (
                 b'{"segments": ['
@@ -93,18 +93,19 @@ def test_models_ai_job_to_markdown_summary_formats_content():
         type=AiJobTypeChoices.SUMMARIZE,
         status=AiJobStatusChoices.SUCCESS,
     )
-    default_storage.save(ai_job.key, BytesIO(b"Summary content"))
+    default_storage.save(ai_job.result_object.key, BytesIO(b"Summary content"))
 
     assert ai_job.to_markdown("fr") == "# Résumé \n \n Summary content"
 
 
-def test_models_ai_job_delete_removes_storage_file():
+def test_models_ai_job_delete_removes_storage_file(django_capture_on_commit_callbacks):
     """Deleting an AI job should also remove its file from storage."""
     ai_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
-    default_storage.save(ai_job.key, BytesIO(b"Summary content"))
+    default_storage.save(ai_job.result_object.key, BytesIO(b"Summary content"))
 
-    assert default_storage.exists(ai_job.key)
-    ai_job.delete()
+    assert default_storage.exists(ai_job.result_object.key)
+    with django_capture_on_commit_callbacks(execute=True):
+        ai_job.delete()
 
     assert not AiFileJob.objects.filter(id=ai_job.id).exists()
-    assert not default_storage.exists(ai_job.key)
+    assert not default_storage.exists(ai_job.result_object.key)

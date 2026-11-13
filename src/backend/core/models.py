@@ -31,7 +31,7 @@ from core.configuration import (
 from core.emails import normalize_email
 from core.enums import ISO_639_1_CHOICES
 from core.payloads import read_stored_result
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 from core.utils import format_transcript_for_markdown
 from core.webhook_models import WhisperXResponse
 
@@ -409,7 +409,13 @@ class FileQuerySet(models.QuerySet):
                 latest.filter(
                     mode=AudioJobModeChoices.TRANSCODING,
                     status=AudioJobStatusChoices.SUCCESS,
-                ).values("output_key")[:1]
+                ).values("output_object__key")[:1]
+            ),
+            playback_audio_bucket=Subquery(
+                latest.filter(
+                    mode=AudioJobModeChoices.TRANSCODING,
+                    status=AudioJobStatusChoices.SUCCESS,
+                ).values("output_object__storage_bucket_name")[:1]
             ),
             latest_audio_status=Subquery(latest.values("status")[:1]),
             latest_audio_mode=Subquery(latest.values("mode")[:1]),
@@ -733,7 +739,7 @@ class File(BaseModel):
     def latest_audio_job(self):
         """Return the current attempt, including its transcoding source."""
         return (
-            self.audio_jobs.select_related("source_job")
+            self.audio_jobs.select_related("output_object", "source_job__output_object")
             .order_by("-created_at", "-id")
             .first()
         )
@@ -767,20 +773,14 @@ class File(BaseModel):
         ]
 
     @property
-    def audio_file_key(self):
-        """Resolve the latest audio artifact, with a legacy fallback for cleanup."""
+    def audio_object(self):
+        """Return the current attempt's audio object, if one has been allocated."""
         job = self.latest_audio_job
         if job is None:
-            return self.legacy_audio_file_key
-        return (
-            job.output_key
-            if job.mode == AudioJobModeChoices.TRANSCODING
-            else (
-                job.source_job.output_key
-                if job.source_job_id
-                else self.legacy_audio_file_key
-            )
-        )
+            return None
+        if job.mode == AudioJobModeChoices.TRANSCODING:
+            return job.output_object
+        return job.source_job.output_object if job.source_job_id else None
 
     def get_abilities(self, user, *, access_status=None):
         """
@@ -1216,14 +1216,15 @@ class AiFileJob(BaseModel):
     def delete(self, using=None, keep_parents=False):
         """Delete the AI job and its result file from object storage."""
         logger.info(
-            "Deleted AI job %s and its result file if it exists %s", self.id, self.key
+            "Deleted AI job %s and its result file if it exists %s",
+            self.id,
+            self.result_object.key,
         )
         from core.object_storage import (  # noqa: PLC0415
             delete_object,
-            register_job_object,
         )
 
-        obj = register_job_object(self)
+        obj = self.result_object
         ObjectStorageObject.objects.filter(pk=obj.pk).update(
             state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
         )
@@ -1246,7 +1247,9 @@ class AiFileJob(BaseModel):
             raise ValueError(f"Job status is not success: {self.status}")
 
         content = read_stored_result(
-            get_storage_for_file(self.file, key=self.key), self.key, self.type
+            get_storage_for_object(self.result_object),
+            self.result_object.key,
+            self.type,
         )
 
         if self.type == AiJobTypeChoices.TRANSCRIPT:

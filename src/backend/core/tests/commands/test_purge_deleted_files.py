@@ -39,12 +39,14 @@ def test_purge_deleted_files_success(settings):
     purge_now = now - timedelta(days=cutoff + grace)
 
     not_deleted_file = factories.FileFactory(
+        with_audio=True,
         type=models.FileTypeChoices.AUDIO_RECORDING,
         upload_bytes=b"hello",
     )
 
     with patch("django.utils.timezone.now", return_value=now):
         not_purgeable_file = factories.FileFactory(
+            with_audio=True,
             type=models.FileTypeChoices.AUDIO_RECORDING,
             upload_bytes=b"hello",
         )
@@ -52,27 +54,31 @@ def test_purge_deleted_files_success(settings):
 
     with patch("django.utils.timezone.now", return_value=purge_now):
         purgeable_file = factories.FileFactory(
+            with_audio=True,
             type=models.FileTypeChoices.AUDIO_RECORDING,
             upload_bytes=b"hello",
         )
         purgeable_file.soft_delete()
 
     hard_deleted_file = factories.FileFactory(
+        with_audio=True,
         type=models.FileTypeChoices.AUDIO_RECORDING,
         upload_bytes=b"hello",
     )
     hard_deleted_file.soft_delete()
     hard_deleted_file.hard_delete()
 
-    default_storage.save(purgeable_file.audio_file_key, BytesIO(b"purgeable audio"))
-    default_storage.save(
-        hard_deleted_file.audio_file_key, BytesIO(b"hard deleted audio")
-    )
+    purgeable_file_audio_key = purgeable_file.audio_object.key
+    default_storage.save(purgeable_file_audio_key, BytesIO(b"purgeable audio"))
+    hard_deleted_file_audio_key = hard_deleted_file.audio_object.key
+    default_storage.save(hard_deleted_file_audio_key, BytesIO(b"hard deleted audio"))
 
     purgeable_file_ai_job = factories.AiFileJobFactory(file=purgeable_file)
     hard_deleted_file_ai_job = factories.AiFileJobFactory(file=hard_deleted_file)
-    default_storage.save(purgeable_file_ai_job.key, BytesIO(b"purgeable"))
-    default_storage.save(hard_deleted_file_ai_job.key, BytesIO(b"hard_deleted"))
+    default_storage.save(purgeable_file_ai_job.result_object.key, BytesIO(b"purgeable"))
+    default_storage.save(
+        hard_deleted_file_ai_job.result_object.key, BytesIO(b"hard_deleted")
+    )
 
     with patch(
         "core.management.commands.purge_deleted_files.process_file_deletion.delay",
@@ -92,11 +98,11 @@ def test_purge_deleted_files_success(settings):
     assert not models.AiFileJob.objects.filter(id=purgeable_file_ai_job.id).exists()
     assert not models.AiFileJob.objects.filter(id=hard_deleted_file_ai_job.id).exists()
 
-    assert default_storage.exists(not_deleted_file.file_key)
-    assert default_storage.exists(not_purgeable_file.file_key)
-    assert not default_storage.exists(purgeable_file.file_key)
-    assert not default_storage.exists(hard_deleted_file.file_key)
-    assert not default_storage.exists(purgeable_file.audio_file_key)
-    assert not default_storage.exists(hard_deleted_file.audio_file_key)
-    assert not default_storage.exists(purgeable_file_ai_job.key)
-    assert not default_storage.exists(hard_deleted_file_ai_job.key)
+    assert default_storage.exists(not_deleted_file.original_object.key)
+    assert default_storage.exists(not_purgeable_file.original_object.key)
+    assert not default_storage.exists(purgeable_file.original_object.key)
+    assert not default_storage.exists(hard_deleted_file.original_object.key)
+    assert not default_storage.exists(purgeable_file_audio_key)
+    assert not default_storage.exists(hard_deleted_file_audio_key)
+    assert not default_storage.exists(purgeable_file_ai_job.result_object.key)
+    assert not default_storage.exists(hard_deleted_file_ai_job.result_object.key)

@@ -79,7 +79,7 @@ def test_transcription_missing_reserved_audio_marks_job_failed(mock_post):
         audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
     )
     job = create_transcription_job(file.pk)
-    default_storage.delete(job.validated_audio_job.source_job.output_key)
+    default_storage.delete(job.validated_audio_job.source_job.output_object.key)
 
     with pytest.raises(ValueError, match="successfully validated audio"):
         call_transcribe_service(job.pk)

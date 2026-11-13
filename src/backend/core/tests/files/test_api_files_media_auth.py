@@ -17,9 +17,50 @@ from rest_framework.test import APIClient
 
 from core import factories, models
 from core.configuration import get_bucket_configurations
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 
 pytestmark = pytest.mark.django_db
+
+
+def test_media_auth_refuses_untracked_key_for_authorized_file():
+    """A valid file UUID cannot authorize an object absent from its registry."""
+    file = factories.FileFactory(update_upload_state="ready")
+    client = APIClient()
+    client.force_login(file.creator)
+    with mock.patch(
+        "core.api.viewsets.utils.generate_s3_authorization_headers"
+    ) as sign:
+        response = client.get(
+            "/api/v1.0/files/media-auth/",
+            HTTP_X_ORIGINAL_URL=(
+                f"http://localhost/media/{file.original_object.storage_bucket_name}/"
+                f"files/{file.pk}.untracked"
+            ),
+        )
+    assert response.status_code == 403
+    sign.assert_not_called()
+
+
+def test_media_auth_signs_persisted_key_after_filename_change():
+    """Authorization follows the object reference rather than filename derivation."""
+    file = factories.FileFactory(filename="recording.ogg", update_upload_state="ready")
+    file.filename = "renamed.mp3"
+    file.save()
+    client = APIClient()
+    client.force_login(file.creator)
+    with mock.patch(
+        "core.api.viewsets.utils.generate_s3_authorization_headers"
+    ) as sign:
+        sign.return_value.headers = {}
+        response = client.get(
+            "/api/v1.0/files/media-auth/",
+            HTTP_X_ORIGINAL_URL=(
+                f"http://localhost/media/{file.original_object.storage_bucket_name}/"
+                f"{file.original_object.key}"
+            ),
+        )
+    assert response.status_code == 200
+    assert sign.call_args.args[0].pk == file.original_object_id
 
 
 def test_api_files_media_auth_anonymous_not_authorized():
@@ -29,7 +70,7 @@ def test_api_files_media_auth_anonymous_not_authorized():
         update_upload_state=models.FileUploadStateChoices.READY,
     )
 
-    original_url = f"http://localhost/media/{file.file_key:s}"
+    original_url = f"http://localhost/media/{file.original_object.key:s}"
     response = APIClient().get(
         "/api/v1.0/files/media-auth/", HTTP_X_ORIGINAL_URL=original_url
     )
@@ -52,12 +93,12 @@ def test_api_files_media_get_own():
     client = APIClient()
     client.force_login(user)
 
-    get_storage_for_file(file).save(
-        file.file_key,
+    get_storage_for_object(file.original_object).save(
+        file.original_object.key,
         BytesIO(b"my prose"),
     )
 
-    original_url = f"http://localhost/media/{file.file_key:s}"
+    original_url = f"http://localhost/media/{file.original_object.key:s}"
     now = timezone.now()
     with freeze_time(now):
         response = client.get(
@@ -78,7 +119,8 @@ def test_api_files_media_get_own():
     endpoint_url = bucket_configuration.endpoint_url
     s3_url = urlparse(endpoint_url)
     file_url = (
-        f"{endpoint_url:s}/{bucket_configuration.storage_bucket_name}/{file.file_key:s}"
+        f"{endpoint_url:s}/{bucket_configuration.storage_bucket_name}/"
+        f"{file.original_object.key:s}"
     )
     response = requests.get(
         file_url,
@@ -112,7 +154,7 @@ def test_api_files_media_auth_rejects(rejecting_status):
         creator=user,
     )
 
-    key = file.file_key
+    key = file.original_object.key
 
     original_url = quote(f"http://localhost/media/{key:s}")
     response = client.get(
@@ -139,12 +181,12 @@ def test_api_files_media_auth_own_file_deleted():
     client.force_login(user)
 
     default_storage.save(
-        file.file_key,
+        file.original_object.key,
         BytesIO(b"my prose"),
     )
     file.soft_delete()
 
-    original_url = f"http://localhost/media/{file.file_key:s}"
+    original_url = f"http://localhost/media/{file.original_object.key:s}"
     response = client.get(
         "/api/v1.0/files/media-auth/", HTTP_X_ORIGINAL_URL=original_url
     )
@@ -163,14 +205,17 @@ def test_api_files_media_auth_transcoded_audio(legacy, owner):
         file=file,
         mode=models.AudioJobModeChoices.TRANSCODING,
         status=models.AudioJobStatusChoices.SUCCESS,
-        output_key=file.legacy_audio_file_key if legacy else None,
     )
+    if legacy:
+        job.output_object.key = f"files/{file.pk}.audio.ogg"
+        job.output_object.save()
     client = APIClient()
     client.force_login(file.creator if owner else factories.UserFactory())
     response = client.get(
         "/api/v1.0/files/media-auth/",
         HTTP_X_ORIGINAL_URL=(
-            f"http://localhost/media/{file.configuration.storage_bucket_name}/{job.output_key}"
+            f"http://localhost/media/{job.output_object.storage_bucket_name}/"
+            f"{job.output_object.key}"
         ),
     )
     assert response.status_code == (200 if owner else 403)
@@ -195,7 +240,8 @@ def test_api_files_media_auth_enforces_audio_cutoff(seconds_before_cutoff):
         response = client.get(
             "/api/v1.0/files/media-auth/",
             HTTP_X_ORIGINAL_URL=(
-                f"http://localhost/media/{file.configuration.storage_bucket_name}/{file.file_key}"
+                f"http://localhost/media/{file.original_object.storage_bucket_name}/"
+                f"{file.original_object.key}"
             ),
         )
     if seconds_before_cutoff > 0:
@@ -223,7 +269,7 @@ def test_api_files_media_auth_rejects_unavailable_audio(lifecycle_state):
     ) as sign_headers:
         response = client.get(
             "/api/v1.0/files/media-auth/",
-            HTTP_X_ORIGINAL_URL=f"http://localhost/media/{file.file_key}",
+            HTTP_X_ORIGINAL_URL=f"http://localhost/media/{file.original_object.key}",
         )
     assert response.status_code == 403
     sign_headers.assert_not_called()

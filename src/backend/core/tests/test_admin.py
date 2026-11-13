@@ -368,7 +368,8 @@ def test_file_admin_displays_new_storage_and_retention_fields_as_read_only():
         for field in fieldset[1]["fields"]
     }
     new_fields = {
-        "storage_bucket_name",
+        "original_object",
+        "temporary_upload_object",
         "original_file_data_delete_at",
         "original_file_data_delete_at_with_grace_period",
         "file_auto_hard_delete_at",
@@ -733,13 +734,15 @@ def test_file_admin_bulk_delete_selected_files(client):
         for file in files
     ]
     for job in transcript_jobs:
-        default_storage.save(job.key, BytesIO(b'{"segments": []}'))
+        default_storage.save(job.result_object.key, BytesIO(b'{"segments": []}'))
 
     selected_ids = [str(file.id) for file in files]
     changelist_url = reverse("admin:core_file_changelist")
     storage_keys = [
-        key for file in files for key in (file.file_key, file.audio_file_key)
-    ] + [job.key for job in transcript_jobs]
+        key
+        for file in files
+        for key in (file.original_object.key, file.audio_object.key)
+    ] + [job.result_object.key for job in transcript_jobs]
 
     assert all(default_storage.exists(key) for key in storage_keys)
 

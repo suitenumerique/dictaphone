@@ -23,13 +23,13 @@ from core.models import (
     FileLifecycleStateChoices,
     FileUploadStateChoices,
 )
-from core.object_storage import observe_object, register_job_object
+from core.object_storage import observe_object
 from core.storage import (
-    get_bucket_configuration_for_file,
+    get_bucket_configuration_for_object,
     get_storage_bucket_name,
-    get_storage_for_file,
+    get_storage_for_object,
 )
-from core.utils import generate_download_file_url, redact_url
+from core.utils import generate_download_object_url, redact_url
 
 logger = logging.getLogger(__name__)
 
@@ -151,29 +151,27 @@ def claim_next(mode):
 def _worker_payload(job):
     """Sign only the input and the unique output belonging to this attempt."""
     file = job.file
-    source_key = (
-        file.file_key
+    source_object = (
+        file.original_object
         if job.mode == AudioJobModeChoices.TRANSCODING
-        else job.source_job.output_key
+        else job.source_job.output_object
     )
     payload = {
         "id": str(job.pk),
         "job_kind": job.mode,
         "expires_at": job.expires_at.isoformat(),
-        "source_url": generate_download_file_url(
-            file,
-            key=source_key,
+        "source_url": generate_download_object_url(
+            source_object,
             expires_in=settings.AUDIO_JOB_TIMEOUT_SECONDS,
             override_domain=False,
         ),
     }
     if job.mode == AudioJobModeChoices.TRANSCODING:
-        register_job_object(job)
-        storage = get_storage_for_file(file, key=job.output_key)
-        config = get_bucket_configuration_for_file(file, key=job.output_key)
+        storage = get_storage_for_object(job.output_object)
+        config = get_bucket_configuration_for_object(job.output_object)
         params = {
             "Bucket": get_storage_bucket_name(storage),
-            "Key": job.output_key,
+            "Key": job.output_object.key,
             "IfNoneMatch": "*",
         }
         headers = {"If-None-Match": "*"}
@@ -304,7 +302,7 @@ def complete_job(mode, data):
         # The next poll recovers the expired lease; reject late success here.
         raise AudioJobConflict("Attempt has expired.")
     if data["status"] == "success" and mode == AudioJobModeChoices.TRANSCODING:
-        obj = register_job_object(job)
+        obj = job.output_object
         observe_object(obj, publish=True)
         if obj.state != obj.State.AVAILABLE:
             raise AudioJobConflict("Transcoding output has not been uploaded.")

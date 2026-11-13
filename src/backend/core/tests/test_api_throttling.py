@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from core import factories, models
 from core.api import throttling
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 
 pytestmark = pytest.mark.django_db
 
@@ -38,7 +38,9 @@ def _create_in_docs(client, user):
 
 def _upload_ended(client, user):
     file = factories.FileFactory(creator=user, filename="recording.ogg")
-    get_storage_for_file(file).save(file.temporary_file_key, BytesIO(b"audio"))
+    get_storage_for_object(file.original_object).save(
+        file.temporary_upload_object.key, BytesIO(b"audio")
+    )
     return client.post(f"/api/v1.0/files/{file.id}/upload-ended/")
 
 
@@ -52,7 +54,9 @@ def _result(client, user, action):
         ),
         status=models.AiJobStatusChoices.SUCCESS,
     )
-    get_storage_for_file(job.file).save(job.key, BytesIO(b"{}"))
+    get_storage_for_object(job.result_object).save(
+        job.result_object.key, BytesIO(b"{}")
+    )
     return client.get(f"/api/v1.0/ai-jobs/{job.id}/{action}/")
 
 

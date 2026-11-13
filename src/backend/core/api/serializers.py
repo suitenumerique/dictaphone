@@ -22,7 +22,7 @@ from core.models import (
     FileLifecycleStateChoices,
     get_original_file_data_cutoff_datetime,
 )
-from core.storage import get_bucket_configuration_for_file
+from core.storage import get_bucket_configuration_for_object
 
 logger = logging.getLogger(__name__)
 
@@ -319,7 +319,7 @@ class ListFileSerializer(serializers.ModelSerializer):
 
         return (
             f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
-            f"{quote(obj.configuration.storage_bucket_name)}/{quote(obj.file_key)}"
+            f"{quote(obj.original_object.storage_bucket_name)}/{quote(obj.original_object.key)}"
         )
 
     def get_playback_url(self, obj):
@@ -329,21 +329,22 @@ class ListFileSerializer(serializers.ModelSerializer):
             return None
         if hasattr(obj, "playback_audio_key"):
             key = obj.playback_audio_key
+            bucket = obj.playback_audio_bucket
         else:
-            key = (
+            location = (
                 obj.audio_jobs.filter(
                     mode=models.AudioJobModeChoices.TRANSCODING,
                     status=models.AudioJobStatusChoices.SUCCESS,
                 )
                 .order_by("-created_at", "-id")
-                .values_list("output_key", flat=True)
+                .values_list("output_object__key", "output_object__storage_bucket_name")
                 .first()
             )
+            key, bucket = location if location else (None, None)
         if not key:
             return original_url
         return (
-            f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
-            f"{quote(obj.configuration.storage_bucket_name)}/{quote(key)}"
+            f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}{quote(bucket)}/{quote(key)}"
         )
 
     def get_original_file_file_delete_at(self, obj):
@@ -465,7 +466,9 @@ class CreateFileSerializer(ListFileSerializer):
 
     def get_acl(self, file):
         """Return the ACL to use for the file upload."""
-        return get_bucket_configuration_for_file(file).upload_acl
+        return get_bucket_configuration_for_object(
+            file.temporary_upload_object
+        ).upload_acl
 
     def update(self, instance, validated_data):
         raise NotImplementedError("Update method can not be used.")

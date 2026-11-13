@@ -164,8 +164,10 @@ def test_api_files_playback_prefers_completed_transcode(
             file=file,
             mode=models.AudioJobModeChoices.TRANSCODING,
             status=status,
-            output_key=file.legacy_audio_file_key if legacy else None,
         )
+        if legacy:
+            job.output_object.key = f"files/{file.pk}.audio.ogg"
+            job.output_object.save()
         if status == models.AudioJobStatusChoices.SUCCESS:
             # A newer in-progress validation or retranscode must not hide available audio.
             models.AudioJob.objects.create(
@@ -184,13 +186,13 @@ def test_api_files_playback_prefers_completed_transcode(
     data = response.data if endpoint == "detail" else response.data["results"][0]
     prefix = (
         f"{settings.MEDIA_BASE_URL}{settings.MEDIA_URL}"
-        f"{file.configuration.storage_bucket_name}/"
+        f"{file.original_object.storage_bucket_name}/"
     )
-    assert data["url"] == f"{prefix}{file.file_key}"
+    assert data["url"] == f"{prefix}{file.original_object.key}"
     expected_key = (
-        job.output_key
+        job.output_object.key
         if status == models.AudioJobStatusChoices.SUCCESS
-        else file.file_key
+        else file.original_object.key
     )
     assert data["playback_url"] == f"{prefix}{expected_key}"
 

@@ -13,7 +13,7 @@ import factory.fuzzy
 from faker import Faker
 
 from core import models
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 
 fake = Faker()
 
@@ -102,6 +102,12 @@ class FileFactory(factory.django.DjangoModelFactory):
             self.save()
 
     @factory.post_generation
+    def with_audio(self, create, extracted, **kwargs):
+        """Allocate a tracked audio artifact for cleanup fixtures."""
+        if create and extracted and self.latest_audio_job is None:
+            models.AudioJob.objects.create(file=self, mode="transcoding")
+
+    @factory.post_generation
     def upload_bytes(self, create, extracted, **kwargs):
         """Save content of the file into the storage"""
         if create and extracted is not None:
@@ -115,13 +121,13 @@ class FileFactory(factory.django.DjangoModelFactory):
             self.size = len(content)
             self.save()
 
-            storage = get_storage_for_file(self)
-            storage.save(self.file_key, BytesIO(content))
+            storage = get_storage_for_object(self.original_object)
+            storage.save(self.original_object.key, BytesIO(content))
             if (
                 self.audio_extraction_state  # pylint: disable=comparison-with-callable
                 == models.FileAudioExtractionStateChoices.EXTRACTION_DONE
             ):
-                storage.save(self.audio_file_key, BytesIO(content))
+                storage.save(self.audio_object.key, BytesIO(content))
 
 
 class AiFileJobFactory(factory.django.DjangoModelFactory):
