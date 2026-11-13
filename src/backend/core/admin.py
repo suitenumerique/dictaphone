@@ -379,6 +379,8 @@ class FileAdmin(admin.ModelAdmin):
         "mimetype",
         "size",
         "storage_bucket_name",
+        "original_object",
+        "temporary_upload_object",
         "original_file_data_delete_at",
         "original_file_data_delete_at_with_grace_period",
         "file_auto_hard_delete_at",
@@ -431,6 +433,8 @@ class FileAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "storage_bucket_name",
+                    "original_object",
+                    "temporary_upload_object",
                     "original_file_data_delete_at",
                     "original_file_data_delete_at_with_grace_period",
                     "file_auto_hard_delete_at",
@@ -685,6 +689,7 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
         "docs_app_id",
         "docs_creation_in_progress",
         "validated_audio_job",
+        "result_object",
         "created_at",
         "updated_at",
         "computed_duration",
@@ -700,6 +705,7 @@ class AiFileJobAdmin(AiJobDurationMixin, admin.ModelAdmin):
                     "status",
                     "failure_reason",
                     "file",
+                    "result_object",
                 )
             },
         ),
@@ -775,6 +781,49 @@ class TranscriptionUsageAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(models.ObjectStorageObject)
+class ObjectStorageObjectAdmin(admin.ModelAdmin):
+    """Inspect tracked locations and integrity metadata without changing them."""
+
+    list_display = (
+        "id",
+        "kind",
+        "state",
+        "storage_bucket_name",
+        "key",
+        "file",
+        "size",
+        "metadata_checked_at",
+    )
+    list_filter = ("kind", "state", "storage_bucket_name", "checksum_algorithm")
+    search_fields = (
+        "id",
+        "key",
+        "storage_bucket_name",
+        "file_identifier",
+        "file__creator__email",
+    )
+    list_select_related = ("file",)
+    ordering = ("-created_at", "-id")
+    actions = None
+
+    def get_readonly_fields(self, request, obj=None):
+        """Expose every field, including checksum provenance and retained identity."""
+        return tuple(field.name for field in self.model._meta.fields)  # noqa: SLF001
+
+    def has_add_permission(self, request):
+        """Only application storage services can allocate objects."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Reject edits, including direct POST requests from superusers."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Preserve tracking records and outstanding cleanup obligations."""
+        return False
+
+
 @admin.register(models.AudioJob)
 class AudioJobAdmin(AudioJobDurationMixin, admin.ModelAdmin):
     """Immutable attempt identity and lifecycle history; cleanup belongs to files."""
@@ -803,6 +852,7 @@ class AudioJobAdmin(AudioJobDurationMixin, admin.ModelAdmin):
         "retry_of",
         "source_job",
         "output_key",
+        "output_object",
         "created_at",
         "updated_at",
         "started_at",

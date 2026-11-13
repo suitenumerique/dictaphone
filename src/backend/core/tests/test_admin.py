@@ -143,6 +143,51 @@ def test_ai_job_inline_has_no_editable_fields():
         },
     }
 )
+def test_storage_object_admin_is_view_only(client):
+    """Admins can inspect and search objects but cannot mutate or delete them."""
+    admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
+    obj = factories.FileFactory().original_object
+    obj.checksum_algorithm = "SHA256"
+    obj.checksum_value = "stored-checksum"
+    obj.save()
+    client.force_login(admin_user)
+    url = reverse("admin:core_objectstorageobject_change", args=[obj.pk])
+    response = client.get(url)
+    assert response.status_code == 200
+    assert b"stored-checksum" in response.content
+    assert not response.context["adminform"].form.fields
+    assert b'name="_save"' not in response.content
+
+    response = client.get(
+        reverse("admin:core_objectstorageobject_changelist"),
+        {"q": obj.key, "kind__exact": obj.kind},
+    )
+    assert response.status_code == 200
+    assert list(response.context["cl"].result_list) == [obj]
+    assert not response.context["cl"].model_admin.get_actions(Mock(user=admin_user))
+
+    assert client.get(reverse("admin:core_objectstorageobject_add")).status_code == 403
+    assert client.post(url, {"state": "deleted"}).status_code == 403
+    assert (
+        client.post(
+            reverse("admin:core_objectstorageobject_delete", args=[obj.pk]),
+            {"post": "yes"},
+        ).status_code
+        == 403
+    )
+    obj.refresh_from_db()
+    assert obj.state == "pending"
+    assert obj.checksum_value == "stored-checksum"
+
+
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
 def test_transcription_usage_admin_only_edits_ignore_fields(client):
     """Admins can exempt and reinstate usage without changing the original charge."""
     admin_user = factories.UserFactory(is_staff=True, is_superuser=True)
