@@ -11,7 +11,7 @@ from django.core.management.base import CommandError
 from django.utils import timezone
 
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from storages.backends.s3 import S3Storage
 
 from core import factories, models
@@ -375,3 +375,48 @@ def test_failed_cleanup_can_be_retried_after_owner_job_deletion(
         storage.return_value.delete.assert_called_once_with(obj.key)
     obj.refresh_from_db()
     assert obj.state == "deleted"
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        OSError("private provider response"),
+        BotoCoreError(),
+        ClientError({"Error": {"Code": "AccessDenied"}}, "DeleteObject"),
+    ],
+)
+def test_cleanup_continues_after_individual_deletion_failures(error):
+    """Failed objects remain retryable while later objects are still deleted."""
+    job = factories.AiFileJobFactory()
+    objects = list(job.file.storage_objects.order_by("pk"))
+    assert len(objects) == 3
+    job.file.storage_objects.update(state="deleting")
+    stdout, stderr = StringIO(), StringIO()
+    with patch("core.object_storage.get_storage_for_object") as storage:
+        storage.return_value.delete.side_effect = [error, error, None]
+        with pytest.raises(CommandError, match="2 deletions failed"):
+            call_command("cleanup_storage_objects", stdout=stdout, stderr=stderr)
+    assert [call.args[0] for call in storage.return_value.delete.call_args_list] == [
+        obj.key for obj in objects
+    ]
+    assert stdout.getvalue() == "Deleted: 1\n"
+    assert stderr.getvalue().splitlines() == [
+        f"object={obj.pk}: {type(error).__name__}" for obj in objects[:2]
+    ]
+    for obj, state in zip(objects, ["deleting", "deleting", "deleted"], strict=True):
+        obj.refresh_from_db()
+        assert obj.state == state
+
+
+def test_cleanup_dry_run_preserves_deleting_objects():
+    """Dry runs count the bounded batch without attempting deletion."""
+    file = factories.FileFactory()
+    file.storage_objects.update(state="deleting")
+    stdout = StringIO()
+    with patch(
+        "core.management.commands.cleanup_storage_objects.delete_object"
+    ) as delete:
+        call_command("cleanup_storage_objects", dry_run=True, limit=1, stdout=stdout)
+    delete.assert_not_called()
+    assert stdout.getvalue() == "Would delete: 1\n"
+    assert not file.storage_objects.exclude(state="deleting").exists()
