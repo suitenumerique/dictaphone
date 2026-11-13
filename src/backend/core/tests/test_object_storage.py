@@ -2,7 +2,6 @@
 
 import base64
 import hashlib
-from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import Mock, patch
 

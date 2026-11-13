@@ -10,6 +10,7 @@ def backfill_file_configuration(apps, schema_editor):
 
     for file in File.objects.filter(storage_bucket_name__isnull=True).iterator():
         values = default_profile.as_file_snapshot(file.created_at)
+        values["storage_bucket_name"] = default_profile.storage_bucket_name
         if file.deleted_at is not None:
             values.update(default_profile.as_trashbin_snapshot(file.deleted_at))
         File.objects.filter(pk=file.pk).update(**values)
