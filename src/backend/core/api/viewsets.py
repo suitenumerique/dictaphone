@@ -40,9 +40,9 @@ from core.api.parsers import BoundedWebhookJSONParser, BoundedWebhookMultiPartPa
 from core.audio_jobs import start_audio_extraction
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
-from core.object_storage import observe_object, register_file_objects
+from core.object_storage import observe_object
 from core.payloads import PayloadLimitExceeded, read_stored_result
-from core.storage import get_storage_bucket_name, get_storage_for_file
+from core.storage import get_storage_bucket_name, get_storage_for_object
 from core.tasks.file import (
     DocumentCreationAlreadyInProgress,
     PermanentTranscriptionError,
@@ -294,7 +294,7 @@ class FileViewSet(
             super()
             .get_queryset()
             .visible_in_api()
-            .select_related("creator")
+            .select_related("creator", "original_object", "temporary_upload_object")
             .with_audio_state()
             .prefetch_related(
                 Prefetch("ai_jobs", queryset=AiFileJob.objects.order_by("-created_at"))
@@ -422,9 +422,7 @@ class FileViewSet(
                     )
         file.refresh_from_db()
 
-        register_file_objects(file)
-
-        storage = get_storage_for_file(file)
+        storage = get_storage_for_object(file.original_object)
         bucket_name = get_storage_bucket_name(storage)
         s3_client = storage.connection.meta.client
         validation_error = None
@@ -436,14 +434,16 @@ class FileViewSet(
             # The temporary folders will need to be cleaned periodically
             s3_client.copy_object(
                 Bucket=bucket_name,
-                Key=file.file_key,
+                Key=file.original_object.key,
                 CopySource={
-                    "Bucket": bucket_name,
-                    "Key": file.temporary_file_key,
+                    "Bucket": file.temporary_upload_object.storage_bucket_name,
+                    "Key": file.temporary_upload_object.key,
                 },
             )
 
-            head_response = s3_client.head_object(Bucket=bucket_name, Key=file.file_key)
+            head_response = s3_client.head_object(
+                Bucket=bucket_name, Key=file.original_object.key
+            )
             file_size = head_response["ContentLength"]
             # python-magic recommends using at least the first 2048 bytes
             # to reduce incorrect identification.
@@ -453,16 +453,19 @@ class FileViewSet(
             if file_size > 2048:
                 range_response = s3_client.get_object(
                     Bucket=bucket_name,
-                    Key=file.file_key,
+                    Key=file.original_object.key,
                     Range="bytes=0-2047",
                 )
                 file_head = range_response["Body"].read()
             else:
-                file_head = s3_client.get_object(Bucket=bucket_name, Key=file.file_key)[
-                    "Body"
-                ].read()
+                file_head = s3_client.get_object(
+                    Bucket=bucket_name, Key=file.original_object.key
+                )["Body"].read()
 
-            logger.info("upload_ended: detecting mimetype for file: %s", file.file_key)
+            logger.info(
+                "upload_ended: detecting mimetype for file: %s",
+                file.original_object.key,
+            )
             mimetype = utils.detect_mimetype(file_head, filename=file.filename)
 
             if (
@@ -479,7 +482,7 @@ class FileViewSet(
                 logger.info(
                     "upload_ended: detected mimetype for file %s is %s "
                     "but it was declared as %s, leaving it that way.",
-                    file.file_key,
+                    file.original_object.key,
                     mimetype,
                     head_response["ContentType"],
                 )
@@ -491,7 +494,7 @@ class FileViewSet(
                     logger.info(
                         "upload_ended: file size (%s) for file %s higher than the allowed max size",
                         file_size,
-                        file.file_key,
+                        file.original_object.key,
                     )
                     validation_error = drf_exceptions.ValidationError(
                         detail="The file size is higher than the allowed max size.",
@@ -504,7 +507,7 @@ class FileViewSet(
                         logger.warning(
                             "upload_ended: mimetype not allowed %s for file %s",
                             mimetype,
-                            file.file_key,
+                            file.original_object.key,
                         )
                         validation_error = drf_exceptions.ValidationError(
                             detail="The file type is not allowed.",
@@ -528,10 +531,10 @@ class FileViewSet(
                     )
                     s3_client.copy_object(
                         Bucket=bucket_name,
-                        Key=file.file_key,
+                        Key=file.original_object.key,
                         CopySource={
                             "Bucket": bucket_name,
-                            "Key": file.file_key,
+                            "Key": file.original_object.key,
                         },
                         ContentType=mimetype,
                         Metadata=head_response["Metadata"],
@@ -662,19 +665,24 @@ class FileViewSet(
             logger.warning("File with ID '%s' does not exist", pk)
             raise drf_exceptions.PermissionDenied() from exc
 
-        expected_bucket = file.configuration.storage_bucket_name
         requested_bucket = url_params.get("bucket")
         if requested_bucket is None:
             requested_bucket = get_bucket_configurations()[
                 "default"
             ].storage_bucket_name
-        if requested_bucket != expected_bucket:
-            logger.warning(
-                "Media URL bucket '%s' does not match file '%s' bucket '%s'",
-                requested_bucket,
-                file.id,
-                expected_bucket,
+        obj = (
+            file.storage_objects.filter(
+                storage_bucket_name=requested_bucket,
+                key=url_params["key"],
+                kind__in=[
+                    models.ObjectStorageObject.Kind.ORIGINAL,
+                    models.ObjectStorageObject.Kind.AUDIO,
+                ],
             )
+            .exclude(state__in=["deleted", "deleting"])
+            .first()
+        )
+        if obj is None:
             raise drf_exceptions.PermissionDenied()
 
         if (
@@ -699,7 +707,7 @@ class FileViewSet(
         logger.debug(
             "Subrequest authorization successful. Extracted parameters: %s", url_params
         )
-        return url_params, request.user.id, file
+        return obj, file
 
     @decorators.action(detail=False, methods=["get"], url_path="media-auth")
     def media_auth(self, request, *args, **kwargs):
@@ -712,18 +720,14 @@ class FileViewSet(
         annotation. The request will then be proxied to the object storage backend who will
         respond with the file after checking the signature included in headers.
         """
-        url_params, _, file = self._authorize_subrequest(
-            request, MEDIA_STORAGE_URL_PATTERN
-        )
+        obj, file = self._authorize_subrequest(request, MEDIA_STORAGE_URL_PATTERN)
 
         if not file.is_ready:
             logger.warning("File '%s' is not ready", file.id)
             raise drf_exceptions.PermissionDenied()
 
         # Generate S3 authorization headers using the extracted URL parameters
-        request = utils.generate_s3_authorization_headers(
-            file, f"{url_params.get('key'):s}"
-        )
+        request = utils.generate_s3_authorization_headers(obj)
 
         return drf_response.Response("authorized", headers=request.headers, status=200)
 
@@ -735,7 +739,9 @@ class AiJobViewSet(
     """AI jobs API."""
 
     permission_classes = [permissions.AiJobPermission, permissions.CanProcessFiles]
-    queryset = AiFileJob.objects.select_related("file", "file__creator")
+    queryset = AiFileJob.objects.select_related(
+        "file", "file__creator", "result_object"
+    )
     serializer_class = serializers.AiJobSerializer
     throttle_classes_by_action = {
         "retry": (
@@ -798,12 +804,12 @@ class AiJobViewSet(
                 code="ai_job_not_completed",
             )
 
-        storage = get_storage_for_file(ai_job.file, key=ai_job.key)
-        if not storage.exists(ai_job.key):
+        storage = get_storage_for_object(ai_job.result_object)
+        if not storage.exists(ai_job.result_object.key):
             raise drf_exceptions.NotFound()
 
         try:
-            content = read_stored_result(storage, ai_job.key, ai_job.type)
+            content = read_stored_result(storage, ai_job.result_object.key, ai_job.type)
         except PayloadLimitExceeded as exc:
             raise drf_exceptions.ValidationError(str(exc)) from exc
 

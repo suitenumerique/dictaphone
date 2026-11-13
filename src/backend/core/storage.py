@@ -28,7 +28,7 @@ class ConfiguredS3Storage(S3Storage):  # pylint: disable=abstract-method
 
 
 @lru_cache(maxsize=32)
-def get_storage_for_bucket(bucket_configuration: str, bucket_name: str | None = None):
+def get_storage_for_bucket(bucket_configuration: str):
     """Return a storage backend configured for one bucket."""
     if not isinstance(default_storage, S3Storage):
         raise ImproperlyConfigured(
@@ -37,10 +37,9 @@ def get_storage_for_bucket(bucket_configuration: str, bucket_name: str | None = 
         )
 
     configuration = get_bucket_configurations()[bucket_configuration]
-    bucket_name = bucket_name or configuration.storage_bucket_name
 
     return S3Storage(
-        bucket_name=bucket_name,
+        bucket_name=configuration.storage_bucket_name,
         access_key=configuration.access_key_id.get_secret_value(),
         secret_key=configuration.secret_access_key.get_secret_value(),
         endpoint_url=configuration.endpoint_url,
@@ -70,52 +69,18 @@ def get_storage_bucket_name(storage) -> str:
     return storage.bucket_name
 
 
-def get_storage_for_file(file, key=None):
-    """Return the storage backend selected by a file's persisted configuration."""
-    # Build and Demo use FileSystemStorage, which remains valid for regular file
-    # operations even though bucket-specific routing is unavailable.
-    if not isinstance(default_storage, S3Storage):
-        return default_storage
-
-    if key is not None:
-        obj = file.storage_objects.filter(key=key).exclude(state="deleted").first()
-        if obj is not None:
-            return get_storage_for_object(obj)
-
-    profile = file.configuration
-    return get_storage_for_bucket(
-        bucket_configuration=profile.bucket_configuration_key,
-        bucket_name=file.storage_bucket_name or profile.storage_bucket_name,
-    )
-
-
 def get_storage_for_object(obj):
     """Resolve a tracked physical location independently of its owning file."""
     if not isinstance(default_storage, S3Storage):
         return default_storage
-    configuration = next(
-        (
-            config
-            for config in get_bucket_configurations().values()
-            if config.storage_bucket_name == obj.storage_bucket_name
-        ),
-        None,
+    return get_storage_for_bucket(
+        get_bucket_configuration_for_object(obj).bucket_configuration_key
     )
-    if configuration is None:
-        raise ImproperlyConfigured(
-            f"Unknown storage bucket {obj.storage_bucket_name!r}"
-        )
-    return get_storage_for_bucket(configuration.bucket_configuration_key)
 
 
-def get_bucket_configuration_for_file(file, key=None):
-    """Return the resolved S3 configuration selected by a file."""
-    if key is not None:
-        storage = get_storage_for_file(file, key=key)
-        bucket = get_storage_bucket_name(storage)
-        return next(
-            config
-            for config in get_bucket_configurations().values()
-            if config.storage_bucket_name == bucket
-        )
-    return get_bucket_configurations()[file.configuration.bucket_configuration_key]
+def get_bucket_configuration_for_object(obj):
+    """Resolve credentials by an object's persisted physical bucket."""
+    for configuration in get_bucket_configurations().values():
+        if configuration.storage_bucket_name == obj.storage_bucket_name:
+            return configuration
+    raise ImproperlyConfigured(f"Unknown storage bucket {obj.storage_bucket_name!r}")

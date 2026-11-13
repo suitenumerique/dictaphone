@@ -136,8 +136,7 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
     with (
         patch("core.tasks.file.AiFileJob.objects") as jobs,
         patch("core.tasks.file.fetch_external_source", return_value=response),
-        patch("core.tasks.file.get_storage_for_file") as storage,
-        patch("core.tasks.file.register_job_object") as register,
+        patch("core.tasks.file.get_storage_for_object") as storage,
         patch("core.tasks.file.store_result") as store,
         patch("core.tasks.file.analytics.capture_event"),
         patch("core.tasks.file.get_profile_for_email") as profile,
@@ -151,13 +150,11 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
                 task.apply(args=["job", "https://example.com/result"], throw=True)
             job.mark_failed.assert_called_once()
             storage.assert_not_called()
-            register.assert_not_called()
             store.assert_not_called()
         else:
             task.apply(args=["job", "https://example.com/result"], throw=True)
-            register.assert_called_once_with(job)
             store.assert_called_once_with(
-                register.return_value,
+                job.result_object,
                 storage.return_value,
                 content,
                 "application/json" if job_type == "transcript" else "text/plain",
@@ -207,7 +204,7 @@ def test_oversized_job_has_no_stored_result(settings, job_type):
         task.apply(args=[job.remote_job_id, "https://example.com/result"], throw=True)
     job.refresh_from_db()
     assert job.status == AiJobStatusChoices.FAILED
-    assert not default_storage.exists(job.key)
+    assert not default_storage.exists(job.result_object.key)
     assert AiFileJob.objects.filter(file=job.file).count() == 1
     retry.assert_not_called()
 
@@ -237,7 +234,7 @@ def test_legacy_oversized_results_cannot_be_served_or_exported(settings, job_typ
     settings.PAYLOAD_TRANSCRIPT_MAX_BYTES = 10
     settings.PAYLOAD_SUMMARY_MAX_BYTES = 10
     job = factories.AiFileJobFactory(type=job_type, status=AiJobStatusChoices.SUCCESS)
-    default_storage.save(job.key, BytesIO(b"x" * 11))
+    default_storage.save(job.result_object.key, BytesIO(b"x" * 11))
     with pytest.raises(PayloadLimitExceeded):
         job.to_markdown()
     client = APIClient()
@@ -253,7 +250,7 @@ def test_docs_releases_claim_when_stored_transcript_is_oversized(settings):
     job = factories.AiFileJobFactory(
         type="transcript", status=AiJobStatusChoices.SUCCESS
     )
-    default_storage.save(job.key, BytesIO(b"x" * 11))
+    default_storage.save(job.result_object.key, BytesIO(b"x" * 11))
     with (
         patch("core.tasks.file.session.post") as post,
         pytest.raises(PayloadLimitExceeded),
@@ -292,7 +289,7 @@ def test_invalid_transcript_has_no_partial_result(content):
         )
     job.refresh_from_db()
     assert job.status == AiJobStatusChoices.FAILED
-    assert not default_storage.exists(job.key)
+    assert not default_storage.exists(job.result_object.key)
     assert AiFileJob.objects.filter(file=job.file).count() == 1
     retry.assert_not_called()
 

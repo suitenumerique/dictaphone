@@ -25,7 +25,7 @@ from core.object_storage import (
     publish_object,
     store_result,
 )
-from core.storage import get_storage_for_file
+from core.storage import get_storage_for_object
 from core.tasks.file import process_file_deletion, process_original_file_data_deletion
 
 pytestmark = pytest.mark.django_db
@@ -41,12 +41,14 @@ def test_new_artifacts_reserve_linked_locations():
     transcript = factories.AiFileJobFactory(
         file=file, type="transcript", status="pending"
     )
-    assert file.original_object.key == file.file_key
-    assert file.temporary_upload_object.key == file.temporary_file_key
-    assert audio.output_object.key == audio.output_key
+    assert file.original_object.key.endswith(f"/{file.pk}.{file.extension}")
+    assert file.temporary_upload_object.kind == "temporary"
+    assert audio.output_object.key.endswith(f"/audio/{audio.pk}.ogg")
     assert validation.output_object is None
-    assert transcript.result_object.key == transcript.key
+    assert transcript.result_object.key == f"transcripts/{transcript.pk}.json"
     assert file.storage_objects.count() == 4
+    assert file.original_object.file_id == file.pk
+    assert file.temporary_upload_object.file_id == file.pk
     assert not file.storage_objects.exclude(state="pending").exists()
     assert all(obj.file_identifier == file.pk for obj in file.storage_objects.all())
 
@@ -423,12 +425,12 @@ def test_original_cleanup_preserves_results_and_tombstones_survive_file():
     """Original-data retention excludes results; full cleanup preserves audit identity."""
     file = factories.FileFactory()
     job = factories.AiFileJobFactory(file=file, type="summary", status="success")
-    storage = get_storage_for_file(file)
-    storage.save(file.file_key, BytesIO(b"original"))
-    storage.save(job.key, BytesIO(b"summary"))
+    storage = get_storage_for_object(file.original_object)
+    storage.save(file.original_object.key, BytesIO(b"original"))
+    storage.save(job.result_object.key, BytesIO(b"summary"))
     delete_file_objects(file, original_only=True)
-    assert not storage.exists(file.file_key)
-    assert storage.exists(job.key)
+    assert not storage.exists(file.original_object.key)
+    assert storage.exists(job.result_object.key)
     delete_file_objects(file)
     identity = file.pk
     file.deleted_at = timezone.now()

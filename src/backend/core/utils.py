@@ -22,9 +22,9 @@ import magic
 
 from core.configuration import register_configuration_cache_clearer
 from core.storage import (
-    get_bucket_configuration_for_file,
+    get_bucket_configuration_for_object,
     get_storage_bucket_name,
-    get_storage_for_file,
+    get_storage_for_object,
 )
 from core.webhook_models import WhisperXResponse
 
@@ -94,9 +94,9 @@ def clear_s3_client_cache() -> None:
 register_configuration_cache_clearer(clear_s3_client_cache)
 
 
-def _get_s3_client(file, storage, *, override_domain: bool, key=None):
-    """Return an S3 client using the file's bucket credentials."""
-    configuration = get_bucket_configuration_for_file(file, key=key)
+def _get_s3_client(obj, storage, *, override_domain: bool):
+    """Return an S3 client using the object's bucket credentials."""
+    configuration = get_bucket_configuration_for_object(obj)
     if configuration.domain_replace and override_domain:
         return _get_cached_s3_client(
             configuration.access_key_id.get_secret_value(),
@@ -108,7 +108,7 @@ def _get_s3_client(file, storage, *, override_domain: bool, key=None):
     return storage.connection.meta.client
 
 
-def generate_s3_authorization_headers(file, key):
+def generate_s3_authorization_headers(obj):
     """
     Generate authorization headers for an s3 object.
     These headers can be used as an alternative to signed urls with many benefits:
@@ -119,12 +119,12 @@ def generate_s3_authorization_headers(file, key):
     - the object storage service does not need to be exposed on internet
     """
 
-    storage = get_storage_for_file(file, key=key)
+    storage = get_storage_for_object(obj)
     bucket_name = get_storage_bucket_name(storage)
     url = storage.unsigned_connection.meta.client.generate_presigned_url(
         "get_object",
         ExpiresIn=0,
-        Params={"Bucket": bucket_name, "Key": key},
+        Params={"Bucket": bucket_name, "Key": obj.key},
     )
 
     request = botocore.awsrequest.AWSRequest(method="get", url=url)
@@ -215,10 +215,10 @@ def generate_upload_policy(file):
         Originally taken from https://github.com/suitenumerique/drive/blob/564822d31f071c6dfacd112ef4b7146c73077cd9/src/backend/core/api/utils.py#L102  # pylint: disable=line-too-long
     """
 
-    key = file.temporary_file_key
-    storage = get_storage_for_file(file, key=key)
+    obj = file.temporary_upload_object
+    storage = get_storage_for_object(obj)
     bucket_name = get_storage_bucket_name(storage)
-    configuration = get_bucket_configuration_for_file(file, key=key)
+    configuration = get_bucket_configuration_for_object(obj)
 
     # This setting should be used if the backend application and the frontend application
     # can't connect to the object storage with the same domain. This is the case in the
@@ -227,9 +227,9 @@ def generate_upload_policy(file):
     # service name declared in the docker compose stack.
     # This is needed because the domain name is used to compute the signature. So it can't be
     # changed dynamically by the frontend application.
-    s3_client = _get_s3_client(file, storage, override_domain=True, key=key)
+    s3_client = _get_s3_client(obj, storage, override_domain=True)
 
-    params = {"Bucket": bucket_name, "Key": key}
+    params = {"Bucket": bucket_name, "Key": obj.key}
 
     if configuration.upload_acl is not None:
         params["ACL"] = configuration.upload_acl
@@ -244,15 +244,12 @@ def generate_upload_policy(file):
     return policy
 
 
-def generate_download_file_url(
-    file, *, expires_in: int, override_domain: bool = True, key=None
-):
+def generate_download_object_url(obj, *, expires_in: int, override_domain: bool = True):
     """
-    Generate a S3 signed download url for a given file.
+    Generate a signed download URL for a tracked object.
     """
 
-    key = key or file.file_key
-    storage = get_storage_for_file(file, key=key)
+    storage = get_storage_for_object(obj)
     bucket_name = get_storage_bucket_name(storage)
 
     # This settings should be used if the backend application and the frontend application
@@ -263,15 +260,14 @@ def generate_download_file_url(
     # This is needed because the domain name is used to compute the signature. So it can't be
     # changed dynamically by the frontend application.
     s3_client = _get_s3_client(
-        file,
+        obj,
         storage,
         override_domain=override_domain,
-        key=key,
     )
 
     return s3_client.generate_presigned_url(
         ClientMethod="get_object",
-        Params={"Bucket": bucket_name, "Key": key},
+        Params={"Bucket": bucket_name, "Key": obj.key},
         ExpiresIn=expires_in,
     )
 

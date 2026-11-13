@@ -9,7 +9,7 @@ from core import factories
 from core.storage import (
     get_storage_bucket_name,
     get_storage_for_bucket,
-    get_storage_for_file,
+    get_storage_for_object,
 )
 
 pytestmark = pytest.mark.django_db
@@ -26,7 +26,7 @@ def test_bucket_storage_requires_s3_backend(monkeypatch):
     with pytest.raises(ImproperlyConfigured, match="S3Storage"):
         get_storage_bucket_name(filesystem_storage)
 
-    assert get_storage_for_file(None) is filesystem_storage
+    assert get_storage_for_object(None) is filesystem_storage
 
 
 def test_file_storage_uses_the_creator_domain_bucket(settings, monkeypatch):
@@ -59,7 +59,7 @@ def test_file_storage_uses_the_creator_domain_bucket(settings, monkeypatch):
         creator=factories.UserFactory(email="person@partner.example")
     )
 
-    storage = get_storage_for_file(file)
+    storage = get_storage_for_object(file.original_object)
 
     assert get_storage_bucket_name(storage) == "dictaphone-media-partner"
     assert storage.access_key == "partner-access"  # pylint: disable=no-member
