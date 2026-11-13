@@ -41,6 +41,8 @@ OIDC_RP_CLIENT_ID=<client_id>
 OIDC_RP_CLIENT_SECRET=<client secret>
 OIDC_RP_SIGN_ALGO=RS256
 OIDC_RP_SCOPES="openid email"
+# Literal UserInfo claim containing roles (array or whitespace-separated string).
+OIDC_ROLES_CLAIM=roles
 OIDC_STORE_REFRESH_TOKEN_KEY=<generate a Fernet key for refresh token encryption>
 
 LOGIN_REDIRECT_URL=https://${DICTAPHONE_HOST}

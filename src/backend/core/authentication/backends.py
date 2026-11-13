@@ -43,7 +43,7 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
           dict: A dictionary of extra claims.
 
         """
-        roles = user_info.get("roles")
+        roles = user_info.get(settings.OIDC_ROLES_CLAIM)
         if isinstance(roles, str):
             roles = roles.split()
         # Malformed claims must never accidentally grant access.

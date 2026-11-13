@@ -84,17 +84,58 @@ def test_email_bypass_clean_normalizes_before_unique_validation():
 
 
 @pytest.mark.parametrize("roles", [None, [], "", {"priviledged_user": True}, [1]])
-def test_login_clears_revoked_roles(settings, monkeypatch, roles):
+@pytest.mark.parametrize("claim", ["roles", "provider:roles"])
+def test_login_clears_revoked_roles(settings, monkeypatch, roles, claim):
     """Existing users can sign in after losing roles, with restrictions refreshed."""
     settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
+    settings.OIDC_ROLES_CLAIM = claim
     user = factories.UserFactory(oidc_roles=["priviledged_user"])
-    claims = {"sub": user.sub, "email": user.email, "roles": roles}
+    claims = {"sub": user.sub, "email": user.email, claim: roles}
     monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", lambda *args: claims)
     result = OIDCAuthenticationBackend().get_or_create_user("token", None, None)
     assert result == user
     assert result.is_restricted is True
     user.refresh_from_db()
     assert user.oidc_roles == ([] if roles in ([], "") else None)
+
+
+@pytest.mark.parametrize("roles", [["priviledged_user"], "other priviledged_user"])
+def test_signup_uses_configured_roles_claim(settings, monkeypatch, roles):
+    """A namespaced UserInfo claim grants access regardless of the default claim."""
+    settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
+    settings.OIDC_ROLES_CLAIM = "provider:roles"
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {
+            "sub": "new-user",
+            "email": "new@example.com",
+            "roles": ["other"],
+            "provider:roles": roles,
+        },
+    )
+    user = OIDCAuthenticationBackend().get_or_create_user("token", None, None)
+    user.refresh_from_db()
+    assert user.oidc_roles == (roles.split() if isinstance(roles, str) else roles)
+    assert user.access_status == "allowed"
+
+
+@pytest.mark.parametrize("roles", [None, [], "other", {"invalid": True}, [1]])
+def test_signup_does_not_fall_back_to_default_roles(settings, monkeypatch, roles):
+    """Only the configured claim can authorize registration, even when missing."""
+    settings.OIDC_ALLOWED_ROLES = ["priviledged_user"]
+    settings.OIDC_ROLES_CLAIM = "provider:roles"
+    claims = {
+        "sub": "new-user",
+        "email": "new@example.com",
+        "roles": ["priviledged_user"],
+    }
+    if roles is not None:
+        claims["provider:roles"] = roles
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", lambda *args: claims)
+    with pytest.raises(OIDCRegistrationRestricted):
+        OIDCAuthenticationBackend().get_or_create_user("token", None, None)
+    assert not models.User.objects.exists()
 
 
 @pytest.mark.parametrize("roles", [None, [], "other", {"invalid": True}])

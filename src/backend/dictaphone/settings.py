@@ -787,6 +787,9 @@ class Base(Configuration):
     OIDC_RP_SCOPES = values.Value(
         "openid email", environ_name="OIDC_RP_SCOPES", environ_prefix=None
     )
+    OIDC_ROLES_CLAIM = values.Value(
+        "roles", environ_name="OIDC_ROLES_CLAIM", environ_prefix=None
+    )
     # Empty disables the access policy; existing restricted users may still sign in.
     OIDC_ALLOWED_ROLES = values.ListValue(
         [], environ_name="OIDC_ALLOWED_ROLES", environ_prefix=None

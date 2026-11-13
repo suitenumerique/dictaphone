@@ -1,8 +1,24 @@
 # App access control
 
 Set `OIDC_ALLOWED_ROLES=priviledged_user` to restrict processing to users with a
-matching role in the OIDC `roles` claim. Use commas for multiple roles; leave empty
-to allow everyone. Request the provider's `roles` scope if needed.
+matching role in the OIDC claim selected by `OIDC_ROLES_CLAIM` (default: `roles`).
+Use commas for multiple allowed roles; leave empty to allow everyone. Configure
+`OIDC_RP_SCOPES` with space-separated scopes, including any scope required by your
+provider to return roles.
+
+For a provider using a namespaced claim, configure for example:
+
+```env
+OIDC_RP_SCOPES="openid email provider_scope"
+OIDC_ROLES_CLAIM=provider:roles
+OIDC_ALLOWED_ROLES=priviledged_user
+```
+
+The claim name is a literal top-level UserInfo key, including any colon or dot;
+it is not a nested path. Only that claim is read, with no fallback to `roles`.
+Its value can be an array of strings or a whitespace-separated string. Missing
+or malformed values produce `unknown` access when the role policy is enabled;
+an empty array or string produces `restricted` access.
 
 When the role policy is enabled, new identities must have a matching role or an
 active email bypass before an account is created. If their access is restricted or unknown, the OIDC callback
