@@ -124,6 +124,7 @@ def test_task_process_file_deletion_success():
     assert not default_storage.exists(ai_summary_job.key)
 
 
+@pytest.mark.django_db(transaction=True)
 def test_task_process_original_file_data_deletion_success():
     """Original source data deletion should keep file row and set lifecycle state."""
     file = factories.FileFactory(upload_bytes=b"hello")

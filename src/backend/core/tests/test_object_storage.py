@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import connection, transaction
 from django.utils import timezone
 
 import pytest
@@ -24,6 +25,7 @@ from core.object_storage import (
     store_result,
 )
 from core.storage import get_storage_for_file
+from core.tasks.file import process_file_deletion, process_original_file_data_deletion
 
 pytestmark = pytest.mark.django_db
 
@@ -335,6 +337,7 @@ def test_backfill_limit_cursor_and_skip_head():
     assert files[1].original_object_id is not None
 
 
+@pytest.mark.django_db(transaction=True)
 def test_original_cleanup_preserves_results_and_tombstones_survive_file():
     """Original-data retention excludes results; full cleanup preserves audit identity."""
     file = factories.FileFactory()
@@ -353,6 +356,70 @@ def test_original_cleanup_preserves_results_and_tombstones_survive_file():
     objects = models.ObjectStorageObject.objects.filter(file_identifier=identity)
     assert objects.exists()
     assert not objects.exclude(state="deleted", file__isnull=True).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "task", [process_file_deletion, process_original_file_data_deletion]
+)
+def test_lifecycle_cleanup_commits_all_tombstones_before_storage_failure(task):
+    """A failed post-commit deletion leaves the whole batch available for recovery."""
+    file = factories.FileFactory()
+    factories.AiFileJobFactory(file=file, type="summary")
+    file_id = file.pk
+    if task is process_file_deletion:
+        file.soft_delete()
+        file.hard_delete()
+    expected_count = 4 if task is process_file_deletion else 3
+
+    def fail_after_commit(_obj):
+        assert not connection.in_atomic_block
+        objects = models.ObjectStorageObject.objects.filter(file_identifier=file_id)
+        assert objects.filter(state="deleting").count() == expected_count
+        raise OSError("unavailable")
+
+    with patch(
+        "core.object_storage.delete_object", side_effect=fail_after_commit
+    ) as delete:
+        with pytest.raises(OSError, match="unavailable"):
+            with transaction.atomic():
+                task(file_id)
+                delete.assert_not_called()
+        delete.assert_called_once()
+
+    objects = models.ObjectStorageObject.objects.filter(file_identifier=file_id)
+    assert objects.filter(state="deleting").count() == expected_count
+    with patch("core.object_storage.get_storage_for_object") as storage:
+        call_command("cleanup_storage_objects", stdout=StringIO())
+    assert storage.return_value.delete.call_count == expected_count
+    assert objects.filter(state="deleted").count() == expected_count
+    if task is process_file_deletion:
+        assert not models.File.objects.filter(pk=file_id).exists()
+        assert not objects.filter(file__isnull=False).exists()
+    else:
+        assert objects.get(kind="summary").state == "pending"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "task", [process_file_deletion, process_original_file_data_deletion]
+)
+def test_lifecycle_cleanup_rollback_does_not_delete_storage(task):
+    """Rolling back cleanup intent must discard the physical deletion callback."""
+    file = factories.FileFactory()
+    file_id = file.pk
+    if task is process_file_deletion:
+        file.soft_delete()
+        file.hard_delete()
+    with patch("core.object_storage.get_storage_for_object") as storage:
+        with pytest.raises(RuntimeError, match="rollback"):
+            with transaction.atomic():
+                task(file_id)
+                raise RuntimeError("rollback")
+    storage.assert_not_called()
+    file.refresh_from_db()
+    assert file.lifecycle_state == models.FileLifecycleStateChoices.ACTIVE
+    assert not file.storage_objects.exclude(state="pending").exists()
 
 
 def test_failed_cleanup_can_be_retried_after_owner_job_deletion(

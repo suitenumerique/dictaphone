@@ -34,6 +34,7 @@ def test_clean_pending_files_recent_pending_not_deleted():
     assert default_storage.exists(file.file_key)
 
 
+@pytest.mark.django_db(transaction=True)
 def test_clean_pending_files_old_pending_deleted():
     """Pending files older than the threshold should be deleted."""
     old_date = timezone.now() - timedelta(hours=49)
@@ -71,6 +72,7 @@ def test_clean_pending_files_old_non_pending_not_deleted():
     assert default_storage.exists(file.audio_file_key)
 
 
+@pytest.mark.django_db(transaction=True)
 def test_clean_pending_files_custom_hours():
     """The --hours argument controls the age threshold."""
     old_date = timezone.now() - timedelta(hours=10)

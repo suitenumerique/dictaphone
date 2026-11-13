@@ -719,6 +719,7 @@ def test_cleanup_commands_delete_all_attempt_outputs_and_temporary_key(command):
 @pytest.mark.parametrize(
     "task", [process_file_deletion, process_original_file_data_deletion]
 )
+@pytest.mark.django_db(transaction=True)
 def test_cleanup_preserves_keys_until_signed_upload_expires(
     task, django_capture_on_commit_callbacks
 ):

@@ -277,8 +277,9 @@ def delete_object(obj):
         )
 
 
+@transaction.atomic
 def delete_file_objects(file, *, original_only=False):
-    """Include historical locations and failed attempts in lifecycle cleanup."""
+    """Commit cleanup intent for all known locations before deleting their contents."""
     register_existing_file(file)
     objects = file.storage_objects.exclude(state=ObjectStorageObject.State.DELETED)
     if original_only:
@@ -289,5 +290,13 @@ def delete_file_objects(file, *, original_only=False):
                 ObjectStorageObject.Kind.AUDIO,
             ]
         )
-    for obj in objects.iterator():
-        delete_object(obj)
+    objects = list(objects)
+    ObjectStorageObject.objects.filter(pk__in=[obj.pk for obj in objects]).update(
+        state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
+    )
+
+    def delete_objects():
+        for obj in objects:
+            delete_object(obj)
+
+    transaction.on_commit(delete_objects)
