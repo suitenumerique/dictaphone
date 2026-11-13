@@ -17,6 +17,9 @@ sidecars and init containers must define their own container security contexts.
 
 ## Manual management jobs
 
+For the object storage rollout, follow the
+[object storage tracking migration guide](../../../docs/migrations/object-storage-tracking.md).
+
 Configure `backend.managementJobs` to expose backend commands as suspended
 CronJobs. They inherit the backend image, environment (including Secret references),
 security context, mounts, sidecars, and scheduling settings. Each entry requires a
