@@ -213,9 +213,10 @@ def publish_object(obj, *, content=None, head=None):
 
 
 @transaction.atomic
-def store_result(obj, storage, content, content_type):
+def store_result(obj, content, content_type):
     """Serialize bounded AI result writes and reject changes to published bytes."""
     obj = ObjectStorageObject.objects.select_for_update().get(pk=obj.pk)
+    storage = get_storage_for_object(obj)
     digest = base64.b64encode(hashlib.sha256(content).digest()).decode("ascii")
     if obj.state in {obj.State.DELETING, obj.State.DELETED}:
         raise ValueError("Cannot write a deleted storage object")
@@ -237,25 +238,40 @@ def store_result(obj, storage, content, content_type):
     publish_object(obj, content=content)
 
 
-def delete_object(obj):
+def delete_object(obj, *, respect_retention=False):
     """Retain a tombstone on failure so object cleanup can be retried."""
-    ObjectStorageObject.objects.filter(pk=obj.pk).update(
-        state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
-    )
+    # Explicit deletion intent must survive a storage failure. Resolve the current
+    # location only after locking; a migration may have moved it while we waited.
+    if not respect_retention:
+        ObjectStorageObject.objects.filter(pk=obj.pk).update(
+            state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
+        )
     with transaction.atomic():
-        obj = ObjectStorageObject.objects.select_for_update().get(pk=obj.pk)
+        obj = ObjectStorageObject.objects.select_for_update().filter(pk=obj.pk).first()
+        if obj is None:
+            return False
+        if respect_retention:
+            from core.storage_migration import (  # noqa: PLC0415 # pylint: disable=import-outside-toplevel
+                cleanup_due,
+            )
+
+            if obj.state != obj.State.DELETING or not cleanup_due(obj):
+                return False
         get_storage_for_object(obj).delete(obj.key)
         ObjectStorageObject.objects.filter(pk=obj.pk).update(
             state=ObjectStorageObject.State.DELETED,
             deleted_at=timezone.now(),
             updated_at=timezone.now(),
         )
+    return True
 
 
 @transaction.atomic
 def delete_file_objects(file, *, original_only=False):
-    """Commit cleanup intent for tracked locations before deleting their contents."""
-    objects = file.storage_objects.exclude(state=ObjectStorageObject.State.DELETED)
+    """Commit cleanup intent for current and historical locations before deletion."""
+    objects = ObjectStorageObject.objects.filter(file_identifier=file.pk).exclude(
+        state=ObjectStorageObject.State.DELETED
+    )
     if original_only:
         objects = objects.filter(
             kind__in=[
@@ -264,13 +280,22 @@ def delete_file_objects(file, *, original_only=False):
                 ObjectStorageObject.Kind.AUDIO,
             ]
         )
-    objects = list(objects)
-    ObjectStorageObject.objects.filter(pk__in=[obj.pk for obj in objects]).update(
-        state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
-    )
+    # Lock authoritative rows first, then requery detached cleanup obligations:
+    # a transfer can create a source obligation while we wait on its object lock.
+    for locations in (
+        objects.exclude(checksum_source="migration"),
+        objects.filter(checksum_source="migration"),
+    ):
+        locations.update(
+            state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
+        )
 
     def delete_objects():
-        for obj in objects:
-            delete_object(obj)
+        for locations in (
+            objects.exclude(checksum_source="migration"),
+            objects.filter(checksum_source="migration"),
+        ):
+            for obj in locations.order_by("pk").iterator():
+                delete_object(obj)
 
     transaction.on_commit(delete_objects)

@@ -421,8 +421,7 @@ def handle_transcript_received(remote_job_id, url: str | None):
         raise
 
     obj = ai_transcript_job.result_object
-    storage = get_storage_for_object(obj)
-    store_result(obj, storage, content, "application/json")
+    store_result(obj, content, "application/json")
     logger.info(
         "Transcript stored for file %s & url %r",
         file.id,
@@ -506,8 +505,7 @@ def store_summary(remote_job_id, url):
         raise
 
     obj = ai_summary_job.result_object
-    storage = get_storage_for_object(obj)
-    store_result(obj, storage, content, "text/plain")
+    store_result(obj, content, "text/plain")
     logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
     ai_summary_job.status = AiJobStatusChoices.SUCCESS
     ai_summary_job.failure_reason = ""

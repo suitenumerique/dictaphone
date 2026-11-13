@@ -47,5 +47,70 @@ Coordinate this schema change with the application deployment: old application
 and worker processes still depend on the removed columns and must be stopped
 before applying the schema. Start the updated processes afterward.
 
-The completed `backfill_storage_objects` command is removed. No bucket-copying or
-provider-migration functionality is included.
+The completed `backfill_storage_objects` command is removed. Use `migrate_storage_objects` below to realign finalized artifacts after routing
+configuration changes.
+
+
+## Moving tracked objects
+
+Deploy the updated backend and result writers everywhere before running migrations.
+No schema migration is required. Keep both source and destination bucket
+configurations and credentials available until cleanup finishes. Configure the
+creator's new routing in `DATA_POLICY_CONFIGURATIONS` and restart processes so all
+instances use that configuration. The command resolves the current creator email,
+including the default policy for files without a creator.
+
+```sh
+python manage.py migrate_storage_objects --dry-run --limit 1000
+python manage.py migrate_storage_objects --batch-size 100 --limit 1000
+python manage.py migrate_storage_objects --file FILE_UUID --source-bucket old-bucket
+python manage.py migrate_storage_objects --object OBJECT_UUID
+python manage.py cleanup_storage_objects --limit 1000
+```
+
+`--file` and `--object` may be repeated. Source filters use physical bucket names.
+The limit bounds examined objects, including aligned and deferred rows; batches
+bound database enumeration. For large inventories, partition by file/object or
+source bucket to avoid repeatedly examining the same aligned rows. Each object
+prints a result followed by aligned, migrated, deferred, and failed totals. A dry
+run's migrated count means “would migrate”; it performs no storage or database
+writes. Failures produce a nonzero exit status while other selected objects
+continue. Reruns safely overwrite an untracked destination or a cleanup location
+belonging to the same artifact, but refuse another tracked artifact's location.
+No bucket listing is used.
+
+Only available, published artifacts on finalized files are eligible. Pending
+uploads, temporary upload keys, expired artifacts, and audio outputs with unexpired
+signed upload URLs are deferred. File policy snapshots, deadlines (including grace
+periods), timestamps, lifecycle state, ownership, and job references are preserved;
+the command never saves the file. Eligibility is checked again before cutover.
+
+One object row lock and database transaction cover the entire transfer and
+verification. Budget database transaction timeouts for the largest object; writers
+and deletion can wait for that transfer. There is no file-wide migration lock.
+The backend downloads the source to temporary disk, uploads using the destination's
+credentials, then reads the entire destination to compare byte length and SHA-256.
+ETags are treated as opaque. Content type, encoding, language, disposition, cache
+headers, expiry and user metadata are preserved. Provision temporary disk space
+(`TMPDIR`) for the largest object per concurrent command, and network capacity for
+one source download, one upload, and one full destination download per object.
+Managed multipart uploads bound memory usage for large objects.
+
+Before writing, the command commits an independent cleanup obligation in the
+existing object table. These detached rows retain the owning file UUID and kind,
+use `checksum_source=migration` and `state=deleting`, have no artifact references, and keep the authoritative object UUID in `etag`
+solely to prevent another artifact from claiming the same cleanup location.
+After verified cutover, the destination obligation is replaced atomically by an
+old-source obligation; the authoritative object ID stays unchanged. These rows
+are cleanup obligations, not rollback history. Interrupted or failed writes leave
+the original row authoritative and the destination discoverable for cleanup or
+retry. Run `cleanup_storage_objects` regularly, alongside normal retention jobs.
+
+Old source copies can serve already issued download URLs for up to 24 hours (or
+the configured audio timeout / AWS URL lifetime if longer). On these cleanup rows,
+`published_at` identifies a retained source and `metadata_checked_at` stores its
+cleanup deadline. Cleanup also consults the file's existing original-data,
+hard-deletion and trash deadlines with grace periods, so URL retention never
+extends those deadlines. Explicit file/original-data deletion includes all detached
+obligations immediately. Deleted cleanup rows remain tombstones like other tracked
+locations. Keep old credentials configured until their cleanup has succeeded.
