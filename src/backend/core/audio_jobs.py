@@ -23,6 +23,7 @@ from core.models import (
     FileLifecycleStateChoices,
     FileUploadStateChoices,
 )
+from core.object_storage import observe_object, register_job_object
 from core.storage import (
     get_bucket_configuration_for_file,
     get_storage_bucket_name,
@@ -167,8 +168,9 @@ def _worker_payload(job):
         ),
     }
     if job.mode == AudioJobModeChoices.TRANSCODING:
-        storage = get_storage_for_file(file)
-        config = get_bucket_configuration_for_file(file)
+        register_job_object(job)
+        storage = get_storage_for_file(file, key=job.output_key)
+        config = get_bucket_configuration_for_file(file, key=job.output_key)
         params = {
             "Bucket": get_storage_bucket_name(storage),
             "Key": job.output_key,
@@ -302,7 +304,9 @@ def complete_job(mode, data):
         # The next poll recovers the expired lease; reject late success here.
         raise AudioJobConflict("Attempt has expired.")
     if data["status"] == "success" and mode == AudioJobModeChoices.TRANSCODING:
-        if not get_storage_for_file(file).exists(job.output_key):
+        obj = register_job_object(job)
+        observe_object(obj, publish=True)
+        if obj.state != obj.State.AVAILABLE:
             raise AudioJobConflict("Transcoding output has not been uploaded.")
     job.status = (
         AudioJobStatusChoices.SUCCESS

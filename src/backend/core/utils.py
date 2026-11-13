@@ -94,9 +94,9 @@ def clear_s3_client_cache() -> None:
 register_configuration_cache_clearer(clear_s3_client_cache)
 
 
-def _get_s3_client(file, storage, *, override_domain: bool):
+def _get_s3_client(file, storage, *, override_domain: bool, key=None):
     """Return an S3 client using the file's bucket credentials."""
-    configuration = get_bucket_configuration_for_file(file)
+    configuration = get_bucket_configuration_for_file(file, key=key)
     if configuration.domain_replace and override_domain:
         return _get_cached_s3_client(
             configuration.access_key_id.get_secret_value(),
@@ -119,7 +119,7 @@ def generate_s3_authorization_headers(file, key):
     - the object storage service does not need to be exposed on internet
     """
 
-    storage = get_storage_for_file(file)
+    storage = get_storage_for_file(file, key=key)
     bucket_name = get_storage_bucket_name(storage)
     url = storage.unsigned_connection.meta.client.generate_presigned_url(
         "get_object",
@@ -216,9 +216,9 @@ def generate_upload_policy(file):
     """
 
     key = file.temporary_file_key
-    storage = get_storage_for_file(file)
+    storage = get_storage_for_file(file, key=key)
     bucket_name = get_storage_bucket_name(storage)
-    configuration = get_bucket_configuration_for_file(file)
+    configuration = get_bucket_configuration_for_file(file, key=key)
 
     # This setting should be used if the backend application and the frontend application
     # can't connect to the object storage with the same domain. This is the case in the
@@ -227,7 +227,7 @@ def generate_upload_policy(file):
     # service name declared in the docker compose stack.
     # This is needed because the domain name is used to compute the signature. So it can't be
     # changed dynamically by the frontend application.
-    s3_client = _get_s3_client(file, storage, override_domain=True)
+    s3_client = _get_s3_client(file, storage, override_domain=True, key=key)
 
     params = {"Bucket": bucket_name, "Key": key}
 
@@ -252,7 +252,7 @@ def generate_download_file_url(
     """
 
     key = key or file.file_key
-    storage = get_storage_for_file(file)
+    storage = get_storage_for_file(file, key=key)
     bucket_name = get_storage_bucket_name(storage)
 
     # This settings should be used if the backend application and the frontend application
@@ -266,6 +266,7 @@ def generate_download_file_url(
         file,
         storage,
         override_domain=override_domain,
+        key=key,
     )
 
     return s3_client.generate_presigned_url(

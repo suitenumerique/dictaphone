@@ -3,7 +3,8 @@ Declare and configure the models for the Dictaphone core application
 # pylint: disable=too-many-lines
 """
 
-# pylint: disable=too-many-lines
+# Registration services are imported lazily because they operate on these models.
+# pylint: disable=too-many-lines,import-outside-toplevel,cyclic-import
 import uuid
 from logging import getLogger
 from os.path import splitext
@@ -35,6 +36,14 @@ from core.utils import format_transcript_for_markdown
 from core.webhook_models import WhisperXResponse
 
 logger = getLogger(__name__)
+
+
+def validate_storage_reference(owner_file_id, field, obj, kind):
+    """Reject cross-file or wrong-kind artifact links before saving an owner."""
+    if obj is not None and (obj.file_id != owner_file_id or obj.kind != kind):
+        raise ValidationError(
+            {field: "The storage object must match the file and kind."}
+        )
 
 
 def get_trashbin_cutoff(file: File):
@@ -485,6 +494,20 @@ class File(BaseModel):
         default=FileSourceChoices.UNKNOWN,
     )
     storage_bucket_name = models.CharField(max_length=63)
+    original_object = models.ForeignKey(
+        "ObjectStorageObject",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    temporary_upload_object = models.ForeignKey(
+        "ObjectStorageObject",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     original_file_data_delete_at = models.DateTimeField()
     original_file_data_delete_at_with_grace_period = models.DateTimeField()
     file_auto_hard_delete_at = models.DateTimeField()
@@ -608,6 +631,26 @@ class File(BaseModel):
                     "file_auto_hard_delete_at_with_grace_period",
                 ]
             )
+            from core.object_storage import (  # noqa: PLC0415
+                register_file_objects,
+            )
+
+            register_file_objects(self)
+
+    def clean(self):
+        super().clean()
+        validate_storage_reference(
+            self.pk,
+            "original_object",
+            self.original_object,
+            ObjectStorageObject.Kind.ORIGINAL,
+        )
+        validate_storage_reference(
+            self.pk,
+            "temporary_upload_object",
+            self.temporary_upload_object,
+            ObjectStorageObject.Kind.TEMPORARY,
+        )
 
     def _set_configuration_snapshot(self, reference_time=None):
         """Persist the configuration selected by the creator's email domain."""
@@ -874,6 +917,73 @@ class AudioJobStatusChoices(models.TextChoices):
     STALE = "stale", _("Stale")
 
 
+class ObjectStorageObject(BaseModel):
+    """An application-owned object location, including durable cleanup state."""
+
+    class Kind(models.TextChoices):
+        """Artifacts with distinct application lifecycles."""
+
+        TEMPORARY = "temporary", "Temporary upload"
+        ORIGINAL = "original", "Original"
+        AUDIO = "audio", "Audio"
+        TRANSCRIPT = "transcript", "Transcript"
+        SUMMARY = "summary", "Summary"
+
+    class State(models.TextChoices):
+        """Presence is established separately from allocating a location."""
+
+        PENDING = "pending", "Pending"
+        AVAILABLE = "available", "Available"
+        MISSING = "missing", "Missing"
+        DELETING = "deleting", "Deleting"
+        DELETED = "deleted", "Deleted"
+
+    file = models.ForeignKey(
+        File,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="storage_objects",
+    )
+    # Keep the owning identity after file deletion for audit and cleanup retries.
+    file_identifier = models.UUIDField(db_index=True)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    storage_bucket_name = models.CharField(max_length=63)
+    key = models.CharField(max_length=1024)
+    state = models.CharField(
+        max_length=12, choices=State.choices, default=State.PENDING
+    )
+    size = models.PositiveBigIntegerField(null=True, blank=True)
+    etag = models.CharField(max_length=255, blank=True, default="")
+    checksum_algorithm = models.CharField(max_length=32, blank=True, default="")
+    checksum_value = models.CharField(max_length=255, blank=True, default="")
+    checksum_type = models.CharField(max_length=16, blank=True, default="")
+    checksum_source = models.CharField(max_length=16, blank=True, default="")
+    metadata_checked_at = models.DateTimeField(null=True, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "object_storage_object"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["storage_bucket_name", "key"],
+                name="storage_object_location_unique",
+            ),
+        ]
+        indexes = [models.Index(fields=["state", "updated_at"])]
+
+    def __str__(self):
+        return f"{self.storage_bucket_name}/{self.key}"
+
+    def clean(self):
+        super().clean()
+        if self.file_id and self.file_id != self.file_identifier:
+            raise ValidationError({"file": "The owning file identity must match."})
+        if bool(self.checksum_algorithm) != bool(self.checksum_value):
+            raise ValidationError("Checksum algorithm and value must be set together.")
+
+
 class AudioJob(BaseModel):
     """One worker attempt, with a permanent identity and storage destination."""
 
@@ -897,6 +1007,13 @@ class AudioJob(BaseModel):
         related_name="validations",
     )
     output_key = models.CharField(max_length=1024, null=True, blank=True, unique=True)
+    output_object = models.ForeignKey(
+        ObjectStorageObject,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     started_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -922,13 +1039,34 @@ class AudioJob(BaseModel):
     def __str__(self):
         return f"{self.file_id} - {self.mode} - {self.status} - {self.id}"
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         """Allocate the key before issuing a signed upload URL."""
         if self._state.adding and self.mode == AudioJobModeChoices.TRANSCODING:
             self.output_key = (
                 self.output_key or f"{self.file.key_base}/audio/{self.id}.ogg"
             )
+        is_new = self._state.adding
         super().save(*args, **kwargs)
+        if is_new and self.output_key:
+            from core.object_storage import (  # noqa: PLC0415
+                register_job_object,
+            )
+
+            register_job_object(self)
+
+    def clean(self):
+        super().clean()
+        validate_storage_reference(
+            self.file_id,
+            "output_object",
+            self.output_object,
+            ObjectStorageObject.Kind.AUDIO,
+        )
+        if self.mode == AudioJobModeChoices.VALIDATION and self.output_object_id:
+            raise ValidationError(
+                {"output_object": "Validation jobs do not produce objects."}
+            )
 
 
 class TranscriptionUsage(BaseModel):
@@ -996,6 +1134,13 @@ class AiFileJob(BaseModel):
         choices=AiJobTypeChoices.choices,
     )
     file = models.ForeignKey(File, on_delete=models.CASCADE, related_name="ai_jobs")
+    result_object = models.ForeignKey(
+        ObjectStorageObject,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     status = models.CharField(
         max_length=25,
         choices=AiJobStatusChoices.choices,
@@ -1034,6 +1179,27 @@ class AiFileJob(BaseModel):
         return f"{self.file.title} - {self.type} - {self.status} - {self.id}"
 
     @transaction.atomic
+    def save(self, *args, **kwargs):
+        """Reserve the result location before any external result can arrive."""
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new:
+            from core.object_storage import (  # noqa: PLC0415
+                register_job_object,
+            )
+
+            register_job_object(self)
+
+    def clean(self):
+        super().clean()
+        validate_storage_reference(
+            self.file_id,
+            "result_object",
+            self.result_object,
+            self.type,
+        )
+
+    @transaction.atomic
     def mark_failed(self, reason=AiJobFailureReasonChoices.UNKNOWN_FAILURE):
         """Persist terminal failure and release its transcription quota charge."""
         self.status = AiJobStatusChoices.FAILED
@@ -1046,15 +1212,23 @@ class AiFileJob(BaseModel):
                 updated_at=timezone.now(),
             )
 
+    @transaction.atomic
     def delete(self, using=None, keep_parents=False):
         """Delete the AI job and its result file from object storage."""
         logger.info(
             "Deleted AI job %s and its result file if it exists %s", self.id, self.key
         )
-        key = self.key
+        from core.object_storage import (  # noqa: PLC0415
+            delete_object,
+            register_job_object,
+        )
+
+        obj = register_job_object(self)
+        ObjectStorageObject.objects.filter(pk=obj.pk).update(
+            state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
+        )
         result = super().delete(using=using, keep_parents=keep_parents)
-        storage = get_storage_for_file(self.file)
-        transaction.on_commit(lambda: storage.delete(key))
+        transaction.on_commit(lambda: delete_object(obj))
         return result
 
     @property
@@ -1072,7 +1246,7 @@ class AiFileJob(BaseModel):
             raise ValueError(f"Job status is not success: {self.status}")
 
         content = read_stored_result(
-            get_storage_for_file(self.file), self.key, self.type
+            get_storage_for_file(self.file, key=self.key), self.key, self.type
         )
 
         if self.type == AiJobTypeChoices.TRANSCRIPT:

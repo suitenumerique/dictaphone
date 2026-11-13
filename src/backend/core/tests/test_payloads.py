@@ -137,7 +137,8 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
         patch("core.tasks.file.AiFileJob.objects") as jobs,
         patch("core.tasks.file.fetch_external_source", return_value=response),
         patch("core.tasks.file.get_storage_for_file") as storage,
-        patch("core.tasks.file.get_storage_bucket_name", return_value="bucket"),
+        patch("core.tasks.file.register_job_object") as register,
+        patch("core.tasks.file.store_result") as store,
         patch("core.tasks.file.analytics.capture_event"),
         patch("core.tasks.file.get_profile_for_email") as profile,
         patch.object(task, "retry") as retry,
@@ -150,13 +151,17 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
                 task.apply(args=["job", "https://example.com/result"], throw=True)
             job.mark_failed.assert_called_once()
             storage.assert_not_called()
+            register.assert_not_called()
+            store.assert_not_called()
         else:
             task.apply(args=["job", "https://example.com/result"], throw=True)
-            storage.return_value.connection.meta.client.put_object.assert_called_once()
-            kwargs = (
-                storage.return_value.connection.meta.client.put_object.call_args.kwargs
+            register.assert_called_once_with(job)
+            store.assert_called_once_with(
+                register.return_value,
+                storage.return_value,
+                content,
+                "application/json" if job_type == "transcript" else "text/plain",
             )
-            assert kwargs["Body"] == content
             assert job.status == AiJobStatusChoices.SUCCESS
         retry.assert_not_called()
         jobs.create.assert_not_called()

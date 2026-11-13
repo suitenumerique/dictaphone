@@ -40,6 +40,7 @@ from core.api.parsers import BoundedWebhookJSONParser, BoundedWebhookMultiPartPa
 from core.audio_jobs import start_audio_extraction
 from core.authentication.webhooks import AiWebhookAuthentication
 from core.configuration import filter_files_by_policy_cutoff, get_bucket_configurations
+from core.object_storage import observe_object, register_file_objects
 from core.payloads import PayloadLimitExceeded, read_stored_result
 from core.storage import get_storage_bucket_name, get_storage_for_file
 from core.tasks.file import (
@@ -421,6 +422,8 @@ class FileViewSet(
                     )
         file.refresh_from_db()
 
+        register_file_objects(file)
+
         storage = get_storage_for_file(file)
         bucket_name = get_storage_bucket_name(storage)
         s3_client = storage.connection.meta.client
@@ -534,6 +537,8 @@ class FileViewSet(
                         Metadata=head_response["Metadata"],
                         MetadataDirective="REPLACE",
                     )
+                observe_object(file.temporary_upload_object)
+                observe_object(file.original_object, publish=True)
         except Exception as e:
             logger.exception("Failed to analyze file, reverting to pending state")
             file.upload_state = models.FileUploadStateChoices.PENDING
@@ -793,7 +798,7 @@ class AiJobViewSet(
                 code="ai_job_not_completed",
             )
 
-        storage = get_storage_for_file(ai_job.file)
+        storage = get_storage_for_file(ai_job.file, key=ai_job.key)
         if not storage.exists(ai_job.key):
             raise drf_exceptions.NotFound()
 

@@ -30,8 +30,13 @@ from core.models import (
     FileLifecycleStateChoices,
     TranscriptionUsage,
 )
+from core.object_storage import (
+    delete_file_objects,
+    register_job_object,
+    store_result,
+)
 from core.payloads import PayloadLimitExceeded, read_response, result_limit
-from core.storage import get_storage_bucket_name, get_storage_for_file
+from core.storage import get_storage_for_file
 from core.tasks.constants import BACKEND_QUEUE
 from core.tasks.mail import send_transcription_ready_email
 from core.tasks.retry import build_retry_task_options
@@ -96,15 +101,7 @@ def process_file_deletion(file_id):
     if _defer_audio_cleanup(file, process_file_deletion):
         return
 
-    storage = get_storage_for_file(file)
-    for ai_job in file.ai_jobs.iterator():
-        logger.info("Deleting AI job %s for file %s", ai_job.id, file.id)
-        # Delete artifacts before committing the cascade, retaining keys if S3 fails.
-        storage.delete(ai_job.key)
-
-    logger.info("Deleting file %s", file.file_key)
-    storage.delete(file.file_key)
-    _delete_audio_and_temporary_objects(file, storage)
+    delete_file_objects(file)
 
     file.delete()
 
@@ -126,9 +123,7 @@ def process_original_file_data_deletion(file_id):
     file.save(update_fields=["lifecycle_state"])
     if _defer_audio_cleanup(file, process_original_file_data_deletion):
         return
-    storage = get_storage_for_file(file)
-    storage.delete(file.file_key)
-    _delete_audio_and_temporary_objects(file, storage)
+    delete_file_objects(file, original_only=True)
     file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     file.save(update_fields=["lifecycle_state"])
 
@@ -143,18 +138,6 @@ def _defer_audio_cleanup(file, task):
         )
         return True
     return False
-
-
-def _delete_audio_and_temporary_objects(file, storage):
-    """Delete every attempted output, including legacy and incomplete uploads."""
-    keys = set(
-        file.audio_jobs.exclude(output_key__isnull=True).values_list(
-            "output_key", flat=True
-        )
-    )
-    keys.update({file.legacy_audio_file_key, file.temporary_file_key})
-    for key in keys:
-        storage.delete(key)
 
 
 def _duration_is_allowed(file):
@@ -181,7 +164,9 @@ def _validate_transcription_audio(file, validation):
         and validation.mode == AudioJobModeChoices.VALIDATION
         and validation.status == AudioJobStatusChoices.SUCCESS
         and validation.source_job is not None
-        and get_storage_for_file(file).exists(validation.source_job.output_key)
+        and get_storage_for_file(file, key=validation.source_job.output_key).exists(
+            validation.source_job.output_key
+        )
     )
     if not extraction_done:
         raise ValueError("Cannot transcribe without successfully validated audio")
@@ -437,15 +422,9 @@ def handle_transcript_received(remote_job_id, url: str | None):
         ai_transcript_job.mark_failed()
         raise
 
-    storage = get_storage_for_file(file)
-    bucket_name = get_storage_bucket_name(storage)
-    s3_client = storage.connection.meta.client
-    s3_client.put_object(
-        Bucket=bucket_name,
-        Key=ai_transcript_job.key,
-        Body=content,
-        ContentType="application/json",
-    )
+    obj = register_job_object(ai_transcript_job)
+    storage = get_storage_for_file(file, key=ai_transcript_job.key)
+    store_result(obj, storage, content, "application/json")
     logger.info(
         "Transcript stored for file %s & url %r",
         file.id,
@@ -528,15 +507,9 @@ def store_summary(remote_job_id, url):
         ai_summary_job.mark_failed()
         raise
 
-    storage = get_storage_for_file(file)
-    bucket_name = get_storage_bucket_name(storage)
-    s3_client = storage.connection.meta.client
-    s3_client.put_object(
-        Bucket=bucket_name,
-        Key=ai_summary_job.key,
-        Body=content,
-        ContentType="text/plain",
-    )
+    obj = register_job_object(ai_summary_job)
+    storage = get_storage_for_file(file, key=ai_summary_job.key)
+    store_result(obj, storage, content, "text/plain")
     logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
     ai_summary_job.status = AiJobStatusChoices.SUCCESS
     ai_summary_job.failure_reason = ""
