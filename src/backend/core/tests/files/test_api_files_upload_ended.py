@@ -10,6 +10,7 @@ from django.db import connections
 from django.utils import timezone
 
 import pytest
+from botocore.exceptions import ClientError
 from freezegun import freeze_time
 from rest_framework.test import APIClient
 
@@ -66,6 +67,48 @@ def test_api_file_upload_ended_on_wrong_upload_state():
     assert response.json() == {
         "file": "This action is only available for files in PENDING state."
     }
+
+
+@patch("core.api.viewsets.start_audio_extraction")
+def test_api_file_upload_ended_missing_temporary_upload(mock_queue):
+    """A missing temporary object asks mobile clients to upload the audio again."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    file = factories.FileFactory(creator=user)
+
+    response = client.post(f"/api/v1.0/files/{file.id}/upload-ended/")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "The temporary upload does not exist. Please upload the file again."
+    }
+    file.refresh_from_db()
+    assert file.upload_state == FileUploadStateChoices.PENDING
+    mock_queue.assert_not_called()
+
+
+@patch("core.api.viewsets.start_audio_extraction")
+def test_api_file_upload_ended_other_storage_error(mock_queue):
+    """Storage errors other than a missing source retain their normal handling."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    file = factories.FileFactory(creator=user)
+    error = ClientError({"Error": {"Code": "AccessDenied"}}, "CopyObject")
+
+    with patch("core.api.viewsets.get_storage_for_file") as mock_storage:
+        mock_storage.return_value.connection.meta.client.copy_object.side_effect = error
+        with (
+            patch("core.api.viewsets.get_storage_bucket_name", return_value="bucket"),
+            pytest.raises(ClientError) as exc_info,
+        ):
+            client.post(f"/api/v1.0/files/{file.id}/upload-ended/")
+
+    assert exc_info.value is error
+    file.refresh_from_db()
+    assert file.upload_state == FileUploadStateChoices.PENDING
+    mock_queue.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True)

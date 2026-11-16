@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from botocore.exceptions import ClientError
 from django_filters import rest_framework as django_filters
 from pydantic import ValidationError
 from requests import RequestException
@@ -434,14 +435,24 @@ class FileViewSet(
             # final file and ignore any updates to the temporary file. (We cannot revoke the policy,
             # so the temporary file might still be updated after that.)
             # The temporary folders will need to be cleaned periodically
-            s3_client.copy_object(
-                Bucket=bucket_name,
-                Key=file.file_key,
-                CopySource={
-                    "Bucket": bucket_name,
-                    "Key": file.temporary_file_key,
-                },
-            )
+            try:
+                s3_client.copy_object(
+                    Bucket=bucket_name,
+                    Key=file.file_key,
+                    CopySource={
+                        "Bucket": bucket_name,
+                        "Key": file.temporary_file_key,
+                    },
+                )
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+                    # Mobile clients restart the upload on a finalization 404,
+                    # instead of repeatedly finalizing an object that is gone.
+                    raise drf_exceptions.NotFound(
+                        detail="The temporary upload does not exist. Please upload the file again.",
+                        code="temporary_upload_not_found",
+                    ) from e
+                raise
 
             head_response = s3_client.head_object(Bucket=bucket_name, Key=file.file_key)
             file_size = head_response["ContentLength"]

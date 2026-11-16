@@ -2,6 +2,13 @@
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
+## Backend checks
+
+- After editing backend code or tests, run
+  `make lint-backend && make test-back-parallel` before finishing the task.
+- Fix failures and rerun the checks. Targeted tests do not replace these checks.
+- If a check cannot run, report the blocker and which checks remain unverified.
+
 ## Git conventions
 
 ```text
