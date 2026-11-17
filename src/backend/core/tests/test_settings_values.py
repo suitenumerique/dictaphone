@@ -1,5 +1,8 @@
 """Tests for custom environment-backed settings values."""
 
+import runpy
+from pathlib import Path
+
 import pytest
 
 from dictaphone.values import (
@@ -93,3 +96,57 @@ def test_json_dict_value_rejects_non_dictionaries():
 
     with pytest.raises(ValueError, match="Cannot interpret dict value"):
         value.to_python("[1, 2, 3]")
+
+
+@pytest.mark.parametrize(
+    "overrides,expected",
+    [
+        (
+            {},
+            {
+                "FILE_UPLOAD_MAX_SIZE": 1073741824,
+                "FILE_UPLOAD_MAX_COUNT_BY_USER": 200,
+                "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS": 10860,
+            },
+        ),
+        (
+            {
+                "FILE_UPLOAD_MAX_SIZE": "524288000",
+                "FILE_UPLOAD_MAX_COUNT_BY_USER": "25",
+                "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS": "7260",
+                "FILE_UPLOAD_ALLOWED_EXTENSIONS": ".mp3,.wav",
+                "FILE_UPLOAD_ALLOWED_MIMETYPES": "audio/mpeg,audio/webm;codecs=opus",
+            },
+            {
+                "FILE_UPLOAD_MAX_SIZE": 524288000,
+                "FILE_UPLOAD_MAX_COUNT_BY_USER": 25,
+                "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS": 7260,
+                "FILE_UPLOAD_ALLOWED_EXTENSIONS": [".mp3", ".wav"],
+                "FILE_UPLOAD_ALLOWED_MIMETYPES": [
+                    "audio/mpeg",
+                    "audio/webm;codecs=opus",
+                ],
+            },
+        ),
+    ],
+)
+def test_file_upload_settings_from_environment(monkeypatch, overrides, expected):
+    """Load actual declarations to check defaults and unprefixed typed overrides."""
+    for name in (
+        "FILE_UPLOAD_MAX_SIZE",
+        "FILE_UPLOAD_MAX_COUNT_BY_USER",
+        "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS",
+        "FILE_UPLOAD_ALLOWED_EXTENSIONS",
+        "FILE_UPLOAD_ALLOWED_MIMETYPES",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in overrides.items():
+        monkeypatch.setenv(name, value)
+
+    configuration = runpy.run_path(
+        str(Path(__file__).resolve().parents[2] / "dictaphone" / "settings.py")
+    )["Base"]
+
+    for name, value in expected.items():
+        assert getattr(configuration, name) == value
+    assert not hasattr(configuration, "FILE_UPLOAD_RESTRICTIONS")

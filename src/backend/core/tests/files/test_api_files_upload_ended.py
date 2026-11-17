@@ -122,12 +122,7 @@ def test_api_file_upload_ended_success(mock_queue, settings):
     client.force_login(user)
 
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["text/html", "text/plain"],
-        },
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["text/html", "text/plain"]
     bucket_configurations = {
         name: dict(configuration)
         for name, configuration in settings.S3_BUCKET_CONFIGURATIONS.items()
@@ -214,12 +209,7 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
     File should be deleted and the file should be deleted from the storage.
     """
     settings.RESTRICT_UPLOAD_FILE_TYPE = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["application/pdf"],
-        }
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["application/pdf"]
 
     user = factories.UserFactory()
     client = APIClient()
@@ -255,12 +245,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     Test that the API returns a 200 when the mimetype is not allowed but not checking the mimetype.
     """
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["application/pdf"],
-        }
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["application/pdf"]
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
@@ -298,12 +283,7 @@ def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     MIME type parameters may contain spaces even when the allow list does not.
     """
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["audio/webm;codecs=opus"],
-        }
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["audio/webm;codecs=opus"]
 
     user = factories.UserFactory()
     client = APIClient()
@@ -343,12 +323,7 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     File object.
     """
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["text/html", "application/pdf"],
-        }
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["text/html", "application/pdf"]
 
     user = factories.UserFactory()
     client = APIClient()
@@ -411,12 +386,7 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     the declared audio content type from object storage.
     """
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["audio/mp4", "audio/x-m4a"],
-        }
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["audio/mp4", "audio/x-m4a"]
 
     user = factories.UserFactory()
     client = APIClient()
@@ -471,12 +441,7 @@ def test_api_upload_ended_file_size_exceeded(settings, caplog):
     should return a 400 and delete the file.
     """
 
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_size": 0,
-        }
-    }
+    settings.FILE_UPLOAD_MAX_SIZE = 0
 
     user = factories.UserFactory()
     client = APIClient()
@@ -507,12 +472,7 @@ def test_api_upload_ended_file_size_exceeded(settings, caplog):
 def test_api_file_upload_ended_concurrent_calls_are_serialized(settings):
     """Only one concurrent upload-ended call can finalize a pending upload."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "allowed_mimetypes": ["text/plain"],
-        },
-    }
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["text/plain"]
 
     user = factories.UserFactory()
     file = factories.FileFactory(
@@ -555,13 +515,8 @@ def test_api_file_upload_ended_concurrent_calls_are_serialized(settings):
 def test_upload_ended_rechecks_file_count_and_allows_retry(mock_queue, settings):
     """Pending uploads share no slots until finalized, and deletion frees a slot."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_count_by_user": 1,
-            "allowed_mimetypes": ["text/plain"],
-        },
-    }
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 1
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["text/plain"]
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
@@ -595,13 +550,8 @@ def test_upload_ended_rechecks_file_count_and_allows_retry(mock_queue, settings)
 def test_upload_ended_concurrent_files_respect_count_limit(mock_queue, settings):
     """Concurrent finalizations for one creator cannot both reserve the last slot."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_count_by_user": 1,
-            "allowed_mimetypes": ["text/plain"],
-        },
-    }
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 1
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["text/plain"]
     user = factories.UserFactory()
     files = factories.FileFactory.create_batch(2, creator=user, filename="audio.txt")
     for file in files:
@@ -631,12 +581,7 @@ def test_upload_ended_concurrent_files_respect_count_limit(mock_queue, settings)
 def test_upload_ended_ignores_count_when_restrictions_disabled(mock_queue, settings):
     """Disabling upload restrictions also disables the finalization count check."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_count_by_user": 0,
-        },
-    }
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 0
     user = factories.UserFactory()
     file = factories.FileFactory(creator=user, filename="audio.txt")
     default_storage.save(file.temporary_upload_object.key, BytesIO(b"my prose"))

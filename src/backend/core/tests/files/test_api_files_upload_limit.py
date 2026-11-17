@@ -22,12 +22,7 @@ def test_upload_limit_requires_authentication():
 def test_upload_limit_matches_creation_rules(settings, restrictions_enabled):
     """Count analyzing/ready uploads, excluding pending, deleted and other users."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = restrictions_enabled
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_count_by_user": 2,
-        },
-    }
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 2
     user = factories.UserFactory()
     factories.FileFactory(creator=user, update_upload_state="pending")
     file = factories.FileFactory(creator=user, update_upload_state="ready")
@@ -66,12 +61,7 @@ def test_upload_limit_matches_creation_rules(settings, restrictions_enabled):
 def test_upload_limit_excludes_files_hidden_by_retention(settings, hidden_fields):
     """Hidden files must not occupy slots that the user cannot free."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_count_by_user": 2,
-        },
-    }
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 2
     user = factories.UserFactory()
     visible = factories.FileFactory(creator=user, update_upload_state="ready")
     hidden = factories.FileFactory(creator=user, update_upload_state="ready")

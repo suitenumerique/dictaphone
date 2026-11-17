@@ -196,78 +196,94 @@ class Base(Configuration):
         default=True, environ_name="FILE_UPLOAD_APPLY_RESTRICTIONS", environ_prefix=None
     )
 
-    FILE_UPLOAD_RESTRICTIONS = JsonDictValue(
-        {
-            "audio_recording": {
-                "max_size": 1 * GB,
-                "max_count_by_user": 200,
-                "max_duration_seconds": 60 * 60 * 3 + 60,  # 3h01:00
-                "allowed_extensions": [
-                    ".mp4",
-                    ".m4a",
-                    ".webm",
-                    ".ogg",
-                    ".ogv",
-                    ".opus",
-                    ".wav",
-                    ".mp3",
-                    ".aac",
-                    ".flac",
-                    ".opus",
-                    ".weba",
-                    ".ogv",
-                    ".mov",
-                    ".mpeg",
-                    ".mkv",
-                ],
-                "allowed_mimetypes": [
-                    # MP4 / M4A
-                    "audio/mp4",
-                    "video/mp4",
-                    "audio/x-m4a",
-                    # Some M4A files
-                    "video/3gpp",
-                    "audio/x-hx-aac-adts",
-                    # webm
-                    "audio/webm;codecs=opus",
-                    "audio/webm",
-                    "video/webm",
-                    # OGG
-                    "application/ogg",
-                    "audio/ogg",
-                    "audio/ogg;codecs=opus",
-                    "audio/vorbis",
-                    "video/ogg",
-                    # Wav
-                    "audio/wav",
-                    "audio/wave",
-                    "audio/x-wav",
-                    "audio/vnd.wave",
-                    # AAC
-                    "audio/aac",
-                    "audio/x-aac",
-                    # Flac
-                    "audio/flac",
-                    "audio/x-flac",
-                    # Opus
-                    "audio/opus",
-                    # Quicktime
-                    "video/quicktime",
-                    # MKV
-                    "video/x-matroska",
-                    "video/matroska",
-                    "audio/x-matroska",
-                    "audio/matroska",
-                    # MP3
-                    "audio/mpeg",
-                    "audio/mpeg3",
-                    "audio/x-mpeg-3",
-                    "audio/x-mp3",
-                    "audio/mp3",
-                ],
-            },
-        },
-        environ_name="FILE_UPLOAD_RESTRICTIONS",
+    FILE_UPLOAD_MAX_SIZE = values.PositiveIntegerValue(
+        1 * GB,
+        environ_name="FILE_UPLOAD_MAX_SIZE",
+        environ_prefix=None,
+    )
+
+    FILE_UPLOAD_MAX_COUNT_BY_USER = values.PositiveIntegerValue(
+        200,
+        environ_name="FILE_UPLOAD_MAX_COUNT_BY_USER",
+        environ_prefix=None,
+    )
+
+    FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS = values.PositiveIntegerValue(
+        60 * 60 * 3 + 60,
+        environ_name="FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS",
+        environ_prefix=None,
+    )
+
+    FILE_UPLOAD_ALLOWED_EXTENSIONS = values.ListValue(
+        [
+            ".mp4",
+            ".m4a",
+            ".webm",
+            ".ogg",
+            ".ogv",
+            ".opus",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac",
+            ".opus",
+            ".weba",
+            ".ogv",
+            ".mov",
+            ".mpeg",
+            ".mkv",
+        ],
+        environ_name="FILE_UPLOAD_ALLOWED_EXTENSIONS",
+        environ_prefix=None,
+    )
+
+    FILE_UPLOAD_ALLOWED_MIMETYPES = values.ListValue(
+        [
+            # MP4 / M4A
+            "audio/mp4",
+            "video/mp4",
+            "audio/x-m4a",
+            # Some M4A files
+            "video/3gpp",
+            "audio/x-hx-aac-adts",
+            # webm
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "video/webm",
+            # OGG
+            "application/ogg",
+            "audio/ogg",
+            "audio/ogg;codecs=opus",
+            "audio/vorbis",
+            "video/ogg",
+            # Wav
+            "audio/wav",
+            "audio/wave",
+            "audio/x-wav",
+            "audio/vnd.wave",
+            # AAC
+            "audio/aac",
+            "audio/x-aac",
+            # Flac
+            "audio/flac",
+            "audio/x-flac",
+            # Opus
+            "audio/opus",
+            # Quicktime
+            "video/quicktime",
+            # MKV
+            "video/x-matroska",
+            "video/matroska",
+            "audio/x-matroska",
+            "audio/matroska",
+            # MP3
+            "audio/mpeg",
+            "audio/mpeg3",
+            "audio/x-mpeg-3",
+            "audio/x-mp3",
+            "audio/mp3",
+        ],
+        environ_name="FILE_UPLOAD_ALLOWED_MIMETYPES",
         environ_prefix=None,
     )
 

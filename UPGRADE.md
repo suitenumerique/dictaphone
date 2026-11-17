@@ -16,6 +16,28 @@ the following command inside your docker container:
 
 ## [Unreleased]
 
+### File upload restrictions
+
+`FILE_UPLOAD_RESTRICTIONS` has been removed. Replace any overrides under its
+`audio_recording` key with the following independent environment variables
+(without a `DJANGO_` prefix):
+
+| Previous key | Environment variable | Default |
+| --- | --- | --- |
+| `max_size` | `FILE_UPLOAD_MAX_SIZE` | `1073741824` bytes (1 GiB) |
+| `max_count_by_user` | `FILE_UPLOAD_MAX_COUNT_BY_USER` | `200` |
+| `max_duration_seconds` | `FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS` | `10860` seconds (3 h 1 min) |
+| `allowed_extensions` | `FILE_UPLOAD_ALLOWED_EXTENSIONS` | Existing list, unchanged |
+| `allowed_mimetypes` | `FILE_UPLOAD_ALLOWED_MIMETYPES` | Existing list, unchanged |
+
+List overrides are comma-separated strings, for example
+`FILE_UPLOAD_ALLOWED_EXTENSIONS=.mp3,.wav` and
+`FILE_UPLOAD_ALLOWED_MIMETYPES=audio/mpeg,audio/webm;codecs=opus`.
+Integer limits accept non-negative integers. The defaults and the
+`FILE_UPLOAD_APPLY_RESTRICTIONS` switch are unchanged. The frontend configuration
+keeps its existing `audio_recording` structure and advertises a duration limit
+60 seconds below the backend limit (3 hours by default).
+
 ### Audio extraction workers
 
 1. Stop uploads and drain/stop the legacy `dictaphone-audio` Celery workers before

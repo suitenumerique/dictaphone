@@ -292,12 +292,7 @@ def test_api_files_create_file_too_many(
     Pending and deleted files do not consume slots; retained uploads do.
     """
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {
-            **settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"],
-            "max_count_by_user": 1,
-        },
-    }
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 1
 
     user = factories.UserFactory()
     client = APIClient()

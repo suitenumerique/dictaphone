@@ -474,9 +474,7 @@ def test_api_ai_jobs_retry_requires_validated_audio(mock_task, audio_state):
 def test_api_ai_jobs_retry_file_duration_above_limit_bad_request(mock_task, settings):
     """Retry should return 400 when file duration is above allowed max duration."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-        "max_duration_seconds"
-    ]
+    max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
     user = factories.UserFactory()
     ai_job = factories.AiFileJobFactory(
         type=AiJobTypeChoices.TRANSCRIPT,

@@ -337,7 +337,7 @@ class FileViewSet(
         file_type = models.FileTypeChoices.AUDIO_RECORDING
         count = models.File.objects.count_for_upload_limit(request.user, file_type)
         limit = (
-            settings.FILE_UPLOAD_RESTRICTIONS[file_type]["max_count_by_user"]
+            settings.FILE_UPLOAD_MAX_COUNT_BY_USER
             if settings.FILE_UPLOAD_APPLY_RESTRICTIONS
             else None
         )
@@ -348,13 +348,12 @@ class FileViewSet(
 
         if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
             file_type = serializer.validated_data["type"]
-            config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file_type]
 
             count = models.File.objects.count_for_upload_limit(
                 self.request.user, file_type
             )
 
-            if count >= config_for_file_type["max_count_by_user"]:
+            if count >= settings.FILE_UPLOAD_MAX_COUNT_BY_USER:
                 logger.info(
                     "create_item: user reached max files per user for type %s",
                     file_type,
@@ -413,10 +412,7 @@ class FileViewSet(
                 count = models.File.objects.count_for_upload_limit(
                     file.creator, file.type
                 )
-                if (
-                    count
-                    > settings.FILE_UPLOAD_RESTRICTIONS[file.type]["max_count_by_user"]
-                ):
+                if count > settings.FILE_UPLOAD_MAX_COUNT_BY_USER:
                     # Roll back the reservation so the upload can be retried after deletion.
                     raise drf_exceptions.PermissionDenied(
                         _("You have reached the maximum number of files for this type.")
@@ -500,8 +496,7 @@ class FileViewSet(
                 mimetype = head_response["ContentType"]
 
             if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
-                config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
-                if file_size > config_for_file_type["max_size"]:
+                if file_size > settings.FILE_UPLOAD_MAX_SIZE:
                     logger.info(
                         "upload_ended: file size (%s) for file %s higher than the allowed max size",
                         file_size,
@@ -513,7 +508,7 @@ class FileViewSet(
                     )
                 else:
                     # Use improved MIME type detection combining magic bytes and file extension
-                    allowed_file_mimetypes = config_for_file_type["allowed_mimetypes"]
+                    allowed_file_mimetypes = settings.FILE_UPLOAD_ALLOWED_MIMETYPES
                     if mimetype.replace(" ", "") not in allowed_file_mimetypes:
                         logger.warning(
                             "upload_ended: mimetype not allowed %s for file %s",
@@ -946,8 +941,7 @@ class AiJobViewSet(
             and file.audio_extraction_state
             == models.FileAudioExtractionStateChoices.EXTRACTION_DONE
         ):
-            config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
-            max_duration_seconds = config_for_file_type["max_duration_seconds"]
+            max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
 
             if (
                 file.duration_seconds is None

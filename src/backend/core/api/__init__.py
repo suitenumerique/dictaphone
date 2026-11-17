@@ -53,21 +53,11 @@ def get_app_configuration(request):
             settings.RATE_LIMIT_AI_TRANSCRIPTION_AUDIO_HOURS_PER_24H
         ),
         "audio_recording": {
-            "max_count_by_user": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-                "max_count_by_user"
-            ],
-            "max_size": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-                "max_size"
-            ],
-            "allowed_extensions": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-                "allowed_extensions"
-            ],
-            "allowed_mimetypes": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-                "allowed_mimetypes"
-            ],
-            "max_duration_seconds": settings.FILE_UPLOAD_RESTRICTIONS[
-                "audio_recording"
-            ]["max_duration_seconds"]
+            "max_count_by_user": settings.FILE_UPLOAD_MAX_COUNT_BY_USER,
+            "max_size": settings.FILE_UPLOAD_MAX_SIZE,
+            "allowed_extensions": settings.FILE_UPLOAD_ALLOWED_EXTENSIONS,
+            "allowed_mimetypes": settings.FILE_UPLOAD_ALLOWED_MIMETYPES,
+            "max_duration_seconds": settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
             - 60,  # A bit of margin for error
         },
         "data_policy": {

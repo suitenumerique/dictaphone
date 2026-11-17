@@ -76,3 +76,23 @@ def test_frontend_configuration_uses_authenticated_user_domain_profile(settings)
         "file_auto_hard_delete_after_days": 90,
         "original_file_data_delete_after_days": 14,
     }
+
+
+def test_frontend_configuration_exposes_file_upload_settings(settings):
+    """Independent upload settings keep the existing API shape and duration margin."""
+    settings.FILE_UPLOAD_MAX_SIZE = 524288000
+    settings.FILE_UPLOAD_MAX_COUNT_BY_USER = 25
+    settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS = 7260
+    settings.FILE_UPLOAD_ALLOWED_EXTENSIONS = [".mp3", ".wav"]
+    settings.FILE_UPLOAD_ALLOWED_MIMETYPES = ["audio/mpeg", "audio/wav"]
+
+    response = Client().get("/api/v1.0/config/")
+
+    assert response.status_code == 200
+    assert response.json()["audio_recording"] == {
+        "max_size": 524288000,
+        "max_count_by_user": 25,
+        "max_duration_seconds": 7200,
+        "allowed_extensions": [".mp3", ".wav"],
+        "allowed_mimetypes": ["audio/mpeg", "audio/wav"],
+    }

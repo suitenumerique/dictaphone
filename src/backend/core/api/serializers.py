@@ -421,8 +421,7 @@ class CreateFileSerializer(ListFileSerializer):
         filename_root, ext = splitext(attrs["filename"])
 
         if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
-            config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[attrs["type"]]
-            if ext.lower() not in config_for_file_type["allowed_extensions"]:
+            if ext.lower() not in settings.FILE_UPLOAD_ALLOWED_EXTENSIONS:
                 logger.info(
                     "create_item: file extension not allowed %s for filename %s",
                     ext,
@@ -436,7 +435,7 @@ class CreateFileSerializer(ListFileSerializer):
             count = models.File.objects.count_for_upload_limit(
                 self.context["request"].user, attrs["type"]
             )
-            if count >= config_for_file_type["max_count_by_user"]:
+            if count >= settings.FILE_UPLOAD_MAX_COUNT_BY_USER:
                 logger.info(
                     "create_item: user reached max files per user for type %s",
                     attrs["type"],

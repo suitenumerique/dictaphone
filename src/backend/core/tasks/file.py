@@ -144,9 +144,7 @@ def _duration_is_allowed(file):
     if not settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
         return True
 
-    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS[file.type][
-        "max_duration_seconds"
-    ]
+    max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
     return (
         file.duration_seconds is not None
         and file.duration_seconds <= max_duration_seconds

@@ -15,11 +15,10 @@ def backfill_submissions(apps, schema_editor):
     db = schema_editor.connection.alias
     failed_jobs = ai_job.objects.using(db).filter(status="failed")
     failed_jobs.update(failure_reason="UNKNOWN_FAILURE")
-    for file_type, restrictions in settings.FILE_UPLOAD_RESTRICTIONS.items():
-        failed_jobs.filter(
-            file__type=file_type,
-            file__duration_seconds__gt=restrictions["max_duration_seconds"],
-        ).update(failure_reason="AUDIO_TOO_LONG")
+    failed_jobs.filter(
+        file__type="audio_recording",
+        file__duration_seconds__gt=settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS,
+    ).update(failure_reason="AUDIO_TOO_LONG")
     # Main has no submission snapshot: a remote ID proves submission, and the
     # job's creation time and file duration are the available historical values.
     submissions = ai_job.objects.using(db).filter(

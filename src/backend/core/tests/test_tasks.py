@@ -187,9 +187,7 @@ def test_task_call_transcribe_service_success(mock_post, settings, seconds_below
     settings.AI_SERVICE_URL = "http://ai-service/"
     settings.AI_SERVICE_API_KEY = "test-ai-key"
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-        "max_duration_seconds"
-    ]
+    max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
     file = factories.FileFactory(
         with_audio=True,
         upload_bytes=b"hello",
@@ -258,9 +256,7 @@ def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
 def test_task_call_transcribe_service_http_error(mock_post, settings):
     """Errors from AI transcribe API should bubble up and mark job as failed."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-        "max_duration_seconds"
-    ]
+    max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
     file = factories.FileFactory(
         with_audio=True,
         upload_bytes=b"hello",
@@ -288,9 +284,7 @@ def test_task_call_transcribe_service_fails_on_invalid_duration(
 ):
     """Files exceeding the configured limit should fail before external call."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-        "max_duration_seconds"
-    ]
+    max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
 
     file = factories.FileFactory(
         with_audio=True,
@@ -966,9 +960,7 @@ def test_network_tasks_do_not_share_mutable_retry_state():
 def test_task_call_transcribe_service_retries_on_request_error(mock_post, settings):
     """Transcribe task should trigger Celery retry for request exceptions."""
     settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
-    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
-        "max_duration_seconds"
-    ]
+    max_duration_seconds = settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS
     file = factories.FileFactory(
         with_audio=True,
         upload_bytes=b"hello",

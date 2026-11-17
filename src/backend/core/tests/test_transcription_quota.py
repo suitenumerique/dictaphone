@@ -408,9 +408,7 @@ def test_failure_backfill_classifies_audio_above_configured_limit(
     settings, limit_seconds
 ):
     """Only failed jobs strictly above the configured file duration get classified."""
-    settings.FILE_UPLOAD_RESTRICTIONS = {
-        "audio_recording": {"max_duration_seconds": limit_seconds}
-    }
+    settings.FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS = limit_seconds
     scenarios = [
         ("failed", limit_seconds - 1, "UNKNOWN_FAILURE"),
         ("failed", limit_seconds, "UNKNOWN_FAILURE"),
