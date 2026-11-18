@@ -416,3 +416,26 @@ def test_cleanup_dry_run_preserves_deleting_objects():
     delete.assert_not_called()
     assert stdout.getvalue() == "Would delete: 1\n"
     assert not file.storage_objects.exclude(state="deleting").exists()
+
+
+def test_cleanup_limit_counts_attempts_and_skips_objects_not_due():
+    """Failures and no-op deletions both use the attempt budget."""
+    job = factories.AiFileJobFactory()
+    factories.AiFileJobFactory(file=job.file)
+    objects = list(job.file.storage_objects.order_by("pk"))
+    job.file.storage_objects.update(state="deleting")
+    stdout = StringIO()
+    command = "core.management.commands.cleanup_storage_objects"
+    with (
+        patch(f"{command}.cleanup_due", side_effect=[False, True, True]) as due,
+        patch(
+            f"{command}.delete_object", side_effect=[OSError("provider error"), False]
+        ) as delete,
+        pytest.raises(CommandError, match="1 deletions failed"),
+    ):
+        call_command(
+            "cleanup_storage_objects", limit=2, stdout=stdout, stderr=StringIO()
+        )
+    assert due.call_count == 3
+    assert [call.args[0] for call in delete.call_args_list] == objects[1:3]
+    assert stdout.getvalue() == "Deleted: 0\n"

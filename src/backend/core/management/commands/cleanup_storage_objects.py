@@ -26,11 +26,13 @@ class Command(BaseCommand):
         ).order_by("pk")
         count = 0
         failures = 0
+        attempts = 0
         for obj in objects.iterator(chunk_size=100):
-            if count >= options["limit"]:
+            if attempts >= options["limit"]:
                 break
             if not cleanup_due(obj):
                 continue
+            attempts += 1
             if options["dry_run"]:
                 count += 1
             else:

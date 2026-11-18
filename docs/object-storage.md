@@ -59,11 +59,12 @@ Use `migrate_storage_objects` to realign finalized artifacts after routing
 configuration changes.
 
 Deploy the updated backend and result writers everywhere before running migrations.
-No schema migration is required. Keep both source and destination bucket
-configurations and credentials available until cleanup finishes. Configure the
-creator's new routing in `DATA_POLICY_CONFIGURATIONS` and restart processes so all
-instances use that configuration. The command resolves the current creator email,
-including the default policy for files without a creator.
+No schema migration is required. Keep both bucket configurations and credentials
+available throughout the migration and cleanup. Equip the destination bucket with
+an `AbortIncompleteMultipartUpload` lifecycle rule or the provider equivalent.
+Configure the creator's new routing in `DATA_POLICY_CONFIGURATIONS` and restart
+processes so all instances use that configuration. The command resolves the
+current creator email and uses the default policy for files without a creator.
 
 ```sh
 python manage.py migrate_storage_objects --dry-run --limit 1000
@@ -109,13 +110,22 @@ After verified cutover, the destination obligation is replaced atomically by an
 old-source obligation; the authoritative object ID stays unchanged. These rows
 are cleanup obligations, not rollback history. Interrupted or failed writes leave
 the original row authoritative and the destination discoverable for cleanup or
-retry. Run `cleanup_storage_objects` regularly, alongside normal retention jobs.
+retry. Run `cleanup_storage_objects` regularly alongside normal retention jobs.
+The command removes tracked objects. Use the destination lifecycle rule to abort
+incomplete multipart uploads, which persist until completed or aborted.
 
 Old source copies can serve already issued download URLs for up to 24 hours (or
 the configured audio timeout or S3 signed URL lifetime if longer). On these cleanup rows,
 `published_at` identifies a retained source and `metadata_checked_at` stores its
 cleanup deadline. Cleanup also consults the file's existing original-data,
 hard-deletion and trash deadlines with grace periods, so URL retention never
-extends those deadlines. Explicit file/original-data deletion includes all detached
-obligations immediately. Deleted cleanup rows remain tombstones like other tracked
-locations. Keep old credentials configured until their cleanup has succeeded.
+extends those deadlines. Explicit file or original-data deletion tasks reschedule
+while a signed audio upload URL remains valid. Once the task proceeds to
+`delete_file_objects`, it deletes the detached copies in scope without waiting for
+their retained download URLs to expire. Deleted cleanup rows remain tombstones.
+
+Before removing a source bucket's configuration or credentials, verify that no
+non-deleted authoritative object still references the bucket and that every
+cleanup obligation for the bucket has reached the deleted state. Deferred audio
+objects can still depend on the source bucket after cleanup succeeds. Revisit
+those objects once their signed upload URLs expire.
