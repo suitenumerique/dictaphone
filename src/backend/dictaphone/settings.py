@@ -327,7 +327,7 @@ class Base(Configuration):
         True, environ_name="EXTERNAL_SOURCE_REQUIRE_HTTPS", environ_prefix=None
     )
     AI_SERVICE_URL = values.Value(
-        "http://meet-summary.meet.svc.cluster.local/api/v2/",
+        "http://localhost:8000/api/v2/",
         environ_name="AI_SERVICE_URL",
         environ_prefix=None,
     )
@@ -377,10 +377,10 @@ class Base(Configuration):
 
     # Docs integration
     DOCS_INTEGRATION_ENABLED = values.BooleanValue(
-        default=True, environ_name="DOCS_INTEGRATION_ENABLED", environ_prefix=None
+        default=False, environ_name="DOCS_INTEGRATION_ENABLED", environ_prefix=None
     )
     DOCS_BASE_URL = values.Value(
-        "https://example.com",
+        "",
         environ_name="DOCS_BASE_URL",
         environ_prefix=None,
     )
@@ -660,14 +660,14 @@ class Base(Configuration):
     # Frontend
     RESTRICTED_ACCESS_MESSAGE = JsonDictValue(
         {
-            "en": "Access is reserved to state public servants.",
-            "fr": "L’accès est réservé aux agents de la Fonction Publique d'État.",
+            "en": "Access to this service is restricted.",
+            "fr": "L’accès à ce service est restreint.",
         },
         environ_prefix=None,
     )
 
     RESTRICTED_ACCESS_DOCUMENTATION_URL = values.Value(
-        "https://docs.numerique.gouv.fr/docs/9bbf7c2f-13a9-47e8-961c-98a874f44f1e/",
+        "",
         environ_prefix=None,
     )
 
@@ -991,8 +991,7 @@ class Base(Configuration):
     }
 
     # Logging
-    # We want to make it easy to log to console but by default we log production
-    # to Sentry and don't want to log to console.
+    # Log to stdout in every environment; Sentry is enabled separately by its DSN.
     LOGGING = {
         "version": 1,
         "disable_existing_loggers": False,

@@ -16,6 +16,41 @@ the following command inside your docker container:
 
 ## [Unreleased]
 
+### Deployment-neutral defaults
+
+Before deploying, set the following environment variables on **both the backend
+and Celery workers** to preserve the previous service addresses and access text
+if you relied on the old defaults. Existing explicit overrides should be kept
+with their current values instead.
+
+```dotenv
+AI_SERVICE_URL=http://meet-summary.meet.svc.cluster.local/api/v2/
+RESTRICTED_ACCESS_MESSAGE={"en":"Access is reserved to state public servants.","fr":"L’accès est réservé aux agents de la Fonction Publique d'État."}
+RESTRICTED_ACCESS_DOCUMENTATION_URL=https://docs.numerique.gouv.fr/docs/9bbf7c2f-13a9-47e8-961c-98a874f44f1e/
+```
+
+These variables have **no `DJANGO_` prefix**. The message is a JSON object;
+when exporting it from a shell, quote/escape it as a single value. The example
+above is dotenv syntax, not a shell script. Keep the trailing slash on
+`AI_SERVICE_URL` because the application appends API paths to it.
+
+Docs integration now defaults to disabled. If you use it, also retain/set these
+environment variables with your existing URL and API key:
+
+```dotenv
+DOCS_INTEGRATION_ENABLED=True
+DOCS_BASE_URL=https://your-existing-docs-host
+DOCS_SERVER_TO_SERVER_API_KEY=<your-existing-docs-api-key>
+```
+
+Use your actual existing Docs URL and secret. The previous default URL was
+`https://example.com`; it was a placeholder, not a usable integration endpoint.
+Leave `DOCS_INTEGRATION_ENABLED=False` if you do not use Docs.
+
+The new defaults use `http://localhost:8000/api/v2/` for AI, generic
+restricted-access text, and an empty documentation URL. The logging comment
+now describes the existing stdout logging behavior.
+
 ### File type removal
 
 Files no longer have a `type` field: its only supported value was

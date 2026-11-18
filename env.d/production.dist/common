@@ -9,6 +9,13 @@ DJANGO_CONFIGURATION=Production
 PYTHONPATH=/app
 
 # Dictaphone settings
+AI_SERVICE_URL=<AI service base URL ending in /api/v2/>
+
+# Optional Docs integration; enable only with a working URL and API key.
+DOCS_INTEGRATION_ENABLED=False
+DOCS_BASE_URL=<Docs base URL>
+DOCS_SERVER_TO_SERVER_API_KEY=<Docs API key>
+
 AI_SERVICE_API_KEY=<AI service API key>
 AI_WEBHOOK_API_KEY=<generate a webhook secret shared with the AI service>
 AUDIO_EXTRACTOR_TRANSCODING_TOKEN=<generate a token of at least 32 characters>
