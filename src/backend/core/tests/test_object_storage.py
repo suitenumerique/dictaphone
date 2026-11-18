@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import Mock, patch
 
@@ -358,6 +359,23 @@ def test_failed_cleanup_can_be_retried_after_owner_job_deletion(
     job = factories.AiFileJobFactory(type="summary", status="success")
     job_id = job.pk
     obj = job.result_object
+    retained, unrelated = [
+        models.ObjectStorageObject.objects.create(
+            file_identifier=job.file_id,
+            kind=obj.kind,
+            key=key,
+            storage_bucket_name=obj.storage_bucket_name,
+            state="deleting",
+            checksum_source="migration",
+            etag=str(artifact_id),
+            published_at=timezone.now(),
+            metadata_checked_at=timezone.now() + timedelta(hours=1),
+        )
+        for key, artifact_id in [
+            ("retained-result", obj.pk),
+            ("unrelated-result", job.file_id),
+        ]
+    ]
     with patch("core.object_storage.get_storage_for_object") as storage:
         storage.return_value.delete.side_effect = OSError("unavailable")
         with pytest.raises(OSError):
@@ -366,11 +384,18 @@ def test_failed_cleanup_can_be_retried_after_owner_job_deletion(
     assert not models.AiFileJob.objects.filter(pk=job_id).exists()
     obj.refresh_from_db()
     assert obj.state == "deleting"
+    retained.refresh_from_db()
+    assert retained.state == "deleting"
+    assert retained.metadata_checked_at < unrelated.metadata_checked_at
     with patch("core.object_storage.get_storage_for_object") as storage:
         call_command("cleanup_storage_objects", stdout=StringIO())
-        storage.return_value.delete.assert_called_once_with(obj.key)
+        assert {
+            call.args[0] for call in storage.return_value.delete.call_args_list
+        } == {obj.key, retained.key}
     obj.refresh_from_db()
     assert obj.state == "deleted"
+    unrelated.refresh_from_db()
+    assert unrelated.state == "deleting"
 
 
 @pytest.mark.parametrize(

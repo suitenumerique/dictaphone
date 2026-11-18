@@ -1172,13 +1172,33 @@ class AiFileJob(BaseModel):
         from core.object_storage import (  # noqa: PLC0415
             delete_object,
         )
+        from core.storage_migration import CLEANUP_SOURCE  # noqa: PLC0415
 
         obj = self.result_object
+        now = timezone.now()
         ObjectStorageObject.objects.filter(pk=obj.pk).update(
-            state=ObjectStorageObject.State.DELETING, updated_at=timezone.now()
+            state=ObjectStorageObject.State.DELETING, updated_at=now
+        )
+        # The authoritative row lock serializes cutover before we find its copies.
+        copies = ObjectStorageObject.objects.filter(
+            file_identifier=obj.file_identifier,
+            checksum_source=CLEANUP_SOURCE,
+            etag=str(obj.pk),
+            file__isnull=True,
+        )
+        copies.exclude(state=ObjectStorageObject.State.DELETED).update(
+            state=ObjectStorageObject.State.DELETING,
+            metadata_checked_at=now,
+            updated_at=now,
         )
         result = super().delete(using=using, keep_parents=keep_parents)
-        transaction.on_commit(lambda: delete_object(obj))
+
+        def delete_result_objects():
+            delete_object(obj)
+            for copy in copies.filter(state=ObjectStorageObject.State.DELETING):
+                delete_object(copy)
+
+        transaction.on_commit(delete_result_objects)
         return result
 
     def to_markdown(self, language: str = "en") -> str:
