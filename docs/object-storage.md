@@ -81,9 +81,10 @@ prints per-object results, totals, and the last examined UUID. Pass that UUID to
 `--start-after` with the same filters to continue the scan. Select deferred rows
 again once they become eligible. A dry run counts eligible transfers and performs
 no storage or database writes. Failures produce a nonzero exit status while other
-selected objects continue. Reruns safely overwrite an untracked destination or a cleanup location
-belonging to the same artifact, but refuse another tracked artifact's location.
-No bucket listing is used.
+selected objects continue. Reruns can overwrite untracked destinations and reuse
+cleanup locations for the same artifact once the copy is due for cleanup.
+A location owned by another tracked artifact causes a failure. No bucket listing
+is used.
 
 Only available, published artifacts on finalized files are eligible. Pending
 uploads, temporary upload keys, expired artifacts, and audio outputs with unexpired

@@ -178,6 +178,13 @@ def _validate_destination(destination, obj):
         raise ValueError("Destination belongs to another tracked artifact")
 
 
+def _destination_held(destination):
+    """Keep a prior source intact while its issued URLs are still retained."""
+    return destination.state == destination.State.DELETING and not cleanup_due(
+        destination
+    )
+
+
 def _reserve(obj_id):
     """Commit a cleanup obligation BEFORE any external write can happen."""
     with transaction.atomic():
@@ -204,6 +211,8 @@ def _reserve(obj_id):
         if created:
             return "reserved", destination.pk
         _validate_destination(destination, obj)
+        if _destination_held(destination):
+            return "deferred", None
         # A concurrent cleanup may have finished since an earlier attempt. This
         # committed reset makes another interrupted write discoverable again.
         ObjectStorageObject.objects.filter(pk=destination.pk).update(
@@ -298,6 +307,8 @@ def inspect_object(obj_id):
     ).first()
     if destination is not None:
         _validate_destination(destination, obj)
+        if _destination_held(destination):
+            return "deferred"
     return "migrated"
 
 

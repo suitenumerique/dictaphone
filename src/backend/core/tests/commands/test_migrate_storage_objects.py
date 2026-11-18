@@ -529,6 +529,34 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
     assert str(ids[0]) not in next_run.getvalue()
 
 
+def test_reverse_migration_preserves_retained_source(artifact, monkeypatch):
+    """A reverse migration cannot reserve or overwrite a retained source."""
+    a = artifact
+    assert "migrated=1" in run(a.obj)
+    source = models.ObjectStorageObject.objects.filter(
+        storage_bucket_name=a.source_bucket, key=a.obj.key
+    )
+    before = source.values().get()
+    monkeypatch.setattr(
+        "core.storage_migration.expected_bucket", lambda file: a.source_bucket
+    )
+    a.source_client.upload_fileobj.side_effect = OSError("reverse upload failed")
+    assert "deferred=1" in run(a.obj, dry_run=True)
+    assert "deferred=1" in run(a.obj)
+    a.source_client.upload_fileobj.assert_not_called()
+    call_command("cleanup_storage_objects", stdout=StringIO())
+    assert source.values().get() == before
+    assert a.copies[a.source_bucket, a.obj.key] == b"source bytes"
+    a.obj.refresh_from_db()
+    assert a.obj.storage_bucket_name == "destination"
+
+    source.update(metadata_checked_at=timezone.now() - timedelta(seconds=1))
+    assert "migrated=1" in run(a.obj, dry_run=True)
+    with pytest.raises(CommandError, match="1 storage object"):
+        run(a.obj, stderr=StringIO())
+    assert "ACL" not in a.source_client.upload_fileobj.call_args.kwargs["ExtraArgs"]
+
+
 def test_completed_cleanup_reservation_can_be_retried(artifact):
     """A cleaned destination can be reserved again on a later retry."""
     a = artifact
