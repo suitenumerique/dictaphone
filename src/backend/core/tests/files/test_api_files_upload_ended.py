@@ -19,7 +19,6 @@ from core.models import (
     AiFileJob,
     AiJobStatusChoices,
     AiJobTypeChoices,
-    FileTypeChoices,
     FileUploadStateChoices,
 )
 
@@ -56,7 +55,6 @@ def test_api_file_upload_ended_on_wrong_upload_state():
     client.force_login(user)
 
     file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING,
         creator=user,
         update_upload_state=FileUploadStateChoices.READY,
     )
@@ -132,7 +130,6 @@ def test_api_file_upload_ended_success(mock_queue, settings):
     settings.S3_BUCKET_CONFIGURATIONS = bucket_configurations
 
     file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING,
         filename="my_file.txt",
         mimetype="text/html",
         creator=user,
@@ -184,7 +181,6 @@ def test_api_file_upload_ended_uses_file_language_for_transcription(
             "title": "my file",
             "filename": "my_file.m4a",
             "duration_seconds": 1,
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "language": "en",
         },
         format="json",
@@ -215,9 +211,7 @@ def test_api_file_upload_ended_mimetype_not_allowed(settings, caplog):
     client = APIClient()
     client.force_login(user)
 
-    file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING, filename="my_file.txt", creator=user
-    )
+    file = factories.FileFactory(filename="my_file.txt", creator=user)
 
     default_storage.save(
         file.temporary_upload_object.key,
@@ -250,9 +244,7 @@ def test_api_file_upload_ended_mimetype_not_allowed_not_checking_mimetype(
     client = APIClient()
     client.force_login(user)
 
-    file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING, filename="my_file.txt", creator=user
-    )
+    file = factories.FileFactory(filename="my_file.txt", creator=user)
 
     default_storage.save(
         file.temporary_upload_object.key,
@@ -290,7 +282,6 @@ def test_api_file_upload_ended_allows_mimetype_with_spaces_in_parameters(
     client.force_login(user)
 
     file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING,
         filename="my_file.webm",
         creator=user,
     )
@@ -330,7 +321,6 @@ def test_api_upload_ended_mismatch_mimetype_with_object_storage(
     client.force_login(user)
 
     file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING,
         filename="my_file.pdf",
         title="my_file.pdf",
         creator=user,
@@ -393,7 +383,6 @@ def test_api_upload_ended_keeps_declared_mp4_audio_mimetype(
     client.force_login(user)
 
     file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING,
         filename="my_file.m4a",
         creator=user,
     )
@@ -447,9 +436,7 @@ def test_api_upload_ended_file_size_exceeded(settings, caplog):
     client = APIClient()
     client.force_login(user)
 
-    file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING, filename="my_file.txt", creator=user
-    )
+    file = factories.FileFactory(filename="my_file.txt", creator=user)
 
     default_storage.save(
         file.temporary_upload_object.key,
@@ -476,7 +463,6 @@ def test_api_file_upload_ended_concurrent_calls_are_serialized(settings):
 
     user = factories.UserFactory()
     file = factories.FileFactory(
-        type=FileTypeChoices.AUDIO_RECORDING,
         filename="my_file.txt",
         creator=user,
     )

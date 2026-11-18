@@ -74,7 +74,6 @@ export default function RecordingsScreen() {
   const filesQ = useListMyFilesInfinite({
     pageSize: 20,
     filters: {
-      type: 'audio_recording',
       is_creator_me: true,
       is_deleted: false,
       upload_state: 'ready',

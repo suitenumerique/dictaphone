@@ -334,8 +334,7 @@ class FileViewSet(
     @decorators.action(detail=False, methods=["get"], url_path="upload-limit")
     def upload_limit(self, request):
         """Report the retained audio uploads counted toward the per-user limit."""
-        file_type = models.FileTypeChoices.AUDIO_RECORDING
-        count = models.File.objects.count_for_upload_limit(request.user, file_type)
+        count = models.File.objects.count_for_upload_limit(request.user)
         limit = (
             settings.FILE_UPLOAD_MAX_COUNT_BY_USER
             if settings.FILE_UPLOAD_APPLY_RESTRICTIONS
@@ -347,16 +346,11 @@ class FileViewSet(
         """Set the current user as creator of the newly created file."""
 
         if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
-            file_type = serializer.validated_data["type"]
-
-            count = models.File.objects.count_for_upload_limit(
-                self.request.user, file_type
-            )
+            count = models.File.objects.count_for_upload_limit(self.request.user)
 
             if count >= settings.FILE_UPLOAD_MAX_COUNT_BY_USER:
                 logger.info(
-                    "create_item: user reached max files per user for type %s",
-                    file_type,
+                    "create_item: user reached max files per user",
                 )
                 raise drf_exceptions.PermissionDenied(
                     _("You have reached the maximum number of files for this type.")
@@ -409,9 +403,7 @@ class FileViewSet(
                 )
 
             if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
-                count = models.File.objects.count_for_upload_limit(
-                    file.creator, file.type
-                )
+                count = models.File.objects.count_for_upload_limit(file.creator)
                 if count > settings.FILE_UPLOAD_MAX_COUNT_BY_USER:
                     # Roll back the reservation so the upload can be retried after deletion.
                     raise drf_exceptions.PermissionDenied(
@@ -947,9 +939,7 @@ class AiJobViewSet(
                 file.duration_seconds is None
                 or file.duration_seconds > max_duration_seconds
             ):
-                logger.warning(
-                    "File duration exceeds maximum allowed for type %s", file.type
-                )
+                logger.warning("File duration exceeds maximum allowed")
                 raise drf_exceptions.ValidationError(
                     {
                         "file": "Cannot retry the file duration is above the allowed max duration."

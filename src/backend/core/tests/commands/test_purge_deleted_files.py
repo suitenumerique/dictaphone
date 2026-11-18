@@ -40,14 +40,12 @@ def test_purge_deleted_files_success(settings):
 
     not_deleted_file = factories.FileFactory(
         with_audio=True,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         upload_bytes=b"hello",
     )
 
     with patch("django.utils.timezone.now", return_value=now):
         not_purgeable_file = factories.FileFactory(
             with_audio=True,
-            type=models.FileTypeChoices.AUDIO_RECORDING,
             upload_bytes=b"hello",
         )
         not_purgeable_file.soft_delete()
@@ -55,14 +53,12 @@ def test_purge_deleted_files_success(settings):
     with patch("django.utils.timezone.now", return_value=purge_now):
         purgeable_file = factories.FileFactory(
             with_audio=True,
-            type=models.FileTypeChoices.AUDIO_RECORDING,
             upload_bytes=b"hello",
         )
         purgeable_file.soft_delete()
 
     hard_deleted_file = factories.FileFactory(
         with_audio=True,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         upload_bytes=b"hello",
     )
     hard_deleted_file.soft_delete()

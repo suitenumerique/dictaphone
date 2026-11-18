@@ -35,7 +35,6 @@ export default function RecordingsPage() {
 
   const filesQ = useListMyFilesInfinite({
     filters: {
-      type: 'audio_recording',
       upload_state: 'ready',
       is_creator_me: true,
       is_deleted: false,

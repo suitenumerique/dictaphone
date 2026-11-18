@@ -419,7 +419,6 @@ def test_failure_backfill_classifies_audio_above_configured_limit(
     jobs = [
         factories.AiFileJobFactory(
             status=status,
-            file__type=models.FileTypeChoices.AUDIO_RECORDING,
             file__duration_seconds=duration,
         )
         for status, duration, _ in scenarios

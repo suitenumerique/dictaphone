@@ -23,12 +23,9 @@ def test_api_files_list_filter_unknown_field():
     client = APIClient()
     client.force_login(user)
 
-    factories.FileFactory(type=models.FileTypeChoices.AUDIO_RECORDING)
+    factories.FileFactory()
     expected_ids = {
-        str(file.id)
-        for file in factories.FileFactory.create_batch(
-            2, creator=user, type=models.FileTypeChoices.AUDIO_RECORDING
-        )
+        str(file.id) for file in factories.FileFactory.create_batch(2, creator=user)
     }
 
     response = client.get("/api/v1.0/files/?unknown=true")
@@ -50,10 +47,8 @@ def test_api_files_list_filter_is_creator_me_true():
     client = APIClient()
     client.force_login(user)
 
-    factories.FileFactory.create_batch(
-        2, creator=user, type=models.FileTypeChoices.AUDIO_RECORDING
-    )
-    factories.FileFactory.create_batch(2, type=models.FileTypeChoices.AUDIO_RECORDING)
+    factories.FileFactory.create_batch(2, creator=user)
+    factories.FileFactory.create_batch(2)
 
     response = client.get("/api/v1.0/files/?is_creator_me=true")
 
@@ -76,9 +71,7 @@ def test_api_files_list_filter_is_creator_me_invalid():
     client = APIClient()
     client.force_login(user)
 
-    factories.FileFactory.create_batch(
-        3, creator=user, type=models.FileTypeChoices.AUDIO_RECORDING
-    )
+    factories.FileFactory.create_batch(3, creator=user)
 
     response = client.get("/api/v1.0/files/?is_creator_me=invalid")
 
@@ -87,14 +80,12 @@ def test_api_files_list_filter_is_creator_me_invalid():
     assert len(results) == 3
 
 
-# Filters: type
+# Filters: upload state
 
 
-def test_api_files_list_filter_type_and_upload_status():
+def test_api_files_list_filter_upload_status():
     """
-    Authenticated users should be able to filter files by their type and upload status.
-
-    This test will make more sense when other types are added to the API
+    Authenticated users should be able to filter files by their upload status.
     """
 
     user = factories.UserFactory()
@@ -104,7 +95,6 @@ def test_api_files_list_filter_type_and_upload_status():
 
     file = factories.FileFactory(
         creator=user,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
     )
     assert file.upload_state == models.FileUploadStateChoices.PENDING
@@ -112,39 +102,32 @@ def test_api_files_list_filter_type_and_upload_status():
     expected_files = factories.FileFactory.create_batch(
         2,
         creator=user,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.READY,
     )
     expected_files_ids = {str(file.id) for file in expected_files}
 
-    # Filter by type: audio_recording & upload state
-    response = client.get("/api/v1.0/files/?type=audio_recording&upload_state=ready")
+    response = client.get("/api/v1.0/files/?upload_state=ready")
 
     assert response.status_code == 200
     assert response.json()["count"] == 2
 
     results = response.json()["results"]
 
-    # Ensure all results are audio recordings
     results_ids = {result["id"] for result in results}
     assert results_ids == expected_files_ids
     for result in results:
-        assert result["type"] == models.FileTypeChoices.AUDIO_RECORDING
         assert result["upload_state"] == models.FileUploadStateChoices.READY
 
     # Second request without the upload_state filter, to check that all 3 show up
-    response = client.get("/api/v1.0/files/?type=audio_recording")
+    response = client.get("/api/v1.0/files/")
 
     assert response.status_code == 200
     assert response.json()["count"] == 3
 
     results = response.json()["results"]
 
-    # Ensure all results are audio recordings
     results_ids = {result["id"] for result in results}
     assert results_ids == {str(file.id) for file in expected_files + [file]}
-    for result in results:
-        assert result["type"] == models.FileTypeChoices.AUDIO_RECORDING
 
 
 def test_api_files_list_filter_is_deleted():
@@ -196,9 +179,10 @@ def test_api_files_list_filter_is_deleted():
     assert results_ids == {str(file.id) for file in [not_deleted_file]}
 
 
-def test_api_files_list_filter_unknown_type():
+@pytest.mark.parametrize("legacy_type", ["audio_recording", "unknown"])
+def test_api_files_list_ignores_removed_type_filter(legacy_type):
     """
-    Filtering by an unknown type should return an empty list
+    The removed type filter is ignored like other unknown query parameters.
     """
 
     user = factories.UserFactory()
@@ -208,9 +192,7 @@ def test_api_files_list_filter_unknown_type():
 
     factories.FileFactory.create_batch(3, creator=user)
 
-    response = client.get("/api/v1.0/files/?type=unknown")
+    response = client.get(f"/api/v1.0/files/?type={legacy_type}")
 
-    assert response.status_code == 400
-    assert response.json() == {
-        "type": ["Select a valid choice. unknown is not one of the available choices."]
-    }
+    assert response.status_code == 200
+    assert response.json()["count"] == 3

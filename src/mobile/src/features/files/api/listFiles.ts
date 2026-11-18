@@ -5,11 +5,7 @@ import {
   useQuery,
 } from '@tanstack/react-query'
 import { keys } from '@/api/queryKeys'
-import {
-  ApiFileItem,
-  ApiFileType,
-  ApiFileUploadState,
-} from '@/features/files/api/types.ts'
+import { ApiFileItem, ApiFileUploadState } from '@/features/files/api/types.ts'
 import { shouldRefetchMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
 import { useUser } from '@/features/auth/api/useUser'
 
@@ -28,7 +24,6 @@ export type ListFilesResponse = {
 
 type ListFilesFilters = {
   is_creator_me?: boolean
-  type?: ApiFileType
   upload_state?: ApiFileUploadState
   is_deleted?: boolean
 }
@@ -55,9 +50,6 @@ export const listMyFiles = async ({
   query.append('page_size', pageSize.toString())
   if (filters?.is_creator_me ?? true) {
     query.append('is_creator_me', 'true')
-  }
-  if (filters?.type) {
-    query.append('type', filters.type)
   }
   if (filters?.upload_state) {
     query.append('upload_state', filters.upload_state)

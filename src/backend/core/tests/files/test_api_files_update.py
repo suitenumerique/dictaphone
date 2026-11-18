@@ -54,11 +54,12 @@ def test_api_files_update_description_and_title():
 
     response = client.patch(
         f"/api/v1.0/files/{file.id!s}/",
-        {"description": "New description", "title": "New title"},
+        {"description": "New description", "type": "ignored", "title": "New title"},
         format="json",
     )
     assert response.status_code == 200
     result = response.json()
+    assert result["type"] == "audio_recording"
     assert result["description"] == "New description"
     assert result["title"] == "New title"
 

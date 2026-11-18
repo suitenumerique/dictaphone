@@ -113,7 +113,6 @@ def test_api_files_restore_authenticated_owner_expired():
 #             (creator, models.RoleChoices.OWNER),
 #             (other_user, models.RoleChoices.ADMIN),
 #         ],
-#         type=models.FileTypeChoices.FILE,
 #         filename="suspicious.txt",
 #     )
 #     suspicious_file.soft_delete()
@@ -134,7 +133,6 @@ def test_api_files_restore_authenticated_owner_expired():
 #         creator=creator,
 #         update_upload_state=models.FileUploadStateChoices.SUSPICIOUS,
 #         users=[(creator, models.RoleChoices.OWNER)],
-#         type=models.FileTypeChoices.FILE,
 #         filename="suspicious.txt",
 #     )
 #     suspicious_file.soft_delete()

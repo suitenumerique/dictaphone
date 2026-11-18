@@ -5,7 +5,7 @@ import operator
 import pytest
 from rest_framework.test import APIClient
 
-from core import factories, models
+from core import factories
 
 pytestmark = pytest.mark.django_db
 
@@ -16,9 +16,7 @@ def test_api_files_list_ordering_default():
     client = APIClient()
     client.force_login(user)
 
-    factories.FileFactory.create_batch(
-        4, creator=user, type=models.FileTypeChoices.AUDIO_RECORDING
-    )
+    factories.FileFactory.create_batch(4, creator=user)
     response = client.get("/api/v1.0/files/")
 
     assert response.status_code == 200
@@ -36,9 +34,7 @@ def test_api_files_list_ordering_by_fields():
     client = APIClient()
     client.force_login(user)
 
-    factories.FileFactory.create_batch(
-        4, creator=user, type=models.FileTypeChoices.AUDIO_RECORDING
-    )
+    factories.FileFactory.create_batch(4, creator=user)
 
     for parameter in [
         "created_at",

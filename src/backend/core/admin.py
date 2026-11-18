@@ -74,8 +74,8 @@ class FileInline(admin.TabularInline):
     formset = FileInlineFormSet
     fk_name = "creator"
     extra = 0
-    fields = ("id", "title", "type", "upload_state", "created_at")
-    readonly_fields = ("id", "created_at", "upload_state", "type")
+    fields = ("id", "title", "upload_state", "created_at")
+    readonly_fields = ("id", "created_at", "upload_state")
     show_change_link = True
 
     def has_add_permission(self, request, obj=None):
@@ -319,7 +319,6 @@ class FileAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "title",
-        "type",
         "creator",
         "upload_state",
         "audio_extraction_status",
@@ -335,7 +334,6 @@ class FileAdmin(admin.ModelAdmin):
         "lifecycle_state",
     )
     list_filter = (
-        "type",
         "upload_state",
         AudioExtractionStatusFilter,
         LatestTranscriptJobStatusFilter,
@@ -373,7 +371,6 @@ class FileAdmin(admin.ModelAdmin):
         "language",
         "lifecycle_state",
         "duration_seconds",
-        "type",
         "mimetype",
         "size",
         "original_object",
@@ -393,7 +390,6 @@ class FileAdmin(admin.ModelAdmin):
                 "fields": (
                     "id",
                     "title",
-                    "type",
                     "creator",
                     "filename",
                     "language",

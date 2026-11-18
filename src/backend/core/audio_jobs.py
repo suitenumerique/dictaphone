@@ -227,7 +227,6 @@ def _capture_outcome(job, *, success):
         "file_id": job.file_id,
         "audio_job_id": job.id,
         "mode": job.mode,
-        "input_file_type": job.file.type,
         "preprocessing_time_seconds": sum(
             (attempt.completed_at - attempt.started_at).total_seconds()
             for attempt in attempts

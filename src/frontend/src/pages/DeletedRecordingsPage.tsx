@@ -9,7 +9,6 @@ export function DeletedRecordingsPage() {
   const { t } = useTranslation('layout')
   const filesQ = useListMyFilesInfinite({
     filters: {
-      type: 'audio_recording',
       upload_state: 'ready',
       is_creator_me: true,
       is_deleted: true,

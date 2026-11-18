@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 
 from core import factories
 from core.configuration import clear_configuration_cache
-from core.models import File, FileTypeChoices, FileUploadStateChoices
+from core.models import File, FileUploadStateChoices
 
 pytestmark = pytest.mark.django_db
 
@@ -28,7 +28,6 @@ def test_api_files_create_anonymous():
         "/api/v1.0/files/",
         {
             "title": "My file",
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
         },
     )
@@ -37,7 +36,8 @@ def test_api_files_create_anonymous():
     assert not File.objects.exists()
 
 
-def test_api_files_create_authenticated_success():
+@pytest.mark.parametrize("legacy_payload", [{}, {"type": "audio_recording"}])
+def test_api_files_create_authenticated_success(legacy_payload):
     """
     Authenticated users should be able to create files and should automatically be declared
     as the owner of the newly created file.
@@ -53,7 +53,7 @@ def test_api_files_create_authenticated_success():
             "title": "my file",
             "filename": "my_file.ogg",
             "duration_seconds": 1,
-            "type": FileTypeChoices.AUDIO_RECORDING,
+            **legacy_payload,
         },
         format="json",
     )
@@ -61,8 +61,9 @@ def test_api_files_create_authenticated_success():
     assert response.status_code == 201, response.json()
     file = File.objects.get()
     assert file.title == "my file"
+    assert response.json()["type"] == "audio_recording"
+    assert not hasattr(file, "type")
     assert file.creator == user
-    assert file.type == FileTypeChoices.AUDIO_RECORDING
     assert file.language == "fr"
     assert file.upload_state == FileUploadStateChoices.PENDING
 
@@ -80,7 +81,6 @@ def test_api_files_create_authenticated_with_custom_language():
             "title": "my file",
             "filename": "my_file.ogg",
             "duration_seconds": 1,
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "language": "en",
         },
         format="json",
@@ -105,7 +105,6 @@ def test_api_files_create_file_authenticated_no_filename():
         "/api/v1.0/files/",
         {
             "title": "my file",
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
         },
         format="json",
@@ -135,7 +134,6 @@ def test_api_files_create_file_authenticated_success(monkeypatch):
         response = client.post(
             "/api/v1.0/files/",
             {
-                "type": FileTypeChoices.AUDIO_RECORDING,
                 "title": "Eiffle tower",
                 "duration_seconds": 1,
                 "filename": "file.ogg",
@@ -145,7 +143,6 @@ def test_api_files_create_file_authenticated_success(monkeypatch):
     assert response.status_code == 201
     file = File.objects.get()
     assert file.title == "Eiffle tower"
-    assert file.type == FileTypeChoices.AUDIO_RECORDING
     assert file.filename == "file.ogg"
 
     response_data = response.json()
@@ -185,7 +182,6 @@ def test_api_files_create_file_authenticated_extension_not_allowed():
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "title": "Paris tower",
             "duration_seconds": 1,
             "filename": "file.notallowed",
@@ -206,7 +202,6 @@ def test_api_files_create_file_authenticated_extension_case_insensitive():
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "file.mp4",
         },
@@ -228,7 +223,6 @@ def test_api_files_create_file_authenticated_not_checking_extension(settings):
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "file.notallowed",
         },
@@ -252,7 +246,6 @@ def test_api_files_create_file_authenticated_no_extension_but_checking_it_should
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "file",
         },
@@ -275,7 +268,6 @@ def test_api_files_create_file_authenticated_hidden_file_but_checking_extension_
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": ".file",
         },
@@ -300,7 +292,6 @@ def test_api_files_create_file_too_many(
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "1.ogg",
         },
@@ -313,7 +304,6 @@ def test_api_files_create_file_too_many(
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "pending.ogg",
         },
@@ -326,7 +316,6 @@ def test_api_files_create_file_too_many(
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "2.ogg",
         },
@@ -342,7 +331,6 @@ def test_api_files_create_file_too_many(
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "after-deletion.ogg",
         },
@@ -363,7 +351,6 @@ def test_api_files_create_force_id_success():
         {
             "id": str(forced_id),
             "title": "my file",
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "my_file.ogg",
         },
@@ -391,7 +378,6 @@ def test_api_files_create_force_id_existing():
         {
             "id": str(file.id),
             "title": "my file",
-            "type": FileTypeChoices.AUDIO_RECORDING,
             "duration_seconds": 1,
             "filename": "my_file.ogg",
         },
@@ -420,7 +406,6 @@ def test_api_files_create_file_race_condition():
                 "/api/v1.0/files/",
                 {
                     "title": title,
-                    "type": FileTypeChoices.AUDIO_RECORDING,
                     "duration_seconds": 1,
                     "filename": "my_file.ogg",
                 },

@@ -269,7 +269,6 @@ def test_allowed_user_can_create_upload(settings, grant):
         {
             "filename": "recording.ogg",
             "duration_seconds": 1,
-            "type": models.FileTypeChoices.AUDIO_RECORDING,
         },
         format="json",
     )

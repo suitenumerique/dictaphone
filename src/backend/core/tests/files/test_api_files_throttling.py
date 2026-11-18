@@ -13,7 +13,6 @@ pytestmark = pytest.mark.django_db
 URL = "/api/v1.0/files/"
 PAYLOAD = {
     "filename": "recording.ogg",
-    "type": models.FileTypeChoices.AUDIO_RECORDING,
     "duration_seconds": 1,
 }
 

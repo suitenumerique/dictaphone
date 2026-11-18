@@ -19,7 +19,6 @@ from core.models import (
     AiJobTypeChoices,
     FileAudioExtractionStateChoices,
     FileLifecycleStateChoices,
-    FileTypeChoices,
 )
 
 pytestmark = pytest.mark.django_db
@@ -480,7 +479,6 @@ def test_api_ai_jobs_retry_file_duration_above_limit_bad_request(mock_task, sett
         type=AiJobTypeChoices.TRANSCRIPT,
         status=AiJobStatusChoices.FAILED,
         file__creator=user,
-        file__type=FileTypeChoices.AUDIO_RECORDING,
         file__upload_bytes=b"audio",
         file__audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
         file__duration_seconds=max_duration_seconds + 1,

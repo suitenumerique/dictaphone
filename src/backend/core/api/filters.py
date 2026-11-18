@@ -8,17 +8,7 @@ from django_filters import BooleanFilter
 from core import models
 
 
-class FileFilter(django_filters.FilterSet):
-    """
-    Custom filter for filtering files.
-    """
-
-    class Meta:
-        model = models.File
-        fields = ["type"]
-
-
-class ListFileFilter(FileFilter):
+class ListFileFilter(django_filters.FilterSet):
     """Filter class dedicated to the file viewset list method."""
 
     is_creator_me = django_filters.BooleanFilter(
@@ -29,7 +19,7 @@ class ListFileFilter(FileFilter):
 
     class Meta:
         model = models.File
-        fields = ["is_creator_me", "type", "upload_state", "is_deleted"]
+        fields = ["is_creator_me", "upload_state", "is_deleted"]
 
     def filter_is_deleted(self, queryset, name, value):
         """

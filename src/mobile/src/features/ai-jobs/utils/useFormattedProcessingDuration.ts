@@ -11,7 +11,7 @@ function useFormattedProcessingDuration(file: ApiFileItem | ApiAiJob | null) {
   const expectedIn =
     file === null
       ? null
-      : file.type === 'audio_recording'
+      : 'ai_jobs' in file
         ? (getMainAiJobs(file.ai_jobs).lastAiJobTranscript
             ?.processing_expected_end_at ?? null)
         : (file.processing_expected_end_at ?? null)

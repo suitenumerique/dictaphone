@@ -118,7 +118,7 @@ def test_referenced_objects_are_protected_from_record_deletion():
 def test_invalid_file_creation_does_not_leave_object_records():
     """Allocating mandatory references before insertion remains atomic."""
     with pytest.raises(ValidationError):
-        factories.FileFactory(type="invalid")
+        factories.FileFactory(source="invalid")
     assert not models.ObjectStorageObject.objects.exists()
 
 

@@ -68,20 +68,17 @@ def test_api_files_list_format(settings):
     client.force_login(user)
 
     file = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         title="item 1",
         creator=user,
     )
 
     # A file from another user should not appear
     factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         title="file 2",
     )
 
     # hard deleted file should not appear
     factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         hard_deleted_at=timezone.now(),
         title="hard deleted item",
         creator=user,
@@ -109,8 +106,8 @@ def test_api_files_list_format(settings):
             },
             "ai_jobs": [],
             "title": file.title,
+            "type": "audio_recording",
             "updated_at": file.updated_at.isoformat().replace("+00:00", "Z"),
-            "type": models.FileTypeChoices.AUDIO_RECORDING,
             "upload_state": file.upload_state,
             "lifecycle_state": file.lifecycle_state,
             "url": None,
@@ -228,7 +225,6 @@ def test_api_files_list_pagination(
         for file in factories.FileFactory.create_batch(
             3,
             creator=user,
-            type=models.FileTypeChoices.AUDIO_RECORDING,
         )
     ]
     # Get page 1

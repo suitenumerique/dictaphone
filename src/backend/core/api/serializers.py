@@ -242,6 +242,8 @@ class AiJobRetrySerializer(serializers.Serializer):
 class ListFileSerializer(serializers.ModelSerializer):
     """Serialize File model for the API."""
 
+    # Preserve the legacy API discriminator without storing it on File.
+    type = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField(read_only=True)
     playback_url = serializers.SerializerMethodField(read_only=True)
     creator = UserLightSerializer(read_only=True)
@@ -306,6 +308,11 @@ class ListFileSerializer(serializers.ModelSerializer):
             "original_file_file_delete_at",
             "will_auto_delete_at",
         ]
+
+    @staticmethod
+    def get_type(_file) -> str:
+        """Keep the legacy response value for clients deployed independently."""
+        return "audio_recording"
 
     def get_url(self, obj):
         """Return the URL of the file."""
@@ -433,12 +440,11 @@ class CreateFileSerializer(ListFileSerializer):
                 )
 
             count = models.File.objects.count_for_upload_limit(
-                self.context["request"].user, attrs["type"]
+                self.context["request"].user
             )
             if count >= settings.FILE_UPLOAD_MAX_COUNT_BY_USER:
                 logger.info(
-                    "create_item: user reached max files per user for type %s",
-                    attrs["type"],
+                    "create_item: user reached max files per user",
                 )
                 raise serializers.ValidationError(
                     {

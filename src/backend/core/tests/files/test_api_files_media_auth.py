@@ -66,7 +66,6 @@ def test_media_auth_signs_persisted_key_after_filename_change():
 def test_api_files_media_auth_anonymous_not_authorized():
     """Anonymous users should not be allowed to retrieve a file"""
     file = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.READY,
     )
 
@@ -85,7 +84,6 @@ def test_api_files_media_get_own():
     user = factories.UserFactory()
 
     file = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.READY,
         creator=user,
     )
@@ -149,7 +147,6 @@ def test_api_files_media_auth_rejects(rejecting_status):
     client.force_login(user)
 
     file = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         upload_state=rejecting_status,
         creator=user,
     )
@@ -172,7 +169,6 @@ def test_api_files_media_auth_own_file_deleted():
     user = factories.UserFactory()
 
     file = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.READY,
         creator=user,
     )

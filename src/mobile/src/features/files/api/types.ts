@@ -6,7 +6,6 @@ export type ApiFileCreator = {
   short_name: string | null
 }
 
-export type ApiFileType = 'audio_recording'
 export type ApiFileUploadState = 'pending' | 'ready' | 'analyzing'
 export type ApiLifeCycleState =
   | 'active'
@@ -25,7 +24,6 @@ export type ApiFileItem = {
   created_at: string // ISO datetime string
   updated_at: string // ISO datetime string
   title: string
-  type: ApiFileType
   creator: ApiFileCreator
   deleted_at: string | null
   hard_deleted_at: string | null

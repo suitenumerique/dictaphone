@@ -97,7 +97,6 @@ def test_api_files_hard_delete_authenticated_owner_already_hard_deleted_should_f
 #             (creator, models.RoleChoices.OWNER),
 #             (other_user, models.RoleChoices.ADMIN),
 #         ],
-#         type=models.FileTypeChoices.FILE,
 #         filename="suspicious.txt",
 #     )
 #     suspicious_file.soft_delete()
@@ -118,7 +117,6 @@ def test_api_files_hard_delete_authenticated_owner_already_hard_deleted_should_f
 #         creator=creator,
 #         update_upload_state=models.FileUploadStateChoices.SUSPICIOUS,
 #         users=[(creator, models.RoleChoices.OWNER)],
-#         type=models.FileTypeChoices.FILE,
 #         filename="suspicious.txt",
 #     )
 #     suspicious_file.soft_delete()

@@ -16,6 +16,21 @@ the following command inside your docker container:
 
 ## [Unreleased]
 
+### File type removal
+
+Files no longer have a `type` field: its only supported value was
+`audio_recording`. Run `python manage.py migrate` to remove the column and replace
+the creator/type/creation index with a creator/creation index.
+
+The file API keeps returning `type: "audio_recording"` as a read-only
+compatibility field. Creation requests may omit `type`; legacy requests that
+include it are accepted and ignored. The legacy `type=audio_recording` list
+filter is accepted and ignored, and upload-limit error responses retain their
+existing shape. Updated clients no longer depend on the response field, while
+continuing to send it during creation for compatibility with older backends.
+Backend, web, and mobile releases can therefore be deployed independently.
+AI job types and MIME types keep their existing behavior.
+
 ### File upload restrictions
 
 `FILE_UPLOAD_RESTRICTIONS` has been removed. Replace any overrides under its

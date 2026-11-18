@@ -277,9 +277,7 @@ def call_transcribe_service(ai_job_id):
             _validate_transcription_audio(file, validation)
             if not _duration_is_allowed(file):
                 ai_job.mark_failed(AiJobFailureReasonChoices.AUDIO_TOO_LONG)
-                logger.warning(
-                    "File duration exceeds maximum allowed for type %s", file.type
-                )
+                logger.warning("File duration exceeds maximum allowed")
                 return ai_job.id
 
             if not _reserve_transcription_audio(ai_job):

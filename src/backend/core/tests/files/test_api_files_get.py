@@ -20,7 +20,7 @@ def test_api_files_get_anonymous_not_allowed():
     """
     Anonymous users should not be allowed to retrieve a file.
     """
-    file_obj = factories.FileFactory(type=models.FileTypeChoices.AUDIO_RECORDING)
+    file_obj = factories.FileFactory()
 
     response = APIClient().get(f"/api/v1.0/files/{file_obj.id}/")
 
@@ -49,7 +49,6 @@ def test_api_files_get_authentificated_user_allowed():
     client.force_login(user)
 
     file_obj = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         creator=user,
         title="item 1",
     )
@@ -66,7 +65,6 @@ def test_api_files_get_format(settings):
     client.force_login(user)
 
     file_obj = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         title="item 1",
         creator=user,
     )
@@ -84,8 +82,8 @@ def test_api_files_get_format(settings):
         },
         "ai_jobs": [],
         "title": file_obj.title,
+        "type": "audio_recording",
         "updated_at": file_obj.updated_at.isoformat().replace("+00:00", "Z"),
-        "type": models.FileTypeChoices.AUDIO_RECORDING,
         "upload_state": file_obj.upload_state,
         "lifecycle_state": file_obj.lifecycle_state,
         "url": None,
@@ -134,7 +132,6 @@ def test_api_files_get_authentificated_non_creator_not_allowed():
     client = APIClient()
 
     file_obj = factories.FileFactory(
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         creator=creator,
         title="item 1",
     )

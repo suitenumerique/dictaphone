@@ -355,12 +355,6 @@ class FileLifecycleStateChoices(models.TextChoices):
     PENDING_AUTO_HARD_DELETE = "pending_auto_hard_delete", _("Pending auto hard delete")
 
 
-class FileTypeChoices(models.TextChoices):
-    """Defines the possible types of a file."""
-
-    AUDIO_RECORDING = "audio_recording", _("Audio recording")
-
-
 class FileSourceChoices(models.TextChoices):
     """Defines the possible source of a file."""
 
@@ -386,7 +380,7 @@ class FileQuerySet(models.QuerySet):
             comparison="gt",
         )
 
-    def count_for_upload_limit(self, creator, file_type):
+    def count_for_upload_limit(self, creator):
         """Count retained uploads rather than invisible upload placeholders."""
         # Abandoned/failed pending uploads are hidden in the UI, so counting them
         # could exhaust a quota the user cannot free. Creation is already throttled so
@@ -394,7 +388,7 @@ class FileQuerySet(models.QuerySet):
         # reserve a slot only at upload-ended, when leaving PENDING.
         return (
             self.visible_in_api()
-            .filter(creator=creator, type=file_type, deleted_at__isnull=True)
+            .filter(creator=creator, deleted_at__isnull=True)
             .exclude(upload_state=FileUploadStateChoices.PENDING)
             .count()
         )
@@ -451,12 +445,6 @@ class FileQuerySet(models.QuerySet):
 class File(BaseModel):
     """File uploaded by a user."""
 
-    type = models.CharField(
-        max_length=25,
-        choices=FileTypeChoices.choices,
-        null=False,
-        blank=False,
-    )
     title = models.CharField(_("title"), max_length=255)
     creator = models.ForeignKey(
         User,
@@ -524,7 +512,7 @@ class File(BaseModel):
         verbose_name_plural = _("Files")
         ordering = ("created_at",)
         indexes = [
-            models.Index(fields=["creator", "type", "-created_at"]),
+            models.Index(fields=["creator", "-created_at"]),
             # To ease with the deletion queries
             models.Index(fields=["-created_at"]),
             models.Index(

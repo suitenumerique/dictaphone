@@ -23,7 +23,6 @@ def test_clean_pending_files_recent_pending_not_deleted():
     """Recent pending files (within threshold) should not be deleted."""
     file = factories.FileFactory(
         with_audio=True,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
         upload_bytes=b"hello",
     )
@@ -41,7 +40,6 @@ def test_clean_pending_files_old_pending_deleted():
     old_date = timezone.now() - timedelta(hours=49)
     file = factories.FileFactory(
         with_audio=True,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
         upload_bytes=b"hello",
     )
@@ -62,7 +60,6 @@ def test_clean_pending_files_old_non_pending_not_deleted():
     old_date = timezone.now() - timedelta(hours=49)
     file = factories.FileFactory(
         with_audio=True,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.READY,
     )
     models.File.objects.filter(pk=file.pk).update(created_at=old_date)
@@ -83,7 +80,6 @@ def test_clean_pending_files_custom_hours():
     old_date = timezone.now() - timedelta(hours=10)
     file = factories.FileFactory(
         with_audio=True,
-        type=models.FileTypeChoices.AUDIO_RECORDING,
         update_upload_state=models.FileUploadStateChoices.PENDING,
         upload_bytes=b"hello",
     )

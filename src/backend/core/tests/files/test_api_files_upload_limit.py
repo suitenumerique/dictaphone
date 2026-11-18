@@ -80,7 +80,6 @@ def test_upload_limit_excludes_files_hidden_by_retention(settings, hidden_fields
     response = client.post(
         "/api/v1.0/files/",
         {
-            "type": "audio_recording",
             "filename": "new.mp3",
             "title": "New",
             "duration_seconds": 1,
