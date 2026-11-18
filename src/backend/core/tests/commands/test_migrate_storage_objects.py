@@ -4,6 +4,7 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from io import BytesIO, StringIO
+from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -54,9 +55,9 @@ def artifact_fixture(monkeypatch):
                 "Metadata": {"custom": "preserved"},
             }
 
-        def upload(content, bucket, key, **_kwargs):
+        def upload(filename, bucket, key, **_kwargs):
             assert bucket == bucket_name
-            copies[bucket, key] = content.read()
+            copies[bucket, key] = Path(filename).read_bytes()
 
         def put(**params):
             assert params["Bucket"] == bucket_name
@@ -66,7 +67,7 @@ def artifact_fixture(monkeypatch):
             )
 
         client.get_object.side_effect = read
-        client.upload_fileobj.side_effect = upload
+        client.upload_file.side_effect = upload
         client.put_object.side_effect = put
         storage = Mock()
         storage.connection.meta.client = client
@@ -132,7 +133,7 @@ def test_transfer_preserves_identity_metadata_and_every_file_field(artifact):
     )
     assert source.state == "deleting"
     assert not cleanup_due(source)
-    assert a.client.upload_fileobj.call_args.kwargs["ExtraArgs"] == {
+    assert a.client.upload_file.call_args.kwargs["ExtraArgs"] == {
         "ACL": "private",
         "ContentType": "audio/ogg",
         "Metadata": {"custom": "preserved"},
@@ -143,13 +144,13 @@ def test_transfer_preserves_identity_metadata_and_every_file_field(artifact):
 def test_overwrite_and_retry_after_interrupted_transfer(artifact):
     """An interrupted upload can be overwritten by a verified retry."""
     a = artifact
-    upload = a.client.upload_fileobj.side_effect
+    upload = a.client.upload_file.side_effect
 
     def interrupted(content, bucket, key, **kwargs):
         upload(content, bucket, key, **kwargs)
         raise OSError("interrupted after write")
 
-    a.client.upload_fileobj.side_effect = interrupted
+    a.client.upload_file.side_effect = interrupted
     with pytest.raises(CommandError, match="1 storage object"):
         run(a.obj, stderr=StringIO())
     a.obj.refresh_from_db()
@@ -158,16 +159,28 @@ def test_overwrite_and_retry_after_interrupted_transfer(artifact):
     assert leftover.state == "deleting"
     assert cleanup_due(leftover)
     a.copies["destination", a.obj.key] = b"old partial bytes"
-    a.client.upload_fileobj.side_effect = upload
+    a.client.upload_file.side_effect = upload
     assert "migrated=1" in run(a.obj)
     assert a.copies["destination", a.obj.key] == b"source bytes"
 
 
-def test_upload_is_read_back(artifact):
-    """Verify the uploaded bytes by reading the destination."""
+@pytest.mark.parametrize(
+    ("upload_limit_mib", "part_size_mib"),
+    [(1, 5), (1024, 1024), (8192, 5120)],
+)
+def test_multipart_upload_is_read_back(
+    artifact, monkeypatch, settings, upload_limit_mib, part_size_mib
+):
+    """Use file-size-based parts and verify multipart uploads by reading them back."""
     a = artifact
+    settings.FILE_UPLOAD_MAX_SIZE = upload_limit_mib * 1024**2
+    monkeypatch.setattr("core.storage_migration.MULTIPART_THRESHOLD", 1)
     assert "migrated=1" in run(a.obj)
-    a.client.upload_fileobj.assert_called_once()
+    a.client.put_object.assert_not_called()
+    a.client.upload_file.assert_called_once()
+    config = a.client.upload_file.call_args.kwargs["Config"]
+    assert config.multipart_chunksize == part_size_mib * 1024**2
+    assert config.multipart_threshold == 1
     a.source_client.get_object.assert_called_once_with(
         Bucket=a.source_bucket, Key=a.obj.key
     )
@@ -187,7 +200,7 @@ def test_aligned_dry_run_loads_file_and_creator_together(django_assert_num_queri
 def test_checksum_failure_leaves_source_authoritative(artifact):
     """A corrupted destination never becomes the authoritative location."""
     a = artifact
-    a.client.upload_fileobj.side_effect = lambda content, bucket, key, **kw: (
+    a.client.upload_file.side_effect = lambda content, bucket, key, **kw: (
         a.copies.update({(bucket, key): b"broken bytes"})
     )
     with pytest.raises(CommandError):
@@ -230,7 +243,7 @@ def test_verify_full_object_baseline(
         with pytest.raises(CommandError, match="1 storage object"):
             run(a.obj, stderr=stderr)
         assert stderr.getvalue() == f"object={a.obj.pk}: ObjectIntegrityError\n"
-        a.client.upload_fileobj.assert_not_called()
+        a.client.upload_file.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -250,7 +263,7 @@ def test_unrecognized_checksum_baseline(artifact, checksum_type, outcome):
     assert f"{outcome}=1" in run(a.obj)
     if outcome == "deferred":
         a.source_client.get_object.assert_not_called()
-        a.client.upload_fileobj.assert_not_called()
+        a.client.upload_file.assert_not_called()
 
 
 @pytest.mark.parametrize("change", ["pending", "temporary", "expired", "hard_deleted"])
@@ -268,7 +281,7 @@ def test_ineligible_objects_are_deferred(artifact, change):
     else:
         models.File.objects.filter(pk=a.file.pk).update(hard_deleted_at=timezone.now())
     assert "deferred=1" in run(a.obj)
-    a.client.upload_fileobj.assert_not_called()
+    a.client.upload_file.assert_not_called()
 
 
 def test_audio_with_outstanding_signed_upload_is_deferred(artifact):
@@ -287,7 +300,7 @@ def test_audio_with_outstanding_signed_upload_is_deferred(artifact):
 def test_expiry_during_transfer_prevents_cutover(artifact):
     """A transfer cannot republish original data after its deadline."""
     a = artifact
-    upload = a.client.upload_fileobj.side_effect
+    upload = a.client.upload_file.side_effect
 
     def expire(*args, **kwargs):
         upload(*args, **kwargs)
@@ -295,7 +308,7 @@ def test_expiry_during_transfer_prevents_cutover(artifact):
             original_file_data_delete_at=timezone.now() - timedelta(seconds=1)
         )
 
-    a.client.upload_fileobj.side_effect = expire
+    a.client.upload_file.side_effect = expire
     assert "deferred=1" in run(a.obj)
     a.obj.refresh_from_db()
     assert a.obj.storage_bucket_name == a.source_bucket
@@ -313,7 +326,7 @@ def test_other_artifact_destination_is_never_overwritten(artifact):
     )
     with pytest.raises(CommandError):
         run(a.obj, stderr=StringIO())
-    a.client.upload_fileobj.assert_not_called()
+    a.client.upload_file.assert_not_called()
 
 
 def test_dry_run_has_no_writes(artifact):
@@ -328,7 +341,7 @@ def test_dry_run_has_no_writes(artifact):
     with connection.execute_wrapper(read_only):
         assert "migrated=1" in run(a.obj, dry_run=True)
     assert list(models.ObjectStorageObject.objects.values()) == before
-    a.client.upload_fileobj.assert_not_called()
+    a.client.upload_file.assert_not_called()
     a.client.get_object.assert_not_called()
     a.source_client.get_object.assert_not_called()
 
@@ -410,7 +423,7 @@ def test_concurrent_migration_and_original_deletion(artifact):
     """Deletion holds its file lock while waiting; both physical copies are removed."""
     a = artifact
     transferring, deleting, release = Event(), Event(), Event()
-    upload = a.client.upload_fileobj.side_effect
+    upload = a.client.upload_file.side_effect
     deleted = []
 
     def slow_upload(*args, **kwargs):
@@ -448,7 +461,7 @@ def test_concurrent_migration_and_original_deletion(artifact):
         )
         return storage
 
-    a.client.upload_fileobj.side_effect = slow_upload
+    a.client.upload_file.side_effect = slow_upload
     with patch("core.object_storage.get_storage_for_object", side_effect=storage_for):
         with ThreadPoolExecutor(max_workers=2) as pool:
             transfer = pool.submit(migrate)
@@ -540,10 +553,10 @@ def test_reverse_migration_preserves_retained_source(artifact, monkeypatch):
     monkeypatch.setattr(
         "core.storage_migration.expected_bucket", lambda file: a.source_bucket
     )
-    a.source_client.upload_fileobj.side_effect = OSError("reverse upload failed")
+    a.source_client.upload_file.side_effect = OSError("reverse upload failed")
     assert "deferred=1" in run(a.obj, dry_run=True)
     assert "deferred=1" in run(a.obj)
-    a.source_client.upload_fileobj.assert_not_called()
+    a.source_client.upload_file.assert_not_called()
     call_command("cleanup_storage_objects", stdout=StringIO())
     assert source.values().get() == before
     assert a.copies[a.source_bucket, a.obj.key] == b"source bytes"
@@ -554,14 +567,14 @@ def test_reverse_migration_preserves_retained_source(artifact, monkeypatch):
     assert "migrated=1" in run(a.obj, dry_run=True)
     with pytest.raises(CommandError, match="1 storage object"):
         run(a.obj, stderr=StringIO())
-    assert "ACL" not in a.source_client.upload_fileobj.call_args.kwargs["ExtraArgs"]
+    assert "ACL" not in a.source_client.upload_file.call_args.kwargs["ExtraArgs"]
 
 
 def test_completed_cleanup_reservation_can_be_retried(artifact):
     """A cleaned destination can be reserved again on a later retry."""
     a = artifact
-    upload = a.client.upload_fileobj.side_effect
-    a.client.upload_fileobj.side_effect = OSError("interrupted")
+    upload = a.client.upload_file.side_effect
+    a.client.upload_file.side_effect = OSError("interrupted")
     with pytest.raises(CommandError):
         run(a.obj, stderr=StringIO())
     call_command("cleanup_storage_objects", stdout=StringIO())
@@ -569,7 +582,7 @@ def test_completed_cleanup_reservation_can_be_retried(artifact):
         models.ObjectStorageObject.objects.get(storage_bucket_name="destination").state
         == "deleted"
     )
-    a.client.upload_fileobj.side_effect = upload
+    a.client.upload_file.side_effect = upload
     assert "migrated=1" in run(a.obj)
 
 
@@ -577,13 +590,13 @@ def test_completed_cleanup_reservation_can_be_retried(artifact):
 def test_process_interruption_keeps_committed_cleanup_record(artifact):
     """Process interruption rolls back cutover but retains its cleanup obligation."""
     a = artifact
-    upload = a.client.upload_fileobj.side_effect
+    upload = a.client.upload_file.side_effect
 
     def interrupt(*args, **kwargs):
         upload(*args, **kwargs)
         raise KeyboardInterrupt
 
-    a.client.upload_fileobj.side_effect = interrupt
+    a.client.upload_file.side_effect = interrupt
     with pytest.raises(KeyboardInterrupt):
         migrate_object(a.obj.pk)
     a.obj.refresh_from_db()

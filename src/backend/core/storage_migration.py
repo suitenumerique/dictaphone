@@ -2,13 +2,14 @@
 
 from datetime import timedelta
 from functools import lru_cache, partial
-from tempfile import TemporaryFile
+from tempfile import NamedTemporaryFile
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Exists, Q
 from django.utils import timezone
 
+from boto3.s3.transfer import TransferConfig
 from botocore.httpchecksum import (
     BaseChecksum,
     Crc32Checksum,
@@ -41,6 +42,9 @@ CONTENT_METADATA = (
     "Metadata",
 )
 CHUNK_SIZE = 10 * 1024 * 1024
+MULTIPART_THRESHOLD = TransferConfig().multipart_threshold
+MIN_MULTIPART_PART_SIZE = 5 * 1024**2
+MAX_MULTIPART_PART_SIZE = 5 * 1024**3
 
 
 @lru_cache(maxsize=2)
@@ -256,7 +260,21 @@ def _upload(client, destination, content, source_metadata, digest):
     acl = get_bucket_configuration_for_object(destination).upload_acl
     if acl is not None:
         extra["ACL"] = acl
-    client.upload_fileobj(content, bucket, key, ExtraArgs=extra)
+    part_size = min(
+        MAX_MULTIPART_PART_SIZE,
+        max(MIN_MULTIPART_PART_SIZE, settings.FILE_UPLOAD_MAX_SIZE),
+    )
+    # Upload by filename so Boto3 can stream each part directly from disk.
+    client.upload_file(
+        content.name,
+        bucket,
+        key,
+        ExtraArgs=extra,
+        Config=TransferConfig(
+            multipart_threshold=MULTIPART_THRESHOLD,
+            multipart_chunksize=part_size,
+        ),
+    )
     response, copied_size, copied_digest = _read(client, destination)
     if (copied_size, copied_digest) != (size, digest):
         raise ObjectIntegrityError("Destination full-content checksum or size mismatch")
@@ -271,7 +289,7 @@ def _transfer(obj, destination):
     baseline = None
     if obj.checksum_type == "FULL_OBJECT" and obj.checksum_algorithm != "SHA256":
         baseline = BASELINE_CHECKSUMS[obj.checksum_algorithm]()
-    with TemporaryFile() as content:
+    with NamedTemporaryFile(delete_on_close=False) as content:
         response, size, digest = _read(source_client, obj, content, baseline=baseline)
         if obj.size is not None and obj.size != size:
             raise ObjectIntegrityError("Source size differs from published baseline")
@@ -281,7 +299,7 @@ def _transfer(obj, destination):
                 raise ObjectIntegrityError(
                     "Source checksum differs from published baseline"
                 )
-        content.seek(0)
+        content.flush()
         head = _upload(client, destination, content, response, digest)
     values = metadata_values(head)
     values.update(

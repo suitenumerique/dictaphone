@@ -104,8 +104,9 @@ byte length and SHA-256. ETags remain opaque. The upload preserves content
 type, encoding, language, disposition, cache headers, expiry, and user metadata.
 Provision temporary disk space (`TMPDIR`) for the largest object per concurrent
 command and network capacity for a source download, an upload, and a full
-destination download. Managed multipart uploads bound memory usage for large
-objects.
+destination download. Managed uploads stream multipart parts from disk. The part
+size follows `FILE_UPLOAD_MAX_SIZE` within S3's 5 MiB to 5 GiB range. Multipart
+uploads start at 8 MiB.
 
 Before writing, the command commits an independent cleanup obligation in the
 existing object table. These detached rows retain the owning file UUID and kind,
