@@ -7,7 +7,7 @@ from tempfile import TemporaryFile
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, Q
 from django.utils import timezone
 
 from core.configuration import get_profile_for_email
@@ -37,44 +37,46 @@ CONTENT_METADATA = (
 CHUNK_SIZE = 10 * 1024 * 1024
 
 
-def eligible(obj):
-    """Read current lifecycle state without locking the file or resnapshotting it."""
+def _eligible_file(obj):
+    """Read current lifecycle and routing inputs in one query without a file lock."""
     if (
         obj.state != obj.State.AVAILABLE
         or obj.published_at is None
         or obj.kind == obj.Kind.TEMPORARY
         or not obj.file_id
     ):
-        return False
-    file = File.objects.filter(pk=obj.file_id).first()
+        return None
+    files = File.objects.select_related("creator")
+    if obj.kind == obj.Kind.AUDIO:
+        files = files.filter(
+            ~Exists(
+                AudioJob.objects.filter(
+                    output_object_id=obj.pk, expires_at__gt=timezone.now()
+                )
+            )
+        )
+    file = files.filter(pk=obj.file_id).first()
     if (
         file is None
         or file.upload_state != FileUploadStateChoices.READY
         or file.hard_deleted_at
     ):
-        return False
-    now = timezone.now()
+        return None
     deadlines = [file.file_auto_hard_delete_at, file.trashbin_purge_at]
     if obj.kind in {obj.Kind.ORIGINAL, obj.Kind.AUDIO}:
         deadlines.append(file.original_file_data_delete_at)
         if file.lifecycle_state != "active":
-            return False
+            return None
     if file.lifecycle_state == "pending_auto_hard_delete":
-        return False
+        return None
+    now = timezone.now()
     if any(deadline and deadline <= now for deadline in deadlines):
-        return False
-    return not (
-        obj.kind == obj.Kind.AUDIO
-        and AudioJob.objects.filter(
-            output_object_id=obj.pk,
-            expires_at__gt=now,
-        ).exists()
-    )
+        return None
+    return file
 
 
-def expected_bucket(obj):
+def expected_bucket(file):
     """Use the creator's current routing configuration, not the file snapshot."""
-    file = File.objects.select_related("creator").get(pk=obj.file_id)
     return get_profile_for_email(
         file.creator.email if file.creator_id else None
     ).storage_bucket_name
@@ -110,11 +112,18 @@ def _validate_destination(destination, obj):
         and destination.kind == obj.kind
         and destination.state in {obj.State.DELETING, obj.State.DELETED}
     ) or (
-        File.objects.filter(
-            Q(original_object=destination) | Q(temporary_upload_object=destination)
-        ).exists()
-        or AudioJob.objects.filter(output_object=destination).exists()
-        or AiFileJob.objects.filter(result_object=destination).exists()
+        ObjectStorageObject.objects.filter(pk=destination.pk)
+        .filter(
+            Exists(
+                File.objects.filter(
+                    Q(original_object=destination)
+                    | Q(temporary_upload_object=destination)
+                )
+            )
+            | Exists(AudioJob.objects.filter(output_object=destination))
+            | Exists(AiFileJob.objects.filter(result_object=destination))
+        )
+        .exists()
     ):
         raise ValueError("Destination belongs to another tracked artifact")
 
@@ -123,25 +132,27 @@ def _reserve(obj_id):
     """Commit a cleanup obligation BEFORE any external write can happen."""
     with transaction.atomic():
         obj = ObjectStorageObject.objects.select_for_update().get(pk=obj_id)
-        if not eligible(obj):
+        file = _eligible_file(obj)
+        if file is None:
             return "deferred", None
-        bucket = expected_bucket(obj)
+        bucket = expected_bucket(file)
         if bucket == obj.storage_bucket_name:
             return "aligned", None
-        destination, _ = ObjectStorageObject.objects.get_or_create(
-            storage_bucket_name=bucket,
-            key=obj.key,
-            defaults={
-                "file_identifier": obj.file_identifier,
-                "kind": obj.kind,
-                "state": obj.State.DELETING,
-                "checksum_source": CLEANUP_SOURCE,
-                "etag": str(obj.pk),
-            },
+        destination, created = (
+            ObjectStorageObject.objects.select_for_update().get_or_create(
+                storage_bucket_name=bucket,
+                key=obj.key,
+                defaults={
+                    "file_identifier": obj.file_identifier,
+                    "kind": obj.kind,
+                    "state": obj.State.DELETING,
+                    "checksum_source": CLEANUP_SOURCE,
+                    "etag": str(obj.pk),
+                },
+            )
         )
-        destination = ObjectStorageObject.objects.select_for_update().get(
-            pk=destination.pk
-        )
+        if created:
+            return "reserved", destination.pk
         _validate_destination(destination, obj)
         # A concurrent cleanup may have finished since an earlier attempt. This
         # committed reset makes another interrupted write discoverable again.
@@ -174,8 +185,22 @@ def _read(client, obj, target=None):
     return response, size, base64.b64encode(digest.digest()).decode("ascii")
 
 
+def _upload(client, destination, content, source_metadata, digest):
+    """Upload the file and verify the destination's size and checksum."""
+    bucket, key = destination.storage_bucket_name, destination.key
+    size = source_metadata["ContentLength"]
+    extra = {
+        key: source_metadata[key] for key in CONTENT_METADATA if key in source_metadata
+    }
+    client.upload_fileobj(content, bucket, key, ExtraArgs=extra)
+    response, copied_size, copied_digest = _read(client, destination)
+    if (copied_size, copied_digest) != (size, digest):
+        raise ObjectIntegrityError("Destination full-content checksum or size mismatch")
+    return response
+
+
 def _transfer(obj, destination):
-    """Use each bucket's own credentials; verify a complete destination read-back."""
+    """Use each bucket's own credentials and verify the copied bytes."""
     source_client = get_storage_for_object(obj).connection.meta.client
     storage = get_storage_for_object(destination)
     client = storage.connection.meta.client
@@ -192,14 +217,7 @@ def _transfer(obj, destination):
                 "Source checksum differs from published baseline"
             )
         content.seek(0)
-        # Managed upload supports multipart objects and overwrites the exact key.
-        extra = {key: response[key] for key in CONTENT_METADATA if key in response}
-        client.upload_fileobj(
-            content, destination.storage_bucket_name, destination.key, ExtraArgs=extra
-        )
-    head, copied_size, copied_digest = _read(client, destination)
-    if (copied_size, copied_digest) != (size, digest):
-        raise ObjectIntegrityError("Destination full-content checksum or size mismatch")
+        head = _upload(client, destination, content, response, digest)
     values = metadata_values(head)
     values.update(
         checksum_algorithm="SHA256",
@@ -213,9 +231,10 @@ def _transfer(obj, destination):
 def inspect_object(obj_id):
     """Plan a transfer using only database reads."""
     obj = ObjectStorageObject.objects.get(pk=obj_id)
-    if not eligible(obj):
+    file = _eligible_file(obj)
+    if file is None:
         return "deferred"
-    bucket = expected_bucket(obj)
+    bucket = expected_bucket(file)
     if bucket == obj.storage_bucket_name:
         return "aligned"
     destination = ObjectStorageObject.objects.filter(
@@ -243,15 +262,15 @@ def migrate_object(obj_id, *, dry_run=False):
             )
             .first()
         )
-        if (
-            destination is None
-            or not eligible(obj)
-            or expected_bucket(obj) != destination.storage_bucket_name
-        ):
+        if destination is None:
+            return "deferred"
+        file = _eligible_file(obj)
+        if file is None or expected_bucket(file) != destination.storage_bucket_name:
             return "deferred"
         _validate_destination(destination, obj)
         values = _transfer(obj, destination)
-        if not eligible(obj) or expected_bucket(obj) != destination.storage_bucket_name:
+        file = _eligible_file(obj)
+        if file is None or expected_bucket(file) != destination.storage_bucket_name:
             return "deferred"
         old_bucket = obj.storage_bucket_name
         # Release the destination's unique location, retaining the authoritative ID.

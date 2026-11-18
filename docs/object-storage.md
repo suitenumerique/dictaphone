@@ -112,7 +112,7 @@ the original row authoritative and the destination discoverable for cleanup or
 retry. Run `cleanup_storage_objects` regularly, alongside normal retention jobs.
 
 Old source copies can serve already issued download URLs for up to 24 hours (or
-the configured audio timeout / AWS URL lifetime if longer). On these cleanup rows,
+the configured audio timeout or S3 signed URL lifetime if longer). On these cleanup rows,
 `published_at` identifies a retained source and `metadata_checked_at` stores its
 cleanup deadline. Cleanup also consults the file's existing original-data,
 hard-deletion and trash deadlines with grace periods, so URL retention never

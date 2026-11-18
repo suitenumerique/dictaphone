@@ -5,7 +5,7 @@ from datetime import timedelta
 from io import BytesIO, StringIO
 from threading import Event
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -65,7 +65,7 @@ def artifact_fixture(monkeypatch):
         "core.storage_migration.get_storage_for_object", lambda obj: storage
     )
     monkeypatch.setattr(
-        "core.storage_migration.expected_bucket", lambda obj: "destination"
+        "core.storage_migration.expected_bucket", lambda file: "destination"
     )
     return SimpleNamespace(
         file=file,
@@ -134,6 +134,27 @@ def test_overwrite_and_retry_after_interrupted_transfer(artifact):
     a.client.upload_fileobj.side_effect = upload
     assert "migrated=1" in run(a.obj)
     assert a.copies["destination", a.obj.key] == b"source bytes"
+
+
+def test_upload_is_read_back(artifact):
+    """Verify the uploaded bytes by reading the destination."""
+    a = artifact
+    assert "migrated=1" in run(a.obj)
+    a.client.upload_fileobj.assert_called_once()
+    assert a.client.get_object.call_args_list == [
+        call(Bucket=a.source_bucket, Key=a.obj.key),
+        call(Bucket="destination", Key=a.obj.key),
+    ]
+
+
+def test_aligned_dry_run_loads_file_and_creator_together(django_assert_num_queries):
+    """The routing check reuses the owning file read used for eligibility."""
+    file = factories.FileFactory(update_upload_state="ready")
+    obj = file.original_object
+    publish_object(obj, content=b"source bytes")
+
+    with django_assert_num_queries(2):
+        assert migrate_object(obj.pk, dry_run=True) == "aligned"
 
 
 def test_checksum_failure_leaves_source_authoritative(artifact):
