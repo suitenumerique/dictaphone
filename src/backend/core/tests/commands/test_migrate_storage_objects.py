@@ -5,7 +5,7 @@ from datetime import timedelta
 from io import BytesIO, StringIO
 from threading import Event
 from types import SimpleNamespace
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -38,31 +38,55 @@ def artifact_fixture(monkeypatch):
     publish_object(obj, content=b"source bytes")
     source_bucket = obj.storage_bucket_name
     copies = {(source_bucket, obj.key): b"source bytes"}
-    client = Mock()
 
-    def read(**kwargs):
-        content = copies[kwargs["Bucket"], kwargs["Key"]]
-        return {
-            "Body": BytesIO(content),
-            "ContentLength": len(content),
-            "ETag": '"destination-etag"',
-            "ContentType": "audio/ogg",
-            "Metadata": {"custom": "preserved"},
-        }
+    def bucket_storage(bucket_name):
+        client = Mock()
 
-    def upload(content, bucket, key, **_kwargs):
-        copies[bucket, key] = content.read()
+        def read(**params):
+            assert params["Bucket"] == bucket_name
+            content = copies[params["Bucket"], params["Key"]]
+            return {
+                "Body": BytesIO(content),
+                "ContentLength": len(content),
+                "ETag": '"destination-etag"',
+                "ContentType": "audio/ogg",
+                "Metadata": {"custom": "preserved"},
+            }
 
-    client.get_object.side_effect = read
-    client.upload_fileobj.side_effect = upload
-    client.delete_object.side_effect = lambda **kw: copies.pop(
-        (kw["Bucket"], kw["Key"]), None
-    )
-    storage = Mock()
-    storage.connection.meta.client = client
-    storage.delete.side_effect = lambda key: None
+        def upload(content, bucket, key, **_kwargs):
+            assert bucket == bucket_name
+            copies[bucket, key] = content.read()
+
+        def put(**params):
+            assert params["Bucket"] == bucket_name
+            body = params["Body"]
+            copies[bucket_name, params["Key"]] = (
+                body if isinstance(body, bytes) else body.read()
+            )
+
+        client.get_object.side_effect = read
+        client.upload_fileobj.side_effect = upload
+        client.put_object.side_effect = put
+        storage = Mock()
+        storage.connection.meta.client = client
+        storage.delete.side_effect = lambda key: copies.pop((bucket_name, key), None)
+        return storage
+
+    storages = {
+        source_bucket: bucket_storage(source_bucket),
+        "destination": bucket_storage("destination"),
+    }
+
+    def storage_for(obj):
+        return storages[obj.storage_bucket_name]
+
+    monkeypatch.setattr("core.storage_migration.get_storage_for_object", storage_for)
+    monkeypatch.setattr("core.object_storage.get_storage_for_object", storage_for)
     monkeypatch.setattr(
-        "core.storage_migration.get_storage_for_object", lambda obj: storage
+        "core.storage_migration.get_bucket_configuration_for_object",
+        lambda obj: SimpleNamespace(
+            upload_acl="private" if obj.storage_bucket_name == "destination" else None
+        ),
     )
     monkeypatch.setattr(
         "core.storage_migration.expected_bucket", lambda file: "destination"
@@ -70,8 +94,9 @@ def artifact_fixture(monkeypatch):
     return SimpleNamespace(
         file=file,
         obj=obj,
-        client=client,
-        storage=storage,
+        client=storages["destination"].connection.meta.client,
+        source_client=storages[source_bucket].connection.meta.client,
+        storage_for=storage_for,
         copies=copies,
         source_bucket=source_bucket,
     )
@@ -107,6 +132,7 @@ def test_transfer_preserves_identity_metadata_and_every_file_field(artifact):
     assert source.state == "deleting"
     assert not cleanup_due(source)
     assert a.client.upload_fileobj.call_args.kwargs["ExtraArgs"] == {
+        "ACL": "private",
         "ContentType": "audio/ogg",
         "Metadata": {"custom": "preserved"},
     }
@@ -141,10 +167,10 @@ def test_upload_is_read_back(artifact):
     a = artifact
     assert "migrated=1" in run(a.obj)
     a.client.upload_fileobj.assert_called_once()
-    assert a.client.get_object.call_args_list == [
-        call(Bucket=a.source_bucket, Key=a.obj.key),
-        call(Bucket="destination", Key=a.obj.key),
-    ]
+    a.source_client.get_object.assert_called_once_with(
+        Bucket=a.source_bucket, Key=a.obj.key
+    )
+    a.client.get_object.assert_called_once_with(Bucket="destination", Key=a.obj.key)
 
 
 def test_aligned_dry_run_loads_file_and_creator_together(django_assert_num_queries):
@@ -250,6 +276,7 @@ def test_dry_run_has_no_writes(artifact):
     assert list(models.ObjectStorageObject.objects.values()) == before
     a.client.upload_fileobj.assert_not_called()
     a.client.get_object.assert_not_called()
+    a.source_client.get_object.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -266,8 +293,7 @@ def test_source_cleanup_obeys_grace_deadline_and_file_deletion(artifact):
         - timedelta(minutes=1),
     )
     assert cleanup_due(source)
-    with patch("core.object_storage.get_storage_for_object", return_value=a.storage):
-        delete_file_objects(a.file)
+    delete_file_objects(a.file)
     assert (
         not models.ObjectStorageObject.objects.filter(file_identifier=a.file.pk)
         .exclude(state="deleted")
@@ -284,7 +310,7 @@ def test_writer_resolves_current_bucket_after_lock(artifact):
         storage_bucket_name="destination"
     )
     with patch(
-        "core.object_storage.get_storage_for_object", return_value=a.storage
+        "core.object_storage.get_storage_for_object", wraps=a.storage_for
     ) as resolve:
         store_result(stale, b"summary", "text/plain")
     assert resolve.call_args.args[0].storage_bucket_name == "destination"
@@ -452,18 +478,16 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
 def test_completed_cleanup_reservation_can_be_retried(artifact):
     """A cleaned destination can be reserved again on a later retry."""
     a = artifact
+    upload = a.client.upload_fileobj.side_effect
     a.client.upload_fileobj.side_effect = OSError("interrupted")
     with pytest.raises(CommandError):
         run(a.obj, stderr=StringIO())
-    with patch("core.object_storage.get_storage_for_object", return_value=a.storage):
-        call_command("cleanup_storage_objects", stdout=StringIO())
+    call_command("cleanup_storage_objects", stdout=StringIO())
     assert (
         models.ObjectStorageObject.objects.get(storage_bucket_name="destination").state
         == "deleted"
     )
-    a.client.upload_fileobj.side_effect = lambda content, bucket, key, **kw: (
-        a.copies.update({(bucket, key): content.read()})
-    )
+    a.client.upload_fileobj.side_effect = upload
     assert "migrated=1" in run(a.obj)
 
 
@@ -485,8 +509,7 @@ def test_process_interruption_keeps_committed_cleanup_record(artifact):
     leftover = models.ObjectStorageObject.objects.get(storage_bucket_name="destination")
     assert leftover.state == "deleting"
     assert leftover.etag == str(a.obj.pk)
-    with patch("core.object_storage.get_storage_for_object", return_value=a.storage):
-        call_command("cleanup_storage_objects", stdout=StringIO())
+    call_command("cleanup_storage_objects", stdout=StringIO())
     leftover.refresh_from_db()
     assert leftover.state == "deleted"
 

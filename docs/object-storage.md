@@ -94,10 +94,11 @@ the command never saves the file. Eligibility is checked again before cutover.
 One object row lock and database transaction cover the entire transfer and
 verification. Budget database transaction timeouts for the largest object; writers
 and deletion can wait for that transfer. There is no file-wide migration lock.
-The backend downloads the source to temporary disk, uploads using the destination's
-credentials, then reads the entire destination to compare byte length and SHA-256.
-ETags are treated as opaque. Content type, encoding, language, disposition, cache
-headers, expiry and user metadata are preserved. Provision temporary disk space
+The backend downloads the source to temporary disk and uploads using the
+destination's credentials and configured upload ACL. The migration reads the
+entire destination to compare byte length and SHA-256. ETags remain opaque.
+The upload preserves content type, encoding, language, disposition, cache headers,
+expiry, and user metadata. Provision temporary disk space
 (`TMPDIR`) for the largest object per concurrent command, and network capacity for
 one source download, one upload, and one full destination download per object.
 Managed multipart uploads bound memory usage for large objects.

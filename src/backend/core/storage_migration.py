@@ -19,7 +19,7 @@ from core.models import (
     ObjectStorageObject,
 )
 from core.object_storage import ObjectIntegrityError, metadata_values
-from core.storage import get_storage_for_object
+from core.storage import get_bucket_configuration_for_object, get_storage_for_object
 
 # Cleanup obligations use existing fields, never owner references. For these rows
 # metadata_checked_at is the cleanup deadline; published_at distinguishes a retained
@@ -192,6 +192,9 @@ def _upload(client, destination, content, source_metadata, digest):
     extra = {
         key: source_metadata[key] for key in CONTENT_METADATA if key in source_metadata
     }
+    acl = get_bucket_configuration_for_object(destination).upload_acl
+    if acl is not None:
+        extra["ACL"] = acl
     client.upload_fileobj(content, bucket, key, ExtraArgs=extra)
     response, copied_size, copied_digest = _read(client, destination)
     if (copied_size, copied_digest) != (size, digest):
