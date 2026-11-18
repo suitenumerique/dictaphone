@@ -18,7 +18,7 @@ sidecars and init containers must define their own container security contexts.
 ## Manual management jobs
 
 For the object storage rollout, follow the
-[object storage tracking migration guide](../../../docs/migrations/object-storage-tracking.md).
+[object storage tracking migration guide](../../../UPGRADE.md#0160).
 
 Configure `backend.managementJobs` to expose backend commands as suspended
 CronJobs. They inherit the backend image, environment (including Secret references),
@@ -114,11 +114,8 @@ The `ingress` resource serves the frontend. Enable `ingressPublic` to route
 `/api/` and `/external-api/` to the backend, independently of frontend annotations.
 Like `ingressAdmin`, both new ingresses are disabled by default.
 
-**Upgrade:** API routes have moved out of `ingress`. Set
-`ingressPublic.enabled: true` and copy the existing API host(s), ingress class,
-TLS configuration, and any required API annotations from `ingress` to
-`ingressPublic`. The default TLS secret remains `<release-fullname>-tls`.
-The development environment already enables the public API ingress.
+For upgrades from the earlier ingress layout, follow the
+[chart 0.7.0 migration steps](../../../UPGRADE.md#helm-chart-070).
 
 The public ingress disables gzip and clears the incoming and upstream
 `Accept-Encoding` request header by default to mitigate BREACH (CVE-2013-3587).

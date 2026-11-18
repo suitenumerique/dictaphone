@@ -1,7 +1,6 @@
-# Deployment migration guides
+# Deployment upgrades
 
-These guides describe upgrade procedures for existing deployments. Follow the
-guide's prerequisites and deployment order before running its data migration.
-
-- [Object storage tracking](object-storage-tracking.md): deploy the tracking schema
-  and backfill references and provider metadata for existing stored artifacts.
+Release-specific migration procedures are maintained in
+[UPGRADE.md](../../UPGRADE.md), including the
+[0.16.x object storage backfill](../../UPGRADE.md#0160) and
+[0.17.0 schema transition](../../UPGRADE.md#0170).

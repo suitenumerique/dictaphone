@@ -34,18 +34,21 @@ full-object/composite semantics; backend AI writes record full-content SHA-256.
 Checksum observations preserve established baselines and report comparable
 mismatches. Metadata observation is not independent content read-back verification.
 
-## Upgrading from the tracking release
+## Upgrades
 
-The earlier release's object backfill must already be complete, including owner
-references for pending and failed jobs. Schema migration `0027` removes
-`File.storage_bucket_name`, its indexes, and `AudioJob.output_key`, requires File
-and AI references, and enforces output ownership by audio mode. It contains no data
-backfill or object-storage operations. Incomplete references cause the schema
-constraints to fail rather than silently reconstructing locations.
+Follow the [0.16.x backfill](../UPGRADE.md#0160) and
+[0.17.0 schema transition](../UPGRADE.md#0170) in the upgrade guide.
 
-Coordinate this schema change with the application deployment: old application
-and worker processes still depend on the removed columns and must be stopped
-before applying the schema. Start the updated processes afterward.
+## Retry outstanding deletions
 
-The completed `backfill_storage_objects` command is removed. No bucket-copying or
-provider-migration functionality is included.
+To recover explicit deletion requests left in the `deleting` state, preview
+and retry the tracked objects:
+
+```sh
+python manage.py cleanup_storage_objects --dry-run --limit 100
+python manage.py cleanup_storage_objects --limit 100
+```
+
+The second command deletes tracked objects with outstanding deletion requests.
+Cleanup records survive owner deletion, and successful cleanup retains a deleted
+tombstone. Run this as needed for operational recovery.

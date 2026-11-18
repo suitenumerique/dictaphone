@@ -80,18 +80,5 @@ for uploads and retries; an active bypass allows processing on the next request.
 
 ### Existing installations
 
-For Compose, copy the settings above into the ignored `env.d/development/common`
-file and recreate the backend and worker containers.
-
-Keycloak imports only new realms. For an existing Compose or Tilt database, use
-the Keycloak admin console to:
-
-1. Create realm roles `user` and `priviledged_user`; assign `priviledged_user` to
-   existing development users.
-2. Add a **User Realm Role** mapper to the `dictaphone` client's dedicated scope:
-   claim name `roles`, JSON type `String`, multivalued enabled, included in
-   UserInfo, ID tokens, and access tokens.
-3. Create the restricted test user above with only `user`, and sign in again
-   after role changes.
-
-A fresh Keycloak database needs no manual setup.
+Follow the [0.15.3 upgrade steps](../UPGRADE.md#0153) to update an existing
+Keycloak realm and local environment.

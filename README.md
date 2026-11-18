@@ -43,7 +43,7 @@ Note that the main processing pipeline is currently hosted under [La Suite Meet 
 ## Self-host
 
 Upgrade procedures for existing deployments are in the
-[deployment migration guides](./docs/migrations/README.md).
+[upgrade guide](./UPGRADE.md).
 
 We use Kubernetes for our [production instance](https://transcripts.numerique.gouv.fr/) but also support Docker Compose. The complexity comes mostly from deploying the _summary_ component / WhisperX.
 
