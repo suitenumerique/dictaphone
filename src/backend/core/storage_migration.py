@@ -1,14 +1,20 @@
 """Move immutable tracked artifacts without changing their owning file's policy."""
 
-import base64
-import hashlib
 from datetime import timedelta
+from functools import lru_cache, partial
 from tempfile import TemporaryFile
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Exists, Q
 from django.utils import timezone
+
+from botocore.httpchecksum import (
+    BaseChecksum,
+    Crc32Checksum,
+    Sha1Checksum,
+    Sha256Checksum,
+)
 
 from core.configuration import get_profile_for_email
 from core.models import (
@@ -37,6 +43,46 @@ CONTENT_METADATA = (
 CHUNK_SIZE = 10 * 1024 * 1024
 
 
+@lru_cache(maxsize=2)
+def _crc_table(polynomial):
+    """Build the lookup table for a reflected CRC polynomial."""
+    table = []
+    for index in range(256):
+        value = index
+        for _ in range(8):
+            value = (value >> 1) ^ (polynomial if value & 1 else 0)
+        table.append(value)
+    return tuple(table)
+
+
+class _ReflectedChecksum(BaseChecksum):
+    """Compute CRC32C or CRC64/NVME in Python."""
+
+    def __init__(self, polynomial, width):
+        self.table = _crc_table(polynomial)
+        self.width = width
+        self.mask = (1 << (width * 8)) - 1
+        self.value = self.mask
+
+    def update(self, chunk):
+        value, table = self.value, self.table
+        for byte in chunk:
+            value = (value >> 8) ^ table[(value ^ byte) & 0xFF]
+        self.value = value
+
+    def digest(self):
+        return (self.value ^ self.mask).to_bytes(self.width, "big")
+
+
+BASELINE_CHECKSUMS = {
+    "SHA256": Sha256Checksum,
+    "SHA1": Sha1Checksum,
+    "CRC32": Crc32Checksum,
+    "CRC32C": partial(_ReflectedChecksum, 0x82F63B78, 4),
+    "CRC64NVME": partial(_ReflectedChecksum, 0x9A6C9329AC4BC9B5, 8),
+}
+
+
 def _eligible_file(obj):
     """Read current lifecycle and routing inputs in one query without a file lock."""
     if (
@@ -44,6 +90,10 @@ def _eligible_file(obj):
         or obj.published_at is None
         or obj.kind == obj.Kind.TEMPORARY
         or not obj.file_id
+    ):
+        return None
+    if obj.checksum_type == "FULL_OBJECT" and (
+        obj.checksum_algorithm not in BASELINE_CHECKSUMS or not obj.checksum_value
     ):
         return None
     files = File.objects.select_related("creator")
@@ -67,10 +117,10 @@ def _eligible_file(obj):
         deadlines.append(file.original_file_data_delete_at)
         if file.lifecycle_state != "active":
             return None
-    if file.lifecycle_state == "pending_auto_hard_delete":
-        return None
     now = timezone.now()
-    if any(deadline and deadline <= now for deadline in deadlines):
+    if file.lifecycle_state == "pending_auto_hard_delete" or any(
+        deadline and deadline <= now for deadline in deadlines
+    ):
         return None
     return file
 
@@ -166,15 +216,17 @@ def _reserve(obj_id):
         return "reserved", destination.pk
 
 
-def _read(client, obj, target=None):
+def _read(client, obj, target=None, *, baseline=None):
     """Hash every byte, optionally spooling it to bounded-memory temporary disk."""
     response = client.get_object(Bucket=obj.storage_bucket_name, Key=obj.key)
-    digest = hashlib.sha256()
+    digest = Sha256Checksum()
     size = 0
     body = response["Body"]
     try:
         while chunk := body.read(CHUNK_SIZE):
             digest.update(chunk)
+            if baseline is not None:
+                baseline.update(chunk)
             size += len(chunk)
             if target is not None:
                 target.write(chunk)
@@ -182,7 +234,7 @@ def _read(client, obj, target=None):
         body.close()
     if size != response["ContentLength"]:
         raise ObjectIntegrityError("Incomplete storage read")
-    return response, size, base64.b64encode(digest.digest()).decode("ascii")
+    return response, size, digest.b64digest()
 
 
 def _upload(client, destination, content, source_metadata, digest):
@@ -207,18 +259,19 @@ def _transfer(obj, destination):
     source_client = get_storage_for_object(obj).connection.meta.client
     storage = get_storage_for_object(destination)
     client = storage.connection.meta.client
+    baseline = None
+    if obj.checksum_type == "FULL_OBJECT" and obj.checksum_algorithm != "SHA256":
+        baseline = BASELINE_CHECKSUMS[obj.checksum_algorithm]()
     with TemporaryFile() as content:
-        response, size, digest = _read(source_client, obj, content)
+        response, size, digest = _read(source_client, obj, content, baseline=baseline)
         if obj.size is not None and obj.size != size:
             raise ObjectIntegrityError("Source size differs from published baseline")
-        if (
-            obj.checksum_algorithm == "SHA256"
-            and obj.checksum_type == "FULL_OBJECT"
-            and obj.checksum_value != digest
-        ):
-            raise ObjectIntegrityError(
-                "Source checksum differs from published baseline"
-            )
+        if obj.checksum_type == "FULL_OBJECT":
+            observed = digest if baseline is None else baseline.b64digest()
+            if obj.checksum_value != observed:
+                raise ObjectIntegrityError(
+                    "Source checksum differs from published baseline"
+                )
         content.seek(0)
         head = _upload(client, destination, content, response, digest)
     values = metadata_values(head)

@@ -87,21 +87,24 @@ No bucket listing is used.
 
 Only available, published artifacts on finalized files are eligible. Pending
 uploads, temporary upload keys, expired artifacts, and audio outputs with unexpired
-signed upload URLs are deferred. File policy snapshots, deadlines (including grace
-periods), timestamps, lifecycle state, ownership, and job references are preserved;
-the command never saves the file. Eligibility is checked again before cutover.
+signed upload URLs are deferred. Migration also defers objects whose recorded
+full-object checksum algorithm cannot be verified. File policy snapshots,
+deadlines (including grace periods), timestamps, lifecycle state, ownership,
+and job references are preserved. The command checks eligibility again before
+cutover.
 
 One object row lock and database transaction cover the entire transfer and
 verification. Budget database transaction timeouts for the largest object; writers
 and deletion can wait for that transfer. There is no file-wide migration lock.
-The backend downloads the source to temporary disk and uploads using the
-destination's credentials and configured upload ACL. The migration reads the
-entire destination to compare byte length and SHA-256. ETags remain opaque.
-The upload preserves content type, encoding, language, disposition, cache headers,
-expiry, and user metadata. Provision temporary disk space
-(`TMPDIR`) for the largest object per concurrent command, and network capacity for
-one source download, one upload, and one full destination download per object.
-Managed multipart uploads bound memory usage for large objects.
+The backend downloads the source to temporary disk, verifies any supported
+full-object checksum, and uploads using the destination's credentials and
+configured upload ACL. The migration reads the entire destination to compare
+byte length and SHA-256. ETags remain opaque. The upload preserves content
+type, encoding, language, disposition, cache headers, expiry, and user metadata.
+Provision temporary disk space (`TMPDIR`) for the largest object per concurrent
+command and network capacity for a source download, an upload, and a full
+destination download. Managed multipart uploads bound memory usage for large
+objects.
 
 Before writing, the command commits an independent cleanup obligation in the
 existing object table. These detached rows retain the owning file UUID and kind,

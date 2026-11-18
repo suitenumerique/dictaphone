@@ -1,5 +1,6 @@
 """Verified transfers, durable obligations, and policy-preserving cutover."""
 
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from io import BytesIO, StringIO
@@ -197,6 +198,59 @@ def test_checksum_failure_leaves_source_authoritative(artifact):
         models.ObjectStorageObject.objects.get(storage_bucket_name="destination").state
         == "deleting"
     )
+
+
+@pytest.mark.parametrize(
+    ("algorithm", "hex_digest"),
+    [
+        ("SHA1", "f7c3bc1d808e04732adf679965ccc34ca7ae3441"),
+        ("CRC32", "cbf43926"),
+        ("CRC32C", "e3069283"),
+        ("CRC64NVME", "ae8b14860a799888"),
+    ],
+)
+@pytest.mark.parametrize("matches", [True, False])
+def test_verify_full_object_baseline(
+    artifact, monkeypatch, algorithm, hex_digest, matches
+):
+    """Verify supported baselines against the entire source across chunk boundaries."""
+    a = artifact
+    a.copies[a.source_bucket, a.obj.key] = b"123456789"
+    checksum = base64.b64encode(bytes.fromhex(hex_digest)).decode("ascii")
+    models.ObjectStorageObject.objects.filter(pk=a.obj.pk).update(
+        checksum_algorithm=algorithm,
+        checksum_value=checksum if matches else "different",
+        size=9,
+    )
+    monkeypatch.setattr("core.storage_migration.CHUNK_SIZE", 4)
+    if matches:
+        assert "migrated=1" in run(a.obj)
+    else:
+        stderr = StringIO()
+        with pytest.raises(CommandError, match="1 storage object"):
+            run(a.obj, stderr=stderr)
+        assert stderr.getvalue() == f"object={a.obj.pk}: ObjectIntegrityError\n"
+        a.client.upload_fileobj.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("checksum_type", "outcome"),
+    [
+        ("FULL_OBJECT", "deferred"),
+        ("COMPOSITE", "migrated"),
+    ],
+)
+def test_unrecognized_checksum_baseline(artifact, checksum_type, outcome):
+    """Only a full-object baseline must be recognized to allow migration."""
+    a = artifact
+    models.ObjectStorageObject.objects.filter(pk=a.obj.pk).update(
+        checksum_type=checksum_type, checksum_algorithm="unknown"
+    )
+    assert f"{outcome}=1" in run(a.obj, dry_run=True)
+    assert f"{outcome}=1" in run(a.obj)
+    if outcome == "deferred":
+        a.source_client.get_object.assert_not_called()
+        a.client.upload_fileobj.assert_not_called()
 
 
 @pytest.mark.parametrize("change", ["pending", "temporary", "expired", "hard_deleted"])
