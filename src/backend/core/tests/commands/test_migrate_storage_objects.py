@@ -415,6 +415,40 @@ def test_command_limit_batches_and_source_filter(artifact):
     )
 
 
+@pytest.mark.parametrize(
+    ("selector", "option", "value"),
+    [
+        ("objects", "--object", ["invalid"]),
+        ("files", "--file", ["invalid"]),
+        ("source_bucket", "--source-bucket", ""),
+        ("start_after", "--start-after", "invalid"),
+    ],
+)
+def test_command_rejects_invalid_selectors(
+    django_assert_num_queries, selector, option, value
+):
+    """Reject malformed options before enumerating any row."""
+    with django_assert_num_queries(0), pytest.raises(CommandError, match=option):
+        call_command("migrate_storage_objects", **{selector: value})
+
+
+def test_command_resumes_after_last_examined_deferred_object(artifact):
+    """The cursor is exclusive and advances even when a row is deferred."""
+    a = artifact
+    ids = sorted([a.obj.pk, a.file.temporary_upload_object_id])
+    models.ObjectStorageObject.objects.filter(pk=ids[0]).update(state="pending")
+    options = {"objects": [str(pk) for pk in ids], "dry_run": True, "limit": 1}
+    first, next_run = StringIO(), StringIO()
+    call_command("migrate_storage_objects", stdout=first, **options)
+    assert f"{ids[0]}: deferred" in first.getvalue()
+    assert f"Last examined PK: {ids[0]}" in first.getvalue()
+    call_command(
+        "migrate_storage_objects", start_after=ids[0], stdout=next_run, **options
+    )
+    assert f"Last examined PK: {ids[1]}" in next_run.getvalue()
+    assert str(ids[0]) not in next_run.getvalue()
+
+
 def test_completed_cleanup_reservation_can_be_retried(artifact):
     """A cleaned destination can be reserved again on a later retry."""
     a = artifact

@@ -68,19 +68,19 @@ including the default policy for files without a creator.
 ```sh
 python manage.py migrate_storage_objects --dry-run --limit 1000
 python manage.py migrate_storage_objects --batch-size 100 --limit 1000
+python manage.py migrate_storage_objects --start-after LAST_EXAMINED_UUID
 python manage.py migrate_storage_objects --file FILE_UUID --source-bucket old-bucket
 python manage.py migrate_storage_objects --object OBJECT_UUID
 python manage.py cleanup_storage_objects --limit 1000
 ```
 
 `--file` and `--object` may be repeated. Source filters use physical bucket names.
-The limit bounds examined objects, including aligned and deferred rows; batches
-bound database enumeration. For large inventories, partition by file/object or
-source bucket to avoid repeatedly examining the same aligned rows. Each object
-prints a result followed by aligned, migrated, deferred, and failed totals. A dry
-run's migrated count means “would migrate”; it performs no storage or database
-writes. Failures produce a nonzero exit status while other selected objects
-continue. Reruns safely overwrite an untracked destination or a cleanup location
+The limit bounds examined objects, including aligned and deferred rows. Each run
+prints per-object results, totals, and the last examined UUID. Pass that UUID to
+`--start-after` with the same filters to continue the scan. Select deferred rows
+again once they become eligible. A dry run counts eligible transfers and performs
+no storage or database writes. Failures produce a nonzero exit status while other
+selected objects continue. Reruns safely overwrite an untracked destination or a cleanup location
 belonging to the same artifact, but refuse another tracked artifact's location.
 No bucket listing is used.
 
