@@ -77,15 +77,21 @@ RECORD_ONLY_STATES = {
     ObjectStorageObject.State.MISSING,
     ObjectStorageObject.State.DELETED,
 }
+ORIGINAL_DATA_KINDS = {
+    ObjectStorageObject.Kind.ORIGINAL,
+    ObjectStorageObject.Kind.TEMPORARY,
+    ObjectStorageObject.Kind.AUDIO,
+}
 
 
 def _eligible_source(obj):
-    if obj.kind == obj.Kind.TEMPORARY or obj.file_id is None:
+    if obj.file_id is None:
         return False
     if obj.state in RECORD_ONLY_STATES:
         return True
     return (
         obj.state == obj.State.AVAILABLE
+        and obj.kind != obj.Kind.TEMPORARY
         and obj.published_at is not None
         and (
             obj.checksum_type != "FULL_OBJECT"
@@ -101,15 +107,26 @@ def _active_audio_upload(obj_id, now):
     return Exists(AudioJob.objects.filter(output_object_id=obj_id, expires_at__gt=now))
 
 
+def _original_data_was_deleted(obj, file):
+    return (
+        file.lifecycle_state == FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+        and obj.kind in ORIGINAL_DATA_KINDS
+    )
+
+
+def _should_mark_deleted(obj, file):
+    return obj.state == obj.State.MISSING and _original_data_was_deleted(obj, file)
+
+
 def _eligible_owner(obj, file, now):
-    if obj.state == obj.State.DELETED:
+    if file is None:
+        return False
+    if obj.kind == obj.Kind.TEMPORARY:
+        return _original_data_was_deleted(obj, file)
+    if obj.state == obj.State.DELETED or _should_mark_deleted(obj, file):
         # Retention may have expired before the artifact was deleted.
-        return file is not None
-    if (
-        file is None
-        or file.upload_state != FileUploadStateChoices.READY
-        or file.hard_deleted_at
-    ):
+        return True
+    if file.upload_state != FileUploadStateChoices.READY or file.hard_deleted_at:
         return False
     deadlines = [file.file_auto_hard_delete_at, file.trashbin_purge_at]
     if obj.kind in {obj.Kind.ORIGINAL, obj.Kind.AUDIO}:
@@ -266,20 +283,25 @@ def _destination_held(destination):
     )
 
 
-def _move_object_record(obj, bucket):
+def _move_object_record(obj, bucket, *, mark_deleted):
     """Move only the tracked location while the source row is locked."""
-    destination = (
-        ObjectStorageObject.objects.select_for_update()
-        .filter(storage_bucket_name=bucket, key=obj.key)
-        .first()
-    )
-    if destination is not None:
-        _validate_destination(destination, obj)
-        if destination.state == destination.State.DELETING:
-            return "deferred"
-        destination.delete()
+    if bucket != obj.storage_bucket_name:
+        destination = (
+            ObjectStorageObject.objects.select_for_update()
+            .filter(storage_bucket_name=bucket, key=obj.key)
+            .first()
+        )
+        if destination is not None:
+            _validate_destination(destination, obj)
+            if destination.state == destination.State.DELETING:
+                return "deferred"
+            destination.delete()
+    elif not mark_deleted:
+        return "aligned"
     ObjectStorageObject.objects.filter(pk=obj.pk).update(
-        storage_bucket_name=bucket, updated_at=timezone.now()
+        storage_bucket_name=bucket,
+        state=obj.State.DELETED if mark_deleted else obj.state,
+        updated_at=timezone.now(),
     )
     return "migrated"
 
@@ -306,10 +328,11 @@ def _reserve(obj_id, *, source_bucket):
         if file is None:
             return "deferred", None
         bucket = expected_bucket(file)
+        if obj.state in RECORD_ONLY_STATES:
+            mark_deleted = _should_mark_deleted(obj, file)
+            return _move_object_record(obj, bucket, mark_deleted=mark_deleted), None
         if bucket == obj.storage_bucket_name:
             return "aligned", None
-        if obj.state in RECORD_ONLY_STATES:
-            return _move_object_record(obj, bucket), None
         destination, created = (
             ObjectStorageObject.objects.select_for_update().get_or_create(
                 storage_bucket_name=bucket,
@@ -488,7 +511,9 @@ def inspect_objects(objects):
             results[obj.pk] = exc
             continue
         if bucket == obj.storage_bucket_name:
-            results[obj.pk] = "aligned"
+            results[obj.pk] = (
+                "migrated" if _should_mark_deleted(obj, obj.file) else "aligned"
+            )
             continue
         results[obj.pk] = "migrated"
         targets.append((obj, bucket))

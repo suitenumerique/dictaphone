@@ -100,17 +100,25 @@ eligible separately as needed.
 
 Available, published artifacts on finalized files are eligible for transfer.
 For eligible objects already marked `missing` or `deleted`, migration updates
-the recorded bucket in the database and preserves the state, object ID, key,
-metadata, and deletion timestamp. It makes no storage requests and creates no
+the recorded bucket in the database and preserves the object ID, key, metadata,
+and deletion timestamp. It makes no storage requests and creates no
 cleanup record for the source. A pending cleanup record at the destination
 defers the move until cleanup finishes. These updates count as `migrated`.
 Deleted artifacts can be migrated after their retention deadline if they still
 have an owning file for routing. Detached cleanup records are excluded.
 
-Pending uploads, temporary upload keys, expired artifacts that are still
-available or missing, and audio outputs with unexpired signed upload URLs are
-deferred. A transfer is also deferred if the recorded full-object checksum
-algorithm cannot be verified. File policy snapshots,
+If a file records completed original data deletion, migration repairs its
+`missing` original, temporary upload, and audio records to `deleted`. This
+also applies when the bucket is already aligned. Other missing records retain
+their state. The historical deletion time
+may be unknown, so migration preserves `deleted_at` as recorded. A passed
+retention deadline or a pending deletion alone does not establish deletion.
+Transcripts and summaries are outside the scope of original data cleanup.
+
+Pending uploads, temporary upload keys outside completed original data cleanup,
+expired artifacts without confirmed deletion, and audio outputs with unexpired
+signed upload URLs are deferred. A transfer is also deferred if the recorded
+full-object checksum algorithm cannot be verified. File policy snapshots,
 deadlines (including grace periods), timestamps, lifecycle state, ownership,
 and job references are preserved. The command checks eligibility again before
 cutover.
