@@ -63,6 +63,59 @@ def test_media_auth_signs_persisted_key_after_filename_change():
     assert sign.call_args.args[0].pk == file.original_object_id
 
 
+@pytest.mark.parametrize(
+    ("change", "authorized"),
+    [
+        (None, True),
+        ("deadline_passed", False),
+        ("unpublished_reservation", False),
+        ("authoritative_deleting", False),
+        ("other_authoritative", False),
+    ],
+)
+def test_media_auth_signs_retained_copy_after_bucket_migration(change, authorized):
+    """URLs naming the pre-migration bucket keep working while the copy is retained."""
+    file = factories.FileFactory(update_upload_state="ready")
+    current = file.original_object
+    now = timezone.now()
+    copy = models.ObjectStorageObject.objects.create(
+        file_identifier=file.pk,
+        kind=current.kind,
+        storage_bucket_name="previous-bucket",
+        key=current.key,
+        state=models.ObjectStorageObject.State.DELETING,
+        checksum_source="migration",
+        etag=str(current.pk),
+        published_at=now,
+        metadata_checked_at=now + timedelta(hours=1),
+    )
+    if change == "deadline_passed":
+        copy.metadata_checked_at = now - timedelta(seconds=1)
+    elif change == "unpublished_reservation":
+        copy.published_at = None
+    elif change == "other_authoritative":
+        copy.etag = str(factories.FileFactory().original_object_id)
+    elif change == "authoritative_deleting":
+        current.state = models.ObjectStorageObject.State.DELETING
+        current.save()
+    copy.save()
+    client = APIClient()
+    client.force_login(file.creator)
+    with mock.patch(
+        "core.api.viewsets.utils.generate_s3_authorization_headers"
+    ) as sign:
+        sign.return_value.headers = {}
+        response = client.get(
+            "/api/v1.0/files/media-auth/",
+            HTTP_X_ORIGINAL_URL=f"http://localhost/media/previous-bucket/{current.key}",
+        )
+    assert response.status_code == (200 if authorized else 403)
+    if authorized:
+        assert sign.call_args.args[0].pk == copy.pk
+    else:
+        sign.assert_not_called()
+
+
 def test_api_files_media_auth_anonymous_not_authorized():
     """Anonymous users should not be allowed to retrieve a file"""
     file = factories.FileFactory(

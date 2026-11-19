@@ -44,6 +44,7 @@ from core.configuration import filter_files_by_policy_cutoff, get_bucket_configu
 from core.object_storage import observe_object
 from core.payloads import PayloadLimitExceeded, read_stored_result
 from core.storage import get_storage_bucket_name, get_storage_for_object
+from core.storage_migration import retained_copy
 from core.tasks.file import (
     DocumentCreationAlreadyInProgress,
     PermanentTranscriptionError,
@@ -668,18 +669,22 @@ class FileViewSet(
             requested_bucket = get_bucket_configurations()[
                 "default"
             ].storage_bucket_name
+        kinds = [
+            models.ObjectStorageObject.Kind.ORIGINAL,
+            models.ObjectStorageObject.Kind.AUDIO,
+        ]
         obj = (
             file.storage_objects.filter(
                 storage_bucket_name=requested_bucket,
                 key=url_params["key"],
-                kind__in=[
-                    models.ObjectStorageObject.Kind.ORIGINAL,
-                    models.ObjectStorageObject.Kind.AUDIO,
-                ],
+                kind__in=kinds,
             )
             .exclude(state__in=["deleted", "deleting"])
             .first()
         )
+        if obj is None:
+            # Pages loaded before a bucket migration still name the old bucket.
+            obj = retained_copy(file, requested_bucket, url_params["key"], kinds)
         if obj is None:
             raise drf_exceptions.PermissionDenied()
 

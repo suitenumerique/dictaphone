@@ -3,6 +3,7 @@
 from datetime import timedelta
 from functools import lru_cache, partial
 from tempfile import NamedTemporaryFile
+from uuid import UUID
 
 from django.conf import settings
 from django.db import transaction
@@ -154,6 +155,41 @@ def cleanup_due(obj):
         if file.lifecycle_state == "original_data_deleted":
             return True
     return any(deadline and deadline <= now for deadline in deadlines)
+
+
+def retained_copy(file, bucket, key, kinds):
+    """Find a migrated-away source still serving URLs that name its old bucket.
+
+    Only a retained source whose authoritative object is still live qualifies; the
+    caller keeps enforcing the file's own access and data retention rules.
+    """
+    copy = ObjectStorageObject.objects.filter(
+        file_identifier=file.pk,
+        file__isnull=True,
+        checksum_source=CLEANUP_SOURCE,
+        storage_bucket_name=bucket,
+        key=key,
+        kind__in=kinds,
+        state=ObjectStorageObject.State.DELETING,
+        published_at__isnull=False,
+    ).first()
+    if copy is None or cleanup_due(copy):
+        return None
+    try:
+        authoritative_id = UUID(copy.etag)
+    except ValueError:
+        return None
+    is_live = (
+        file.storage_objects.filter(pk=authoritative_id, kind=copy.kind)
+        .exclude(
+            state__in=[
+                ObjectStorageObject.State.DELETING,
+                ObjectStorageObject.State.DELETED,
+            ]
+        )
+        .exists()
+    )
+    return copy if is_live else None
 
 
 def _validate_destination(destination, obj):

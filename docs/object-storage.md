@@ -110,8 +110,9 @@ uploads start at 8 MiB.
 
 Before writing, the command commits an independent cleanup obligation in the
 existing object table. These detached rows retain the owning file UUID and kind,
-use `checksum_source=migration` and `state=deleting`, have no artifact references, and keep the authoritative object UUID in `etag`
-solely to prevent another artifact from claiming the same cleanup location.
+use `checksum_source=migration` and `state=deleting`, have no artifact
+references, and keep the authoritative object UUID in `etag` to tie the cleanup
+location to that artifact.
 After verified cutover, the destination obligation is replaced atomically by an
 old-source obligation; the authoritative object ID stays unchanged. These rows
 are cleanup obligations, not rollback history. Interrupted or failed writes leave
@@ -120,8 +121,11 @@ retry. Run `cleanup_storage_objects` regularly alongside normal retention jobs.
 The command removes tracked objects. Use the destination lifecycle rule to abort
 incomplete multipart uploads, which persist until completed or aborted.
 
-Old source copies can serve already issued download URLs for up to 24 hours (or
-the configured audio timeout or S3 signed URL lifetime if longer). On these cleanup rows,
+Old source copies keep serving URLs issued before cutover for up to 24 hours (or
+the configured audio timeout or S3 signed URL lifetime if longer). This covers
+signed URLs and media URLs that still name the old bucket: media authorization
+signs requests for the retained copy while its authoritative object is live and
+the usual access checks pass. On these cleanup rows,
 `published_at` identifies a retained source and `metadata_checked_at` stores its
 cleanup deadline. Cleanup also consults the file's existing original-data,
 hard-deletion and trash deadlines with grace periods, so URL retention never
