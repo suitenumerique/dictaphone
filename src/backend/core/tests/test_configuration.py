@@ -2,12 +2,13 @@
 
 from unittest.mock import patch
 
+from django.core.files.storage import default_storage
+
 import pytest
 from pydantic import ValidationError
 
 from core.configuration import (
     BucketConfiguration,
-    BucketConfigurations,
     DataPolicyConfiguration,
     DataPolicyConfigurations,
     clear_configuration_cache,
@@ -322,28 +323,30 @@ def test_default_profile_cannot_match_a_domain():
         )
 
 
-def test_policy_bucket_reference_must_be_configured(settings):
+@pytest.mark.parametrize(
+    "policy", [{"default": True}, {"default": True, "bucket": "missing"}]
+)
+def test_policy_bucket_reference_must_be_configured(settings, policy):
     """Every policy bucket reference must point to a configured bucket."""
     with pytest.raises(ValueError, match="unknown bucket"):
         resolve_profiles(
-            {"default": {"default": True, "bucket": "missing"}},
+            {"default": policy},
             settings,
             {},
         )
 
 
-def test_bucket_configuration_requires_default():
-    """Bucket configurations must include the default bucket."""
-    with pytest.raises(ValidationError, match="default bucket"):
-        BucketConfigurations.model_validate(
-            {
-                "alpha": {
-                    "bucket_name_env": "S3_ALPHA_BUCKET_NAME",
-                    "access_key_id_env": "S3_ALPHA_ACCESS_KEY_ID",
-                    "secret_access_key_env": "S3_ALPHA_SECRET_ACCESS_KEY",
-                }
-            }
-        )
+def test_default_storage_uses_bucket_from_default_policy(settings):
+    """The default policy can point to a bucket with any configured key."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "fallback": {"default": True, "bucket": "alpha"},
+    }
+    settings.S3_BUCKET_CONFIGURATIONS = {"alpha": _buckets()["alpha"]}
+
+    profile = get_profile_for_email(None)
+
+    assert profile.bucket == "alpha"
+    assert default_storage.bucket_name == profile.storage_bucket_name
 
 
 @pytest.mark.parametrize(

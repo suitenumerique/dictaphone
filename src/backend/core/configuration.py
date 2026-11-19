@@ -130,13 +130,6 @@ class BucketConfigurations(RootModel[dict[str, BucketConfiguration]]):
         """Return the named bucket configurations."""
         return self.root
 
-    @model_validator(mode="after")
-    def validate_default_bucket(self) -> "BucketConfigurations":
-        """Require an explicit default bucket configuration."""
-        if "default" not in self.root:
-            raise ValueError("A default bucket configuration is required")
-        return self
-
 
 class DataPolicyConfiguration(BaseModel):
     """Raw, partially specified configuration for one data policy."""

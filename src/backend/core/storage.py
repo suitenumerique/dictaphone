@@ -8,14 +8,14 @@ from django.test.signals import setting_changed
 
 from storages.backends.s3 import S3Storage
 
-from core.configuration import get_bucket_configurations
+from core.configuration import get_bucket_configurations, get_default_profile
 
 
 class ConfiguredS3Storage(S3Storage):  # pylint: disable=abstract-method
-    """S3 storage backend configured from the logical default bucket."""
+    """S3 storage backend configured from the default data policy's bucket."""
 
     def __init__(self, **kwargs):
-        configuration = get_bucket_configurations()["default"]
+        configuration = get_bucket_configurations()[get_default_profile().bucket]
         super().__init__(
             bucket_name=configuration.storage_bucket_name,
             access_key=configuration.access_key_id.get_secret_value(),
