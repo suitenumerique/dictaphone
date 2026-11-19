@@ -155,7 +155,7 @@ class Base(Configuration):
     AUDIO_JOB_MAX_RETRIES = values.PositiveIntegerValue(3, environ_prefix=None)
     AUDIO_EXTRACTOR_TRANSCODING_TOKEN = SecretFileValue("", environ_prefix=None)
     AUDIO_EXTRACTOR_VALIDATION_TOKEN = SecretFileValue("", environ_prefix=None)
-    AWS_S3_UPLOAD_POLICY_EXPIRATION = values.Value(
+    AWS_S3_UPLOAD_POLICY_EXPIRATION = values.IntegerValue(
         60,  # 1 minute
         environ_name="AWS_S3_UPLOAD_POLICY_EXPIRATION",
         environ_prefix=None,

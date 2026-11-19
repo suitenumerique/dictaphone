@@ -104,6 +104,7 @@ def test_json_dict_value_rejects_non_dictionaries():
         (
             {},
             {
+                "AWS_S3_UPLOAD_POLICY_EXPIRATION": 60,
                 "FILE_UPLOAD_MAX_SIZE": 1073741824,
                 "FILE_UPLOAD_MAX_COUNT_BY_USER": 200,
                 "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS": 10860,
@@ -111,6 +112,7 @@ def test_json_dict_value_rejects_non_dictionaries():
         ),
         (
             {
+                "AWS_S3_UPLOAD_POLICY_EXPIRATION": "120",
                 "FILE_UPLOAD_MAX_SIZE": "524288000",
                 "FILE_UPLOAD_MAX_COUNT_BY_USER": "25",
                 "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS": "7260",
@@ -118,6 +120,7 @@ def test_json_dict_value_rejects_non_dictionaries():
                 "FILE_UPLOAD_ALLOWED_MIMETYPES": "audio/mpeg,audio/webm;codecs=opus",
             },
             {
+                "AWS_S3_UPLOAD_POLICY_EXPIRATION": 120,
                 "FILE_UPLOAD_MAX_SIZE": 524288000,
                 "FILE_UPLOAD_MAX_COUNT_BY_USER": 25,
                 "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS": 7260,
@@ -133,6 +136,7 @@ def test_json_dict_value_rejects_non_dictionaries():
 def test_file_upload_settings_from_environment(monkeypatch, overrides, expected):
     """Load actual declarations to check defaults and unprefixed typed overrides."""
     for name in (
+        "AWS_S3_UPLOAD_POLICY_EXPIRATION",
         "FILE_UPLOAD_MAX_SIZE",
         "FILE_UPLOAD_MAX_COUNT_BY_USER",
         "FILE_UPLOAD_MEDIA_MAX_DURATION_SECONDS",
