@@ -1,12 +1,12 @@
 """Retry tracked storage deletions without relying on the original job row."""
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from core.models import ObjectStorageObject
 from core.object_storage import delete_object
-from core.storage_migration import cleanup_due
+from core.storage_migration import cleanup_candidates
 
 
 class Command(BaseCommand):
@@ -21,31 +21,26 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["limit"] < 1:
             raise CommandError("Limit must be positive")
-        objects = ObjectStorageObject.objects.filter(
-            state=ObjectStorageObject.State.DELETING,
-        ).order_by("pk")
+        objects = (
+            cleanup_candidates(timezone.now())
+            .only("pk")
+            .order_by("pk")[: options["limit"]]
+        )
+        if options["dry_run"]:
+            self.stdout.write(f"Would delete: {objects.count()}")
+            return
+
         count = 0
         failures = 0
-        attempts = 0
         for obj in objects.iterator(chunk_size=100):
-            if attempts >= options["limit"]:
-                break
-            if not cleanup_due(obj):
-                continue
-            attempts += 1
-            if options["dry_run"]:
-                count += 1
-            else:
-                try:
-                    count += int(delete_object(obj, respect_retention=True))
-                except (BotoCoreError, ClientError, OSError) as exc:
-                    failures += 1
-                    # Provider responses may contain credentials or signed URLs.
-                    self.stderr.write(f"object={obj.pk}: {type(exc).__name__}")
+            try:
+                count += int(delete_object(obj, respect_retention=True))
+            except (BotoCoreError, ClientError, OSError) as exc:
+                failures += 1
+                # Provider responses may contain credentials or signed URLs.
+                self.stderr.write(f"object={obj.pk}: {type(exc).__name__}")
 
-        self.stdout.write(
-            f"{'Would delete' if options['dry_run'] else 'Deleted'}: {count}"
-        )
+        self.stdout.write(f"Deleted: {count}")
         if failures:
             raise CommandError(
                 f"Storage cleanup incomplete: {failures} deletions failed"

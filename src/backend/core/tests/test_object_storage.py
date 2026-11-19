@@ -5,6 +5,7 @@ import hashlib
 from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -21,6 +22,7 @@ from core import factories, models
 from core.object_storage import (
     ObjectIntegrityError,
     delete_file_objects,
+    delete_object,
     head_object,
     observe_object,
     publish_object,
@@ -443,16 +445,44 @@ def test_cleanup_dry_run_preserves_deleting_objects():
     assert not file.storage_objects.exclude(state="deleting").exists()
 
 
+def test_cleanup_dry_run_filters_retained_copies_in_sql(django_assert_num_queries):
+    """A backlog spanning multiple chunks still uses one candidate query."""
+    first, second = factories.FileFactory.create_batch(2)
+    now = timezone.now()
+    models.ObjectStorageObject.objects.bulk_create(
+        models.ObjectStorageObject(
+            file_identifier=file_id,
+            kind="original",
+            key=f"retained-{index}",
+            storage_bucket_name="source",
+            state="deleting",
+            checksum_source="migration",
+            published_at=now,
+            metadata_checked_at=now + timedelta(hours=1),
+        )
+        for index, file_id in enumerate([first.pk, second.pk] * 125 + [uuid4()])
+    )
+    stdout = StringIO()
+    with django_assert_num_queries(1):
+        call_command("cleanup_storage_objects", dry_run=True, stdout=stdout)
+    assert stdout.getvalue() == "Would delete: 1\n"
+
+
 def test_cleanup_limit_counts_attempts_and_skips_objects_not_due():
     """Failures and no-op deletions both use the attempt budget."""
     job = factories.AiFileJobFactory()
     factories.AiFileJobFactory(file=job.file)
     objects = list(job.file.storage_objects.order_by("pk"))
     job.file.storage_objects.update(state="deleting")
+    now = timezone.now()
+    models.ObjectStorageObject.objects.filter(pk=objects[0].pk).update(
+        checksum_source="migration",
+        published_at=now,
+        metadata_checked_at=now + timedelta(hours=1),
+    )
     stdout = StringIO()
     command = "core.management.commands.cleanup_storage_objects"
     with (
-        patch(f"{command}.cleanup_due", side_effect=[False, True, True]) as due,
         patch(
             f"{command}.delete_object", side_effect=[OSError("provider error"), False]
         ) as delete,
@@ -461,6 +491,45 @@ def test_cleanup_limit_counts_attempts_and_skips_objects_not_due():
         call_command(
             "cleanup_storage_objects", limit=2, stdout=stdout, stderr=StringIO()
         )
-    assert due.call_count == 3
     assert [call.args[0] for call in delete.call_args_list] == objects[1:3]
+    assert stdout.getvalue() == "Deleted: 0\n"
+
+
+def test_cleanup_rechecks_current_owner_retention_before_deleting():
+    """An owner change between candidate selection and locking can defer deletion."""
+    file = factories.FileFactory()
+    models.File.objects.filter(pk=file.pk).update(
+        lifecycle_state=models.FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    )
+    now = timezone.now()
+    obj = models.ObjectStorageObject.objects.create(
+        file_identifier=file.pk,
+        kind="audio",
+        key="retained-audio",
+        storage_bucket_name="source",
+        state="deleting",
+        checksum_source="migration",
+        published_at=now,
+        metadata_checked_at=now + timedelta(hours=1),
+    )
+
+    def change_owner_before_lock(candidate, *, respect_retention):
+        models.File.objects.filter(pk=file.pk).update(
+            lifecycle_state=models.FileLifecycleStateChoices.ACTIVE
+        )
+        return delete_object(candidate, respect_retention=respect_retention)
+
+    stdout = StringIO()
+    with (
+        patch(
+            "core.management.commands.cleanup_storage_objects.delete_object",
+            side_effect=change_owner_before_lock,
+        ) as delete,
+        patch("core.object_storage.get_storage_for_object") as storage,
+    ):
+        call_command("cleanup_storage_objects", stdout=stdout)
+    delete.assert_called_once_with(obj, respect_retention=True)
+    storage.assert_not_called()
+    obj.refresh_from_db()
+    assert obj.state == "deleting"
     assert stdout.getvalue() == "Deleted: 0\n"

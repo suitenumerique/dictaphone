@@ -909,7 +909,14 @@ class ObjectStorageObject(BaseModel):
                 name="storage_object_location_unique",
             ),
         ]
-        indexes = [models.Index(fields=["state", "updated_at"])]
+        indexes = [
+            models.Index(fields=["state", "updated_at"]),
+            models.Index(
+                fields=["id"],
+                condition=Q(state="deleting"),
+                name="storage_object_deleting_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.storage_bucket_name}/{self.key}"

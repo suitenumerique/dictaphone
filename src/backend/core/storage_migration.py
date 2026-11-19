@@ -6,7 +6,8 @@ from uuid import UUID
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Exists, Q
+from django.db.models import Exists, OuterRef, Q, Value
+from django.db.models.lookups import In
 from django.utils import timezone
 
 from boto3.s3.transfer import TransferConfig
@@ -23,6 +24,7 @@ from core.models import (
     AiFileJob,
     AudioJob,
     File,
+    FileLifecycleStateChoices,
     FileUploadStateChoices,
     ObjectStorageObject,
 )
@@ -107,24 +109,47 @@ def expected_bucket(file):
     ).storage_bucket_name
 
 
+def _retaining_file(file_identifier, kind, now):
+    """Find an owner whose retention rules still protect a copy of this kind."""
+    original_data = Q(
+        In(kind, (ObjectStorageObject.Kind.ORIGINAL, ObjectStorageObject.Kind.AUDIO))
+    )
+    return (
+        File.objects.filter(
+            pk=file_identifier,
+            hard_deleted_at__isnull=True,
+            file_auto_hard_delete_at_with_grace_period__gt=now,
+        )
+        .exclude(trashbin_purge_at_with_grace_period__lte=now)
+        .filter(
+            ~original_data
+            | (
+                Q(original_file_data_delete_at_with_grace_period__gt=now)
+                & ~Q(lifecycle_state=FileLifecycleStateChoices.ORIGINAL_DATA_DELETED)
+            )
+        )
+    )
+
+
+def cleanup_candidates(now):
+    """Select due cleanup rows in SQL using the persisted owning-file identifier."""
+    return ObjectStorageObject.objects.filter(
+        ~Q(checksum_source=CLEANUP_SOURCE)
+        | Q(published_at__isnull=True)
+        | Q(metadata_checked_at__lte=now)
+        | ~Exists(_retaining_file(OuterRef("file_identifier"), OuterRef("kind"), now)),
+        state=ObjectStorageObject.State.DELETING,
+    )
+
+
 def cleanup_due(obj):
     """Retained URLs never extend persisted retention or explicit deletion intent."""
     if obj.checksum_source != CLEANUP_SOURCE or obj.published_at is None:
         return True
     now = timezone.now()
-    file = File.objects.filter(pk=obj.file_identifier).first()
-    if file is None or file.hard_deleted_at:
+    if obj.metadata_checked_at is not None and obj.metadata_checked_at <= now:
         return True
-    deadlines = [
-        obj.metadata_checked_at,
-        file.file_auto_hard_delete_at_with_grace_period,
-        file.trashbin_purge_at_with_grace_period,
-    ]
-    if obj.kind in {obj.Kind.ORIGINAL, obj.Kind.AUDIO}:
-        deadlines.append(file.original_file_data_delete_at_with_grace_period)
-        if file.lifecycle_state == "original_data_deleted":
-            return True
-    return any(deadline and deadline <= now for deadline in deadlines)
+    return not _retaining_file(obj.file_identifier, Value(obj.kind), now).exists()
 
 
 def retained_copy(file, bucket, key, kinds):
