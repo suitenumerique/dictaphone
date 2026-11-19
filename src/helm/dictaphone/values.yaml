@@ -356,6 +356,12 @@ backend:
         - "/bin/sh"
         - "-c"
         - "python manage.py purge_deleted_files"
+    - name: clean-storage-objects
+      schedule: "30 1 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "python manage.py cleanup_storage_objects --limit 100000"
     - name: purge-transcription-usage
       schedule: "0 1 * * *"
       command:
