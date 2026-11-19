@@ -19,6 +19,7 @@ from botocore.exceptions import ClientError
 
 from core import factories, models, storage_migration
 from core.configuration import clear_configuration_cache
+from core.management.commands import migrate_storage_objects
 from core.object_storage import (
     delete_file_objects,
     delete_object,
@@ -397,12 +398,9 @@ def test_dry_run_batches_sources_and_destinations(artifact, django_assert_num_qu
             stderr=stderr,
         )
 
-    assert f"{held.pk}: deferred" in stdout.getvalue()
-    assert f"{reusable.pk}: migrated" in stdout.getvalue()
-    assert f"{conflict.pk}: failed" in stdout.getvalue()
     assert "aligned=0, migrated=98, deferred=1, failed=1" in stdout.getvalue()
     assert f"Last examined PK: {max(obj.pk for obj in sources)}" in stdout.getvalue()
-    assert stderr.getvalue() == f"object={conflict.pk}: ValueError\n"
+    assert stderr.getvalue() == f"Failed objects: {conflict.pk} (ValueError)\n"
 
 
 @pytest.mark.parametrize(
@@ -464,7 +462,9 @@ def test_verify_full_object_baseline(
         stderr = StringIO()
         with pytest.raises(CommandError, match="1 storage object"):
             run(a.obj, stderr=stderr)
-        assert stderr.getvalue() == f"object={a.obj.pk}: ObjectIntegrityError\n"
+        assert (
+            stderr.getvalue() == f"Failed objects: {a.obj.pk} (ObjectIntegrityError)\n"
+        )
         a.client.upload_file.assert_not_called()
 
 
@@ -768,8 +768,7 @@ def test_command_skips_locked_object_and_migrates_next(artifact, monkeypatch, ph
             resume.set()
             output = worker.result(timeout=10)
 
-    assert f"{locked.pk}: skipped" in output
-    assert f"{available.pk}: migrated" in output
+    assert "migrated=1" in output
     assert "skipped=1" in output
     locked.refresh_from_db()
     assert locked.storage_bucket_name == a.source_bucket
@@ -846,7 +845,7 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
     options = {"objects": [str(pk) for pk in ids], "dry_run": True, "limit": 1}
     first, next_run, exhausted = StringIO(), StringIO(), StringIO()
     call_command("migrate_storage_objects", stdout=first, **options)
-    assert f"{ids[0]}: deferred" in first.getvalue()
+    assert "deferred=1" in first.getvalue()
     assert f"Last examined PK: {ids[0]}" in first.getvalue()
     call_command(
         "migrate_storage_objects", start_after=ids[0], stdout=next_run, **options
@@ -860,6 +859,30 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
         "Dry run (would migrate): aligned=0, migrated=0, deferred=0, failed=0, skipped=0",
         "Last examined PK: none",
     ]
+
+
+def test_command_reports_current_state_at_most_every_twenty_seconds(artifact):
+    """Progress snapshots are time based and include counts and the current PK."""
+    obj = artifact.obj
+    second = models.ObjectStorageObject.objects.get(
+        pk=obj.file.temporary_upload_object_id
+    )
+    output = StringIO()
+    with patch.object(
+        migrate_storage_objects.time, "monotonic", side_effect=[0, 19, 20]
+    ):
+        call_command(
+            "migrate_storage_objects",
+            objects=[str(obj.pk), str(second.pk)],
+            dry_run=True,
+            stdout=output,
+        )
+    lines = output.getvalue().splitlines()
+    progress = [line for line in lines if line.startswith("Progress:")]
+    assert len(progress) == 1
+    assert progress[0].startswith("Progress: processed=2/1000, ")
+    assert f"last_pk={max(obj.pk, second.pk)}" in progress[0]
+    assert not any(": migrated" in line or ": deferred" in line for line in lines)
 
 
 def test_reverse_migration_preserves_retained_source(artifact, monkeypatch):

@@ -1,11 +1,14 @@
 """Realign immutable artifacts with their creator's current bucket routing."""
 
+import time
 from uuid import UUID
 
 from django.core.management.base import BaseCommand, CommandError
 
 from core.models import ObjectStorageObject
 from core.storage_migration import inspect_objects, migrate_object
+
+PROGRESS_INTERVAL_SECONDS = 20
 
 
 def _parse_uuid(value, option):
@@ -68,6 +71,8 @@ class Command(BaseCommand):
         )
         last = None
         processed = 0
+        failures = []
+        last_progress = time.monotonic()
         while processed < options["limit"]:
             batch = objects.order_by("pk")
             if cursor is not None:
@@ -82,14 +87,16 @@ class Command(BaseCommand):
             for obj_id, outcome in results:
                 if isinstance(outcome, Exception):
                     # A bad artifact must not prevent independent transfers.
-                    self.stderr.write(f"object={obj_id}: {type(outcome).__name__}")
+                    failures.append((obj_id, type(outcome).__name__))
                     result = "failed"
                 else:
                     result = outcome
                 counts[result] += 1
                 processed += 1
-                self.stdout.write(f"{obj_id}: {result}")
                 batch_last = obj_id
+                last_progress = self._write_progress_if_due(
+                    processed, options["limit"], counts, obj_id, last_progress
+                )
             if batch_last is None:
                 break
             last = cursor = batch_last
@@ -98,5 +105,31 @@ class Command(BaseCommand):
             prefix + ", ".join(f"{key}={value}" for key, value in counts.items())
         )
         self.stdout.write(f"Last examined PK: {last if last is not None else 'none'}")
+        self._write_failures(failures)
         if counts["failed"]:
             raise CommandError(f"{counts['failed']} storage object migration(s) failed")
+
+    def _write_progress_if_due(self, processed, limit, counts, last, last_progress):
+        """Write a snapshot only when the reporting interval has elapsed."""
+        now = time.monotonic()
+        if now - last_progress >= PROGRESS_INTERVAL_SECONDS:
+            self.stdout.write(self._progress(processed, limit, counts, last))
+            return now
+        return last_progress
+
+    def _write_failures(self, failures):
+        """Report collected errors together after the migration finishes."""
+        if failures:
+            self.stderr.write(
+                "Failed objects: "
+                + ", ".join(f"{obj_id} ({error})" for obj_id, error in failures)
+            )
+
+    @staticmethod
+    def _progress(processed, limit, counts, last):
+        """Describe the current migration state without per-object output."""
+        return (
+            f"Progress: processed={processed}/{limit}, "
+            + ", ".join(f"{key}={value}" for key, value in counts.items())
+            + f", last_pk={last}"
+        )
