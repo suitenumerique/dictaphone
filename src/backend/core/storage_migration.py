@@ -73,14 +73,20 @@ ROUTING_FILE_FIELDS = (
     "trashbin_purge_at",
     "original_file_data_delete_at",
 )
+RECORD_ONLY_STATES = {
+    ObjectStorageObject.State.MISSING,
+    ObjectStorageObject.State.DELETED,
+}
 
 
 def _eligible_source(obj):
+    if obj.kind == obj.Kind.TEMPORARY or obj.file_id is None:
+        return False
+    if obj.state in RECORD_ONLY_STATES:
+        return True
     return (
         obj.state == obj.State.AVAILABLE
         and obj.published_at is not None
-        and obj.kind != obj.Kind.TEMPORARY
-        and obj.file_id is not None
         and (
             obj.checksum_type != "FULL_OBJECT"
             or (
@@ -96,6 +102,9 @@ def _active_audio_upload(obj_id, now):
 
 
 def _eligible_owner(obj, file, now):
+    if obj.state == obj.State.DELETED:
+        # Retention may have expired before the artifact was deleted.
+        return file is not None
     if (
         file is None
         or file.upload_state != FileUploadStateChoices.READY
@@ -257,6 +266,24 @@ def _destination_held(destination):
     )
 
 
+def _move_object_record(obj, bucket):
+    """Move only the tracked location while the source row is locked."""
+    destination = (
+        ObjectStorageObject.objects.select_for_update()
+        .filter(storage_bucket_name=bucket, key=obj.key)
+        .first()
+    )
+    if destination is not None:
+        _validate_destination(destination, obj)
+        if destination.state == destination.State.DELETING:
+            return "deferred"
+        destination.delete()
+    ObjectStorageObject.objects.filter(pk=obj.pk).update(
+        storage_bucket_name=bucket, updated_at=timezone.now()
+    )
+    return "migrated"
+
+
 def _source_candidate(obj_id, source_bucket):
     """Find a candidate if it is still in the requested source bucket."""
     objects = ObjectStorageObject.objects.filter(pk=obj_id)
@@ -266,7 +293,7 @@ def _source_candidate(obj_id, source_bucket):
 
 
 def _reserve(obj_id, *, source_bucket):
-    """Commit a cleanup obligation BEFORE any external write can happen."""
+    """Move a record alone or commit a cleanup obligation before copying bytes."""
     with transaction.atomic():
         obj = (
             _source_candidate(obj_id, source_bucket)
@@ -281,6 +308,8 @@ def _reserve(obj_id, *, source_bucket):
         bucket = expected_bucket(file)
         if bucket == obj.storage_bucket_name:
             return "aligned", None
+        if obj.state in RECORD_ONLY_STATES:
+            return _move_object_record(obj, bucket), None
         destination, created = (
             ObjectStorageObject.objects.select_for_update().get_or_create(
                 storage_bucket_name=bucket,
@@ -294,20 +323,19 @@ def _reserve(obj_id, *, source_bucket):
                 },
             )
         )
-        if created:
-            return "reserved", destination.pk
-        _validate_destination(destination, obj)
-        if _destination_held(destination):
-            return "deferred", None
-        # A concurrent cleanup may have finished since an earlier attempt. This
-        # committed reset makes another interrupted write discoverable again.
-        ObjectStorageObject.objects.filter(pk=destination.pk).update(
-            state=obj.State.DELETING,
-            published_at=None,
-            metadata_checked_at=None,
-            deleted_at=None,
-            updated_at=timezone.now(),
-        )
+        if not created:
+            _validate_destination(destination, obj)
+            if _destination_held(destination):
+                return "deferred", None
+            # A concurrent cleanup may have finished since an earlier attempt. This
+            # committed reset makes another interrupted write discoverable again.
+            ObjectStorageObject.objects.filter(pk=destination.pk).update(
+                state=obj.State.DELETING,
+                published_at=None,
+                metadata_checked_at=None,
+                deleted_at=None,
+                updated_at=timezone.now(),
+            )
         return "reserved", destination.pk
 
 
@@ -489,9 +517,8 @@ def inspect_objects(objects):
         except ValueError as exc:
             results[obj.pk] = exc
             continue
-        if (
-            destination.state == destination.State.DELETING
-            and not destination.cleanup_is_due
+        if destination.state == destination.State.DELETING and (
+            obj.state in RECORD_ONLY_STATES or not destination.cleanup_is_due
         ):
             results[obj.pk] = "deferred"
     return results
@@ -520,6 +547,8 @@ def _move_reserved_object(obj_id, destination_id, source_bucket):
         )
         if obj is None:
             return "skipped"
+        if obj.state != obj.State.AVAILABLE:
+            return "deferred"
         destination = (
             ObjectStorageObject.objects.select_for_update()
             .filter(

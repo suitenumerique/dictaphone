@@ -79,7 +79,7 @@ python manage.py cleanup_storage_objects --limit 1000
 The limit bounds examined objects, including aligned and deferred rows. Each run
 prints per-object results, totals, and the last examined UUID. Pass that UUID to
 `--start-after` with the same filters to continue the scan. Select deferred rows
-again once they become eligible. A dry run counts eligible transfers and performs
+again once they become eligible. A dry run counts eligible migrations and performs
 no storage or database writes. Failures produce a nonzero exit status while other
 selected objects continue. Reruns can overwrite untracked destinations and reuse
 cleanup locations for the same artifact once the copy is due for cleanup.
@@ -98,10 +98,19 @@ cursors. After the parallel Jobs complete, scan the source bucket again from the
 beginning to revisit skipped objects. Retry failed objects and objects that become
 eligible separately as needed.
 
-Only available, published artifacts on finalized files are eligible. Pending
-uploads, temporary upload keys, expired artifacts, and audio outputs with unexpired
-signed upload URLs are deferred. Migration also defers objects whose recorded
-full-object checksum algorithm cannot be verified. File policy snapshots,
+Available, published artifacts on finalized files are eligible for transfer.
+For eligible objects already marked `missing` or `deleted`, migration updates
+the recorded bucket in the database and preserves the state, object ID, key,
+metadata, and deletion timestamp. It makes no storage requests and creates no
+cleanup record for the source. A pending cleanup record at the destination
+defers the move until cleanup finishes. These updates count as `migrated`.
+Deleted artifacts can be migrated after their retention deadline if they still
+have an owning file for routing. Detached cleanup records are excluded.
+
+Pending uploads, temporary upload keys, expired artifacts that are still
+available or missing, and audio outputs with unexpired signed upload URLs are
+deferred. A transfer is also deferred if the recorded full-object checksum
+algorithm cannot be verified. File policy snapshots,
 deadlines (including grace periods), timestamps, lifecycle state, ownership,
 and job references are preserved. The command checks eligibility again before
 cutover.

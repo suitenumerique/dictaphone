@@ -146,6 +146,85 @@ def test_transfer_preserves_identity_metadata_and_every_file_field(artifact):
     assert "aligned=1" in run(a.obj)
 
 
+@pytest.mark.parametrize("destination_state", [None, "deleting", "deleted", "pending"])
+@pytest.mark.parametrize("source_state", ["missing", "deleted"])
+def test_absent_object_moves_only_its_record(artifact, destination_state, source_state):
+    """Preserve the recorded state and respect tracked destination ownership."""
+    a = artifact
+    objects = models.ObjectStorageObject.objects
+    now = timezone.now()
+    is_deleted = source_state == "deleted"
+    objects.filter(pk=a.obj.pk).update(
+        state=source_state,
+        metadata_checked_at=now,
+        deleted_at=now if is_deleted else None,
+    )
+    if is_deleted:
+        models.File.objects.filter(pk=a.file.pk).update(
+            original_file_data_delete_at=now - timedelta(seconds=1)
+        )
+    a.copies.clear()
+    if destination_state is not None:
+        objects.create(
+            file_identifier=a.file.pk,
+            kind=a.obj.kind,
+            key=a.obj.key,
+            storage_bucket_name="destination",
+            state=destination_state,
+            checksum_source="migration",
+            etag=str(a.obj.pk),
+        )
+    before = list(objects.order_by("pk").values())
+    outcome = {"deleting": "deferred", "pending": "failed"}.get(
+        destination_state, "migrated"
+    )
+    with patch.object(
+        storage_migration, "get_storage_for_object", side_effect=AssertionError
+    ):
+        for dry_run in (True, False):
+            if outcome == "failed":
+                with pytest.raises(CommandError, match="1 storage object"):
+                    run(a.obj, dry_run=dry_run, stderr=StringIO())
+            else:
+                assert f"{outcome}=1" in run(
+                    a.obj, dry_run=dry_run, source_bucket=a.source_bucket
+                )
+            if dry_run or outcome != "migrated":
+                assert list(objects.order_by("pk").values()) == before
+    if outcome == "migrated":
+        source = next(row for row in before if row["id"] == a.obj.pk)
+        after = objects.values().get(pk=a.obj.pk)
+        source.update(storage_bucket_name="destination", updated_at=after["updated_at"])
+        assert after == source
+        a.file.refresh_from_db()
+        assert a.file.original_object_id == a.obj.pk
+        assert list(objects.filter(key=a.obj.key).values_list("pk", flat=True)) == [
+            a.obj.pk
+        ]
+        assert "aligned=1" in run(a.obj)
+
+
+@pytest.mark.parametrize("state", ["missing", "deleted"])
+def test_object_marked_absent_after_reservation_is_not_copied(artifact, state):
+    """Recheck the recorded state before starting a reserved transfer."""
+    a = artifact
+    reserve = storage_migration._reserve  # pylint: disable=protected-access
+
+    def reserve_then_change_state(*args, **kwargs):
+        result = reserve(*args, **kwargs)
+        models.ObjectStorageObject.objects.filter(pk=a.obj.pk).update(state=state)
+        return result
+
+    with patch.object(
+        storage_migration, "_reserve", side_effect=reserve_then_change_state
+    ):
+        assert "deferred=1" in run(a.obj)
+    a.source_client.get_object.assert_not_called()
+    a.obj.refresh_from_db()
+    assert a.obj.state == state
+    assert a.obj.storage_bucket_name == a.source_bucket
+
+
 def test_overwrite_and_retry_after_interrupted_transfer(artifact):
     """An interrupted upload can be overwritten by a verified retry."""
     a = artifact
