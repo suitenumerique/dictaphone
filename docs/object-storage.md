@@ -115,14 +115,16 @@ may be unknown, so migration preserves `deleted_at` as recorded. A passed
 retention deadline or a pending deletion alone does not establish deletion.
 Transcripts and summaries are outside the scope of original data cleanup.
 
-Available originals and audio on active files or files pending original-data
-deletion can move until the original-data grace deadline. Eligible missing
-originals and audio can move even after that deadline. Pending uploads, temporary
-upload keys outside completed original data cleanup, and audio outputs with
-unexpired signed upload URLs are deferred. A transfer is also deferred if the
-recorded full-object checksum algorithm cannot be verified. File policy snapshots,
-deadlines (including grace periods), timestamps, lifecycle state, ownership, and
-job references are preserved. The command checks eligibility again before cutover.
+The command reports objects already in their expected bucket as aligned, unless
+an in-place state repair is needed. Available originals and audio on active files
+or files pending original-data deletion can move until the original-data grace
+deadline. Eligible missing originals and audio can move even after that deadline.
+Pending uploads, temporary upload keys outside completed original data cleanup,
+and audio outputs with unexpired signed upload URLs are deferred when a move is
+needed. A transfer is also deferred if the recorded full-object checksum
+algorithm cannot be verified. File policy snapshots, deadlines (including grace
+periods), timestamps, lifecycle state, ownership, and job references are
+preserved. The command checks eligibility again before cutover.
 
 One object row lock and database transaction cover the entire transfer and
 verification. Budget database transaction timeouts for the largest object; writers

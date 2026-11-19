@@ -94,3 +94,10 @@ def test_missing_audio_moves_after_grace_period(lifecycle):
     assert obj.storage_bucket_name == "destination"
     assert obj.state == "missing"
     assert obj.deleted_at is None
+
+
+def test_pending_object_already_in_expected_bucket_is_aligned():
+    """Report alignment even though an unfinished upload cannot move."""
+    obj = factories.FileFactory().original_object
+    assert storage_migration.migrate_object(obj.pk, dry_run=True) == "aligned"
+    assert storage_migration.migrate_object(obj.pk) == "aligned"

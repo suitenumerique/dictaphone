@@ -142,19 +142,32 @@ def _eligible_owner(obj, file, now):
     )
 
 
-def _eligible_file(obj, *, destination_id=None):
-    """Read current lifecycle and routing inputs in one query without a file lock."""
-    if not _eligible_source(obj):
-        return None
+def _routing_file(obj, now, *, destination_id=None):
+    """Read current lifecycle, routing, and upload inputs without a file lock."""
     files = File.objects.select_related("creator").only(*ROUTING_FILE_FIELDS)
-    if obj.kind == obj.Kind.AUDIO:
-        files = files.filter(~_active_audio_upload(obj.pk, timezone.now()))
+    files = files.annotate(
+        has_active_upload=(
+            _active_audio_upload(obj.pk, now)
+            if obj.kind == obj.Kind.AUDIO
+            else Value(False)
+        )
+    )
     if destination_id is not None:
         files = files.annotate(
             has_destination_references=_destination_references(destination_id)
         )
-    file = files.filter(pk=obj.file_id).first()
-    return file if _eligible_owner(obj, file, timezone.now()) else None
+    return files.filter(pk=obj.file_id).first()
+
+
+def _eligible_file(obj, *, destination_id=None):
+    """Recheck eligibility immediately before and after copying bytes."""
+    if not _eligible_source(obj):
+        return None
+    now = timezone.now()
+    file = _routing_file(obj, now, destination_id=destination_id)
+    if file and not file.has_active_upload and _eligible_owner(obj, file, now):
+        return file
+    return None
 
 
 def expected_bucket(file):
@@ -162,6 +175,22 @@ def expected_bucket(file):
     return get_profile_for_email(
         file.creator.email if file.creator_id else None
     ).storage_bucket_name
+
+
+def _inspect_source(obj, file, now, *, has_active_upload):
+    """Recognize alignment before checking whether an object can move."""
+    if file is None:
+        return "deferred", None
+    bucket = expected_bucket(file)
+    if bucket == obj.storage_bucket_name and not _should_mark_deleted(obj, file):
+        return "aligned", bucket
+    if (
+        has_active_upload
+        or not _eligible_source(obj)
+        or not _eligible_owner(obj, file, now)
+    ):
+        return "deferred", None
+    return "migrated", bucket
 
 
 def _retaining_file(file_identifier, kind, now):
@@ -328,15 +357,16 @@ def _reserve(obj_id, *, source_bucket):
         )
         if obj is None:
             return "skipped", None
-        file = _eligible_file(obj)
-        if file is None:
-            return "deferred", None
-        bucket = expected_bucket(file)
+        now = timezone.now()
+        file = _routing_file(obj, now) if obj.file_id else None
+        outcome, bucket = _inspect_source(
+            obj, file, now, has_active_upload=file and file.has_active_upload
+        )
+        if outcome != "migrated":
+            return outcome, None
         if obj.state in RECORD_ONLY_STATES:
             mark_deleted = _should_mark_deleted(obj, file)
             return _move_object_record(obj, bucket, mark_deleted=mark_deleted), None
-        if bucket == obj.storage_bucket_name:
-            return "aligned", None
         destination, created = (
             ObjectStorageObject.objects.select_for_update().get_or_create(
                 storage_bucket_name=bucket,
@@ -502,24 +532,16 @@ def inspect_objects(objects):
     targets = []
     keys_by_bucket = defaultdict(set)
     for obj in sources:
-        results[obj.pk] = "deferred"
-        if not (
-            _eligible_source(obj)
-            and not obj.has_active_upload
-            and _eligible_owner(obj, obj.file, now)
-        ):
-            continue
         try:
-            bucket = expected_bucket(obj.file)
+            outcome, bucket = _inspect_source(
+                obj, obj.file, now, has_active_upload=obj.has_active_upload
+            )
         except Exception as exc:  # noqa: BLE001 # pylint: disable=broad-exception-caught
             results[obj.pk] = exc
             continue
-        if bucket == obj.storage_bucket_name:
-            results[obj.pk] = (
-                "migrated" if _should_mark_deleted(obj, obj.file) else "aligned"
-            )
+        results[obj.pk] = outcome
+        if outcome != "migrated" or bucket == obj.storage_bucket_name:
             continue
-        results[obj.pk] = "migrated"
         targets.append((obj, bucket))
         keys_by_bucket[bucket].add(obj.key)
 
