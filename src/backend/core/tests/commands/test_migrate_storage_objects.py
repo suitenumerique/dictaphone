@@ -180,6 +180,7 @@ def test_upload_uses_one_part_up_to_the_file_limit(
     assert config.multipart_chunksize == part_size_mib * 1024**2
     # s3transfer switches to multipart at sizes >= the threshold.
     assert config.multipart_threshold == part_size_mib * 1024**2 + 1
+    assert config.preferred_transfer_client == "classic"
     a.source_client.get_object.assert_called_once_with(
         Bucket=a.source_bucket, Key=a.obj.key
     )

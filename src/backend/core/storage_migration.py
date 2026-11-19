@@ -1,7 +1,6 @@
 """Move immutable tracked artifacts without changing their owning file's policy."""
 
 from datetime import timedelta
-from functools import lru_cache, partial
 from tempfile import NamedTemporaryFile
 from uuid import UUID
 
@@ -12,8 +11,9 @@ from django.utils import timezone
 
 from boto3.s3.transfer import TransferConfig
 from botocore.httpchecksum import (
-    BaseChecksum,
-    Crc32Checksum,
+    CrtCrc32cChecksum,
+    CrtCrc32Checksum,
+    CrtCrc64NvmeChecksum,
     Sha1Checksum,
     Sha256Checksum,
 )
@@ -47,44 +47,14 @@ CHUNK_SIZE = 10 * 1024 * 1024
 MIN_MULTIPART_PART_SIZE = 5 * 1024**2
 MAX_PART_SIZE = 5 * 1024**3
 
-
-@lru_cache(maxsize=2)
-def _crc_table(polynomial):
-    """Build the lookup table for a reflected CRC polynomial."""
-    table = []
-    for index in range(256):
-        value = index
-        for _ in range(8):
-            value = (value >> 1) ^ (polynomial if value & 1 else 0)
-        table.append(value)
-    return tuple(table)
-
-
-class _ReflectedChecksum(BaseChecksum):
-    """Compute CRC32C or CRC64/NVME in Python."""
-
-    def __init__(self, polynomial, width):
-        self.table = _crc_table(polynomial)
-        self.width = width
-        self.mask = (1 << (width * 8)) - 1
-        self.value = self.mask
-
-    def update(self, chunk):
-        value, table = self.value, self.table
-        for byte in chunk:
-            value = (value >> 8) ^ table[(value ^ byte) & 0xFF]
-        self.value = value
-
-    def digest(self):
-        return (self.value ^ self.mask).to_bytes(self.width, "big")
-
-
+# CRC baselines use the AWS CRT's native implementations (boto3[crt]); a
+# pure-Python CRC would hold the object lock for minutes on large files.
 BASELINE_CHECKSUMS = {
     "SHA256": Sha256Checksum,
     "SHA1": Sha1Checksum,
-    "CRC32": Crc32Checksum,
-    "CRC32C": partial(_ReflectedChecksum, 0x82F63B78, 4),
-    "CRC64NVME": partial(_ReflectedChecksum, 0x9A6C9329AC4BC9B5, 8),
+    "CRC32": CrtCrc32Checksum,
+    "CRC32C": CrtCrc32cChecksum,
+    "CRC64NVME": CrtCrc64NvmeChecksum,
 }
 
 
@@ -311,6 +281,8 @@ def _upload(client, destination, content, source_metadata, digest):
         Config=TransferConfig(
             multipart_threshold=part_size + 1,
             multipart_chunksize=part_size,
+            # Never let an installed CRT swap in a client that ignores this config.
+            preferred_transfer_client="classic",
         ),
     )
     response, copied_size, copied_digest = _read(client, destination)

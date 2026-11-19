@@ -25,7 +25,7 @@ license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 dependencies = [
-    "boto3==1.43.104",
+    "boto3[crt]==1.43.104",
     "Brotli==1.2.1",
     "celery[redis]==5.6.3",
     "dj-database-url==3.1.2",
