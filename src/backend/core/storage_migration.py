@@ -29,7 +29,12 @@ from core.models import (
     FileUploadStateChoices,
     ObjectStorageObject,
 )
-from core.object_storage import ObjectIntegrityError, metadata_values
+from core.object_storage import (
+    CHECKSUM_FIELDS,
+    ObjectIntegrityError,
+    head_s3_object,
+    metadata_values,
+)
 from core.storage import get_bucket_configuration_for_object, get_storage_for_object
 
 # Cleanup obligations use existing fields, never owner references. For these rows
@@ -342,6 +347,30 @@ def _upload(client, destination, content, source_metadata, digest):
             preferred_transfer_client="classic",
         ),
     )
+    return _verify_destination(client, destination, content, size, digest)
+
+
+def _verify_destination(client, destination, content, size, digest):
+    """Compare a supported full-object checksum or fall back to reading the copy."""
+    head = head_s3_object(client, destination)
+    if head is None or head["ContentLength"] != size:
+        raise ObjectIntegrityError("Destination missing or size mismatch")
+
+    if head.get("ChecksumType") == "FULL_OBJECT":
+        for field, algorithm in CHECKSUM_FIELDS:
+            if not head.get(field):
+                continue
+            expected = digest
+            if algorithm != "SHA256":
+                checksum = BASELINE_CHECKSUMS[algorithm]()
+                content.seek(0)
+                while chunk := content.read(CHUNK_SIZE):
+                    checksum.update(chunk)
+                expected = checksum.b64digest()
+            if head[field] != expected:
+                raise ObjectIntegrityError("Destination full-content checksum mismatch")
+            return head
+
     response, copied_size, copied_digest = _read(client, destination)
     if (copied_size, copied_digest) != (size, digest):
         raise ObjectIntegrityError("Destination full-content checksum or size mismatch")

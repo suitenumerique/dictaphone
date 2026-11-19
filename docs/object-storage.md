@@ -99,12 +99,14 @@ verification. Budget database transaction timeouts for the largest object; write
 and deletion can wait for that transfer. There is no file-wide migration lock.
 The backend downloads the source to temporary disk, verifies any supported
 full-object checksum, and uploads using the destination's credentials and
-configured upload ACL. The migration reads the entire destination to compare
-byte length and SHA-256. ETags remain opaque. The upload preserves content
+configured upload ACL. The migration checks the destination size with HEAD and,
+when the provider returns a supported full-object checksum, compares it with the
+checksum of the local source bytes. Otherwise it reads the entire destination
+to verify the size and SHA-256. ETags remain opaque. The upload preserves content
 type, encoding, language, disposition, cache headers, expiry, and user metadata.
 Provision temporary disk space (`TMPDIR`) for the largest object per concurrent
-command and network capacity for a source download, an upload, and a full
-destination download. Uploads stream from disk. Objects up to
+command and network capacity for a source download, an upload, and a possible
+full destination download. Uploads stream from disk. Objects up to
 `FILE_UPLOAD_MAX_SIZE` (capped at S3's 5 GiB single-request limit) use a single
 PUT; larger objects use multipart parts of that size.
 

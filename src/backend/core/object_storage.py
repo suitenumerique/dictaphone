@@ -80,7 +80,11 @@ def head_object(obj):
         if not storage.exists(obj.key):
             return None
         return {"ContentLength": storage.size(obj.key)}
-    client = storage.connection.meta.client
+    return head_s3_object(storage.connection.meta.client, obj)
+
+
+def head_s3_object(client, obj):
+    """Read S3 metadata, requesting provider checksums when supported."""
     params = {"Bucket": obj.storage_bucket_name, "Key": obj.key}
     try:
         try:

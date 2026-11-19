@@ -15,6 +15,7 @@ from django.db import close_old_connections, connection, transaction
 from django.utils import timezone
 
 import pytest
+from botocore.exceptions import ClientError
 
 from core import factories, models, storage_migration
 from core.configuration import clear_configuration_cache
@@ -67,6 +68,10 @@ def artifact_fixture(monkeypatch):
             )
 
         client.get_object.side_effect = read
+        client.head_object.side_effect = lambda **params: {
+            "ContentLength": len(copies[params["Bucket"], params["Key"]]),
+            "ETag": '"destination-etag"',
+        }
         client.upload_file.side_effect = upload
         client.put_object.side_effect = put
         storage = Mock()
@@ -187,6 +192,77 @@ def test_upload_uses_one_part_up_to_the_file_limit(
     a.client.get_object.assert_called_once_with(Bucket="destination", Key=a.obj.key)
 
 
+@pytest.mark.parametrize(
+    ("field", "hex_digest"),
+    [
+        (
+            "ChecksumSHA256",
+            "15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225",
+        ),
+        ("ChecksumSHA1", "f7c3bc1d808e04732adf679965ccc34ca7ae3441"),
+        ("ChecksumCRC32", "cbf43926"),
+        ("ChecksumCRC32C", "e3069283"),
+        ("ChecksumCRC64NVME", "ae8b14860a799888"),
+    ],
+)
+def test_head_full_object_checksum_skips_download(
+    artifact, monkeypatch, field, hex_digest
+):
+    """A matching HEAD checksum is enough even when it uses a different algorithm."""
+    a = artifact
+    content = b"123456789"
+    a.copies[a.source_bucket, a.obj.key] = content
+    publish_object(a.obj, content=content)
+    monkeypatch.setattr(storage_migration, "CHUNK_SIZE", 4)
+    a.client.head_object.side_effect = None
+    a.client.head_object.return_value = {
+        "ContentLength": len(content),
+        "ChecksumType": "FULL_OBJECT",
+        field: base64.b64encode(bytes.fromhex(hex_digest)).decode("ascii"),
+    }
+
+    assert "migrated=1" in run(a.obj)
+
+    a.client.head_object.assert_called_once_with(
+        Bucket="destination", Key=a.obj.key, ChecksumMode="ENABLED"
+    )
+    a.client.get_object.assert_not_called()
+    checksum = a.obj.checksum_value
+    a.obj.refresh_from_db()
+    assert a.obj.checksum_value == checksum
+    assert a.obj.checksum_algorithm == "SHA256"
+
+
+@pytest.mark.parametrize("checksum_type", ["COMPOSITE", None])
+def test_head_checksum_with_unclear_full_object_semantics_reads_destination(
+    artifact, checksum_type
+):
+    """A checksum of unknown or composite type requires a full-content read."""
+    a = artifact
+    a.client.head_object.side_effect = None
+    a.client.head_object.return_value = {
+        "ContentLength": len(b"source bytes"),
+        "ChecksumSHA256": "incomparable",
+    }
+    if checksum_type:
+        a.client.head_object.return_value["ChecksumType"] = checksum_type
+
+    assert "migrated=1" in run(a.obj)
+    a.client.get_object.assert_called_once_with(Bucket="destination", Key=a.obj.key)
+
+
+def test_head_unsupported_checksum_mode_reads_destination(artifact):
+    """Providers that reject checksum mode can still use the full readback."""
+    a = artifact
+    a.client.head_object.side_effect = [
+        ClientError({"Error": {"Code": "NotImplemented"}}, "HeadObject"),
+        {"ContentLength": len(b"source bytes")},
+    ]
+
+    assert "migrated=1" in run(a.obj)
+    a.client.get_object.assert_called_once_with(Bucket="destination", Key=a.obj.key)
+
+
 def test_aligned_dry_run_loads_file_and_creator_together(django_assert_num_queries):
     """The routing check reuses the owning file read used for eligibility."""
     file = factories.FileFactory(update_upload_state="ready")
@@ -250,14 +326,28 @@ def test_dry_run_batches_sources_and_destinations(artifact, django_assert_num_qu
     assert stderr.getvalue() == f"object={conflict.pk}: ValueError\n"
 
 
-def test_checksum_failure_leaves_source_authoritative(artifact):
+@pytest.mark.parametrize(
+    "head_metadata",
+    [
+        {},
+        {"ChecksumType": "FULL_OBJECT", "ChecksumSHA256": "mismatched"},
+        {"ContentLength": 0},
+    ],
+)
+def test_checksum_failure_leaves_source_authoritative(artifact, head_metadata):
     """A corrupted destination never becomes the authoritative location."""
     a = artifact
     a.client.upload_file.side_effect = lambda content, bucket, key, **kw: (
         a.copies.update({(bucket, key): b"broken bytes"})
     )
+    head = a.client.head_object.side_effect
+    a.client.head_object.side_effect = lambda **params: {
+        **head(**params),
+        **head_metadata,
+    }
     with pytest.raises(CommandError):
         run(a.obj, stderr=StringIO())
+    assert a.client.get_object.call_count == (0 if head_metadata else 1)
     a.obj.refresh_from_db()
     assert a.obj.storage_bucket_name == a.source_bucket
     assert (
@@ -460,7 +550,7 @@ def test_writer_resolves_current_bucket_after_lock(artifact):
 
 @pytest.mark.django_db(transaction=True)
 def test_two_configured_s3_buckets(settings):
-    """Integration: actual S3 clients, bucket credentials, upload and full read-back."""
+    """Integration: actual S3 clients, bucket credentials, and verified upload."""
     file = factories.FileFactory()
     file.upload_state = "ready"
     file.save(update_fields=["upload_state"])
