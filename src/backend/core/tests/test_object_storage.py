@@ -5,7 +5,6 @@ import hashlib
 from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import Mock, patch
-from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -270,8 +269,9 @@ def test_missing_published_result_can_only_be_restored_with_identical_bytes(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_original_cleanup_preserves_results_and_tombstones_survive_file():
-    """Original-data retention excludes results; full cleanup preserves audit identity."""
+@pytest.mark.parametrize("bulk", [False, True])
+def test_original_cleanup_preserves_results_until_file_deletion(bulk):
+    """Original-data cleanup keeps linked rows until the file is deleted."""
     file = factories.FileFactory()
     job = factories.AiFileJobFactory(file=file, type="summary", status="success")
     storage = get_storage_for_object(file.original_object)
@@ -280,14 +280,16 @@ def test_original_cleanup_preserves_results_and_tombstones_survive_file():
     delete_file_objects(file, original_only=True)
     assert not storage.exists(file.original_object.key)
     assert storage.exists(job.result_object.key)
-    delete_file_objects(file)
+    assert file.storage_objects.get(pk=file.original_object_id).state == "deleted"
+    file.soft_delete()
     identity = file.pk
-    file.deleted_at = timezone.now()
-    file.save()
-    file.delete()
+    delete = models.File.objects.filter(pk=identity).delete if bulk else file.delete
+    with pytest.raises(ProtectedError, match="File storage cleanup has not completed"):
+        delete()
+    delete_file_objects(file)
+    delete()
     objects = models.ObjectStorageObject.objects.filter(file_identifier=identity)
-    assert objects.exists()
-    assert not objects.exclude(state="deleted", file__isnull=True).exists()
+    assert not objects.exists()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -321,14 +323,16 @@ def test_lifecycle_cleanup_commits_all_tombstones_before_storage_failure(task):
 
     objects = models.ObjectStorageObject.objects.filter(file_identifier=file_id)
     assert objects.filter(state="deleting").count() == expected_count
+    assert models.File.objects.filter(pk=file_id).exists()
+    assert not objects.exclude(file_id=file_id).exists()
     with patch("core.object_storage.get_storage_for_object") as storage:
         call_command("cleanup_storage_objects", stdout=StringIO())
     assert storage.return_value.delete.call_count == expected_count
-    assert objects.filter(state="deleted").count() == expected_count
     if task is process_file_deletion:
         assert not models.File.objects.filter(pk=file_id).exists()
-        assert not objects.filter(file__isnull=False).exists()
+        assert not objects.exists()
     else:
+        assert objects.filter(state="deleted").count() == expected_count
         assert objects.get(kind="summary").state == "pending"
 
 
@@ -362,7 +366,7 @@ def test_failed_cleanup_can_be_retried_after_owner_job_deletion(
     job_id = job.pk
     obj = job.result_object
     retained, unrelated = [
-        models.ObjectStorageObject.objects.create(
+        job.file.storage_objects.create(
             file_identifier=job.file_id,
             kind=obj.kind,
             key=key,
@@ -396,6 +400,7 @@ def test_failed_cleanup_can_be_retried_after_owner_job_deletion(
         } == {obj.key, retained.key}
     obj.refresh_from_db()
     assert obj.state == "deleted"
+    assert not models.ObjectStorageObject.objects.filter(pk=retained.pk).exists()
     unrelated.refresh_from_db()
     assert unrelated.state == "deleting"
 
@@ -447,10 +452,14 @@ def test_cleanup_dry_run_preserves_deleting_objects():
 
 def test_cleanup_dry_run_filters_retained_copies_in_sql(django_assert_num_queries):
     """A backlog spanning multiple chunks still uses one candidate query."""
-    first, second = factories.FileFactory.create_batch(2)
+    first, second, expired = factories.FileFactory.create_batch(3)
+    models.File.objects.filter(pk=expired.pk).update(
+        lifecycle_state="original_data_deleted"
+    )
     now = timezone.now()
     models.ObjectStorageObject.objects.bulk_create(
         models.ObjectStorageObject(
+            file_id=file_id,
             file_identifier=file_id,
             kind="original",
             key=f"retained-{index}",
@@ -460,7 +469,7 @@ def test_cleanup_dry_run_filters_retained_copies_in_sql(django_assert_num_querie
             published_at=now,
             metadata_checked_at=now + timedelta(hours=1),
         )
-        for index, file_id in enumerate([first.pk, second.pk] * 125 + [uuid4()])
+        for index, file_id in enumerate([first.pk, second.pk] * 125 + [expired.pk])
     )
     stdout = StringIO()
     with django_assert_num_queries(1):
@@ -502,7 +511,7 @@ def test_cleanup_rechecks_current_owner_retention_before_deleting():
         lifecycle_state=models.FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
     )
     now = timezone.now()
-    obj = models.ObjectStorageObject.objects.create(
+    obj = file.storage_objects.create(
         file_identifier=file.pk,
         kind="audio",
         key="retained-audio",

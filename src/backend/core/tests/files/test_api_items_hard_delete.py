@@ -32,7 +32,7 @@ def test_api_files_hard_delete_authenticated_not_owner():
     assert response.status_code == 404
 
 
-def test_api_files_hard_delete_authenticated_owner():
+def test_api_files_hard_delete_authenticated_owner(django_capture_on_commit_callbacks):
     """
     Authenticated users should be allowed to hard delete a file if they are the owner.
     """
@@ -43,7 +43,8 @@ def test_api_files_hard_delete_authenticated_owner():
     client = APIClient()
     client.force_login(user)
 
-    response = client.delete(f"/api/v1.0/files/{file.id!s}/hard-delete/")
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.delete(f"/api/v1.0/files/{file.id!s}/hard-delete/")
     assert response.status_code == 204
 
     assert not models.File.objects.filter(id=file.id).exists()

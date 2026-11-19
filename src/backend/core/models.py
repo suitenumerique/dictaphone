@@ -17,6 +17,9 @@ from django.core import validators
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Case, F, OuterRef, Q, Subquery, Value, When
+from django.db.models.deletion import ProtectedError
+from django.db.models.signals import post_delete, pre_delete
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -614,11 +617,6 @@ class File(BaseModel):
                     "file_auto_hard_delete_at_with_grace_period",
                 ]
             )
-            ObjectStorageObject.objects.filter(
-                pk__in=[self.original_object_id, self.temporary_upload_object_id]
-            ).update(file=self)
-            self.original_object.file = self
-            self.temporary_upload_object.file = self
 
     def clean(self):
         super().clean()
@@ -876,14 +874,12 @@ class ObjectStorageObject(BaseModel):
         DELETING = "deleting", "Deleting"
         DELETED = "deleted", "Deleted"
 
+    # File deletion releases these rows after the file and its jobs are gone.
     file = models.ForeignKey(
         File,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.DO_NOTHING,
         related_name="storage_objects",
     )
-    # Keep the owning identity after file deletion for audit and cleanup retries.
     file_identifier = models.UUIDField(db_index=True)
     kind = models.CharField(max_length=16, choices=Kind.choices)
     storage_bucket_name = models.CharField(max_length=63)
@@ -927,6 +923,35 @@ class ObjectStorageObject(BaseModel):
             raise ValidationError({"file": "The owning file identity must match."})
         if bool(self.checksum_algorithm) != bool(self.checksum_value):
             raise ValidationError("Checksum algorithm and value must be set together.")
+
+
+@receiver(post_delete, sender=File)
+def release_file_storage_objects(instance, using, **kwargs):
+    """Remove cleaned storage rows once their protected references are gone."""
+    ObjectStorageObject.objects.using(using).filter(file_id=instance.pk).delete()
+
+
+@receiver(pre_delete, sender=File)
+def protect_file_with_storage_objects(instance, using, **kwargs):
+    """Reject file deletion while any owned storage still needs cleanup."""
+    if (
+        not File.objects.using(using)
+        .select_for_update(no_key=True)
+        .filter(pk=instance.pk)
+        .exists()
+    ):
+        return
+    objects = list(
+        ObjectStorageObject.objects.using(using)
+        .filter(file_id=instance.pk)
+        .select_for_update()
+        .order_by("pk")
+    )
+    remaining = [
+        obj for obj in objects if obj.state != ObjectStorageObject.State.DELETED
+    ]
+    if remaining:
+        raise ProtectedError("File storage cleanup has not completed.", remaining)
 
 
 class AudioJob(BaseModel):
@@ -1188,10 +1213,9 @@ class AiFileJob(BaseModel):
         )
         # The authoritative row lock serializes cutover before we find its copies.
         copies = ObjectStorageObject.objects.filter(
-            file_identifier=obj.file_identifier,
+            file_id=obj.file_id,
             checksum_source=CLEANUP_SOURCE,
             etag=str(obj.pk),
-            file__isnull=True,
         )
         copies.exclude(state=ObjectStorageObject.State.DELETED).update(
             state=ObjectStorageObject.State.DELETING,

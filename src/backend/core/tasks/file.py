@@ -81,14 +81,11 @@ session.headers.update({"User-Agent": settings.APP_EXTERNAL_USER_AGENT})
 def process_file_deletion(file_id):
     """
     Process the deletion of a file.
-    Definitely delete it in the database.
-    Delete the files from the storage.
+    Delete its storage objects before removing the database record.
     """
     logger.info("Processing file deletion for %s", file_id)
     try:
-        file = (
-            File.objects.select_for_update().prefetch_related("ai_jobs").get(id=file_id)
-        )
+        file = File.objects.select_for_update(no_key=True).get(id=file_id)
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
         return
@@ -102,8 +99,6 @@ def process_file_deletion(file_id):
 
     delete_file_objects(file)
 
-    file.delete()
-
 
 @app.task(queue=BACKEND_QUEUE)
 @transaction.atomic
@@ -111,7 +106,7 @@ def process_original_file_data_deletion(file_id):
     """Delete only original source file data and keep DB record."""
     logger.info("Processing original file data deletion for %s", file_id)
     try:
-        file = File.objects.select_for_update().get(id=file_id)
+        file = File.objects.select_for_update(no_key=True).get(id=file_id)
     except File.DoesNotExist:
         logger.error("Item %s does not exist", file_id)
         return

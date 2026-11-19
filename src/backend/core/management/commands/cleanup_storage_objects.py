@@ -5,12 +5,12 @@ from django.utils import timezone
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from core.object_storage import delete_object
+from core.object_storage import delete_object, finalize_file_deletion
 from core.storage_migration import cleanup_candidates
 
 
 class Command(BaseCommand):
-    """Retained cleanup records survive deletion of their owning file or job."""
+    """Retry storage deletions and finalize files whose cleanup is complete."""
 
     help = "Retry object deletions left in the deleting state"
 
@@ -23,7 +23,7 @@ class Command(BaseCommand):
             raise CommandError("Limit must be positive")
         objects = (
             cleanup_candidates(timezone.now())
-            .only("pk")
+            .only("pk", "file")
             .order_by("pk")[: options["limit"]]
         )
         if options["dry_run"]:
@@ -32,14 +32,19 @@ class Command(BaseCommand):
 
         count = 0
         failures = 0
+        files = set()
         for obj in objects.iterator(chunk_size=100):
             try:
-                count += int(delete_object(obj, respect_retention=True))
+                if delete_object(obj, respect_retention=True):
+                    count += 1
+                    files.add(obj.file_id)
             except (BotoCoreError, ClientError, OSError) as exc:
                 failures += 1
                 # Provider responses may contain credentials or signed URLs.
                 self.stderr.write(f"object={obj.pk}: {type(exc).__name__}")
 
+        for file_id in sorted(files):
+            finalize_file_deletion(file_id)
         self.stdout.write(f"Deleted: {count}")
         if failures:
             raise CommandError(

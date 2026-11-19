@@ -271,7 +271,9 @@ def test_transcription_failure_preserves_existing_manual_ignore_reason():
 
 @pytest.mark.parametrize("deleted_resource", ["file", "ai_job"])
 @patch("core.tasks.file.session.post")
-def test_transcription_quota_survives_deletion(post, deleted_resource):
+def test_transcription_quota_survives_deletion(
+    post, deleted_resource, django_capture_on_commit_callbacks
+):
     """Deleting source rows cannot refund audio; the charge expires after 24 hours."""
     job = reserved_job(duration=3600)
     user = job.file.creator
@@ -288,10 +290,13 @@ def test_transcription_quota_survives_deletion(post, deleted_resource):
         client.force_login(user)
         url = f"/api/v1.0/files/{job.file_id}/"
         assert client.delete(url).status_code == 204
-        with patch(
-            "core.api.viewsets.process_file_deletion.delay",
-            side_effect=process_file_deletion,
-        ) as delete:
+        with (
+            django_capture_on_commit_callbacks(execute=True),
+            patch(
+                "core.api.viewsets.process_file_deletion.delay",
+                side_effect=process_file_deletion,
+            ) as delete,
+        ):
             assert client.delete(f"{url}hard-delete/").status_code == 204
         delete.assert_called_once()
         assert not models.File.objects.filter(pk=job.file_id).exists()

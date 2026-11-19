@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError
 from storages.backends.s3 import S3Storage
 
 from core.configuration import get_profile_for_email
-from core.models import ObjectStorageObject
+from core.models import File, ObjectStorageObject
 from core.storage import get_storage_for_object
 
 CHECKSUM_FIELDS = (
@@ -35,13 +35,21 @@ class ObjectIntegrityError(ValueError):
 def create_object(file, kind, key, *, bucket=None):
     """Allocate one location; existing artifacts always use their own references."""
     is_new = file._state.adding  # noqa: SLF001 pylint: disable=protected-access
-    return ObjectStorageObject.objects.create(
-        file=None if is_new else file,
+    obj = ObjectStorageObject(
+        file_id=file.pk,
         file_identifier=file.pk,
         kind=kind,
         storage_bucket_name=bucket or file.original_object.storage_bucket_name,
         key=key,
     )
+    if is_new:
+        # Both rows are inserted in File.save's transaction. The deferred foreign
+        # key is checked at commit, after the file can reference its objects.
+        obj.full_clean(exclude={"file"})
+        obj.save_base(force_insert=True)
+    else:
+        obj.save(force_insert=True)
+    return obj
 
 
 def allocate_file_objects(file):
@@ -243,7 +251,12 @@ def store_result(obj, content, content_type):
 
 
 def delete_object(obj, *, respect_retention=False):
-    """Retain a tombstone on failure so object cleanup can be retried."""
+    """Keep the cleanup record until the storage deletion succeeds."""
+    from core.storage_migration import (  # noqa: PLC0415 # pylint: disable=import-outside-toplevel
+        CLEANUP_SOURCE,
+        cleanup_due,
+    )
+
     # Explicit deletion intent must survive a storage failure. Resolve the current
     # location only after locking; a migration may have moved it while we waited.
     if not respect_retention:
@@ -254,26 +267,42 @@ def delete_object(obj, *, respect_retention=False):
         obj = ObjectStorageObject.objects.select_for_update().filter(pk=obj.pk).first()
         if obj is None:
             return False
-        if respect_retention:
-            from core.storage_migration import (  # noqa: PLC0415 # pylint: disable=import-outside-toplevel
-                cleanup_due,
-            )
-
-            if obj.state != obj.State.DELETING or not cleanup_due(obj):
-                return False
+        if respect_retention and (
+            obj.state != obj.State.DELETING or not cleanup_due(obj)
+        ):
+            return False
         get_storage_for_object(obj).delete(obj.key)
-        ObjectStorageObject.objects.filter(pk=obj.pk).update(
-            state=ObjectStorageObject.State.DELETED,
-            deleted_at=timezone.now(),
-            updated_at=timezone.now(),
-        )
+        if obj.checksum_source == CLEANUP_SOURCE:
+            obj.delete()
+        else:
+            now = timezone.now()
+            ObjectStorageObject.objects.filter(pk=obj.pk).update(
+                state=ObjectStorageObject.State.DELETED, deleted_at=now, updated_at=now
+            )
     return True
+
+
+@transaction.atomic
+def finalize_file_deletion(file_id):
+    """Remove a hard-deleted file once storage cleanup has completed."""
+    file = (
+        File.objects.select_for_update(no_key=True)
+        .filter(pk=file_id, hard_deleted_at__isnull=False)
+        .first()
+    )
+    if (
+        file
+        and not file.storage_objects.exclude(
+            state=ObjectStorageObject.State.DELETED
+        ).exists()
+    ):
+        file.delete()
 
 
 @transaction.atomic
 def delete_file_objects(file, *, original_only=False):
     """Commit cleanup intent for current and historical locations before deletion."""
-    objects = ObjectStorageObject.objects.filter(file_identifier=file.pk).exclude(
+    objects = ObjectStorageObject.objects.filter(file_id=file.pk).exclude(
         state=ObjectStorageObject.State.DELETED
     )
     if original_only:
@@ -284,7 +313,7 @@ def delete_file_objects(file, *, original_only=False):
                 ObjectStorageObject.Kind.AUDIO,
             ]
         )
-    # Lock authoritative rows first, then requery detached cleanup obligations:
+    # Lock authoritative rows first, then requery migration cleanup obligations:
     # a transfer can create a source obligation while we wait on its object lock.
     for locations in (
         objects.exclude(checksum_source="migration"),
@@ -301,5 +330,7 @@ def delete_file_objects(file, *, original_only=False):
         ):
             for obj in locations.order_by("pk").iterator():
                 delete_object(obj)
+        if not original_only:
+            finalize_file_deletion(file.pk)
 
     transaction.on_commit(delete_objects)

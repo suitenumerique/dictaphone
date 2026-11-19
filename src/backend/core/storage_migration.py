@@ -37,7 +37,7 @@ from core.object_storage import (
 )
 from core.storage import get_bucket_configuration_for_object, get_storage_for_object
 
-# Cleanup obligations use existing fields, never owner references. For these rows
+# Cleanup obligations use existing fields but no artifact references. For these rows
 # metadata_checked_at is the cleanup deadline; published_at distinguishes a retained
 # source from a possibly partial destination. They are not migration history.
 CLEANUP_SOURCE = "migration"
@@ -193,14 +193,14 @@ def _inspect_source(obj, file, now, *, has_active_upload):
     return "migrated", bucket
 
 
-def _retaining_file(file_identifier, kind, now):
+def _retaining_file(file_id, kind, now):
     """Find an owner whose retention rules still protect a copy of this kind."""
     original_data = Q(
         In(kind, (ObjectStorageObject.Kind.ORIGINAL, ObjectStorageObject.Kind.AUDIO))
     )
     return (
         File.objects.filter(
-            pk=file_identifier,
+            pk=file_id,
             hard_deleted_at__isnull=True,
             file_auto_hard_delete_at_with_grace_period__gt=now,
         )
@@ -220,7 +220,7 @@ def _cleanup_due_condition(now):
         ~Q(checksum_source=CLEANUP_SOURCE)
         | Q(published_at__isnull=True)
         | Q(metadata_checked_at__lte=now)
-        | ~Exists(_retaining_file(OuterRef("file_identifier"), OuterRef("kind"), now))
+        | ~Exists(_retaining_file(OuterRef("file_id"), OuterRef("kind"), now))
     )
 
 
@@ -239,7 +239,7 @@ def cleanup_due(obj):
     now = timezone.now()
     if obj.metadata_checked_at is not None and obj.metadata_checked_at <= now:
         return True
-    return not _retaining_file(obj.file_identifier, Value(obj.kind), now).exists()
+    return not _retaining_file(obj.file_id, Value(obj.kind), now).exists()
 
 
 def retained_copy(file, bucket, key, kinds):
@@ -249,8 +249,7 @@ def retained_copy(file, bucket, key, kinds):
     caller keeps enforcing the file's own access and data retention rules.
     """
     copy = ObjectStorageObject.objects.filter(
-        file_identifier=file.pk,
-        file__isnull=True,
+        file_id=file.pk,
         checksum_source=CLEANUP_SOURCE,
         storage_bucket_name=bucket,
         key=key,
@@ -291,14 +290,14 @@ def _destination_references(destination_id):
 
 
 def _validate_destination(destination, obj, *, has_references=None):
-    """Only a detached cleanup obligation for this artifact can be reused."""
+    """Only an unreferenced cleanup obligation for this artifact can be reused."""
     if not (
         destination.checksum_source == CLEANUP_SOURCE
         and destination.etag == str(obj.pk)
-        and destination.file_id is None
+        and destination.file_id == obj.file_id
         and destination.file_identifier == obj.file_identifier
         and destination.kind == obj.kind
-        and destination.state in {obj.State.DELETING, obj.State.DELETED}
+        and destination.state == obj.State.DELETING
     ):
         raise ValueError("Destination belongs to another tracked artifact")
     if has_references is None:
@@ -326,9 +325,7 @@ def _move_object_record(obj, bucket, *, mark_deleted):
         )
         if destination is not None:
             _validate_destination(destination, obj)
-            if destination.state == destination.State.DELETING:
-                return "deferred"
-            destination.delete()
+            return "deferred"
     elif not mark_deleted:
         return "aligned"
     ObjectStorageObject.objects.filter(pk=obj.pk).update(
@@ -372,6 +369,7 @@ def _reserve(obj_id, *, source_bucket):
                 storage_bucket_name=bucket,
                 key=obj.key,
                 defaults={
+                    "file_id": obj.file_id,
                     "file_identifier": obj.file_identifier,
                     "kind": obj.kind,
                     "state": obj.State.DELETING,
@@ -629,6 +627,7 @@ def _move_reserved_object(obj_id, destination_id, source_bucket):
             **values,
         )
         ObjectStorageObject.objects.create(
+            file_id=obj.file_id,
             file_identifier=obj.file_identifier,
             kind=obj.kind,
             storage_bucket_name=old_bucket,

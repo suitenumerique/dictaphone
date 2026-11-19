@@ -25,9 +25,16 @@ reconstructed legacy key. Existing key formats remain valid through their record
 
 File retention deadlines and lifecycle state remain on File. Original-data cleanup
 deletes tracked original, temporary, and audio objects; full file cleanup also
-deletes results and other tracked historical artifacts. Cleanup records survive
-owner deletion with a retained file UUID. Failed explicit deletion intent can still
-be retried using `cleanup_storage_objects`; completed tombstones remain for audit.
+deletes results and other tracked historical artifacts. Every storage record has
+a file owner. Hard deletion keeps the file and its object records in the database
+until storage cleanup completes. Failed storage deletions stay eligible for
+retry with `cleanup_storage_objects`.
+
+Before applying migration `0030`, run `cleanup_storage_objects` with the previous
+release to clear pending deletions for files already removed from the database.
+Stop old backend processes and jobs before applying the migration. It removes
+ownerless `deleted` rows, restores links for rows whose files still exist, and
+stops if any remaining ownerless rows still need cleanup.
 
 ETags are opaque identifiers. Native provider checksums retain their algorithm and
 full-object/composite semantics; backend AI writes record full-content SHA-256.
@@ -49,9 +56,8 @@ python manage.py cleanup_storage_objects --dry-run --limit 100
 python manage.py cleanup_storage_objects --limit 100
 ```
 
-The second command deletes eligible tracked objects.
-Cleanup records survive owner deletion, and successful cleanup retains a deleted
-tombstone.
+The second command deletes eligible tracked objects. When cleanup succeeds, it
+also removes any hard-deleted file whose storage is now fully cleaned.
 
 ## Moving tracked objects
 
@@ -104,8 +110,8 @@ the recorded bucket in the database and preserves the object ID, key, metadata,
 and deletion timestamp. It makes no storage requests and creates no
 cleanup record for the source. A pending cleanup record at the destination
 defers the move until cleanup finishes. These updates count as `migrated`.
-Deleted artifacts can be migrated after their retention deadline if they still
-have an owning file for routing. Detached cleanup records are excluded.
+Deleted artifacts can be migrated after their retention deadline. Migration
+cleanup records are excluded from the scan.
 
 If a file records completed original data deletion, migration repairs its
 `missing` original, temporary upload, and audio records to `deleted`. This
@@ -143,7 +149,7 @@ full destination download. Uploads stream from disk. Objects up to
 PUT; larger objects use multipart parts of that size.
 
 Before writing, the command commits an independent cleanup obligation in the
-existing object table. These detached rows retain the owning file UUID and kind,
+existing object table. These rows link to the owning file and keep the object kind,
 use `checksum_source=migration` and `state=deleting`, have no artifact
 references, and keep the authoritative object UUID in `etag` to tie the cleanup
 location to that artifact.
@@ -165,11 +171,12 @@ cleanup deadline. Cleanup also consults the file's existing original-data,
 hard-deletion and trash deadlines with grace periods, so URL retention never
 extends those deadlines. Explicit file or original-data deletion tasks reschedule
 while a signed audio upload URL remains valid. Once the task proceeds to
-`delete_file_objects`, it deletes the detached copies in scope without waiting for
-their retained download URLs to expire. Deleted cleanup rows remain tombstones.
+`delete_file_objects`, it deletes the migration copies in scope without waiting
+for their retained download URLs to expire. Successful cleanup removes these
+copy records.
 
 Before removing a source bucket's configuration or credentials, verify that no
-non-deleted authoritative object still references the bucket and that every
-cleanup obligation for the bucket has reached the deleted state. Deferred audio
+non-deleted authoritative object still references the bucket and that no
+cleanup obligations for the bucket remain. Deferred audio
 objects can still depend on the source bucket after cleanup succeeds. Revisit
 those objects once their signed upload URLs expire.

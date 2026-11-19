@@ -152,7 +152,7 @@ def test_transfer_preserves_identity_metadata_and_every_file_field(artifact, lif
     assert "aligned=1" in run(a.obj)
 
 
-@pytest.mark.parametrize("destination_state", [None, "deleting", "deleted", "pending"])
+@pytest.mark.parametrize("destination_state", [None, "deleting", "pending"])
 @pytest.mark.parametrize("source_state", ["missing", "deleted"])
 def test_absent_object_moves_only_its_record(artifact, destination_state, source_state):
     """Preserve the recorded state and respect tracked destination ownership."""
@@ -171,7 +171,7 @@ def test_absent_object_moves_only_its_record(artifact, destination_state, source
         )
     a.copies.clear()
     if destination_state is not None:
-        objects.create(
+        a.file.storage_objects.create(
             file_identifier=a.file.pk,
             kind=a.obj.kind,
             key=a.obj.key,
@@ -380,7 +380,7 @@ def test_dry_run_batches_sources_and_destinations(artifact, django_assert_num_qu
         (reusable, now - timedelta(hours=1), reusable.pk),
         (conflict, None, a.obj.pk),
     ):
-        models.ObjectStorageObject.objects.create(
+        a.file.storage_objects.create(
             file_identifier=a.file.pk,
             kind=obj.kind,
             key=obj.key,
@@ -548,7 +548,7 @@ def test_other_artifact_destination_is_never_overwritten(artifact):
     """Tracked location collisions fail before sending bytes."""
     a = artifact
     other = factories.FileFactory()
-    models.ObjectStorageObject.objects.create(
+    other.storage_objects.create(
         file_identifier=other.pk,
         kind="original",
         key=a.obj.key,
@@ -692,7 +692,8 @@ def test_concurrent_migration_and_original_deletion(artifact):
         close_old_connections()
         try:
             with transaction.atomic():
-                file = models.File.objects.select_for_update().get(pk=a.file.pk)
+                locked_files = models.File.objects.select_for_update(no_key=True)
+                file = locked_files.get(pk=a.file.pk)
                 models.File.objects.filter(pk=file.pk).update(
                     lifecycle_state="pending_original_data_deletion"
                 )
@@ -928,10 +929,9 @@ def test_completed_cleanup_reservation_can_be_retried(artifact):
     with pytest.raises(CommandError):
         run(a.obj, stderr=StringIO())
     call_command("cleanup_storage_objects", stdout=StringIO())
-    assert (
-        models.ObjectStorageObject.objects.get(storage_bucket_name="destination").state
-        == "deleted"
-    )
+    assert not models.ObjectStorageObject.objects.filter(
+        storage_bucket_name="destination"
+    ).exists()
     a.client.upload_file.side_effect = upload
     assert "migrated=1" in run(a.obj)
 
@@ -955,8 +955,7 @@ def test_process_interruption_keeps_committed_cleanup_record(artifact):
     assert leftover.state == "deleting"
     assert leftover.etag == str(a.obj.pk)
     call_command("cleanup_storage_objects", stdout=StringIO())
-    leftover.refresh_from_db()
-    assert leftover.state == "deleted"
+    assert not models.ObjectStorageObject.objects.filter(pk=leftover.pk).exists()
 
 
 @pytest.mark.parametrize("kind", ["audio", "transcript", "summary"])
@@ -983,7 +982,7 @@ def test_job_references_are_unchanged(artifact, kind):
 def test_cleanup_tolerates_reservation_removed_by_cutover(artifact):
     """Cleanup may have enumerated an obligation before cutover removed it."""
     a = artifact
-    stale = models.ObjectStorageObject.objects.create(
+    stale = a.file.storage_objects.create(
         file_identifier=a.file.pk,
         key="stale",
         kind="original",

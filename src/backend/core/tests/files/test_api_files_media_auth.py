@@ -78,7 +78,7 @@ def test_media_auth_signs_retained_copy_after_bucket_migration(change, authorize
     file = factories.FileFactory(update_upload_state="ready")
     current = file.original_object
     now = timezone.now()
-    copy = models.ObjectStorageObject.objects.create(
+    copy = file.storage_objects.create(
         file_identifier=file.pk,
         kind=current.kind,
         storage_bucket_name="previous-bucket",
