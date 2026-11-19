@@ -168,19 +168,18 @@ def test_overwrite_and_retry_after_interrupted_transfer(artifact):
     ("upload_limit_mib", "part_size_mib"),
     [(1, 5), (1024, 1024), (8192, 5120)],
 )
-def test_multipart_upload_is_read_back(
-    artifact, monkeypatch, settings, upload_limit_mib, part_size_mib
+def test_upload_uses_one_part_up_to_the_file_limit(
+    artifact, settings, upload_limit_mib, part_size_mib
 ):
-    """Use file-size-based parts and verify multipart uploads by reading them back."""
+    """Objects within FILE_UPLOAD_MAX_SIZE take one PUT; the copy is read back."""
     a = artifact
     settings.FILE_UPLOAD_MAX_SIZE = upload_limit_mib * 1024**2
-    monkeypatch.setattr("core.storage_migration.MULTIPART_THRESHOLD", 1)
     assert "migrated=1" in run(a.obj)
-    a.client.put_object.assert_not_called()
     a.client.upload_file.assert_called_once()
     config = a.client.upload_file.call_args.kwargs["Config"]
     assert config.multipart_chunksize == part_size_mib * 1024**2
-    assert config.multipart_threshold == 1
+    # s3transfer switches to multipart at sizes >= the threshold.
+    assert config.multipart_threshold == part_size_mib * 1024**2 + 1
     a.source_client.get_object.assert_called_once_with(
         Bucket=a.source_bucket, Key=a.obj.key
     )

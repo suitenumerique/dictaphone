@@ -43,9 +43,9 @@ CONTENT_METADATA = (
     "Metadata",
 )
 CHUNK_SIZE = 10 * 1024 * 1024
-MULTIPART_THRESHOLD = TransferConfig().multipart_threshold
+# S3 accepts single PUT requests and multipart parts of up to 5 GiB.
 MIN_MULTIPART_PART_SIZE = 5 * 1024**2
-MAX_MULTIPART_PART_SIZE = 5 * 1024**3
+MAX_PART_SIZE = 5 * 1024**3
 
 
 @lru_cache(maxsize=2)
@@ -296,18 +296,20 @@ def _upload(client, destination, content, source_metadata, digest):
     acl = get_bucket_configuration_for_object(destination).upload_acl
     if acl is not None:
         extra["ACL"] = acl
+    # Objects up to FILE_UPLOAD_MAX_SIZE take a single PUT; only objects above
+    # it (or above S3's single-request limit) use multipart, in parts that size.
     part_size = min(
-        MAX_MULTIPART_PART_SIZE,
+        MAX_PART_SIZE,
         max(MIN_MULTIPART_PART_SIZE, settings.FILE_UPLOAD_MAX_SIZE),
     )
-    # Upload by filename so Boto3 can stream each part directly from disk.
+    # Upload by filename so Boto3 can stream the body directly from disk.
     client.upload_file(
         content.name,
         bucket,
         key,
         ExtraArgs=extra,
         Config=TransferConfig(
-            multipart_threshold=MULTIPART_THRESHOLD,
+            multipart_threshold=part_size + 1,
             multipart_chunksize=part_size,
         ),
     )
