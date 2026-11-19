@@ -1,5 +1,6 @@
 """Move immutable tracked artifacts without changing their owning file's policy."""
 
+from collections import defaultdict
 from datetime import timedelta
 from tempfile import NamedTemporaryFile
 from uuid import UUID
@@ -58,48 +59,67 @@ BASELINE_CHECKSUMS = {
     "CRC32C": CrtCrc32cChecksum,
     "CRC64NVME": CrtCrc64NvmeChecksum,
 }
+ROUTING_FILE_FIELDS = (
+    "creator__email",
+    "upload_state",
+    "hard_deleted_at",
+    "lifecycle_state",
+    "file_auto_hard_delete_at",
+    "trashbin_purge_at",
+    "original_file_data_delete_at",
+)
 
 
-def _eligible_file(obj):
-    """Read current lifecycle and routing inputs in one query without a file lock."""
-    if (
-        obj.state != obj.State.AVAILABLE
-        or obj.published_at is None
-        or obj.kind == obj.Kind.TEMPORARY
-        or not obj.file_id
-    ):
-        return None
-    if obj.checksum_type == "FULL_OBJECT" and (
-        obj.checksum_algorithm not in BASELINE_CHECKSUMS or not obj.checksum_value
-    ):
-        return None
-    files = File.objects.select_related("creator")
-    if obj.kind == obj.Kind.AUDIO:
-        files = files.filter(
-            ~Exists(
-                AudioJob.objects.filter(
-                    output_object_id=obj.pk, expires_at__gt=timezone.now()
-                )
+def _eligible_source(obj):
+    return (
+        obj.state == obj.State.AVAILABLE
+        and obj.published_at is not None
+        and obj.kind != obj.Kind.TEMPORARY
+        and obj.file_id is not None
+        and (
+            obj.checksum_type != "FULL_OBJECT"
+            or (
+                obj.checksum_algorithm in BASELINE_CHECKSUMS
+                and bool(obj.checksum_value)
             )
         )
-    file = files.filter(pk=obj.file_id).first()
+    )
+
+
+def _active_audio_upload(obj_id, now):
+    return Exists(AudioJob.objects.filter(output_object_id=obj_id, expires_at__gt=now))
+
+
+def _eligible_owner(obj, file, now):
     if (
         file is None
         or file.upload_state != FileUploadStateChoices.READY
         or file.hard_deleted_at
     ):
-        return None
+        return False
     deadlines = [file.file_auto_hard_delete_at, file.trashbin_purge_at]
     if obj.kind in {obj.Kind.ORIGINAL, obj.Kind.AUDIO}:
         deadlines.append(file.original_file_data_delete_at)
         if file.lifecycle_state != "active":
-            return None
-    now = timezone.now()
-    if file.lifecycle_state == "pending_auto_hard_delete" or any(
+            return False
+    return file.lifecycle_state != "pending_auto_hard_delete" and not any(
         deadline and deadline <= now for deadline in deadlines
-    ):
+    )
+
+
+def _eligible_file(obj, *, destination_id=None):
+    """Read current lifecycle and routing inputs in one query without a file lock."""
+    if not _eligible_source(obj):
         return None
-    return file
+    files = File.objects.select_related("creator").only(*ROUTING_FILE_FIELDS)
+    if obj.kind == obj.Kind.AUDIO:
+        files = files.filter(~_active_audio_upload(obj.pk, timezone.now()))
+    if destination_id is not None:
+        files = files.annotate(
+            has_destination_references=_destination_references(destination_id)
+        )
+    file = files.filter(pk=obj.file_id).first()
+    return file if _eligible_owner(obj, file, timezone.now()) else None
 
 
 def expected_bucket(file):
@@ -131,13 +151,19 @@ def _retaining_file(file_identifier, kind, now):
     )
 
 
-def cleanup_candidates(now):
-    """Select due cleanup rows in SQL using the persisted owning-file identifier."""
-    return ObjectStorageObject.objects.filter(
+def _cleanup_due_condition(now):
+    return (
         ~Q(checksum_source=CLEANUP_SOURCE)
         | Q(published_at__isnull=True)
         | Q(metadata_checked_at__lte=now)
-        | ~Exists(_retaining_file(OuterRef("file_identifier"), OuterRef("kind"), now)),
+        | ~Exists(_retaining_file(OuterRef("file_identifier"), OuterRef("kind"), now))
+    )
+
+
+def cleanup_candidates(now):
+    """Select due cleanup rows in SQL using the persisted owning-file identifier."""
+    return ObjectStorageObject.objects.filter(
+        _cleanup_due_condition(now),
         state=ObjectStorageObject.State.DELETING,
     )
 
@@ -187,7 +213,20 @@ def retained_copy(file, bucket, key, kinds):
     return copy if is_live else None
 
 
-def _validate_destination(destination, obj):
+def _destination_references(destination_id):
+    return (
+        Exists(
+            File.objects.filter(
+                Q(original_object_id=destination_id)
+                | Q(temporary_upload_object_id=destination_id)
+            )
+        )
+        | Exists(AudioJob.objects.filter(output_object_id=destination_id))
+        | Exists(AiFileJob.objects.filter(result_object_id=destination_id))
+    )
+
+
+def _validate_destination(destination, obj, *, has_references=None):
     """Only a detached cleanup obligation for this artifact can be reused."""
     if not (
         destination.checksum_source == CLEANUP_SOURCE
@@ -196,20 +235,13 @@ def _validate_destination(destination, obj):
         and destination.file_identifier == obj.file_identifier
         and destination.kind == obj.kind
         and destination.state in {obj.State.DELETING, obj.State.DELETED}
-    ) or (
-        ObjectStorageObject.objects.filter(pk=destination.pk)
-        .filter(
-            Exists(
-                File.objects.filter(
-                    Q(original_object=destination)
-                    | Q(temporary_upload_object=destination)
-                )
-            )
-            | Exists(AudioJob.objects.filter(output_object=destination))
-            | Exists(AiFileJob.objects.filter(result_object=destination))
-        )
-        .exists()
     ):
+        raise ValueError("Destination belongs to another tracked artifact")
+    if has_references is None:
+        has_references = ObjectStorageObject.objects.filter(
+            _destination_references(destination.pk), pk=destination.pk
+        ).exists()
+    if has_references:
         raise ValueError("Destination belongs to another tracked artifact")
 
 
@@ -346,23 +378,91 @@ def _transfer(obj, destination):
     return values
 
 
+def inspect_objects(objects):
+    """Plan an ordered batch with one source read and up to one destination read."""
+    now = timezone.now()
+    sources = (
+        objects.select_related("file__creator")
+        .only(
+            "state",
+            "published_at",
+            "kind",
+            "file_identifier",
+            "checksum_type",
+            "checksum_algorithm",
+            "checksum_value",
+            "storage_bucket_name",
+            "key",
+            *(f"file__{field}" for field in ROUTING_FILE_FIELDS),
+        )
+        .annotate(
+            has_active_upload=Q(kind=ObjectStorageObject.Kind.AUDIO)
+            & _active_audio_upload(OuterRef("pk"), now),
+        )
+    )
+    results = {}
+    targets = []
+    keys_by_bucket = defaultdict(set)
+    for obj in sources:
+        results[obj.pk] = "deferred"
+        if not (
+            _eligible_source(obj)
+            and not obj.has_active_upload
+            and _eligible_owner(obj, obj.file, now)
+        ):
+            continue
+        try:
+            bucket = expected_bucket(obj.file)
+        except Exception as exc:  # noqa: BLE001 # pylint: disable=broad-exception-caught
+            results[obj.pk] = exc
+            continue
+        if bucket == obj.storage_bucket_name:
+            results[obj.pk] = "aligned"
+            continue
+        results[obj.pk] = "migrated"
+        targets.append((obj, bucket))
+        keys_by_bucket[bucket].add(obj.key)
+
+    if not targets:
+        return results
+    locations = Q()
+    for bucket, keys in keys_by_bucket.items():
+        locations |= Q(storage_bucket_name=bucket, key__in=keys)
+    destinations = {
+        (obj.storage_bucket_name, obj.key): obj
+        for obj in ObjectStorageObject.objects.filter(locations).annotate(
+            has_references=_destination_references(OuterRef("pk")),
+            cleanup_is_due=_cleanup_due_condition(now),
+        )
+    }
+    for obj, bucket in targets:
+        destination = destinations.get((bucket, obj.key))
+        if destination is None:
+            continue
+        try:
+            _validate_destination(
+                destination, obj, has_references=destination.has_references
+            )
+        except ValueError as exc:
+            results[obj.pk] = exc
+            continue
+        if (
+            destination.state == destination.State.DELETING
+            and not destination.cleanup_is_due
+        ):
+            results[obj.pk] = "deferred"
+    return results
+
+
 def inspect_object(obj_id):
     """Plan a transfer using only database reads."""
-    obj = ObjectStorageObject.objects.get(pk=obj_id)
-    file = _eligible_file(obj)
-    if file is None:
-        return "deferred"
-    bucket = expected_bucket(file)
-    if bucket == obj.storage_bucket_name:
-        return "aligned"
-    destination = ObjectStorageObject.objects.filter(
-        storage_bucket_name=bucket, key=obj.key
-    ).first()
-    if destination is not None:
-        _validate_destination(destination, obj)
-        if _destination_held(destination):
-            return "deferred"
-    return "migrated"
+    results = inspect_objects(ObjectStorageObject.objects.filter(pk=obj_id))
+    if not results:
+        raise ObjectStorageObject.DoesNotExist
+    result = next(iter(results.values()))
+    if isinstance(result, Exception):
+        raise result
+    return result
 
 
 def migrate_object(obj_id, *, dry_run=False):
@@ -384,10 +484,12 @@ def migrate_object(obj_id, *, dry_run=False):
         )
         if destination is None:
             return "deferred"
-        file = _eligible_file(obj)
+        file = _eligible_file(obj, destination_id=destination.pk)
         if file is None or expected_bucket(file) != destination.storage_bucket_name:
             return "deferred"
-        _validate_destination(destination, obj)
+        _validate_destination(
+            destination, obj, has_references=file.has_destination_references
+        )
         values = _transfer(obj, destination)
         file = _eligible_file(obj)
         if file is None or expected_bucket(file) != destination.storage_bucket_name:

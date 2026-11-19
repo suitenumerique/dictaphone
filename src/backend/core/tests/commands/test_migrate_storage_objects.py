@@ -16,7 +16,7 @@ from django.utils import timezone
 
 import pytest
 
-from core import factories, models
+from core import factories, models, storage_migration
 from core.configuration import clear_configuration_cache
 from core.object_storage import (
     delete_file_objects,
@@ -193,8 +193,61 @@ def test_aligned_dry_run_loads_file_and_creator_together(django_assert_num_queri
     obj = file.original_object
     publish_object(obj, content=b"source bytes")
 
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(1):
         assert migrate_object(obj.pk, dry_run=True) == "aligned"
+
+
+def test_dry_run_batches_sources_and_destinations(artifact, django_assert_num_queries):
+    """A full batch uses two reads even with retained and conflicting locations."""
+    a = artifact
+    now = timezone.now()
+    sources = models.ObjectStorageObject.objects.bulk_create(
+        models.ObjectStorageObject(
+            file=a.file,
+            file_identifier=a.file.pk,
+            kind="summary",
+            key=f"summary-{index}",
+            storage_bucket_name=a.source_bucket,
+            state="available",
+            published_at=now,
+        )
+        for index in range(100)
+    )
+    held, reusable, conflict = sources[:3]
+    for obj, deadline, authoritative_id in (
+        (held, now + timedelta(hours=1), held.pk),
+        (reusable, now - timedelta(hours=1), reusable.pk),
+        (conflict, None, a.obj.pk),
+    ):
+        models.ObjectStorageObject.objects.create(
+            file_identifier=a.file.pk,
+            kind=obj.kind,
+            key=obj.key,
+            storage_bucket_name="destination",
+            state="deleting",
+            checksum_source="migration",
+            etag=str(authoritative_id),
+            published_at=now,
+            metadata_checked_at=deadline,
+        )
+
+    stdout, stderr = StringIO(), StringIO()
+    with django_assert_num_queries(2), pytest.raises(CommandError, match="1 storage"):
+        call_command(
+            "migrate_storage_objects",
+            objects=[str(obj.pk) for obj in sources],
+            dry_run=True,
+            limit=100,
+            stdout=stdout,
+            stderr=stderr,
+        )
+
+    assert f"{held.pk}: deferred" in stdout.getvalue()
+    assert f"{reusable.pk}: migrated" in stdout.getvalue()
+    assert f"{conflict.pk}: failed" in stdout.getvalue()
+    assert "aligned=0, migrated=98, deferred=1, failed=1" in stdout.getvalue()
+    assert f"Last examined PK: {max(obj.pk for obj in sources)}" in stdout.getvalue()
+    assert stderr.getvalue() == f"object={conflict.pk}: ValueError\n"
 
 
 def test_checksum_failure_leaves_source_authoritative(artifact):
@@ -294,6 +347,7 @@ def test_audio_with_outstanding_signed_upload_is_deferred(artifact):
         expires_at=timezone.now() + timedelta(minutes=1),
     )
     publish_object(audio.output_object, content=b"source bytes")
+    assert "deferred=1" in run(audio.output_object, dry_run=True)
     assert "deferred=1" in run(audio.output_object)
 
 
@@ -326,6 +380,26 @@ def test_other_artifact_destination_is_never_overwritten(artifact):
     )
     with pytest.raises(CommandError):
         run(a.obj, stderr=StringIO())
+    a.client.upload_file.assert_not_called()
+
+
+def test_destination_references_are_rechecked_after_reservation(artifact, monkeypatch):
+    """A destination referenced after reservation fails before storage I/O."""
+    a = artifact
+    job = factories.AiFileJobFactory(file=a.file)
+    reserve = storage_migration._reserve  # pylint: disable=protected-access
+
+    def reserve_and_reference(obj_id):
+        result, destination_id = reserve(obj_id)
+        models.AiFileJob.objects.filter(pk=job.pk).update(
+            result_object_id=destination_id
+        )
+        return result, destination_id
+
+    monkeypatch.setattr(storage_migration, "_reserve", reserve_and_reference)
+    with pytest.raises(CommandError, match="1 storage object"):
+        run(a.obj, stderr=StringIO())
+    a.source_client.get_object.assert_not_called()
     a.client.upload_file.assert_not_called()
 
 
@@ -531,7 +605,7 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
     ids = sorted([a.obj.pk, a.file.temporary_upload_object_id])
     models.ObjectStorageObject.objects.filter(pk=ids[0]).update(state="pending")
     options = {"objects": [str(pk) for pk in ids], "dry_run": True, "limit": 1}
-    first, next_run = StringIO(), StringIO()
+    first, next_run, exhausted = StringIO(), StringIO(), StringIO()
     call_command("migrate_storage_objects", stdout=first, **options)
     assert f"{ids[0]}: deferred" in first.getvalue()
     assert f"Last examined PK: {ids[0]}" in first.getvalue()
@@ -540,6 +614,13 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
     )
     assert f"Last examined PK: {ids[1]}" in next_run.getvalue()
     assert str(ids[0]) not in next_run.getvalue()
+    call_command(
+        "migrate_storage_objects", start_after=ids[1], stdout=exhausted, **options
+    )
+    assert exhausted.getvalue().splitlines() == [
+        "Dry run (would migrate): aligned=0, migrated=0, deferred=0, failed=0",
+        "Last examined PK: none",
+    ]
 
 
 def test_reverse_migration_preserves_retained_source(artifact, monkeypatch):

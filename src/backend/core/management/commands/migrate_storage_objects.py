@@ -5,7 +5,7 @@ from uuid import UUID
 from django.core.management.base import BaseCommand, CommandError
 
 from core.models import ObjectStorageObject
-from core.storage_migration import migrate_object
+from core.storage_migration import inspect_objects, migrate_object
 
 
 def _parse_uuid(value, option):
@@ -14,6 +14,14 @@ def _parse_uuid(value, option):
         return UUID(str(value))
     except ValueError as exc:
         raise CommandError(f"{option} requires a valid UUID") from exc
+
+
+def _migrate_objects(objects):
+    for obj_id in objects.values_list("pk", flat=True):
+        try:
+            yield obj_id, migrate_object(obj_id)
+        except Exception as exc:  # noqa: BLE001 # pylint: disable=broad-exception-caught
+            yield obj_id, exc
 
 
 class Command(BaseCommand):
@@ -62,25 +70,27 @@ class Command(BaseCommand):
             batch = objects.order_by("pk")
             if cursor is not None:
                 batch = batch.filter(pk__gt=cursor)
-            ids = list(
-                batch.values_list("pk", flat=True)[
-                    : min(options["batch_size"], options["limit"] - processed)
-                ]
+            batch = batch[: min(options["batch_size"], options["limit"] - processed)]
+            results = (
+                inspect_objects(batch).items()
+                if options["dry_run"]
+                else _migrate_objects(batch)
             )
-            if not ids:
-                break
-            for obj_id in ids:
-                try:
-                    result = migrate_object(obj_id, dry_run=options["dry_run"])
-                except Exception as exc:  # noqa: BLE001 # pylint: disable=broad-exception-caught
+            batch_last = None
+            for obj_id, outcome in results:
+                if isinstance(outcome, Exception):
                     # A bad artifact must not prevent independent transfers.
+                    self.stderr.write(f"object={obj_id}: {type(outcome).__name__}")
                     result = "failed"
-                    self.stderr.write(f"object={obj_id}: {type(exc).__name__}")
+                else:
+                    result = outcome
                 counts[result] += 1
                 processed += 1
                 self.stdout.write(f"{obj_id}: {result}")
-            last = ids[-1]
-            cursor = last
+                batch_last = obj_id
+            if batch_last is None:
+                break
+            last = cursor = batch_last
         prefix = "Dry run (would migrate): " if options["dry_run"] else ""
         self.stdout.write(
             prefix + ", ".join(f"{key}={value}" for key, value in counts.items())
