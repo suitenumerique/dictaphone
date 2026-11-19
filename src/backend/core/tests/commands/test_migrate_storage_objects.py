@@ -119,9 +119,14 @@ def run(obj, **kwargs):
     return output.getvalue()
 
 
-def test_transfer_preserves_identity_metadata_and_every_file_field(artifact):
+@pytest.mark.parametrize("lifecycle", ["active", "pending_original_data_deletion"])
+def test_transfer_preserves_identity_metadata_and_every_file_field(artifact, lifecycle):
     """Cutover preserves the complete file snapshot and exact artifact identity."""
     a = artifact
+    models.File.objects.filter(pk=a.file.pk).update(
+        lifecycle_state=lifecycle,
+        original_file_data_delete_at=timezone.now() - timedelta(minutes=1),
+    )
     before = models.File.objects.values().get(pk=a.file.pk)
     with patch.object(
         models.File, "save", side_effect=AssertionError("policy changed")
@@ -498,7 +503,8 @@ def test_ineligible_objects_are_deferred(artifact, change):
         models.ObjectStorageObject.objects.filter(pk=a.obj.pk).update(kind="temporary")
     elif change == "expired":
         models.File.objects.filter(pk=a.file.pk).update(
-            original_file_data_delete_at=timezone.now() - timedelta(seconds=1)
+            original_file_data_delete_at=timezone.now() - timedelta(minutes=1),
+            original_file_data_delete_at_with_grace_period=timezone.now(),
         )
     else:
         models.File.objects.filter(pk=a.file.pk).update(hard_deleted_at=timezone.now())
@@ -528,7 +534,8 @@ def test_expiry_during_transfer_prevents_cutover(artifact):
     def expire(*args, **kwargs):
         upload(*args, **kwargs)
         models.File.objects.filter(pk=a.file.pk).update(
-            original_file_data_delete_at=timezone.now() - timedelta(seconds=1)
+            original_file_data_delete_at=timezone.now() - timedelta(minutes=1),
+            original_file_data_delete_at_with_grace_period=timezone.now(),
         )
 
     a.client.upload_file.side_effect = expire

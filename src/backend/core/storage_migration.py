@@ -71,7 +71,7 @@ ROUTING_FILE_FIELDS = (
     "lifecycle_state",
     "file_auto_hard_delete_at",
     "trashbin_purge_at",
-    "original_file_data_delete_at",
+    "original_file_data_delete_at_with_grace_period",
 )
 RECORD_ONLY_STATES = {
     ObjectStorageObject.State.MISSING,
@@ -130,9 +130,13 @@ def _eligible_owner(obj, file, now):
         return False
     deadlines = [file.file_auto_hard_delete_at, file.trashbin_purge_at]
     if obj.kind in {obj.Kind.ORIGINAL, obj.Kind.AUDIO}:
-        deadlines.append(file.original_file_data_delete_at)
-        if file.lifecycle_state != "active":
+        if file.lifecycle_state not in {
+            FileLifecycleStateChoices.ACTIVE,
+            FileLifecycleStateChoices.PENDING_ORIGINAL_DATA_DELETION,
+        }:
             return False
+        if obj.state == obj.State.AVAILABLE:
+            deadlines.append(file.original_file_data_delete_at_with_grace_period)
     return file.lifecycle_state != "pending_auto_hard_delete" and not any(
         deadline and deadline <= now for deadline in deadlines
     )
