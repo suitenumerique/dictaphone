@@ -86,6 +86,18 @@ cleanup locations for the same artifact once the copy is due for cleanup.
 A location owned by another tracked artifact causes a failure. No bucket listing
 is used.
 
+To parallelize a source bucket on Kubernetes, configure a
+[`backend.managementJobs` template](../src/helm/dictaphone/README.md#manual-management-jobs)
+for `migrate_storage_objects --source-bucket old-bucket` and create multiple Jobs
+with distinct names from that template. Each command transfers one object at a
+time. It reports `skipped` when it cannot immediately lock an object for reservation
+or transfer, or when the object is no longer in scope. Skipped candidates count
+toward each Job's `--limit` and advance its scan cursor. Set `--limit` to cover the
+expected source inventory for a single pass, or resume bounded runs with their
+cursors. After the parallel Jobs complete, scan the source bucket again from the
+beginning to revisit skipped objects. Retry failed objects and objects that become
+eligible separately as needed.
+
 Only available, published artifacts on finalized files are eligible. Pending
 uploads, temporary upload keys, expired artifacts, and audio outputs with unexpired
 signed upload URLs are deferred. Migration also defers objects whose recorded

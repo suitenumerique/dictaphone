@@ -16,10 +16,10 @@ def _parse_uuid(value, option):
         raise CommandError(f"{option} requires a valid UUID") from exc
 
 
-def _migrate_objects(objects):
+def _migrate_objects(objects, *, source_bucket):
     for obj_id in objects.values_list("pk", flat=True):
         try:
-            yield obj_id, migrate_object(obj_id)
+            yield obj_id, migrate_object(obj_id, source_bucket=source_bucket)
         except Exception as exc:  # noqa: BLE001 # pylint: disable=broad-exception-caught
             yield obj_id, exc
 
@@ -63,7 +63,9 @@ class Command(BaseCommand):
             objects = objects.filter(file_identifier__in=file_ids)
         if source_bucket is not None:
             objects = objects.filter(storage_bucket_name=source_bucket)
-        counts = dict.fromkeys(("aligned", "migrated", "deferred", "failed"), 0)
+        counts = dict.fromkeys(
+            ("aligned", "migrated", "deferred", "failed", "skipped"), 0
+        )
         last = None
         processed = 0
         while processed < options["limit"]:
@@ -74,7 +76,7 @@ class Command(BaseCommand):
             results = (
                 inspect_objects(batch).items()
                 if options["dry_run"]
-                else _migrate_objects(batch)
+                else _migrate_objects(batch, source_bucket=source_bucket)
             )
             batch_last = None
             for obj_id, outcome in results:

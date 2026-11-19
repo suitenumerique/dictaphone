@@ -60,9 +60,10 @@ characters; entry names must be DNS labels of at most 43 characters. `kubectl ge
 app.kubernetes.io/component=backend-management` lists the deployed templates.
 
 The CronJobs are always suspended and have no deployment hooks, so deployment
-updates do not execute commands. Create one run at a time: the CronJob's
-`concurrencyPolicy` does not prevent concurrent manually created Jobs. Backend
-sidecars must terminate with the main process for a Job to complete.
+updates do not execute commands. The CronJob's `concurrencyPolicy` does not prevent
+concurrent manually created Jobs. Run storage backfills one at a time. For parallel
+bucket transfers, see [moving tracked objects](../../../docs/object-storage.md#moving-tracked-objects).
+Backend sidecars must terminate with the main process for a Job to complete.
 
 ### Cilium network policy selectors
 

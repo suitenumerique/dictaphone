@@ -257,10 +257,24 @@ def _destination_held(destination):
     )
 
 
-def _reserve(obj_id):
+def _source_candidate(obj_id, source_bucket):
+    """Find a candidate if it is still in the requested source bucket."""
+    objects = ObjectStorageObject.objects.filter(pk=obj_id)
+    if source_bucket is not None:
+        objects = objects.filter(storage_bucket_name=source_bucket)
+    return objects
+
+
+def _reserve(obj_id, *, source_bucket):
     """Commit a cleanup obligation BEFORE any external write can happen."""
     with transaction.atomic():
-        obj = ObjectStorageObject.objects.select_for_update().get(pk=obj_id)
+        obj = (
+            _source_candidate(obj_id, source_bucket)
+            .select_for_update(skip_locked=True)
+            .first()
+        )
+        if obj is None:
+            return "skipped", None
         file = _eligible_file(obj)
         if file is None:
             return "deferred", None
@@ -483,10 +497,12 @@ def inspect_objects(objects):
     return results
 
 
-def inspect_object(obj_id):
+def inspect_object(obj_id, *, source_bucket=None):
     """Plan a transfer using only database reads."""
-    results = inspect_objects(ObjectStorageObject.objects.filter(pk=obj_id))
+    results = inspect_objects(_source_candidate(obj_id, source_bucket))
     if not results:
+        if source_bucket is not None:
+            return "skipped"
         raise ObjectStorageObject.DoesNotExist
     result = next(iter(results.values()))
     if isinstance(result, Exception):
@@ -494,15 +510,16 @@ def inspect_object(obj_id):
     return result
 
 
-def migrate_object(obj_id, *, dry_run=False):
+def _move_reserved_object(obj_id, destination_id, source_bucket):
     """Keep the authoritative ID and source location until verified cutover commits."""
-    if dry_run:
-        return inspect_object(obj_id)
-    result, destination_id = _reserve(obj_id)
-    if result != "reserved":
-        return result
     with transaction.atomic():
-        obj = ObjectStorageObject.objects.select_for_update().get(pk=obj_id)
+        obj = (
+            _source_candidate(obj_id, source_bucket)
+            .select_for_update(skip_locked=True)
+            .first()
+        )
+        if obj is None:
+            return "skipped"
         destination = (
             ObjectStorageObject.objects.select_for_update()
             .filter(
@@ -550,3 +567,13 @@ def migrate_object(obj_id, *, dry_run=False):
             ),
         )
     return "migrated"
+
+
+def migrate_object(obj_id, *, dry_run=False, source_bucket=None):
+    """Commit the cleanup obligation before transferring an object."""
+    if dry_run:
+        return inspect_object(obj_id, source_bucket=source_bucket)
+    result, destination_id = _reserve(obj_id, source_bucket=source_bucket)
+    if result != "reserved":
+        return result
+    return _move_reserved_object(obj_id, destination_id, source_bucket)

@@ -479,8 +479,8 @@ def test_destination_references_are_rechecked_after_reservation(artifact, monkey
     job = factories.AiFileJobFactory(file=a.file)
     reserve = storage_migration._reserve  # pylint: disable=protected-access
 
-    def reserve_and_reference(obj_id):
-        result, destination_id = reserve(obj_id)
+    def reserve_and_reference(obj_id, **kwargs):
+        result, destination_id = reserve(obj_id, **kwargs)
         models.AiFileJob.objects.filter(pk=job.pk).update(
             result_object_id=destination_id
         )
@@ -646,6 +646,76 @@ def test_concurrent_migration_and_original_deletion(artifact):
     )
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("phase", ["reservation", "transfer"])
+def test_command_skips_locked_object_and_migrates_next(artifact, monkeypatch, phase):
+    """A lock in either transaction lets a worker continue to another object."""
+    a = artifact
+    other_file = factories.FileFactory(update_upload_state="ready")
+    other = other_file.original_object
+    a.copies[a.source_bucket, other.key] = b"other bytes"
+    publish_object(other, content=b"other bytes")
+    locked, available = sorted([a.obj, other], key=lambda obj: obj.pk)
+    ready, resume = Event(), Event()
+    reserve = storage_migration._reserve  # pylint: disable=protected-access
+
+    def reserve_with_pause(obj_id, **kwargs):
+        if obj_id != locked.pk:
+            return reserve(obj_id, **kwargs)
+        result = reserve(obj_id, **kwargs) if phase == "transfer" else None
+        ready.set()
+        assert resume.wait(10)
+        return result if result is not None else reserve(obj_id, **kwargs)
+
+    def migrate():
+        try:
+            output = StringIO()
+            call_command(
+                "migrate_storage_objects",
+                objects=[str(locked.pk), str(available.pk)],
+                source_bucket=a.source_bucket,
+                stdout=output,
+            )
+            return output.getvalue()
+        finally:
+            close_old_connections()
+
+    monkeypatch.setattr(storage_migration, "_reserve", reserve_with_pause)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        worker = pool.submit(migrate)
+        assert ready.wait(10)
+        with transaction.atomic():
+            models.ObjectStorageObject.objects.select_for_update().get(pk=locked.pk)
+            resume.set()
+            output = worker.result(timeout=10)
+
+    assert f"{locked.pk}: skipped" in output
+    assert f"{available.pk}: migrated" in output
+    assert "skipped=1" in output
+    locked.refresh_from_db()
+    assert locked.storage_bucket_name == a.source_bucket
+    monkeypatch.setattr(storage_migration, "_reserve", reserve)
+    assert "migrated=1" in run(locked, source_bucket=a.source_bucket)
+
+
+def test_source_bucket_rechecked_after_reservation(artifact, monkeypatch):
+    """An object that leaves the selected source must not be copied from elsewhere."""
+    a = artifact
+    reserve = storage_migration._reserve  # pylint: disable=protected-access
+
+    def reserve_and_move(obj_id, **kwargs):
+        result = reserve(obj_id, **kwargs)
+        models.ObjectStorageObject.objects.filter(pk=obj_id).update(
+            storage_bucket_name="another-bucket"
+        )
+        return result
+
+    monkeypatch.setattr(storage_migration, "_reserve", reserve_and_move)
+    assert "skipped=1" in run(a.obj, source_bucket=a.source_bucket)
+    a.source_client.get_object.assert_not_called()
+    a.client.upload_file.assert_not_called()
+
+
 def test_command_limit_batches_and_source_filter(artifact):
     """Selection filters and examined-object limits bound the run."""
     a = artifact
@@ -708,7 +778,7 @@ def test_command_resumes_after_last_examined_deferred_object(artifact):
         "migrate_storage_objects", start_after=ids[1], stdout=exhausted, **options
     )
     assert exhausted.getvalue().splitlines() == [
-        "Dry run (would migrate): aligned=0, migrated=0, deferred=0, failed=0",
+        "Dry run (would migrate): aligned=0, migrated=0, deferred=0, failed=0, skipped=0",
         "Last examined PK: none",
     ]
 
