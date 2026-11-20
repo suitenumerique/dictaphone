@@ -30,10 +30,11 @@ spec:
         - name: {{ include "dictaphone.secret.dockerconfigjson.name" (dict "fullname" (include "dictaphone.fullname" .) "imageCredentials" $.Values.images.credentials) }}
       {{- end }}
       shareProcessNamespace: {{ .Values.backend.shareProcessNamespace }}
+      {{- with .Values.backend.sidecars }}
+      initContainers:
+        {{- include "dictaphone.backend.jobSidecars" . | nindent 8 }}
+      {{- end }}
       containers:
-        {{- with .Values.backend.sidecars }}
-          {{- toYaml . | nindent 8 }}
-        {{- end }}
         - name: {{ .Chart.Name }}
           image: "{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag }}"
           imagePullPolicy: {{ .Values.images.backend.pullPolicy }}

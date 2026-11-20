@@ -61,10 +61,11 @@ spec:
           {{- end }}
           shareProcessNamespace: {{ $.Values.backend.shareProcessNamespace }}
           restartPolicy: Never
+          {{- with $.Values.backend.sidecars }}
+          initContainers:
+            {{- include "dictaphone.backend.jobSidecars" . | nindent 12 }}
+          {{- end }}
           containers:
-            {{- with $.Values.backend.sidecars }}
-              {{- toYaml . | nindent 12 }}
-            {{- end }}
             - name: {{ $.Chart.Name }}
               image: "{{ $.Values.images.backend.repository }}:{{ $.Values.images.backend.tag }}"
               imagePullPolicy: {{ $.Values.images.backend.pullPolicy }}

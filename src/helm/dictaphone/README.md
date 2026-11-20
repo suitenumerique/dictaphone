@@ -15,6 +15,11 @@ and mount path `/tmp` are reserved for this volume. Custom images and persistent
 must support the configured UID/GID and read-only root filesystem. Operator-supplied
 sidecars and init containers must define their own container security contexts.
 
+Backend Jobs run configured `backend.sidecars` as native Kubernetes sidecars so
+the Job can finish when its management command exits. Clusters running these
+Jobs with sidecars require Kubernetes 1.29 or later with the
+`SidecarContainers` feature enabled.
+
 ## Manual management jobs
 
 For the object storage rollout, follow the
@@ -273,9 +278,9 @@ add_header Content-Disposition "attachment";
 | `backend.service.port`                                | backend Service listening port                                    | `80`                                                                                                                                                                                                                                                                                |
 | `backend.service.targetPort`                          | backend container listening port                                  | `8000`                                                                                                                                                                                                                                                                              |
 | `backend.service.annotations`                         | Annotations to add to the backend Service                         | `{}`                                                                                                                                                                                                                                                                                |
-| `backend.migrate.command`                             | backend migrate command                                           | `["/bin/sh","-c","while ! python manage.py check --database default > /dev/null 2>&1\ndo\n  echo \"Database not ready\"\n  sleep 2\ndone\necho \"Database is ready\"\n\npython manage.py migrate --no-input\n"]`                                                                    |
+| `backend.migrate.command`                             | backend migrate command                                           | `["/bin/sh","-c","while ! python manage.py check --database default > /dev/null 2>&1\ndo\n  echo \"Database not ready\"\n  sleep 2\ndone\necho \"Database is ready\"\n\nexec python manage.py migrate --no-input\n"]`                                                                    |
 | `backend.migrate.restartPolicy`                       | backend migrate job restart policy                                | `Never`                                                                                                                                                                                                                                                                             |
-| `backend.createsuperuser.command`                     | backend migrate command                                           | `["/bin/sh","-c","while ! python manage.py check --database default > /dev/null 2>&1\ndo\n  echo \"Database not ready\"\n  sleep 2\ndone\necho \"Database is ready\"\n\npython manage.py createsuperuser --email $DJANGO_SUPERUSER_EMAIL --password $DJANGO_SUPERUSER_PASSWORD\n"]` |
+| `backend.createsuperuser.command`                     | backend migrate command                                           | `["/bin/sh","-c","while ! python manage.py check --database default > /dev/null 2>&1\ndo\n  echo \"Database not ready\"\n  sleep 2\ndone\necho \"Database is ready\"\n\nexec python manage.py createsuperuser --email \\\"$DJANGO_SUPERUSER_EMAIL\\\" --password \\\"$DJANGO_SUPERUSER_PASSWORD\\\"\n"]` |
 | `backend.createsuperuser.restartPolicy`               | backend migrate job restart policy                                | `Never`                                                                                                                                                                                                                                                                             |
 
 ### Jobs
@@ -288,19 +293,19 @@ add_header Content-Disposition "attachment";
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | `backend.cronjobs[0].name` | Name of the CronJob | `delete-original-files-data` |
 | `backend.cronjobs[0].schedule` | Schedule in cron format | `1 0 * * *` |
-| `backend.cronjobs[0].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py delete_original_files_data"]` |
+| `backend.cronjobs[0].command` | The command argv to execute in the CronJob | `["python","manage.py","delete_original_files_data"]` |
 | `backend.cronjobs[1].name` | Name of the CronJob | `auto-hard-delete-files` |
 | `backend.cronjobs[1].schedule` | Schedule in cron format | `15 0 * * *` |
-| `backend.cronjobs[1].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py auto_hard_delete_files"]` |
+| `backend.cronjobs[1].command` | The command argv to execute in the CronJob | `["python","manage.py","auto_hard_delete_files"]` |
 | `backend.cronjobs[2].name` | Name of the CronJob | `clean-pending-files` |
 | `backend.cronjobs[2].schedule` | Schedule in cron format | `30 0 * * *` |
-| `backend.cronjobs[2].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py clean_pending_files"]` |
+| `backend.cronjobs[2].command` | The command argv to execute in the CronJob | `["python","manage.py","clean_pending_files"]` |
 | `backend.cronjobs[3].name` | Name of the CronJob | `purge-deleted-files` |
 | `backend.cronjobs[3].schedule` | Schedule in cron format | `45 0 * * *` |
-| `backend.cronjobs[3].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_deleted_files"]` |
+| `backend.cronjobs[3].command` | The command argv to execute in the CronJob | `["python","manage.py","purge_deleted_files"]` |
 | `backend.cronjobs[4].name` | Name of the CronJob | `purge-transcription-usage` |
 | `backend.cronjobs[4].schedule` | Schedule in cron format | `0 1 * * *` |
-| `backend.cronjobs[4].command` | The bash command to execute in the CronJob | `["/bin/sh","-c","python manage.py purge_transcription_usage"]` |
+| `backend.cronjobs[4].command` | The command argv to execute in the CronJob | `["python","manage.py","purge_transcription_usage"]` |
 | `backend.probes` | Native Kubernetes probe definitions; individual probes can be disabled with `null` | Liveness/startup: `/__lbheartbeat__`; readiness: `/__heartbeat__`, on port `http` |
 | `backend.resources`                            | Resource requirements for the backend container                                    | `{}`                                                      |
 | `backend.nodeSelector`                         | Node selector for the backend Pod                                                  | `{}`                                                      |

@@ -291,7 +291,7 @@ backend:
         done
         echo "Database is ready"
 
-        python manage.py migrate --no-input
+        exec python manage.py migrate --no-input
     restartPolicy: Never
 
   ## @param backend.createsuperuser.command backend migrate command
@@ -308,7 +308,7 @@ backend:
         done
         echo "Database is ready"
 
-        python manage.py createsuperuser --email $DJANGO_SUPERUSER_EMAIL --password $DJANGO_SUPERUSER_PASSWORD
+        exec python manage.py createsuperuser --email "$DJANGO_SUPERUSER_EMAIL" --password "$DJANGO_SUPERUSER_PASSWORD"
     restartPolicy: Never
 
   ## @section Jobs
@@ -317,57 +317,57 @@ backend:
   ## Each cron job can be configured with name, schedule time and command.
   ## @param backend.cronjobs[0].name Name of the CronJob
   ## @param backend.cronjobs[0].schedule Schedule in cron format
-  ## @param backend.cronjobs[0].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[0].command The command argv to execute in the CronJob
   ## @param backend.cronjobs[1].name Name of the CronJob
   ## @param backend.cronjobs[1].schedule Schedule in cron format
-  ## @param backend.cronjobs[1].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[1].command The command argv to execute in the CronJob
   ## @param backend.cronjobs[2].name Name of the CronJob
   ## @param backend.cronjobs[2].schedule Schedule in cron format
-  ## @param backend.cronjobs[2].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[2].command The command argv to execute in the CronJob
   ## @param backend.cronjobs[3].name Name of the CronJob
   ## @param backend.cronjobs[3].schedule Schedule in cron format
-  ## @param backend.cronjobs[3].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[3].command The command argv to execute in the CronJob
   ## @param backend.cronjobs[4].name Name of the CronJob
   ## @param backend.cronjobs[4].schedule Schedule in cron format
-  ## @param backend.cronjobs[4].command The bash command to execute in the CronJob
+  ## @param backend.cronjobs[4].command The command argv to execute in the CronJob
 
   cronjobs:
     - name: delete-original-files-data
       schedule: "1 0 * * *"
       command:
-        - "/bin/sh"
-        - "-c"
-        - "python manage.py delete_original_files_data"
+        - "python"
+        - "manage.py"
+        - "delete_original_files_data"
     - name: auto-hard-delete-files
       schedule: "15 0 * * *"
       command:
-        - "/bin/sh"
-        - "-c"
-        - "python manage.py auto_hard_delete_files"
+        - "python"
+        - "manage.py"
+        - "auto_hard_delete_files"
     - name: clean-pending-files
       schedule: "30 0 * * *"
       command:
-        - "/bin/sh"
-        - "-c"
-        - "python manage.py clean_pending_files"
+        - "python"
+        - "manage.py"
+        - "clean_pending_files"
     - name: purge-deleted-files
       schedule: "45 0 * * *"
       command:
-        - "/bin/sh"
-        - "-c"
-        - "python manage.py purge_deleted_files"
+        - "python"
+        - "manage.py"
+        - "purge_deleted_files"
     - name: clean-storage-objects
       schedule: "30 1 * * *"
       command:
-        - "/bin/sh"
-        - "-c"
-        - "python manage.py cleanup_storage_objects --limit 100000"
+        - "python"
+        - "manage.py"
+        - "cleanup_storage_objects"
     - name: purge-transcription-usage
       schedule: "0 1 * * *"
       command:
-        - "/bin/sh"
-        - "-c"
-        - "python manage.py purge_transcription_usage"
+        - "python"
+        - "manage.py"
+        - "purge_transcription_usage"
 
   ## @param backend.probes Kubernetes probe definitions; set an individual probe to null to disable it
   probes:

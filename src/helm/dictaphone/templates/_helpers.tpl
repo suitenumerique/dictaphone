@@ -205,3 +205,12 @@ data:
 {{- define "dictaphone.s3Gateway.fullname" -}}
 {{- printf "%s-s3-gateway" (include "dictaphone.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/* Render backend Job sidecars as restartable init containers. */}}
+{{- define "dictaphone.backend.jobSidecars" -}}
+{{- $sidecars := list -}}
+{{- range . -}}
+{{- $sidecars = append $sidecars (set (deepCopy .) "restartPolicy" "Always") -}}
+{{- end -}}
+{{- toYaml $sidecars -}}
+{{- end -}}
