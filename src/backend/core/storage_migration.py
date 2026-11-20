@@ -236,13 +236,10 @@ def cleanup_candidates(now):
 
 
 def cleanup_due(obj):
-    """Retained URLs never extend persisted retention or explicit deletion intent."""
-    if obj.checksum_source != CLEANUP_SOURCE or obj.published_at is None:
-        return True
-    now = timezone.now()
-    if obj.metadata_checked_at is not None and obj.metadata_checked_at <= now:
-        return True
-    return not _retaining_file(obj.file_id, Value(obj.kind), now).exists()
+    """Recheck the batch cleanup rule against the current persisted object."""
+    return ObjectStorageObject.objects.filter(
+        _cleanup_due_condition(timezone.now()), pk=obj.pk
+    ).exists()
 
 
 def retained_copy(file, bucket, key, kinds):
@@ -311,13 +308,6 @@ def _validate_destination(destination, obj, *, has_references=None):
         raise ValueError("Destination belongs to another tracked artifact")
 
 
-def _destination_held(destination):
-    """Keep a prior source intact while its issued URLs are still retained."""
-    return destination.state == destination.State.DELETING and not cleanup_due(
-        destination
-    )
-
-
 def _move_object_record(obj, bucket, *, mark_deleted):
     """Move only the tracked location while the source row is locked."""
     if bucket != obj.storage_bucket_name:
@@ -383,12 +373,11 @@ def _reserve(obj_id, *, source_bucket):
         )
         if not created:
             _validate_destination(destination, obj)
-            if _destination_held(destination):
+            if not cleanup_due(destination):
                 return "deferred", None
-            # A concurrent cleanup may have finished since an earlier attempt. This
-            # committed reset makes another interrupted write discoverable again.
+            # Mark the reused location as a destination that may hold a partial
+            # write, including when it was previously a retained source.
             ObjectStorageObject.objects.filter(pk=destination.pk).update(
-                state=obj.State.DELETING,
                 published_at=None,
                 metadata_checked_at=None,
                 deleted_at=None,
@@ -569,9 +558,7 @@ def inspect_objects(objects):
         except ValueError as exc:
             results[obj.pk] = exc
             continue
-        if destination.state == destination.State.DELETING and (
-            obj.state in RECORD_ONLY_STATES or not destination.cleanup_is_due
-        ):
+        if obj.state in RECORD_ONLY_STATES or not destination.cleanup_is_due:
             results[obj.pk] = "deferred"
     return results
 

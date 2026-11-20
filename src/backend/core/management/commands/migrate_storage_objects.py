@@ -6,7 +6,7 @@ from uuid import UUID
 from django.core.management.base import BaseCommand, CommandError
 
 from core.models import ObjectStorageObject
-from core.storage_migration import inspect_objects, migrate_object
+from core.storage_migration import CLEANUP_SOURCE, inspect_objects, migrate_object
 
 PROGRESS_INTERVAL_SECONDS = 20
 
@@ -59,7 +59,9 @@ class Command(BaseCommand):
             if start_after is not None
             else None
         )
-        objects = ObjectStorageObject.objects.exclude(checksum_source="migration")
+        objects = ObjectStorageObject.objects.exclude(
+            checksum_source=CLEANUP_SOURCE
+        ).order_by("pk")
         if object_ids:
             objects = objects.filter(pk__in=object_ids)
         if file_ids:
@@ -69,21 +71,18 @@ class Command(BaseCommand):
         counts = dict.fromkeys(
             ("aligned", "migrated", "deferred", "failed", "skipped"), 0
         )
-        last = None
         processed = 0
         failures = []
         last_progress = time.monotonic()
         while processed < options["limit"]:
-            batch = objects.order_by("pk")
-            if cursor is not None:
-                batch = batch.filter(pk__gt=cursor)
+            batch = objects if cursor is None else objects.filter(pk__gt=cursor)
             batch = batch[: min(options["batch_size"], options["limit"] - processed)]
             results = (
                 inspect_objects(batch).items()
                 if options["dry_run"]
                 else _migrate_objects(batch, source_bucket=source_bucket)
             )
-            batch_last = None
+            processed_before_batch = processed
             for obj_id, outcome in results:
                 if isinstance(outcome, Exception):
                     # A bad artifact must not prevent independent transfers.
@@ -93,18 +92,17 @@ class Command(BaseCommand):
                     result = outcome
                 counts[result] += 1
                 processed += 1
-                batch_last = obj_id
+                cursor = obj_id
                 last_progress = self._write_progress_if_due(
                     processed, options["limit"], counts, obj_id, last_progress
                 )
-            if batch_last is None:
+            if processed == processed_before_batch:
                 break
-            last = cursor = batch_last
         prefix = "Dry run (would migrate): " if options["dry_run"] else ""
         self.stdout.write(
             prefix + ", ".join(f"{key}={value}" for key, value in counts.items())
         )
-        self.stdout.write(f"Last examined PK: {last if last is not None else 'none'}")
+        self.stdout.write(f"Last examined PK: {cursor if processed else 'none'}")
         self._write_failures(failures)
         if counts["failed"]:
             raise CommandError(f"{counts['failed']} storage object migration(s) failed")
