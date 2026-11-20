@@ -70,7 +70,7 @@ ROUTING_FILE_FIELDS = (
     "hard_deleted_at",
     "lifecycle_state",
     "file_auto_hard_delete_at",
-    "trashbin_purge_at",
+    "trashbin_purge_at_with_grace_period",
     "original_file_data_delete_at_with_grace_period",
 )
 RECORD_ONLY_STATES = {
@@ -128,7 +128,10 @@ def _eligible_owner(obj, file, now):
         return True
     if file.upload_state != FileUploadStateChoices.READY or file.hard_deleted_at:
         return False
-    deadlines = [file.file_auto_hard_delete_at, file.trashbin_purge_at]
+    deadlines = [
+        file.file_auto_hard_delete_at,
+        file.trashbin_purge_at_with_grace_period,
+    ]
     if obj.kind in {obj.Kind.ORIGINAL, obj.Kind.AUDIO}:
         if file.lifecycle_state not in {
             FileLifecycleStateChoices.ACTIVE,

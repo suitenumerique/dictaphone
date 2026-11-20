@@ -124,7 +124,9 @@ Transcripts and summaries are outside the scope of original data cleanup.
 The command reports objects already in their expected bucket as aligned, unless
 an in-place state repair is needed. Available originals and audio on active files
 or files pending original-data deletion can move until the original-data grace
-deadline. Eligible missing originals and audio can move even after that deadline.
+deadline. Trashed files remain eligible until their trash purge grace deadline.
+Eligible missing originals and audio can move even after the original-data grace
+deadline.
 Pending uploads, temporary upload keys outside completed original data cleanup,
 and audio outputs with unexpired signed upload URLs are deferred when a move is
 needed. A transfer is also deferred if the recorded full-object checksum
