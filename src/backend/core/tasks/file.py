@@ -372,9 +372,31 @@ def _submit_summary_job(ai_summary_job, ai_transcript_job, transcript):
         ai_summary_job.mark_failed()
         raise RuntimeError("Creating summary job failed") from None
 
-    ai_summary_job.save()
+    with transaction.atomic():
+        pending = AiFileJob.objects.select_for_update().filter(
+            pk=ai_summary_job.pk, status=AiJobStatusChoices.PENDING
+        )
+        if pending.exists():
+            ai_summary_job.save(update_fields=["remote_job_id", "updated_at"])
 
     logger.info("Summary job created for file %s", file.id)
+
+
+@transaction.atomic
+def _complete_ai_job(job_id, content, content_type):
+    """Serialize result publication with terminal failure and expiry."""
+    job = (
+        AiFileJob.objects.select_for_update()
+        .filter(pk=job_id, status=AiJobStatusChoices.PENDING)
+        .first()
+    )
+    if job is None:
+        return False
+    store_result(job.result_object, content, content_type)
+    job.status = AiJobStatusChoices.SUCCESS
+    job.failure_reason = ""
+    job.save(update_fields=["status", "failure_reason", "updated_at"])
+    return True
 
 
 @app.task(
@@ -386,7 +408,9 @@ def handle_transcript_received(remote_job_id, url: str | None):
     Store the transcript and call the summarize service for a given file.
     """
     ai_transcript_job = AiFileJob.objects.filter(
-        remote_job_id=remote_job_id, type=AiJobTypeChoices.TRANSCRIPT
+        remote_job_id=remote_job_id,
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
     ).first()
     if not ai_transcript_job:
         logger.warning("No AI file job found for job ID: %s", remote_job_id)
@@ -411,16 +435,13 @@ def handle_transcript_received(remote_job_id, url: str | None):
         ai_transcript_job.mark_failed()
         raise
 
-    obj = ai_transcript_job.result_object
-    store_result(obj, content, "application/json")
+    if not _complete_ai_job(ai_transcript_job.pk, content, "application/json"):
+        return
     logger.info(
         "Transcript stored for file %s & url %r",
         file.id,
         redact_url(url),
     )
-    ai_transcript_job.status = AiJobStatusChoices.SUCCESS
-    ai_transcript_job.failure_reason = ""
-    ai_transcript_job.save()
 
     analytics.capture_event(
         analytics.EventName.TRANSCRIPT_GENERATION_SUCCESS,
@@ -474,7 +495,9 @@ def store_summary(remote_job_id, url):
     Store the summary of a given file.
     """
     ai_summary_job = AiFileJob.objects.filter(
-        remote_job_id=remote_job_id, type=AiJobTypeChoices.SUMMARIZE
+        remote_job_id=remote_job_id,
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
     ).first()
     if not ai_summary_job:
         logger.warning("No AI file job found for job ID: %s", remote_job_id)
@@ -495,12 +518,8 @@ def store_summary(remote_job_id, url):
         ai_summary_job.mark_failed()
         raise
 
-    obj = ai_summary_job.result_object
-    store_result(obj, content, "text/plain")
-    logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
-    ai_summary_job.status = AiJobStatusChoices.SUCCESS
-    ai_summary_job.failure_reason = ""
-    ai_summary_job.save()
+    if _complete_ai_job(ai_summary_job.pk, content, "text/plain"):
+        logger.info("Summary stored for file %s & url %r", file.id, redact_url(url))
 
 
 @app.task(

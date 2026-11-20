@@ -219,11 +219,15 @@ def _retaining_file(file_id, kind, now):
 
 
 def _cleanup_due_condition(now):
-    return (
+    migration_due = (
         ~Q(checksum_source=CLEANUP_SOURCE)
         | Q(published_at__isnull=True)
         | Q(metadata_checked_at__lte=now)
         | ~Exists(_retaining_file(OuterRef("file_id"), OuterRef("kind"), now))
+    )
+    return migration_due & (
+        ~Q(kind=ObjectStorageObject.Kind.AUDIO)
+        | ~_active_audio_upload(OuterRef("pk"), now)
     )
 
 

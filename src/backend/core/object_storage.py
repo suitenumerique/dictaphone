@@ -5,13 +5,15 @@
 
 import base64
 import hashlib
+from logging import getLogger
 from os.path import splitext
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.utils import timezone
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from storages.backends.s3 import S3Storage
 
 from core.configuration import get_profile_for_email
@@ -26,6 +28,7 @@ CHECKSUM_FIELDS = (
     ("ChecksumCRC32", "CRC32"),
 )
 ABSENT_CODES = {"404", "NoSuchKey", "NotFound"}
+logger = getLogger(__name__)
 
 
 class ObjectIntegrityError(ValueError):
@@ -280,6 +283,37 @@ def delete_object(obj, *, respect_retention=False):
                 state=ObjectStorageObject.State.DELETED, deleted_at=now, updated_at=now
             )
     return True
+
+
+@transaction.atomic
+def queue_object_deletion(obj, *, cleanup_now=True):
+    """Persist deletion intent for a job artifact and its migration copies."""
+    # pylint: disable-next=import-outside-toplevel
+    from core.storage_migration import CLEANUP_SOURCE  # noqa: PLC0415
+
+    now = timezone.now()
+    # Lock the authoritative row before finding copies created by a cutover.
+    ObjectStorageObject.objects.filter(pk=obj.pk).exclude(
+        state=obj.State.DELETED
+    ).update(state=obj.State.DELETING, updated_at=now)
+    copies = ObjectStorageObject.objects.filter(
+        file_id=obj.file_id, checksum_source=CLEANUP_SOURCE, etag=str(obj.pk)
+    ).exclude(state=obj.State.DELETED)
+    copies.update(state=obj.State.DELETING, metadata_checked_at=now, updated_at=now)
+
+    def cleanup():
+        for location in (obj, *copies):
+            try:
+                delete_object(location, respect_retention=True)
+            except (BotoCoreError, ClientError, ImproperlyConfigured, OSError) as exc:
+                logger.warning(
+                    "Storage deletion for %s failed: %s",
+                    location.pk,
+                    type(exc).__name__,
+                )
+
+    if cleanup_now:
+        transaction.on_commit(cleanup)
 
 
 @transaction.atomic

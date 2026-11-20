@@ -1038,7 +1038,11 @@ class AiJobViewSet(
 
         # Read the job state only after any earlier webhook has committed.
         utils.acquire_transaction_lock(f"ai-job-webhook:{payload.job_id}")
-        ai_file_job = AiFileJob.objects.filter(remote_job_id=payload.job_id).first()
+        ai_file_job = (
+            AiFileJob.objects.select_for_update()
+            .filter(remote_job_id=payload.job_id)
+            .first()
+        )
         if not ai_file_job:
             logger.warning("No AI file job found for job ID: %s", payload.job_id)
             return drf_response.Response(
@@ -1050,6 +1054,10 @@ class AiJobViewSet(
             )
             return drf_response.Response(
                 {"message": "AI file job already in success state, ignoring."},
+            )
+        if ai_file_job.status == AiJobStatusChoices.FAILED:
+            return drf_response.Response(
+                {"message": "AI file job already in failed state, ignoring."},
             )
 
         if isinstance(payload, webhook_models.TranscribeWebhookSuccessPayload):

@@ -1181,10 +1181,22 @@ class AiFileJob(BaseModel):
         )
 
     @transaction.atomic
-    def mark_failed(self, reason=AiJobFailureReasonChoices.UNKNOWN_FAILURE):
-        """Persist terminal failure and release its transcription quota charge."""
+    def mark_failed(
+        self, reason=AiJobFailureReasonChoices.UNKNOWN_FAILURE, *, cleanup_now=True
+    ):
+        """Fail a pending job, queue its result deletion, and release its quota."""
+        from core.object_storage import queue_object_deletion  # noqa: PLC0415
+
+        reason = AiJobFailureReasonChoices(reason)
+        job = (
+            AiFileJob.objects.select_for_update()
+            .filter(pk=self.pk, status=AiJobStatusChoices.PENDING)
+            .first()
+        )
+        if job is None:
+            return False
         self.status = AiJobStatusChoices.FAILED
-        self.failure_reason = AiJobFailureReasonChoices(reason)
+        self.failure_reason = reason
         self.save(update_fields=["status", "failure_reason", "updated_at"])
         if self.type == AiJobTypeChoices.TRANSCRIPT:
             TranscriptionUsage.objects.filter(ai_job_id=self.pk, ignored=False).update(
@@ -1192,10 +1204,13 @@ class AiFileJob(BaseModel):
                 ignored_reason=f"Transcription failed: {self.failure_reason}",
                 updated_at=timezone.now(),
             )
+        queue_object_deletion(job.result_object, cleanup_now=cleanup_now)
+        return True
 
     @transaction.atomic
     def delete(self, using=None, keep_parents=False):
         """Delete the AI job and its result file from object storage."""
+        AiFileJob.objects.select_for_update().filter(pk=self.pk).exists()
         logger.info(
             "Deleted AI job %s and its result file if it exists %s",
             self.id,

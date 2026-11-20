@@ -28,6 +28,7 @@ from core.object_storage import (
     store_result,
 )
 from core.storage import get_storage_for_object
+from core.storage_migration import cleanup_candidates, cleanup_due
 from core.tasks.file import process_file_deletion, process_original_file_data_deletion
 
 pytestmark = pytest.mark.django_db
@@ -475,6 +476,26 @@ def test_cleanup_dry_run_filters_retained_copies_in_sql(django_assert_num_querie
     with django_assert_num_queries(1):
         call_command("cleanup_storage_objects", dry_run=True, stdout=stdout)
     assert stdout.getvalue() == "Would delete: 1\n"
+
+
+@pytest.mark.parametrize("active_lease", [True, False])
+def test_audio_cleanup_recheck_matches_batch_with_one_query(
+    django_assert_num_queries, active_lease
+):
+    """A signed upload lease has the same effect in both cleanup paths."""
+    now = timezone.now()
+    job = models.AudioJob.objects.create(
+        file=factories.FileFactory(),
+        mode="transcoding",
+        status="failed",
+        expires_at=now + timedelta(minutes=1 if active_lease else -1),
+    )
+    obj = job.output_object
+    models.ObjectStorageObject.objects.filter(pk=obj.pk).update(state="deleting")
+
+    assert cleanup_candidates(now).filter(pk=obj.pk).exists() is not active_lease
+    with django_assert_num_queries(1):
+        assert cleanup_due(obj) is not active_lease
 
 
 def test_cleanup_limit_counts_attempts_and_skips_objects_not_due():

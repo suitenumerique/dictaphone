@@ -23,7 +23,7 @@ from core.models import (
     FileLifecycleStateChoices,
     FileUploadStateChoices,
 )
-from core.object_storage import observe_object
+from core.object_storage import observe_object, queue_object_deletion
 from core.storage import (
     get_bucket_configuration_for_object,
     get_storage_bucket_name,
@@ -87,6 +87,8 @@ def _expire(job, now):
     job.completed_at = now
     job.error = "Worker did not complete before the task deadline."
     job.save(update_fields=["status", "completed_at", "error", "updated_at"])
+    if job.output_object_id:
+        queue_object_deletion(job.output_object)
     _capture_outcome(job, success=False)
     return _retry(job)
 
@@ -329,6 +331,8 @@ def complete_job(mode, data):
         ]
     )
     if job.status == AudioJobStatusChoices.FAILED:
+        if job.output_object_id:
+            queue_object_deletion(job.output_object)
         _capture_outcome(job, success=False)
         _retry(job)
         return

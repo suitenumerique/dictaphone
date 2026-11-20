@@ -117,6 +117,7 @@ def test_webhook_invalid_json_is_a_parse_error(content):
         BoundedWebhookJSONParser().parse(BytesIO(content))
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize("job_type", ["transcript", "summary"])
 @pytest.mark.parametrize("oversized", [False, True])
 def test_result_tasks_validate_before_writing(settings, job_type, oversized):
@@ -142,6 +143,7 @@ def test_result_tasks_validate_before_writing(settings, job_type, oversized):
         patch.object(task, "retry") as retry,
     ):
         jobs.filter.return_value.first.return_value = job
+        jobs.select_for_update.return_value.filter.return_value.first.return_value = job
         profile.return_value.auto_create_in_docs = False
         profile.return_value.send_notification_email = False
         if oversized:

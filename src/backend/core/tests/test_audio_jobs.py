@@ -335,6 +335,8 @@ def test_failure_retry_limit_preserves_all_attempts(mode):
         assert job.status == models.AudioJobStatusChoices.FAILED
         assert job.completed_at is not None
         assert complete(job, "failure", error="cannot process").status_code == 200
+        if mode == "transcoding":
+            assert job.output_object.state == models.ObjectStorageObject.State.DELETING
     assert poll(mode).status_code == 204
     jobs = list(file.audio_jobs.filter(mode=mode))
     assert len(jobs) == 4
