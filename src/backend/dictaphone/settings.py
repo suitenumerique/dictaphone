@@ -336,6 +336,9 @@ class Base(Configuration):
         environ_name="AI_SERVICE_API_KEY",
         environ_prefix=None,
     )
+    AI_SUMMARY_ENABLED = values.BooleanValue(
+        True, environ_name="AI_SUMMARY_ENABLED", environ_prefix=None
+    )
     AI_WEBHOOK_API_KEY = SecretFileValue(
         "", environ_name="AI_WEBHOOK_API_KEY", environ_prefix=None
     )

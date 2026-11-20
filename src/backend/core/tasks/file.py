@@ -462,23 +462,17 @@ def handle_transcript_received(remote_job_id, url: str | None):
     if profile.auto_create_in_docs:
         create_document_in_docs.apply_async(args=[ai_transcript_job.id])
 
-    if len(transcript.segments) == 0 and len(transcript.word_segments) == 0:
+    if not transcript.segments and not transcript.word_segments:
         logger.info("Transcript is empty, skipping summary")
-        if profile.send_notification_email:
-            send_transcription_ready_email.apply_async(
-                args=[ai_transcript_job.id],
-            )
-        return
-
-    ai_summary_job = AiFileJob.objects.create(
-        remote_job_id=None,
-        file=file,
-        type=AiJobTypeChoices.SUMMARIZE,
-        status=AiJobStatusChoices.PENDING,
-        language=ai_transcript_job.language,
-    )
-
-    _submit_summary_job(ai_summary_job, ai_transcript_job, transcript)
+    elif settings.AI_SUMMARY_ENABLED:
+        ai_summary_job = AiFileJob.objects.create(
+            remote_job_id=None,
+            file=file,
+            type=AiJobTypeChoices.SUMMARIZE,
+            status=AiJobStatusChoices.PENDING,
+            language=ai_transcript_job.language,
+        )
+        _submit_summary_job(ai_summary_job, ai_transcript_job, transcript)
 
     if profile.send_notification_email:
         send_transcription_ready_email.apply_async(
