@@ -402,6 +402,14 @@ class FileViewSet(
                     },
                     code="file_upload_state_not_pending",
                 )
+            if models.ObjectStorageObject.objects.filter(
+                pk=file.temporary_upload_object_id,
+                state=models.ObjectStorageObject.State.DELETED,
+            ).exists():
+                raise drf_exceptions.NotFound(
+                    detail="The temporary upload does not exist. Please upload the file again.",
+                    code="temporary_upload_not_found",
+                )
 
             if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
                 count = models.File.objects.count_for_upload_limit(file.creator)
@@ -519,7 +527,6 @@ class FileViewSet(
                 file.upload_state = models.FileUploadStateChoices.READY
                 file.mimetype = mimetype
                 file.size = file_size
-                file.save(update_fields=["upload_state", "mimetype", "size"])
 
                 if head_response["ContentType"] != mimetype:
                     logger.info(
@@ -541,6 +548,7 @@ class FileViewSet(
                     )
                 observe_object(file.temporary_upload_object)
                 observe_object(file.original_object, publish=True)
+                file.save(update_fields=["upload_state", "mimetype", "size"])
         except Exception as e:
             logger.exception("Failed to analyze file, reverting to pending state")
             file.upload_state = models.FileUploadStateChoices.PENDING

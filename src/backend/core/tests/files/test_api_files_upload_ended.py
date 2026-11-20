@@ -68,12 +68,20 @@ def test_api_file_upload_ended_on_wrong_upload_state():
 
 
 @patch("core.api.viewsets.start_audio_extraction")
-def test_api_file_upload_ended_missing_temporary_upload(mock_queue):
+@pytest.mark.parametrize("expired", [False, True])
+def test_api_file_upload_ended_missing_temporary_upload(mock_queue, expired):
     """A missing temporary object asks mobile clients to upload the audio again."""
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)
     file = factories.FileFactory(creator=user)
+    if expired:
+        models.ObjectStorageObject.objects.filter(
+            pk=file.temporary_upload_object_id
+        ).update(
+            state=models.ObjectStorageObject.State.DELETED,
+            deleted_at=timezone.now(),
+        )
 
     response = client.post(f"/api/v1.0/files/{file.id}/upload-ended/")
 

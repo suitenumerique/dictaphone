@@ -17,7 +17,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from storages.backends.s3 import S3Storage
 
 from core.configuration import get_profile_for_email
-from core.models import File, ObjectStorageObject
+from core.models import File, FileUploadStateChoices, ObjectStorageObject
 from core.storage import get_storage_for_object
 
 CHECKSUM_FIELDS = (
@@ -254,7 +254,7 @@ def store_result(obj, content, content_type):
 
 
 def delete_object(obj, *, respect_retention=False):
-    """Keep the cleanup record until the storage deletion succeeds."""
+    """Complete cleanup once the storage key is gone."""
     from core.storage_migration import (  # noqa: PLC0415 # pylint: disable=import-outside-toplevel
         CLEANUP_SOURCE,
         cleanup_due,
@@ -274,7 +274,11 @@ def delete_object(obj, *, respect_retention=False):
             obj.state != obj.State.DELETING or not cleanup_due(obj)
         ):
             return False
-        get_storage_for_object(obj).delete(obj.key)
+        try:
+            get_storage_for_object(obj).delete(obj.key)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") not in ABSENT_CODES:
+                raise
         if obj.checksum_source == CLEANUP_SOURCE:
             obj.delete()
         else:
@@ -314,6 +318,28 @@ def queue_object_deletion(obj, *, cleanup_now=True):
 
     if cleanup_now:
         transaction.on_commit(cleanup)
+
+
+@transaction.atomic
+def delete_expired_upload(obj, cutoff):
+    """Delete a temporary upload after serializing with upload finalization."""
+    file = File.objects.select_for_update(no_key=True).filter(pk=obj.file_id).first()
+    if file is None:
+        return False
+    attached = file.temporary_upload_object_id == obj.pk
+    if attached and file.upload_state == FileUploadStateChoices.ANALYZING:
+        return False
+    obj = (
+        file.storage_objects.select_for_update()
+        .filter(
+            pk=obj.pk, kind=ObjectStorageObject.Kind.TEMPORARY, created_at__lt=cutoff
+        )
+        .exclude(state=ObjectStorageObject.State.DELETED)
+        .first()
+    )
+    if obj is None:
+        return False
+    return delete_object(obj)
 
 
 @transaction.atomic

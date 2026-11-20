@@ -1,4 +1,4 @@
-"""Process queued storage deletions on each cron run.
+"""Sweep expired uploads and process queued deletions on each cron run.
 
 Operators can also queue outputs from historical failures or expire old pending
 AI jobs before the same sweep runs.
@@ -6,6 +6,7 @@ AI jobs before the same sweep runs.
 
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Exists, OuterRef
@@ -18,14 +19,17 @@ from core.models import (
     AiJobStatusChoices,
     AudioJob,
     AudioJobStatusChoices,
+    File,
+    FileUploadStateChoices,
     ObjectStorageObject,
 )
 from core.object_storage import (
+    delete_expired_upload,
     delete_object,
     finalize_file_deletion,
     queue_object_deletion,
 )
-from core.storage_migration import cleanup_candidates
+from core.storage_migration import CLEANUP_SOURCE, cleanup_candidates
 
 
 def failed_job_objects():
@@ -50,7 +54,7 @@ def failed_job_objects():
 class Command(BaseCommand):
     """Retry storage deletions and finalize files whose cleanup is complete."""
 
-    help = "Reconcile queued storage deletions"
+    help = "Delete expired temporary uploads and reconcile queued storage deletions"
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
@@ -109,8 +113,32 @@ class Command(BaseCommand):
         self.stdout.write(f"Queued failed job objects: {count}")
 
     def clean_objects(self, now, limit, dry_run):
-        """Process a bounded batch of due deletions."""
-        objects = cleanup_candidates(now).only("pk", "file").order_by("pk")[:limit]
+        """Sweep expired uploads and due deletions in one bounded batch."""
+        # Give temporary uploads a day plus the lifetime of their signed upload policy.
+        cutoff = now - timedelta(
+            days=1, seconds=settings.AWS_S3_UPLOAD_POLICY_EXPIRATION
+        )
+        expired_uploads = (
+            ObjectStorageObject.objects.filter(
+                kind=ObjectStorageObject.Kind.TEMPORARY, created_at__lt=cutoff
+            )
+            .exclude(checksum_source=CLEANUP_SOURCE)
+            .exclude(state=ObjectStorageObject.State.DELETED)
+            # Upload finalization may still be reading the staging key.
+            .exclude(
+                Exists(
+                    File.objects.filter(
+                        temporary_upload_object_id=OuterRef("pk"),
+                        upload_state=FileUploadStateChoices.ANALYZING,
+                    )
+                )
+            )
+        )
+        objects = (
+            (cleanup_candidates(now) | expired_uploads)
+            .only("pk", "file", "kind", "created_at", "checksum_source")
+            .order_by("pk")[:limit]
+        )
         if dry_run:
             self.stdout.write(f"Would delete: {objects.count()}")
             return
@@ -120,8 +148,16 @@ class Command(BaseCommand):
         files = set()
         for obj in objects.iterator(chunk_size=100):
             try:
-                # Respect active audio upload leases and retained migration copies.
-                if delete_object(obj, respect_retention=True):
+                if (
+                    obj.kind == obj.Kind.TEMPORARY
+                    and obj.created_at < cutoff
+                    and obj.checksum_source != CLEANUP_SOURCE
+                ):
+                    deleted = delete_expired_upload(obj, cutoff)
+                else:
+                    # Respect active audio upload leases and retained migration copies.
+                    deleted = delete_object(obj, respect_retention=True)
+                if deleted:
                     count += 1
                     files.add(obj.file_id)
             except (BotoCoreError, ClientError, ImproperlyConfigured, OSError) as exc:

@@ -1,15 +1,18 @@
-"""Exercise cleanup of storage artifacts from failed jobs."""
+"""Exercise job artifact cleanup, temporary-upload expiry, and storage retries."""
 
 from datetime import timedelta
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.utils import timezone
 
 import pytest
+from botocore.exceptions import ClientError
 
 from core import factories, models
+from core.storage import get_storage_for_object
 from core.tasks.file import handle_transcript_received
 
 pytestmark = pytest.mark.django_db
@@ -130,3 +133,75 @@ def test_late_result_cannot_revive_expired_job():
     job.refresh_from_db()
     assert job.status == "failed"
     assert job.result_object.state == "deleted"
+
+
+def test_temporary_upload_cleanup_removes_only_expired_uploads(settings):
+    """Delete expired staging keys, retain their tracking rows, and preserve originals."""
+    settings.AWS_S3_UPLOAD_POLICY_EXPIRATION = 600
+    ready, pending, analyzing, recent = factories.FileFactory.create_batch(4)
+    models.File.objects.filter(pk=ready.pk).update(upload_state="ready")
+    models.File.objects.filter(pk=analyzing.pk).update(upload_state="analyzing")
+    # Exercise both sides of the upload deadline and a finalization already in flight.
+    cutoff = timezone.now() - timedelta(days=1, seconds=600)
+    expired_ids = [
+        file.temporary_upload_object_id for file in (ready, pending, analyzing)
+    ]
+    models.ObjectStorageObject.objects.filter(pk__in=expired_ids).update(
+        created_at=cutoff - timedelta(seconds=1)
+    )
+    models.ObjectStorageObject.objects.filter(
+        pk=recent.temporary_upload_object_id
+    ).update(created_at=cutoff + timedelta(minutes=5))
+    # Write both keys so the test checks the storage deletion as well as DB state.
+    temporary = ready.temporary_upload_object
+    storage = get_storage_for_object(temporary)
+    storage.save(temporary.key, BytesIO(b"temporary"))
+    storage.save(ready.original_object.key, BytesIO(b"original"))
+
+    call_command("cleanup_storage_objects", stdout=StringIO())
+
+    for file, state in zip(
+        (ready, pending, analyzing, recent),
+        ("deleted", "deleted", "pending", "pending"),
+        strict=True,
+    ):
+        file.refresh_from_db()
+        assert file.temporary_upload_object.state == state
+        assert bool(file.temporary_upload_object.deleted_at) == (state == "deleted")
+    assert not storage.exists(temporary.key)
+    assert storage.exists(ready.original_object.key)
+    stdout = StringIO()
+    call_command("cleanup_storage_objects", dry_run=True, stdout=stdout)
+    assert stdout.getvalue() == "Would delete: 0\n"
+
+
+@pytest.mark.parametrize("missing_code", [None, "404", "NoSuchKey", "NotFound"])
+def test_expired_upload_is_marked_deleted_once_storage_key_is_gone(
+    settings, missing_code
+):
+    """Retry a transient error and record deletion once storage confirms absence."""
+    settings.AWS_S3_UPLOAD_POLICY_EXPIRATION = 60
+    obj = factories.FileFactory().temporary_upload_object
+    models.ObjectStorageObject.objects.filter(pk=obj.pk).update(
+        created_at=timezone.now() - timedelta(days=2)
+    )
+    # Providers may return success or an explicit missing-key error for an absent key.
+    missing = (
+        ClientError({"Error": {"Code": missing_code}}, "DeleteObject")
+        if missing_code is not None
+        else None
+    )
+    with patch("core.object_storage.get_storage_for_object") as storage:
+        storage.return_value.delete.side_effect = [OSError("unavailable"), missing]
+        with pytest.raises(CommandError, match="1 deletions failed"):
+            call_command(
+                "cleanup_storage_objects", stdout=StringIO(), stderr=StringIO()
+            )
+        obj.refresh_from_db()
+        assert obj.state == "pending"
+        assert obj.deleted_at is None
+
+        call_command("cleanup_storage_objects", stdout=StringIO())
+    obj.refresh_from_db()
+    assert obj.state == "deleted"
+    assert obj.deleted_at is not None
