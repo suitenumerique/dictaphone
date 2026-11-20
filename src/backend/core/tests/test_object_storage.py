@@ -428,7 +428,7 @@ def test_cleanup_continues_after_individual_deletion_failures(error):
     assert [call.args[0] for call in storage.return_value.delete.call_args_list] == [
         obj.key for obj in objects
     ]
-    assert stdout.getvalue() == "Deleted: 1\n"
+    assert stdout.getvalue().splitlines()[-1] == "Deleted: 1"
     assert stderr.getvalue().splitlines() == [
         f"object={obj.pk}: {type(error).__name__}" for obj in objects[:2]
     ]
@@ -522,7 +522,7 @@ def test_cleanup_limit_counts_attempts_and_skips_objects_not_due():
             "cleanup_storage_objects", limit=2, stdout=stdout, stderr=StringIO()
         )
     assert [call.args[0] for call in delete.call_args_list] == objects[1:3]
-    assert stdout.getvalue() == "Deleted: 0\n"
+    assert stdout.getvalue().splitlines()[-1] == "Deleted: 0"
 
 
 def test_cleanup_rechecks_current_owner_retention_before_deleting():
@@ -562,4 +562,4 @@ def test_cleanup_rechecks_current_owner_retention_before_deleting():
     storage.assert_not_called()
     obj.refresh_from_db()
     assert obj.state == "deleting"
-    assert stdout.getvalue() == "Deleted: 0\n"
+    assert stdout.getvalue().splitlines()[-1] == "Deleted: 0"

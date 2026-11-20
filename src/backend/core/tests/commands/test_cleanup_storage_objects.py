@@ -71,7 +71,7 @@ def test_job_cleanup_backfills_and_expires_only_selected_jobs():
         expires_at=timezone.now() + timedelta(minutes=10),
     )
     stdout = StringIO()
-    options = {"failed_jobs": True, "pending_ai_hours": 48}
+    options = {"failed_jobs": True, "pending_ai_hours": 48, "batch_size": 1}
     with patch("core.object_storage.get_storage_for_object") as storage:
         call_command("cleanup_storage_objects", dry_run=True, stdout=stdout, **options)
         assert "Would fail pending AI jobs: 1" in stdout.getvalue()
@@ -205,3 +205,49 @@ def test_expired_upload_is_marked_deleted_once_storage_key_is_gone(
     obj.refresh_from_db()
     assert obj.state == "deleted"
     assert obj.deleted_at is not None
+
+
+def test_cleanup_batches_continue_after_a_failure_and_respect_the_limit():
+    """Attempt each selected object once and retry failures on the next run."""
+    objects = models.ObjectStorageObject.objects.filter(
+        pk__in=[
+            file.temporary_upload_object_id
+            for file in factories.FileFactory.create_batch(3)
+        ]
+    )
+    objects.update(created_at=timezone.now() - timedelta(days=2))
+    first, second, third = objects.order_by("pk").values_list("pk", flat=True)
+    stdout = StringIO()
+    stderr = StringIO()
+    with patch("core.object_storage.get_storage_for_object") as storage:
+        storage.return_value.delete.side_effect = [OSError("unavailable"), None]
+        with (
+            patch(
+                "core.management.commands.cleanup_storage_objects.monotonic",
+                side_effect=[0, 19, 20],
+            ),
+            pytest.raises(CommandError, match="1 deletions failed"),
+        ):
+            call_command(
+                "cleanup_storage_objects",
+                batch_size=1,
+                limit=2,
+                stdout=stdout,
+                stderr=stderr,
+            )
+
+        assert dict(objects.values_list("pk", "state")) == {
+            first: "pending",
+            second: "deleted",
+            third: "pending",
+        }
+        assert stdout.getvalue().splitlines() == [
+            "Progress: processed=2, deleted=1, failed=1",
+            "Deleted: 1",
+        ]
+        assert stderr.getvalue() == f"object={first}: OSError\n"
+
+        storage.return_value.delete.side_effect = None
+        call_command("cleanup_storage_objects", batch_size=1, stdout=StringIO())
+
+    assert not objects.exclude(state="deleted").exists()
