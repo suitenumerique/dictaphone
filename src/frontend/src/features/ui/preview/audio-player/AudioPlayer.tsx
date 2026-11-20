@@ -64,17 +64,16 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     const audioRef = useRef<HTMLAudioElement>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
-    const [duration, setDuration] = useState(durationSecondsEstimate ?? 0)
+    const [mediaDuration, setMediaDuration] = useState<number | null>(null)
     const [playbackRate, setPlaybackRate] = useState(1)
+    const duration = mediaDuration ?? durationSecondsEstimate ?? 0
 
     const seekTo = useCallback(
       (seconds: number) => {
-        if (!audioRef.current) return
+        if (!audioRef.current || !Number.isFinite(seconds)) return
 
         const maxTime =
-          Number.isFinite(duration) && duration > 0
-            ? duration
-            : audioRef.current.duration || 0
+          Number.isFinite(duration) && duration > 0 ? duration : seconds
 
         const nextTime = Math.max(0, Math.min(seconds, maxTime))
         audioRef.current.currentTime = nextTime
@@ -92,21 +91,37 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       [seekTo]
     )
 
-    // Handle play/pause
-    const togglePlayPause = useCallback(() => {
-      if (audioRef.current) {
-        if (isPlaying) {
-          audioRef.current.pause()
-        } else {
-          audioRef.current.play()
-        }
+    const playAudio = useCallback(() => {
+      const audio = audioRef.current
+      if (!audio) return
+
+      if (!audio.hasAttribute('src')) {
+        // Keep seeks made before the source was attached.
+        const startTime = audio.currentTime
+        audio.src = src
+        audio.currentTime = startTime
       }
-    }, [isPlaying])
+
+      audio.play().catch((error) => {
+        if (error.name !== 'AbortError') console.error(error)
+      })
+    }, [src])
+
+    const togglePlayPause = useCallback(() => {
+      const audio = audioRef.current
+      if (!audio) return
+
+      if (audio.paused) {
+        playAudio()
+      } else {
+        audio.pause()
+      }
+    }, [playAudio])
 
     // Audio event handlers
     const handleLoadedMetadata = useCallback(() => {
       if (audioRef.current) {
-        setDuration(audioRef.current.duration)
+        setMediaDuration(audioRef.current.duration)
         audioRef.current.playbackRate = playbackRate
       }
     }, [playbackRate])
@@ -135,22 +150,12 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     }, [onEnded])
 
     const handleRewind10Seconds = useCallback(() => {
-      if (audioRef.current) {
-        const nextTime = Math.max(0, currentTime - 10)
-        audioRef.current.currentTime = nextTime
-        setCurrentTime(nextTime)
-        onTimeUpdate?.(nextTime)
-      }
-    }, [currentTime, onTimeUpdate])
+      seekTo(currentTime - 10)
+    }, [currentTime, seekTo])
 
     const handleForward10Seconds = useCallback(() => {
-      if (audioRef.current) {
-        const nextTime = Math.min(duration, currentTime + 10)
-        audioRef.current.currentTime = nextTime
-        setCurrentTime(nextTime)
-        onTimeUpdate?.(nextTime)
-      }
-    }, [currentTime, duration, onTimeUpdate])
+      seekTo(Math.min(duration, currentTime + 10))
+    }, [currentTime, duration, seekTo])
 
     const handlePlaybackRateChange = useCallback(() => {
       setPlaybackRate((oldRate) => {
@@ -187,14 +192,9 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
     const handleSeek = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newTime = parseFloat(e.target.value)
-        setCurrentTime(newTime)
-        onTimeUpdate?.(newTime)
-        if (audioRef.current) {
-          audioRef.current.currentTime = newTime
-        }
+        seekTo(parseFloat(e.target.value))
       },
-      [onTimeUpdate]
+      [seekTo]
     )
 
     useEffect(() => {
@@ -230,27 +230,29 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       handlePlaybackRateChange,
     ])
 
-    // Auto-play effect
-    useEffect(() => {
-      if (autoPlay && audioRef.current) {
-        audioRef.current.play().catch(console.error)
-      }
-    }, [autoPlay, src])
-
     // Reset player state when source changes
     useEffect(() => {
-      if (audioRef.current) {
-        // Reset audio element
-        audioRef.current.currentTime = 0
-        audioRef.current.playbackRate = 1
+      const audio = audioRef.current
+      if (!audio) return
 
-        // Reset state
-        setIsPlaying(false)
-        setCurrentTime(0)
-        setDuration(0)
-        setPlaybackRate(1)
+      audio.currentTime = 0
+      audio.playbackRate = 1
+      setIsPlaying(false)
+      setCurrentTime(0)
+      setMediaDuration(null)
+      setPlaybackRate(1)
+
+      return () => {
+        if (audio.hasAttribute('src')) {
+          audio.removeAttribute('src')
+          audio.load()
+        }
       }
     }, [src])
+
+    useEffect(() => {
+      if (autoPlay) playAudio()
+    }, [autoPlay, playAudio])
 
     const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0
     const remainingTime = duration > 0 ? Math.max(duration - currentTime, 0) : 0
@@ -261,7 +263,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <audio
           ref={audioRef}
-          src={src}
+          preload="none"
           onCanPlay={handleLoadedMetadata}
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
