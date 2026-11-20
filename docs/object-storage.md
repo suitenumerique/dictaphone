@@ -177,6 +177,32 @@ while a signed audio upload URL remains valid. Once the task proceeds to
 for their retained download URLs to expire. Successful cleanup removes these
 copy records.
 
+### Reconcile pending objects after the source stops receiving writes
+
+A source bucket can still have `pending` rows after the routing switch. For
+example, the 0.16.x backfill could record a checksum for an original that it found
+without publishing the row. The migration defers pending rows, so you may need
+to reconcile them before rerunning it.
+
+Run reconciliation once uploads and background jobs can no longer write to the
+source bucket. It checks every pending row in the specified physical bucket,
+regardless of object kind, file lifecycle, or grace period. Preview the results
+first, then apply them.
+
+```sh
+python manage.py reconcile_pending_storage_objects --source-bucket old-bucket --dry-run --limit 100
+python manage.py reconcile_pending_storage_objects --source-bucket old-bucket
+python manage.py migrate_storage_objects --source-bucket old-bucket
+```
+
+Reconciliation uses read-only S3 `HEAD` requests. It marks present keys
+`available` and confirmed missing keys `deleted` in the database. Permission
+errors and other failed checks leave the affected rows pending and are reported
+by object UUID. The migration rerun applies the usual eligibility and retention
+rules to the reconciled rows.
+
+### Retire the source bucket
+
 Before removing a source bucket's configuration or credentials, verify that no
 non-deleted authoritative object still references the bucket and that no
 cleanup obligations for the bucket remain. Deferred audio
