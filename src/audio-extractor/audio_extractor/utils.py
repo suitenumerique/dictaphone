@@ -2,6 +2,7 @@
 
 import logging
 import os
+import select
 import shutil
 import subprocess
 import threading
@@ -15,6 +16,7 @@ from urllib.parse import urlsplit, urlunsplit
 import requests
 
 from audio_extractor.http_client import get_session, storage_target
+from audio_extractor.sandbox import command_environment, sandbox_command
 
 LOGGER = logging.getLogger(__name__)
 
@@ -76,9 +78,19 @@ def _is_retryable_transfer_error(exc: Exception) -> bool:
     )
 
 
-def _capture_stderr(stream, tail: bytearray) -> None:
+def _capture_stderr(
+    stream, tail: bytearray, stop: threading.Event | None = None
+) -> None:
     """Drain stderr continuously, retaining only a bounded diagnostic tail."""
-    while chunk := stream.read1(8192):
+    while True:
+        if stop is not None:
+            if stop.is_set():
+                return
+            if not select.select([stream], [], [], 0.1)[0]:
+                continue
+        chunk = stream.read1(8192)
+        if not chunk:
+            return
         tail.extend(chunk)
         del tail[:-STDERR_TAIL_BYTES]
 
@@ -88,24 +100,37 @@ def _run(command: list[str], timeout: float, *, capture_output: bool = False) ->
 
     With capture_output, return stdout separately (for example, probe JSON).
     """
+    # pylint: disable=too-many-locals
     tail = bytearray()
+    stop = threading.Event()
     try:
         read_fd, write_fd = os.pipe()
         with os.fdopen(read_fd, "rb") as reader, os.fdopen(write_fd, "wb") as writer:
-            drain = threading.Thread(target=_capture_stderr, args=(reader, tail))
+            drain = threading.Thread(
+                target=_capture_stderr, args=(reader, tail, stop), daemon=True
+            )
             drain.start()
             try:
-                result = subprocess.run(  # noqa: S603 - assembled internally
-                    command,
-                    check=True,
-                    stdout=subprocess.PIPE if capture_output else writer,
-                    stderr=writer,
-                    text=True,
-                    timeout=timeout,
-                )
+                with sandbox_command(command) as wrapped:
+                    result = subprocess.run(  # noqa: S603 - assembled internally
+                        wrapped,
+                        check=True,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE if capture_output else writer,
+                        stderr=writer,
+                        text=True,
+                        timeout=timeout,
+                        env=command_environment(),
+                    )
             finally:
                 writer.close()
-                drain.join()
+                drain.join(timeout=2)
+                if drain.is_alive():
+                    stop.set()
+                    drain.join()
+                    raise ProcessingError(
+                        "Media diagnostic stream remained open after command cleanup"
+                    )
     except (OSError, subprocess.SubprocessError) as exc:
         details = tail.decode(errors="replace")
         if isinstance(exc, (subprocess.CalledProcessError, subprocess.TimeoutExpired)):

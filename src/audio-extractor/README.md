@@ -5,6 +5,98 @@ at a time. Set `AUDIO_EXTRACTOR_MODE` to `transcoding` (the default) or `validat
 An empty queue does not stop the worker; it waits five seconds before polling again.
 API failures use exponential retries with jitter, capped at approximately 30 seconds.
 
+## Optional gVisor media isolation
+
+Set `AUDIO_EXTRACTOR_MEDIA_SANDBOX=gvisor` to run `ffmpeg`, `ffprobe`, `opusinfo`,
+and `opusdec` in a fresh gVisor sandbox for every command. The default is `none`,
+which preserves direct execution for existing deployments and local development.
+When enabled, sandbox failures never fall back to direct execution. A startup
+check runs sandboxed FFmpeg before the worker becomes ready or claims a job.
+
+The image bundles `runsc` release `20261102.0` and its companion binaries, verified
+against the committed SHA-512 checksums. Updating the release requires updating
+both `GVISOR_VERSION` in the Dockerfile and `gvisor-SHA512SUMS`. The separate,
+read-only `/opt/media-rootfs` contains only the four media binaries, their ELF
+dependencies, linker cache when applicable, and empty mount-point directories.
+No Docker socket, nested Docker daemon, Kubernetes RuntimeClass, KVM device, or
+node installation of gVisor is needed.
+
+Python retains responsibility for HTTP and credentials. The sandbox uses Systrap,
+no networking, no capabilities, a clean environment, private `/tmp`, and a bind
+mount of only the current job at `/job`. Output files must be regular files with
+a single link before the worker accesses them outside the sandbox. Runtime state
+and temporary mount setup live under the writable work volume. Nested cgroup
+management is disabled: the Kubernetes container's resource limits still apply
+to the runtime and media processes together.
+
+The launcher uses an explicit OCI specification with a single UID/GID mapping
+from sandbox root to the worker's UID/GID. This uses runsc's native unprivileged
+execution path, without the `--rootless` convenience flag or setuid helpers.
+The supervisor explicitly force-deletes the sandbox after killing an attempt;
+process-group cancellation alone is insufficient for detached runtime processes.
+Cleanup failure stops the worker before it can reuse the workspace.
+
+For a staging experiment on Kubernetes with AppArmor field support (1.30+), use
+these Helm values alongside the image built from this source:
+
+```yaml
+audioExtractor:
+  envVars:
+    AUDIO_EXTRACTOR_MEDIA_SANDBOX: gvisor
+  securityContext:
+    seccompProfile:
+      type: Unconfined
+    appArmorProfile:
+      type: Unconfined
+```
+
+These container-level overrides supersede the Pod's default seccomp profile.
+Other chart defaults remain in force: UID/GID 10000, dropped capabilities,
+no privilege escalation, and a read-only root filesystem. No annotation is
+required with the modern AppArmor field. The outer worker's AppArmor and seccomp
+restrictions are relaxed; gVisor still applies its own sandbox isolation. This
+configuration does not satisfy the Restricted Pod Security Standard. Ops must
+check admission policy, SELinux/AppArmor restrictions, and whether node kernels
+permit unprivileged nested user namespaces and mounts. The settings do not
+enable user namespaces if the host disables them. For production, evaluate
+targeted outer-container profiles instead of carrying over these broad overrides.
+
+Build the staging image from the repository root (publishing is a separate step):
+
+```sh
+docker build -f src/audio-extractor/Dockerfile \
+  --target audio-extractor-production \
+  -t lasuite/dictaphone-audio-extractor:gvisor-staging .
+```
+
+The staging deployment values in `dictaphone-deploiement/env/staging` select that
+tag and enable the overrides above for both worker modes. Once deployed, check
+for `gVisor media sandbox startup check passed`, both workers' readiness, a
+successful transcoding task, and a successful validation task. Namespace or mount
+permission errors at startup mean the effective node/container policy still
+blocks sandbox creation. Missing-library errors indicate a rootfs packaging issue.
+Removing the staging overrides, setting the sandbox mode to `none`, and restoring
+the previous image tag rolls back the experiment.
+
+Real-runtime integration tests cover conversion/probing/validation, file and
+network isolation, command timeout cleanup, and supervisor cancellation. To run
+them on a Linux host with the runtime installed and user namespaces available:
+
+```sh
+cd src/audio-extractor
+uv run python build-media-rootfs.py /tmp/dictaphone-media-rootfs
+RUN_GVISOR_TESTS=1 GVISOR_ROOTFS=/tmp/dictaphone-media-rootfs \
+  uv run pytest tests/test_sandbox_integration.py
+```
+
+`GVISOR_RUNSC` can override `/usr/local/bin/runsc` for these tests. Its
+`gvisor-bin/` companions must be alongside it. Testing on a Linux host verifies
+the launcher; the built Alpine image and actual staging policy must also be
+validated. On Docker, nested execution may require
+`--security-opt seccomp=unconfined --security-opt apparmor=unconfined`.
+See [gVisor rootless operation](https://gvisor.dev/docs/user_guide/rootless/)
+and [Kubernetes AppArmor configuration](https://kubernetes.io/docs/tutorials/security/apparmor/).
+
 ## Worker lifecycle and health
 
 The supervisor accepts tasks for `AUDIO_EXTRACTOR_MAX_RUNTIME_SECONDS` (900 seconds,
@@ -140,6 +232,9 @@ Worker settings use the `AUDIO_EXTRACTOR_` prefix:
 | `AUDIO_EXTRACTOR_COMMAND_TIMEOUT` | No | `900` | Timeout for each media command in seconds |
 | `AUDIO_EXTRACTOR_MAX_INPUT_BYTES` | No | `1073741824` | Maximum downloaded file size in bytes (1 GiB) |
 | `AUDIO_EXTRACTOR_WORK_DIR` | No | `/work` | Directory for temporary job files |
+| `AUDIO_EXTRACTOR_MEDIA_SANDBOX` | No | `none` | Media command execution: `none` or `gvisor`; sandbox startup failures are fatal when enabled |
+| `AUDIO_EXTRACTOR_RUNSC_PATH` | No | `/usr/local/bin/runsc` | Bundled gVisor runtime executable |
+| `AUDIO_EXTRACTOR_SANDBOX_ROOTFS` | No | `/opt/media-rootfs` | Read-only minimal media filesystem |
 | `SENTRY_DSN` | No | — | Sentry DSN; Sentry is disabled when unset |
 | `SENTRY_TRACES_SAMPLE_RATE` | No | `0.0` | Fraction of transactions to trace, from `0.0` (none) to `1.0` (all) |
 | `AUDIO_EXTRACTOR_ENVIRONMENT` | No | — | Deployment environment used by Sentry and the HTTP user agent |

@@ -4,6 +4,7 @@ import logging
 import re
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -18,6 +19,7 @@ from audio_extractor.api_models import (
 from audio_extractor.audio_transcode import _convert
 from audio_extractor.audio_validate import _validate_opus
 from audio_extractor.http_client import get_session
+from audio_extractor.sandbox import media_sandbox
 from audio_extractor.settings import Settings
 from audio_extractor.supervisor import supervise
 from audio_extractor.utils import (
@@ -140,10 +142,15 @@ def _post_completion(
     LOGGER.info("Reported %s completion for job %s", payload.status, payload.id)
 
 
-def _prepare_job_directory(config: Settings) -> tempfile.TemporaryDirectory[str]:
+@contextmanager
+def _prepare_job_directory(config: Settings):
     """Create an isolated workspace for one job."""
     config.work_dir.mkdir(parents=True, exist_ok=True)
-    return tempfile.TemporaryDirectory(prefix="audio-job-", dir=config.work_dir)
+    with tempfile.TemporaryDirectory(
+        prefix="audio-job-", dir=config.work_dir
+    ) as directory:
+        with media_sandbox(config, Path(directory)):
+            yield directory
 
 
 def process_transcoding_job(config: Settings, job: TranscodingJob) -> None:
