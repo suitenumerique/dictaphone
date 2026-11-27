@@ -377,7 +377,7 @@ export const AudioRecorder = () => {
         format: FileFormat.M4A,
         preset: FilePreset.High,
         directory: FileDirectory.Document,
-        subDirectory: 'Assistant Transcripts',
+        subDirectory: 'Transcripts',
         rotateIntervalBytes: 750_000, // ~750 Ko ~ 30s
         fileNamePrefix: `${id}${FILENAME_PREFIX_SEPARATOR}`,
       })

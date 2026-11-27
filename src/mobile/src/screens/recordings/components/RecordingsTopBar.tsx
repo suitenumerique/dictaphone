@@ -7,7 +7,7 @@ import { LoginButton } from '@/components/LoginButton'
 import { AppText } from '@/components/AppText'
 import { colors } from '@/components/colors'
 // @ts-expect-error Icon
-import LogoWithName from '@/assets/logo-with-name.svg'
+import LogoTranscripts from '@/assets/logo-single-line.svg'
 
 type RecordingsTopBarProps = {
   isOnline: boolean
@@ -29,7 +29,7 @@ export function RecordingsTopBar({
   return (
     <View style={styles.topBar}>
       <View style={styles.topBarHeader}>
-        <LogoWithName style={styles.title} />
+        <LogoTranscripts style={styles.title} />
         <MainMenu />
       </View>
       {isOnline && !isLoading && !isLoggedIn && (

@@ -23,7 +23,7 @@ import { AppText } from '@/components/AppText'
 import { BASE_URL } from '@/api/constants'
 import { colors } from '@/components/colors'
 // @ts-expect-error Icon
-import LogoWithName from '../assets/logo-with-name.svg'
+import LogoTranscripts from '../assets/logo-single-line.svg'
 import { AppLanguage } from '@/types/settings'
 import { ApiUser } from '@/features/auth/api/ApiUser'
 import { useUserStore } from '@/services/userStore'
@@ -65,7 +65,7 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
   { appLanguage: 'en', apiLanguage: 'en-us' },
 ]
 const SUPPORT_EMAIL = 'support-transcripts@numerique.gouv.fr'
-const SUPPORT_SUBJECT = 'Assistant Transcripts - Support'
+const SUPPORT_SUBJECT = 'Transcripts - Support'
 
 type StackNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
@@ -205,7 +205,7 @@ export default function InfoScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.brandHeader}>
-          <LogoWithName />
+          <LogoTranscripts />
           <AppText variant="heading">{t('info.title')}</AppText>
         </View>
 
