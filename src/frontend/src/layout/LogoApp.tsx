@@ -4,7 +4,7 @@ export default function LogoApp({
   alt = '',
 }: {
   height?: number
-  variant?: 'picto' | 'multiline' | 'single-line'
+  variant?: 'picto' | 'single-line'
   alt?: string
 }) {
   return (

@@ -17,15 +17,15 @@
   <a href="https://github.com/suitenumerique/dictaphone/issues/new?assignees=&labels=bug&template=Bug_report.md">Bug reports</a>
 </p>
 
-# Assistant Transcripts (Dictaphone)
+# Transcripts (Dictaphone)
 
-This repository is the source code for **Assistant Transcripts** — a transcription and meeting workflow product aimed at teams in the French public sector (central administrations and supervised bodies). It helps agents collaborate around recordings and meetings.
+This repository is the source code for **Transcripts** — a transcription and meeting workflow product aimed at teams in the French public sector (central administrations and supervised bodies). It helps agents collaborate around recordings and meetings.
 
 - **Public web application:** [transcripts.numerique.gouv.fr](https://transcripts.numerique.gouv.fr/)
-- [**iOS Application**](https://apps.apple.com/fr/app/assistant-transcripts/id6762260492)
+- [**iOS Application**](https://apps.apple.com/fr/app/transcripts/id6762260492)
 - [**Android Application**](https://play.google.com/store/apps/details?id=fr.gouv.assistant_transcripts)
 
-Assistant Transcripts is developed and operated by **DINUM** ([Direction interministérielle du numérique](https://www.numerique.gouv.fr/)), as part of the broader **La Suite numérique** ecosystem.
+Transcripts is developed and operated by **DINUM** ([Direction interministérielle du numérique](https://www.numerique.gouv.fr/)), as part of the broader **La Suite numérique** ecosystem.
 
 _NB: The project codename and Python package name remain **Dictaphone**; GitHub and CI refer to this repo as `dictaphone`._
 

@@ -14,7 +14,6 @@ export default function LegalTermsPage() {
 
   return (
     <BaseLayout
-      showShowcaseAssistant={false}
       className="legal-page"
       heading={t('legalTerms.title')}
       pageTitle={t('legalTerms.title')}

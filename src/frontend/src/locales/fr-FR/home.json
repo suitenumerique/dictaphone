@@ -10,9 +10,9 @@
   "discoverLaSuiteAriaLabel": "Découvrir LaSuite (nouvelle fenêtre)",
   "images": {
     "appLogoAlt": "Logo Transcripts",
-    "heroAlt": "Illustration de l'Assistant Transcripts",
-    "example1Alt": "Exemple 1 de l'application mobile Assistant Transcripts",
-    "example2Alt": "Exemple 2 de l'application mobile Assistant Transcripts",
-    "example3Alt": "Exemple 3 de l'application mobile Assistant Transcripts"
+    "heroAlt": "Illustration de Transcripts",
+    "example1Alt": "Exemple 1 de l'application mobile Transcripts",
+    "example2Alt": "Exemple 2 de l'application mobile Transcripts",
+    "example3Alt": "Exemple 3 de l'application mobile Transcripts"
   }
 }

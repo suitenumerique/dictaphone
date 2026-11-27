@@ -36,14 +36,14 @@ export default function ConnectedLayout({
       hideLeftPanelOnDesktop={true}
       icon={
         readonly ? (
-          <LogoApp variant="multiline" height={42} alt="" />
+          <LogoApp height={42} alt="" />
         ) : (
           <Link
             to="/recordings"
             aria-label={t('home')}
             style={{ textDecoration: 'none' }}
           >
-            <LogoApp variant="multiline" height={42} alt="" />
+            <LogoApp height={42} alt="" />
           </Link>
         )
       }

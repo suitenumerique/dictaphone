@@ -55,11 +55,7 @@ export default function RestrictedPage() {
   if (!fromBackend) return <Redirect to="/" replace />
 
   return (
-    <BaseLayout
-      className="restricted-page"
-      showShowcaseAssistant={false}
-      pageTitle={t('restricted.title')}
-    >
+    <BaseLayout className="restricted-page" pageTitle={t('restricted.title')}>
       <div className="restricted-page__content">
         <h1>{t('restricted.title')}</h1>
         <Alert

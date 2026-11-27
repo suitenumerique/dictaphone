@@ -15,11 +15,7 @@ export default function HomePage() {
 
   if (!isLoggedIn) {
     return (
-      <BaseLayout
-        className="home-page"
-        showShowcaseAssistant={true}
-        pageTitle={t('layout:pageTitles.home')}
-      >
+      <BaseLayout className="home-page" pageTitle={t('layout:pageTitles.home')}>
         <>
           <img
             className="home-page__app-logo"

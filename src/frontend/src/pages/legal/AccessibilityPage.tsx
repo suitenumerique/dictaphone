@@ -14,7 +14,6 @@ export default function AccessibilityPage() {
 
   return (
     <BaseLayout
-      showShowcaseAssistant={false}
       className="legal-page"
       heading={t('accessibility.title')}
       pageTitle={t('accessibility.title')}

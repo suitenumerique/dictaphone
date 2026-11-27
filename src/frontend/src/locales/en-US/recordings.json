@@ -1,5 +1,5 @@
 {
-  "title": "Assistant Transcripts (beta)",
+  "title": "Transcripts",
   "newRecording": "New recording",
   "myRecordings": "My recordings",
   "mySavedRecordings": "My saved recordings",
@@ -9,7 +9,7 @@
   "notFound": "Recording not found",
   "deleted": "Deleted",
   "subtitle": "Record your in-person meetings and access your transcripts.",
-  "logoAlt": "Assistant Transcripts",
+  "logoAlt": "Transcripts",
   "uploadButtonAriaLabel": "Upload recordings",
   "uploadInputAriaLabel": "Upload audio recordings",
   "metadata": {

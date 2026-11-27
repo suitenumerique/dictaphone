@@ -49,7 +49,7 @@ export function HelpMenu() {
 
   const handleSupportClick = useCallback(() => {
     const to = 'support-transcripts@numerique.gouv.fr'
-    const subject = encodeURIComponent('Assistant Transcripts - Support')
+    const subject = encodeURIComponent('Transcripts - Support')
 
     const info = [
       'Info:',

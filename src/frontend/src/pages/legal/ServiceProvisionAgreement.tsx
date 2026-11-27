@@ -14,7 +14,6 @@ export default function ServiceProvisionAgreementPage() {
 
   return (
     <BaseLayout
-      showShowcaseAssistant={false}
       className="legal-page"
       heading={t('serviceProvisionAgreement.title')}
       pageTitle={t('serviceProvisionAgreement.title')}

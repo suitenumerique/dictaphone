@@ -14,7 +14,6 @@ export default function PersonalDataPage() {
 
   return (
     <BaseLayout
-      showShowcaseAssistant={false}
       className="legal-page"
       heading={t('personalData.title')}
       pageTitle={t('personalData.title')}

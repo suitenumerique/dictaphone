@@ -14,12 +14,10 @@ import { usePageTitle } from '@/layout/usePageTitle'
 export function BaseLayout({
   children,
   className,
-  showShowcaseAssistant,
   pageTitle,
   heading,
 }: PropsWithChildren & {
   className?: string
-  showShowcaseAssistant: boolean
   heading?: string
   pageTitle: string
 }) {
@@ -89,32 +87,6 @@ export function BaseLayout({
       <div className="base-layout__inner-container">
         {heading && <h1 className="base-layout__title">{heading}</h1>}
         <section className="base-layout__content">{children}</section>
-        {showShowcaseAssistant && (
-          <div className="base-layout__showcase-assistant">
-            <img
-              alt={t('layout:images.assistantLogoAlt')}
-              src="/assets/logo-lasuite-assistant.svg"
-            />
-            <p>{t('introLasuiteAssistant')}</p>
-            <div className="base-layout__showcase-assistant__buttons">
-              <Button
-                variant="bordered"
-                href="https://assistant.numerique.gouv.fr/"
-                target="_blank"
-                aria-label={t('discoverAssistantAriaLabel')}
-              >
-                {t('discoverAssistant')}
-              </Button>
-              <Button
-                href="https://lasuite.numerique.gouv.fr/"
-                target="_blank"
-                aria-label={t('discoverLaSuiteAriaLabel')}
-              >
-                {t('discoverLaSuite')}
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
       <Footer
         externalLinks={[
