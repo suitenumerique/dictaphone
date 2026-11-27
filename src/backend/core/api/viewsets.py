@@ -6,7 +6,7 @@ from logging import getLogger
 from urllib.parse import unquote, urljoin, urlparse
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 
 from botocore.exceptions import ClientError
 from django_filters import rest_framework as django_filters
+from psycopg.errors import UniqueViolation
 from pydantic import ValidationError
 from requests import RequestException
 from rest_framework import (
@@ -81,6 +82,14 @@ MEDIA_STORAGE_URL_PATTERN = re.compile(
     rf"(?P<key>{FILE_FOLDER:s}/(?P<pk>{UUID_REGEX:s})"
     rf"(?:\.{FILE_EXT_REGEX:s}|\.audio\.ogg|/audio/{UUID_REGEX:s}\.ogg))$"
 )
+
+
+class StorageLocationConflict(drf_exceptions.APIException):
+    """The file's storage location has already been allocated."""
+
+    status_code = drf_status.HTTP_409_CONFLICT
+    default_detail = _("A file already uses this storage location.")
+    default_code = "storage_location_conflict"
 
 
 class NestedGenericViewSet(viewsets.GenericViewSet):
@@ -357,7 +366,18 @@ class FileViewSet(
                     _("You have reached the maximum number of files for this type.")
                 )
 
-        serializer.save(creator=self.request.user)
+        try:
+            serializer.save(creator=self.request.user)
+        except IntegrityError as exc:
+            cause = exc.__cause__
+            diagnostics = getattr(cause, "diag", None)
+            if (
+                isinstance(cause, UniqueViolation)
+                and getattr(diagnostics, "constraint_name", None)
+                == "storage_object_location_unique"
+            ):
+                raise StorageLocationConflict() from exc
+            raise
 
     def perform_destroy(self, instance):
         """Override to implement a soft delete instead of dumping the record in database."""

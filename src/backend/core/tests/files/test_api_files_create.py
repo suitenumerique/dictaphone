@@ -3,6 +3,7 @@ Tests for files API endpoint in dictaphone's core app: create
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
@@ -17,7 +18,7 @@ from rest_framework.test import APIClient
 
 from core import factories
 from core.configuration import clear_configuration_cache
-from core.models import File, FileUploadStateChoices
+from core.models import File, FileUploadStateChoices, ObjectStorageObject
 
 pytestmark = pytest.mark.django_db
 
@@ -388,6 +389,34 @@ def test_api_files_create_force_id_existing():
     assert response.json() == {
         "id": ["A file with this ID already exists. You cannot override it."]
     }
+
+
+def test_api_files_create_storage_location_conflict(settings):
+    """Return 409 when the database detects a collision missed by validation."""
+    user = factories.UserFactory()
+    existing_file = factories.FileFactory(creator=user)
+    new_id = uuid4()
+    key = f"{settings.FILE_UPLOAD_TMP_PATH}/{new_id}.ogg"
+    ObjectStorageObject.objects.filter(
+        pk=existing_file.temporary_upload_object_id
+    ).update(key=key)
+    client = APIClient()
+    client.force_login(user)
+
+    # Model the race where validation did not see the conflicting storage row.
+    with patch.object(ObjectStorageObject, "validate_constraints"):
+        response = client.post(
+            "/api/v1.0/files/",
+            {"id": str(new_id), "duration_seconds": 1, "filename": "recording.ogg"},
+            format="json",
+        )
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert response.json() == {"detail": "A file already uses this storage location."}
+    assert not File.objects.filter(pk=new_id).exists()
+    assert not ObjectStorageObject.objects.filter(file_id=new_id).exists()
+    existing_file.temporary_upload_object.refresh_from_db()
+    assert existing_file.temporary_upload_object.key == key
 
 
 @pytest.mark.django_db(transaction=True)
